@@ -1,0 +1,93 @@
+/**
+ * CSS 변수 정의
+ * 색상, 크기, 간격, 브레이크포인트 등
+ */
+
+:root {
+  /* 색상 - 배경 */
+  --color-bg-primary: #242424;
+  --color-bg-secondary: #1a1a1a;
+  --color-bg-overlay: rgba(0, 0, 0, 0.5);
+  --color-bg-hover: rgba(255, 255, 255, 0.05);
+  --color-bg-active: rgba(255, 255, 255, 0.08);
+  --color-bg-input: rgba(255, 255, 255, 0.03);
+
+  /* 색상 - 텍스트 */
+  --color-text-primary: rgba(255, 255, 255, 0.9);
+  --color-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-text-tertiary: rgba(255, 255, 255, 0.5);
+  --color-text-disabled: rgba(255, 255, 255, 0.35);
+
+  /* 색상 - 보더 */
+  --color-border-light: rgba(255, 255, 255, 0.08);
+  --color-border-medium: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.3);
+
+  /* 색상 - 강조 */
+  --color-primary: #646cff;
+  --color-primary-bg: rgba(100, 108, 255, 0.1);
+  --color-success: #4CAF50;
+  --color-success-bg: rgba(76, 175, 80, 0.1);
+  --color-success-text: rgba(76, 175, 80, 0.7);
+  --color-warning: #FFC107;
+  --color-warning-bg: rgba(255, 193, 7, 0.1);
+  --color-warning-text: rgba(255, 193, 7, 0.9);
+
+  /* 색상 - 스크롤바 */
+  --color-scrollbar-thumb: rgba(255, 255, 255, 0.3);
+  --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.5);
+  --color-scrollbar-track: transparent;
+
+  /* 간격 */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* 폰트 크기 */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+
+  /* 경계선 반경 */
+  --border-radius-sm: 3px;
+  --border-radius-md: 4px;
+  --border-radius-lg: 6px;
+  --border-radius-xl: 8px;
+
+  /* 스크롤바 크기 */
+  --scrollbar-width-thin: 6px;
+  --scrollbar-width-normal: 8px;
+
+  /* 레이아웃 */
+  --header-height: 3rem;
+  --sidebar-width: 250px;
+  --container-max-width: 600px;
+  --container-wide-max-width: none;
+
+  /* 트랜지션 */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+
+  /* z-index */
+  --z-index-header: 100;
+  --z-index-sidebar: 90;
+  --z-index-modal: 1000;
+  --z-index-overlay: 999;
+  --z-index-toast: 1100;
+
+  /* 브레이크포인트 (미디어 쿼리에서 사용) */
+  --breakpoint-mobile: 600px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-wide: 1440px;
+}
+
+/* 다크 모드는 기본이므로 별도 정의 불필요 */
+/* 추후 라이트 모드 추가 시 여기에 정의 */
