@@ -28,9 +28,9 @@ export default function GoogleAuthButton({ authLoading, session, handleGoogleLog
           borderRadius: '16px',
           maxWidth: '400px'
         }}>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📝 Todo Note</h1>
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>💡 KeyThoughts</h1>
           <p style={{ fontSize: '1.1rem', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '2rem' }}>
-            날짜별 투두 관리 및 루틴 트래킹
+            주요 생각정리
           </p>
           <button
             onClick={handleGoogleLogin}
