@@ -2,38 +2,22 @@ import { useState, useRef, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
 
 /**
- * UUID 생성 함수 (브라우저 호환)
- */
-const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  // Fallback: 간단한 UUID v4 생성
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
-}
-
-/**
- * 주요 생각정리 관리 커스텀 훅 (최적화 버전)
- *
- * 개선사항:
- * - depth 필드 추가 및 자동 계산
- * - 개별 블록 CRUD (전체 삭제/재삽입 방지)
- * - 블록 참조(Synced Block) 기능 지원
+ * 주요 생각정리 관리 커스텀 훅 (개별 레코드 방식)
+ * - 블록 기반 메모 (Notion 스타일)
+ * - blocks 테이블에 개별 레코드로 저장
+ * - parent_id + position으로 계층 구조 관리
+ * - 블록 참조(Reference) 기능 지원
  * - 블록별 수정 이력 추적
  */
 export function useKeyThoughts(session) {
   const [keyThoughtsBlocks, setKeyThoughtsBlocks] = useState([
-    { id: generateUUID(), type: 'toggle', content: '', children: [], isOpen: true, depth: 0 }
+    { id: crypto.randomUUID(), type: 'toggle', content: '', children: [], isOpen: true }
   ])
   const [isSavingKeyThoughts, setIsSavingKeyThoughts] = useState(false)
   const lastSavedKeyThoughtsRef = useRef(null)
   const [focusedBlockId, setFocusedBlockId] = useState(null)
 
-  // 히스토리 관련 (레거시 호환)
+  // 히스토리 관련 (기존 key_thoughts_history 테이블 사용)
   const [keyThoughtsHistory, setKeyThoughtsHistory] = useState([])
   const [showKeyThoughtsHistory, setShowKeyThoughtsHistory] = useState(false)
   const lastHistoryCleanupRef = useRef(null)
@@ -48,11 +32,9 @@ export function useKeyThoughts(session) {
   const enrichBlockReferences = useCallback((blocks) => {
     if (!Array.isArray(blocks)) return []
 
-    const blockMap = new Map(blocks.map(b => [b.id, b]))
-
     return blocks.map(block => {
       if (block.is_reference && block.original_block_id) {
-        const original = blockMap.get(block.original_block_id)
+        const original = blocks.find(b => b.id === block.original_block_id)
         return {
           ...block,
           content: original?.content || '[원본 블록을 찾을 수 없음]',
@@ -69,7 +51,7 @@ export function useKeyThoughts(session) {
    */
   const buildTree = useCallback((flatBlocks) => {
     if (!Array.isArray(flatBlocks) || flatBlocks.length === 0) {
-      return [{ id: generateUUID(), type: 'toggle', content: '', children: [], isOpen: true, depth: 0 }]
+      return [{ id: crypto.randomUUID(), type: 'toggle', content: '', children: [], isOpen: true }]
     }
 
     const map = {}
@@ -77,11 +59,7 @@ export function useKeyThoughts(session) {
 
     // 1단계: ID를 key로 하는 맵 생성
     flatBlocks.forEach(block => {
-      map[block.id] = {
-        ...block,
-        children: [],
-        depth: block.depth || 0  // ✨ depth 필드 보존
-      }
+      map[block.id] = { ...block, children: [] }
     })
 
     // 2단계: 부모-자식 연결
@@ -96,7 +74,6 @@ export function useKeyThoughts(session) {
         } else {
           // orphan 블록 (부모 없음) → 최상위로
           console.warn(`Orphan block detected: ${block.id}`)
-          map[block.id].depth = 0
           roots.push(map[block.id])
         }
       }
@@ -117,32 +94,18 @@ export function useKeyThoughts(session) {
   }, [])
 
   /**
-   * 블록 데이터 정규화
+   * 블록 데이터 정규화 (children이 항상 배열이 되도록 보장)
    */
   const normalizeBlocks = useCallback((blocks) => {
     if (!Array.isArray(blocks)) return []
     return blocks.map(block => ({
       ...block,
-      children: Array.isArray(block.children) ? normalizeBlocks(block.children) : [],
-      depth: block.depth !== undefined ? block.depth : 0
-    }))
-  }, [])
-
-  /**
-   * depth 자동 계산 (재귀적)
-   */
-  const calculateDepth = useCallback((blocks, parentDepth = -1) => {
-    return blocks.map(block => ({
-      ...block,
-      depth: parentDepth + 1,
-      children: Array.isArray(block.children)
-        ? calculateDepth(block.children, parentDepth + 1)
-        : []
+      children: Array.isArray(block.children) ? normalizeBlocks(block.children) : []
     }))
   }, [])
 
   // ====================================================================
-  // CRUD 함수 (개별 블록 방식)
+  // CRUD 함수
   // ====================================================================
 
   /**
@@ -169,13 +132,12 @@ export function useKeyThoughts(session) {
         console.log('   - 블록 데이터 없음 (초기값 사용)')
         // 초기 블록 생성
         const initialBlock = {
-          id: generateUUID(),
+          id: crypto.randomUUID(),
           user_id: session.user.id,
           content: '',
           type: 'toggle',
           parent_id: null,
           position: 0,
-          depth: 0,
           is_open: true,
           is_reference: false,
           original_block_id: null,
@@ -202,9 +164,9 @@ export function useKeyThoughts(session) {
   }
 
   /**
-   * 개별 블록 생성
+   * 블록 생성
    */
-  const createBlock = async (content = '', parentId = null, position = 0, depth = 0, type = 'toggle') => {
+  const createBlock = async (content = '', parentId = null, position = 0, type = 'toggle') => {
     if (!session?.user?.id) {
       console.error('로그인 필요')
       return null
@@ -212,13 +174,12 @@ export function useKeyThoughts(session) {
 
     try {
       const newBlock = {
-        id: generateUUID(),
+        id: crypto.randomUUID(),
         user_id: session.user.id,
         content,
         type,
         parent_id: parentId,
         position,
-        depth,
         is_open: true,
         is_reference: false,
         original_block_id: null,
@@ -245,7 +206,7 @@ export function useKeyThoughts(session) {
   }
 
   /**
-   * 개별 블록 업데이트
+   * 블록 업데이트 (참조 고려)
    */
   const updateBlock = async (blockId, updates, isReference = false, originalId = null) => {
     if (!session?.user?.id) {
@@ -289,7 +250,7 @@ export function useKeyThoughts(session) {
   }
 
   /**
-   * 개별 블록 삭제
+   * 블록 삭제
    */
   const deleteBlock = async (blockId) => {
     if (!session?.user?.id) {
@@ -328,31 +289,39 @@ export function useKeyThoughts(session) {
   }
 
   /**
-   * 블록 이동 (드래그앤드롭)
+   * 드래그앤드롭: position 일괄 업데이트
    */
-  const moveBlock = async (blockId, newParentId, newPosition, newDepth) => {
-    if (!session?.user?.id) return false
+  const reorderBlocks = async (updates) => {
+    if (!session?.user?.id) {
+      console.error('로그인 필요')
+      return false
+    }
 
     try {
-      const { error } = await supabase
-        .from('blocks')
-        .update({
-          parent_id: newParentId,
-          position: newPosition,
-          depth: newDepth,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', blockId)
+      // updates: [{ id, parent_id, position }, ...]
+      const promises = updates.map(update =>
+        supabase
+          .from('blocks')
+          .update({
+            parent_id: update.parent_id,
+            position: update.position,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', update.id)
+      )
 
-      if (error) {
-        console.error('블록 이동 오류:', error.message)
+      const results = await Promise.all(promises)
+      const errors = results.filter(r => r.error)
+
+      if (errors.length > 0) {
+        console.error('일부 블록 재정렬 실패:', errors)
         return false
       }
 
-      await saveBlockHistory(blockId, 'move', null, null, `depth ${newDepth}, position ${newPosition}`)
+      console.log(`✅ ${updates.length}개 블록 재정렬 완료`)
       return true
     } catch (error) {
-      console.error('블록 이동 오류:', error.message)
+      console.error('블록 재정렬 오류:', error.message)
       return false
     }
   }
@@ -360,7 +329,7 @@ export function useKeyThoughts(session) {
   /**
    * 참조 블록 생성
    */
-  const createReferenceBlock = async (originalBlockId, parentId = null, position = 0, depth = 0) => {
+  const createReferenceBlock = async (originalBlockId, parentId = null, position = 0) => {
     if (!session?.user?.id) {
       console.error('로그인 필요')
       return null
@@ -368,13 +337,12 @@ export function useKeyThoughts(session) {
 
     try {
       const refBlock = {
-        id: generateUUID(),
+        id: crypto.randomUUID(),
         user_id: session.user.id,
         content: '',  // 참조는 content 사용 안함
         type: 'toggle',
         parent_id: parentId,
         position,
-        depth,
         is_open: true,
         is_reference: true,
         original_block_id: originalBlockId,
@@ -389,6 +357,7 @@ export function useKeyThoughts(session) {
         return null
       }
 
+      // 히스토리 저장
       await saveBlockHistory(
         refBlock.id,
         'reference_create',
@@ -406,7 +375,7 @@ export function useKeyThoughts(session) {
   }
 
   /**
-   * 블록 히스토리 저장
+   * 블록 히스토리 저장 (block_history 테이블)
    */
   const saveBlockHistory = async (blockId, action, contentBefore = null, contentAfter = null, description = '') => {
     if (!session?.user?.id) return
@@ -429,9 +398,9 @@ export function useKeyThoughts(session) {
   }
 
   /**
-   * 트리 상태를 DB와 동기화 (개선된 버전)
+   * 트리 상태를 DB와 동기화 (전체 동기화)
    *
-   * ✨ 개선사항: 전체 삭제/재삽입 대신 upsert 사용
+   * 트리를 평탄화하고 position을 계산하여 DB에 저장
    */
   const syncTreeToDB = async (treeBlocks) => {
     if (!session?.user?.id) return
@@ -439,23 +408,16 @@ export function useKeyThoughts(session) {
     try {
       console.log('💾 트리 → DB 동기화 시작...')
 
-      // depth 자동 계산
-      const blocksWithDepth = calculateDepth(treeBlocks)
-
-      // ✨ ID 변환 맵 생성 (타임스탬프 ID → UUID)
+      // 1. ID 매핑 생성 (숫자 ID → UUID)
       const idMap = new Map()
 
       const createIdMapping = (blockList) => {
         blockList.forEach(block => {
-          // UUID 형식 체크 (8-4-4-4-12 패턴)
-          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(block.id)
-
-          if (!isUUID) {
-            // 타임스탬프 ID면 UUID로 변환
-            idMap.set(block.id, generateUUID())
+          // 숫자 ID면 UUID로 변환
+          if (typeof block.id === 'number' || !block.id.includes('-')) {
+            idMap.set(block.id, crypto.randomUUID())
           } else {
-            // 이미 UUID면 그대로 사용
-            idMap.set(block.id, block.id)
+            idMap.set(block.id, block.id) // 이미 UUID면 그대로
           }
 
           if (Array.isArray(block.children) && block.children.length > 0) {
@@ -464,9 +426,9 @@ export function useKeyThoughts(session) {
         })
       }
 
-      createIdMapping(blocksWithDepth)
+      createIdMapping(treeBlocks)
 
-      // 트리를 평탄화 (ID 변환 적용)
+      // 2. 트리를 평탄화 (ID 변환 적용)
       const flattenedBlocks = []
       const positionCounter = {}
 
@@ -489,10 +451,9 @@ export function useKeyThoughts(session) {
             type: block.type || 'toggle',
             parent_id: newParentId,
             position: position,
-            depth: block.depth,
             is_open: block.isOpen !== undefined ? block.isOpen : true,
             is_reference: block._isReference || false,
-            original_block_id: block._originalId ? idMap.get(block._originalId) : null,
+            original_block_id: block._originalId || null,
           })
 
           if (Array.isArray(block.children) && block.children.length > 0) {
@@ -501,37 +462,26 @@ export function useKeyThoughts(session) {
         })
       }
 
-      traverse(blocksWithDepth)
+      traverse(treeBlocks)
 
-      // ✨ 개선: upsert 사용 (전체 삭제 대신)
-      // 1. 기존 블록 ID 목록 가져오기
-      const { data: existingBlocks } = await supabase
+      // 3. 기존 블록 모두 삭제
+      const { error: deleteError } = await supabase
         .from('blocks')
-        .select('id')
+        .delete()
         .eq('user_id', session.user.id)
 
-      const existingIds = new Set(existingBlocks?.map(b => b.id) || [])
-      const newIds = new Set(flattenedBlocks.map(b => b.id))
+      if (deleteError) throw deleteError
 
-      // 2. 삭제된 블록 제거
-      const idsToDelete = [...existingIds].filter(id => !newIds.has(id))
-      if (idsToDelete.length > 0) {
-        await supabase
-          .from('blocks')
-          .delete()
-          .in('id', idsToDelete)
-      }
-
-      // 3. upsert (insert or update)
+      // 4. 새로운 블록들 삽입
       if (flattenedBlocks.length > 0) {
         const batchSize = 1000
         for (let i = 0; i < flattenedBlocks.length; i += batchSize) {
           const batch = flattenedBlocks.slice(i, i + batchSize)
-          const { error: upsertError } = await supabase
+          const { error: insertError } = await supabase
             .from('blocks')
-            .upsert(batch, { onConflict: 'id' })
+            .insert(batch)
 
-          if (upsertError) throw upsertError
+          if (insertError) throw insertError
         }
       }
 
@@ -548,7 +498,7 @@ export function useKeyThoughts(session) {
         }))
       }
 
-      setKeyThoughtsBlocks(updateIdsInTree(blocksWithDepth))
+      setKeyThoughtsBlocks(updateIdsInTree(treeBlocks))
     } catch (error) {
       console.error('트리 동기화 오류:', error.message)
     }
@@ -556,6 +506,8 @@ export function useKeyThoughts(session) {
 
   /**
    * 주요 생각정리 저장 (자동 저장용)
+   *
+   * 트리 전체를 DB와 동기화
    */
   const handleSaveKeyThoughts = async () => {
     if (!session?.user?.id) return
@@ -565,7 +517,7 @@ export function useKeyThoughts(session) {
   }
 
   // ====================================================================
-  // 히스토리 관련 함수 (레거시 호환)
+  // 히스토리 관련 함수 (기존 key_thoughts_history 테이블 사용)
   // ====================================================================
 
   /**
@@ -582,8 +534,15 @@ export function useKeyThoughts(session) {
       const thirtyDaysAgo = new Date()
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+      // block_history 정리
       await supabase
         .from('block_history')
+        .delete()
+        .lt('created_at', thirtyDaysAgo.toISOString())
+
+      // key_thoughts_history 정리 (레거시)
+      await supabase
+        .from('key_thoughts_history')
         .delete()
         .lt('created_at', thirtyDaysAgo.toISOString())
 
@@ -618,6 +577,9 @@ export function useKeyThoughts(session) {
 
   /**
    * 특정 버전으로 복구 (레거시)
+   *
+   * Note: 개별 레코드 방식에서는 이 기능을 사용하지 않음
+   * 하지만 마이그레이션 이전 데이터 복구를 위해 유지
    */
   const restoreKeyThoughtsVersion = async (versionId) => {
     alert('⚠️  개별 레코드 방식에서는 버전 복구를 지원하지 않습니다.\n블록별 수정 이력을 확인하세요.')
@@ -643,22 +605,18 @@ export function useKeyThoughts(session) {
     normalizeBlocks,
     enrichBlockReferences,
     buildTree,
-    calculateDepth,
 
-    // CRUD 함수 (개별 블록 방식)
+    // CRUD 함수
     fetchKeyThoughtsContent,
     createBlock,
     updateBlock,
     deleteBlock,
-    moveBlock,
+    reorderBlocks,
     createReferenceBlock,
     saveBlockHistory,
 
-    // 트리 동기화
-    syncTreeToDB,
+    // 레거시 함수 (호환성)
     handleSaveKeyThoughts,
-
-    // 히스토리
     cleanupOldHistory,
     fetchKeyThoughtsHistory,
     restoreKeyThoughtsVersion,

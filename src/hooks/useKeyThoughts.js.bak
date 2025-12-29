@@ -2,21 +2,6 @@ import { useState, useRef, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
 
 /**
- * UUID 생성 함수 (브라우저 호환)
- */
-const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  // Fallback: 간단한 UUID v4 생성
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
-}
-
-/**
  * 주요 생각정리 관리 커스텀 훅 (최적화 버전)
  *
  * 개선사항:
@@ -27,7 +12,7 @@ const generateUUID = () => {
  */
 export function useKeyThoughts(session) {
   const [keyThoughtsBlocks, setKeyThoughtsBlocks] = useState([
-    { id: generateUUID(), type: 'toggle', content: '', children: [], isOpen: true, depth: 0 }
+    { id: crypto.randomUUID(), type: 'toggle', content: '', children: [], isOpen: true, depth: 0 }
   ])
   const [isSavingKeyThoughts, setIsSavingKeyThoughts] = useState(false)
   const lastSavedKeyThoughtsRef = useRef(null)
@@ -69,7 +54,7 @@ export function useKeyThoughts(session) {
    */
   const buildTree = useCallback((flatBlocks) => {
     if (!Array.isArray(flatBlocks) || flatBlocks.length === 0) {
-      return [{ id: generateUUID(), type: 'toggle', content: '', children: [], isOpen: true, depth: 0 }]
+      return [{ id: crypto.randomUUID(), type: 'toggle', content: '', children: [], isOpen: true, depth: 0 }]
     }
 
     const map = {}
@@ -169,7 +154,7 @@ export function useKeyThoughts(session) {
         console.log('   - 블록 데이터 없음 (초기값 사용)')
         // 초기 블록 생성
         const initialBlock = {
-          id: generateUUID(),
+          id: crypto.randomUUID(),
           user_id: session.user.id,
           content: '',
           type: 'toggle',
@@ -212,7 +197,7 @@ export function useKeyThoughts(session) {
 
     try {
       const newBlock = {
-        id: generateUUID(),
+        id: crypto.randomUUID(),
         user_id: session.user.id,
         content,
         type,
@@ -368,7 +353,7 @@ export function useKeyThoughts(session) {
 
     try {
       const refBlock = {
-        id: generateUUID(),
+        id: crypto.randomUUID(),
         user_id: session.user.id,
         content: '',  // 참조는 content 사용 안함
         type: 'toggle',
@@ -442,31 +427,7 @@ export function useKeyThoughts(session) {
       // depth 자동 계산
       const blocksWithDepth = calculateDepth(treeBlocks)
 
-      // ✨ ID 변환 맵 생성 (타임스탬프 ID → UUID)
-      const idMap = new Map()
-
-      const createIdMapping = (blockList) => {
-        blockList.forEach(block => {
-          // UUID 형식 체크 (8-4-4-4-12 패턴)
-          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(block.id)
-
-          if (!isUUID) {
-            // 타임스탬프 ID면 UUID로 변환
-            idMap.set(block.id, generateUUID())
-          } else {
-            // 이미 UUID면 그대로 사용
-            idMap.set(block.id, block.id)
-          }
-
-          if (Array.isArray(block.children) && block.children.length > 0) {
-            createIdMapping(block.children)
-          }
-        })
-      }
-
-      createIdMapping(blocksWithDepth)
-
-      // 트리를 평탄화 (ID 변환 적용)
+      // 트리를 평탄화
       const flattenedBlocks = []
       const positionCounter = {}
 
@@ -478,21 +439,17 @@ export function useKeyThoughts(session) {
           }
           const position = positionCounter[parentKey]++
 
-          // 변환된 ID 사용
-          const newId = idMap.get(block.id)
-          const newParentId = parentId ? idMap.get(parentId) : null
-
           flattenedBlocks.push({
-            id: newId,
+            id: block.id,
             user_id: session.user.id,
             content: block.content || '',
             type: block.type || 'toggle',
-            parent_id: newParentId,
+            parent_id: parentId,
             position: position,
             depth: block.depth,
             is_open: block.isOpen !== undefined ? block.isOpen : true,
             is_reference: block._isReference || false,
-            original_block_id: block._originalId ? idMap.get(block._originalId) : null,
+            original_block_id: block._originalId || null,
           })
 
           if (Array.isArray(block.children) && block.children.length > 0) {
@@ -536,19 +493,6 @@ export function useKeyThoughts(session) {
       }
 
       console.log(`   ✅ ${flattenedBlocks.length}개 블록 동기화 완료`)
-
-      // 5. 로컬 상태의 ID도 업데이트 (다음 저장 시 일관성 유지)
-      const updateIdsInTree = (blockList) => {
-        return blockList.map(block => ({
-          ...block,
-          id: idMap.get(block.id),
-          children: Array.isArray(block.children)
-            ? updateIdsInTree(block.children)
-            : []
-        }))
-      }
-
-      setKeyThoughtsBlocks(updateIdsInTree(blocksWithDepth))
     } catch (error) {
       console.error('트리 동기화 오류:', error.message)
     }

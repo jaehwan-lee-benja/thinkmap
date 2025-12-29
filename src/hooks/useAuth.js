@@ -30,14 +30,35 @@ export const useAuth = () => {
   // 로그인 핸들러
   const handleGoogleLogin = async () => {
     try {
+      // 현재 URL 정보
+      const currentOrigin = window.location.origin
+      const currentHostname = window.location.hostname
+
+      console.log('🔐 로그인 시도:', {
+        origin: currentOrigin,
+        hostname: currentHostname
+      })
+
+      // 개발 환경 감지
+      const isDevelopment = currentHostname === 'localhost' ||
+                           currentHostname.startsWith('192.') ||
+                           currentHostname.startsWith('172.')
+
+      // redirectUrl을 현재 origin으로 고정
+      const redirectUrl = currentOrigin + '/thinkmap/'
+
+      console.log('✅ Redirect URL:', redirectUrl)
+      console.log('🌍 개발 환경:', isDevelopment)
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/saruru-manual/'
+          redirectTo: redirectUrl
         }
       })
       if (error) throw error
     } catch (error) {
+      console.error('❌ 로그인 오류:', error)
       alert('로그인 오류: ' + error.message)
     }
   }

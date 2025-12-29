@@ -1,9 +1,9 @@
 {
-  "name": "key-thoughts",
+  "name": "thinkmap",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Notion-style hierarchical note-taking app",
+  "description": "ThinkMap - Notion-style hierarchical note-taking app",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
