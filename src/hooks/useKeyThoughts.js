@@ -231,9 +231,6 @@ export function useKeyThoughts(session, currentPageId) {
         return null
       }
 
-      // 히스토리 저장
-      await saveBlockHistory(newBlock.id, 'create', null, content)
-
       return newBlock
     } catch (error) {
       console.error('블록 생성 오류:', error.message)
@@ -286,16 +283,6 @@ export function useKeyThoughts(session, currentPageId) {
     }
 
     try {
-      // 삭제 전 content 저장 (히스토리용)
-      const { data: block } = await supabase
-        .from('blocks')
-        .select('content')
-        .eq('id', blockId)
-        .single()
-
-      // 히스토리 저장
-      await saveBlockHistory(blockId, 'delete', block?.content, null)
-
       // 블록 삭제 (CASCADE로 자식 블록도 삭제됨)
       const { error } = await supabase
         .from('blocks')
@@ -336,7 +323,6 @@ export function useKeyThoughts(session, currentPageId) {
         return false
       }
 
-      await saveBlockHistory(blockId, 'move', null, null, `depth ${newDepth}, position ${newPosition}`)
       return true
     } catch (error) {
       console.error('블록 이동 오류:', error.message)
@@ -377,14 +363,6 @@ export function useKeyThoughts(session, currentPageId) {
         return null
       }
 
-      await saveBlockHistory(
-        refBlock.id,
-        'reference_create',
-        null,
-        null,
-        `블록 ${originalBlockId} 참조 생성`
-      )
-
       return refBlock
     } catch (error) {
       console.error('참조 블록 생성 오류:', error.message)
@@ -399,7 +377,7 @@ export function useKeyThoughts(session, currentPageId) {
     if (!session?.user?.id || !currentPageId) return
 
     try {
-      await supabase
+      const { error } = await supabase
         .from('block_history')
         .insert([{
           block_id: blockId,
@@ -410,9 +388,14 @@ export function useKeyThoughts(session, currentPageId) {
           action,
           description
         }])
+
+      // 에러가 있어도 조용히 무시 (히스토리는 중요하지 않음)
+      if (error) {
+        // 디버그 필요 시에만 주석 해제
+        // console.warn('블록 히스토리 저장 실패:', error.message)
+      }
     } catch (error) {
-      // 히스토리 저장 실패는 무시 (메인 동작에 영향 없도록)
-      console.warn('블록 히스토리 저장 실패:', error.message)
+      // 히스토리 저장 실패는 조용히 무시
     }
   }
 
@@ -675,35 +658,47 @@ export function useKeyThoughts(session, currentPageId) {
         return
       }
 
-      // 2. manual_snapshot인 경우에만 복구 가능
-      if (data.action !== 'manual_snapshot') {
-        alert('⚠️ 개별 블록 수정 이력은 복구할 수 없습니다.\n수동 저장한 버전만 복구 가능합니다.')
-        return
-      }
+      // 2. manual_snapshot과 개별 블록 수정 구분
+      if (data.action === 'manual_snapshot') {
+        // 전체 스냅샷 복구
+        // 3. content_after 파싱 (문자열이면 JSON 파싱)
+        let blockTree = data.content_after
+        if (typeof blockTree === 'string') {
+          try {
+            blockTree = JSON.parse(blockTree)
+          } catch (e) {
+            console.error('JSON 파싱 오류:', e)
+            alert('⚠️ 버전 데이터 파싱에 실패했습니다.')
+            return
+          }
+        }
 
-      // 3. content_after 파싱 (문자열이면 JSON 파싱)
-      let blockTree = data.content_after
-      if (typeof blockTree === 'string') {
-        try {
-          blockTree = JSON.parse(blockTree)
-        } catch (e) {
-          console.error('JSON 파싱 오류:', e)
-          alert('⚠️ 버전 데이터 파싱에 실패했습니다.')
+        // 4. 배열(블록 트리)인지 확인
+        if (!Array.isArray(blockTree)) {
+          console.error('blockTree는 배열이 아닙니다:', blockTree)
+          alert('⚠️ 잘못된 버전 데이터입니다.')
           return
         }
-      }
 
-      // 4. 배열(블록 트리)인지 확인
-      if (!Array.isArray(blockTree)) {
-        console.error('blockTree는 배열이 아닙니다:', blockTree)
-        alert('⚠️ 잘못된 버전 데이터입니다.')
-        return
-      }
+        // 5. 복구 확인
+        const confirmRestore = window.confirm(
+          `이 버전으로 복구하시겠습니까?\n\n` +
+          `저장 시각: ${new Date(data.created_at).toLocaleString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZone: 'Asia/Seoul'
+          })}\n\n` +
+          `⚠️ 현재 내용은 사라지며, 복구 전 자동으로 현재 버전이 저장됩니다.`
+        )
 
-      // 5. 복구 확인
-      const confirmRestore = window.confirm(
-        `이 버전으로 복구하시겠습니까?\n\n` +
-        `저장 시각: ${new Date(data.created_at).toLocaleString('ko-KR', {
+        if (!confirmRestore) return
+
+        // 6. 현재 버전 자동 저장 (복구 전)
+        const restoreTime = new Date().toLocaleString('ko-KR', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
@@ -711,31 +706,61 @@ export function useKeyThoughts(session, currentPageId) {
           minute: '2-digit',
           second: '2-digit',
           timeZone: 'Asia/Seoul'
-        })}\n\n` +
-        `⚠️ 현재 내용은 사라지며, 복구 전 자동으로 현재 버전이 저장됩니다.`
-      )
+        })
+        await manualSaveHistory(`복구로 인해 히스토리로 저장된 버전 (${restoreTime})`)
 
-      if (!confirmRestore) return
+        // 7. 블록 트리 복원
+        setKeyThoughtsBlocks(blockTree)
 
-      // 6. 현재 버전 자동 저장 (복구 전)
-      const restoreTime = new Date().toLocaleString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZone: 'Asia/Seoul'
-      })
-      await manualSaveHistory(`복구로 인해 히스토리로 저장된 버전 (${restoreTime})`)
+        // 8. DB에 동기화 (기존 블록 모두 삭제 후 새로 생성)
+        await syncTreeToDB(blockTree)
 
-      // 7. 블록 트리 복원
-      setKeyThoughtsBlocks(blockTree)
+        alert('✅ 버전이 성공적으로 복구되었습니다.')
+      } else {
+        // 개별 블록 수정 복구
+        if (!data.block_id) {
+          alert('⚠️ 복구할 블록 ID가 없습니다.')
+          return
+        }
 
-      // 8. DB에 동기화 (기존 블록 모두 삭제 후 새로 생성)
-      await syncTreeToDB(blockTree)
+        // content_after가 문자열이 아니면 문자열로 변환
+        let contentToRestore = data.content_after
+        if (typeof contentToRestore !== 'string') {
+          if (contentToRestore === null || contentToRestore === undefined) {
+            alert('⚠️ 복구할 내용이 없습니다.')
+            return
+          }
+          contentToRestore = String(contentToRestore)
+        }
 
-      alert('✅ 버전이 성공적으로 복구되었습니다.')
+        const confirmRestore = window.confirm(
+          `이 블록 수정 내역으로 복구하시겠습니까?\n\n` +
+          `수정 시각: ${new Date(data.created_at).toLocaleString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZone: 'Asia/Seoul'
+          })}\n\n` +
+          `내용: ${contentToRestore}`
+        )
+
+        if (!confirmRestore) return
+
+        // 해당 블록 업데이트
+        const success = await updateBlock(data.block_id, { content: contentToRestore })
+
+        if (success) {
+          // 로컬 상태도 업데이트
+          await fetchKeyThoughtsContent()
+          alert('✅ 블록이 성공적으로 복구되었습니다.')
+        } else {
+          alert('⚠️ 블록 복구에 실패했습니다.')
+        }
+      }
+      return
     } catch (error) {
       console.error('버전 복구 오류:', error.message)
       alert('⚠️ 버전 복구 중 오류가 발생했습니다.')

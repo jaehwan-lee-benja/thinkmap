@@ -176,8 +176,8 @@ function SortableBlock({
 /**
  * ThinkMap 뷰어 페이지 (전체 화면 모드)
  */
-function ViewerPage({ blocks = [], setBlocks, onSave, onClose }) {
-  const [isDarkMode, setIsDarkMode] = useState(false)
+function ViewerPage({ blocks = [], setBlocks, onSave, onClose, pageName = 'ThinkMap' }) {
+  const isDarkMode = true
   const [selectedPath, setSelectedPath] = useState([])
   const [activeBlock, setActiveBlock] = useState(null)
   const [overId, setOverId] = useState(null)
@@ -665,10 +665,7 @@ function ViewerPage({ blocks = [], setBlocks, onSave, onClose }) {
         <button className="viewer-close-button" onClick={onClose}>
           ✕
         </button>
-        <h1 className="viewer-title">ThinkMap</h1>
-        <button className="dark-mode-toggle" onClick={() => setIsDarkMode(!isDarkMode)}>
-          {isDarkMode ? '☀️ 라이트' : '🌙 다크'}
-        </button>
+        <h1 className="viewer-title">{pageName}</h1>
       </div>
 
       <div className="viewer-content">

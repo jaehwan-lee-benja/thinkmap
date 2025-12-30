@@ -54,10 +54,12 @@
   background-color: #242424;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  z-index: 10000;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  z-index: 1001;
   overflow: hidden;
   animation: dropdown-appear 0.15s ease-out;
+  contain: layout paint;
+  backface-visibility: hidden;
 }
 
 @keyframes dropdown-appear {

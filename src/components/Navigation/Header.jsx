@@ -37,46 +37,44 @@ function Header({
   }
 
   return (
-    <>
-      {!sidebarOpen && (
-        <button
-          onClick={onToggleSidebar}
-          className="index-button-fixed"
-          title="사이드바 열기"
-        >
-          ☰
-        </button>
-      )}
-      <div className="header-fixed">
-        <div className="settings-bar">
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              type="text"
-              className="header-title-input"
-              value={editingName}
-              onChange={(e) => setEditingName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSave()
-                } else if (e.key === 'Escape') {
-                  handleCancel()
-                }
-              }}
-              onBlur={handleSave}
-            />
-          ) : (
-            <h1
-              className="app-title editable-title"
-              onClick={handleStartEdit}
-              title="클릭하여 프로젝트 이름 수정"
-            >
-              {currentProjectName || 'My Project'}
-            </h1>
-          )}
-        </div>
+    <div className="header-fixed">
+      <div className="settings-bar">
+        {!sidebarOpen && (
+          <button
+            onClick={onToggleSidebar}
+            className="header-hamburger-button"
+            title="사이드바 열기"
+          >
+            ☰
+          </button>
+        )}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            className="header-title-input"
+            value={editingName}
+            onChange={(e) => setEditingName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSave()
+              } else if (e.key === 'Escape') {
+                handleCancel()
+              }
+            }}
+            onBlur={handleSave}
+          />
+        ) : (
+          <h1
+            className="app-title editable-title"
+            onClick={handleStartEdit}
+            title="클릭하여 프로젝트 이름 수정"
+          >
+            {currentProjectName || 'My Project'}
+          </h1>
+        )}
       </div>
-    </>
+    </div>
   )
 }
 

@@ -23,6 +23,8 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
   const [editingPageName, setEditingPageName] = useState('')
   const pageNameInputRef = React.useRef(null)
   const [isSavingHistory, setIsSavingHistory] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const mobileMenuRef = React.useRef(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -107,6 +109,23 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onManualSaveHistory])
+
+  // 모바일 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+        setShowMobileMenu(false)
+      }
+    }
+
+    if (showMobileMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showMobileMenu])
 
   // 모든 블록을 평탄화 (시각적으로 보이는 순서대로)
   const flattenBlocks = (blockList) => {
@@ -332,7 +351,8 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
             {currentPageName || 'Page'}
           </h3>
         )}
-        <div style={{ display: 'flex', gap: '8px' }}>
+        {/* 데스크탑: 모든 버튼 표시 */}
+        <div className="section-buttons-desktop">
           <button
             className="toggle-all-button"
             onClick={handleManualSaveHistory}
@@ -362,6 +382,61 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
           >
             {allOpen ? "전체 접기" : "전체 펴기"}
           </button>
+        </div>
+
+        {/* 모바일: 설정 버튼 + 드롭다운 */}
+        <div className="section-buttons-mobile" ref={mobileMenuRef}>
+          <button
+            className="mobile-settings-button"
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            title="설정"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          {showMobileMenu && (
+            <div className="mobile-dropdown-menu">
+              <button
+                className="mobile-menu-item"
+                onClick={() => {
+                  handleManualSaveHistory()
+                  setShowMobileMenu(false)
+                }}
+                disabled={isSavingHistory}
+              >
+                {isSavingHistory ? '💾 저장 중...' : '💾 버전 저장'}
+              </button>
+              <button
+                className="mobile-menu-item"
+                onClick={() => {
+                  onOpenViewer && onOpenViewer()
+                  setShowMobileMenu(false)
+                }}
+              >
+                📖 뷰어
+              </button>
+              <button
+                className="mobile-menu-item"
+                onClick={() => {
+                  onShowHistory && onShowHistory()
+                  setShowMobileMenu(false)
+                }}
+              >
+                🕐 히스토리
+              </button>
+              <button
+                className="mobile-menu-item"
+                onClick={() => {
+                  toggleAllBlocks(!allOpen)
+                  setShowMobileMenu(false)
+                }}
+              >
+                {allOpen ? "전체 접기" : "전체 펴기"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <div

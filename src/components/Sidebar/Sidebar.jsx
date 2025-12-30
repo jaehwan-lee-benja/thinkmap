@@ -23,6 +23,7 @@ function Sidebar({
   onPageDelete,
   // 사용자
   userEmail,
+  userAvatarUrl,
   onLogout
 }) {
   const [projectsOpen, setProjectsOpen] = useState(false)
@@ -257,7 +258,11 @@ function Sidebar({
         <div className="sidebar-footer">
           <div className="sidebar-user-profile">
             <div className="user-avatar">
-              {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt="Profile" className="user-avatar-image" />
+              ) : (
+                userEmail ? userEmail.charAt(0).toUpperCase() : 'U'
+              )}
             </div>
             <div className="user-info">
               <div className="user-email">{userEmail || 'User'}</div>

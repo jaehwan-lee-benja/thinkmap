@@ -1,14 +1,15 @@
-/* ThinkMap 뷰어 페이지 */
+/* ThinkMap 뷰어 페이지 - 다크모드 기본 */
 .viewer-page {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #f9fafb;
+  background-color: #1a1a1a;
   z-index: 9999;
   display: flex;
   flex-direction: column;
+  color: #e5e7eb;
 }
 
 /* 뷰어 헤더 */
@@ -17,8 +18,8 @@
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
-  border-bottom: 1px solid #e5e7eb;
-  background-color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #1a1a1a;
 }
 
 /* X 버튼 */
@@ -32,53 +33,27 @@
   background: transparent;
   cursor: pointer;
   font-size: 24px;
-  color: #374151;
+  color: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
   transition: background-color 0.2s;
   flex-shrink: 0;
 }
 
 .viewer-close-button:hover {
-  background-color: #f3f4f6;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .viewer-close-button:active {
-  background-color: #e5e7eb;
+  background-color: rgba(255, 255, 255, 0.12);
 }
 
 /* 뷰어 타이틀 */
 .viewer-title {
   font-size: 20px;
   font-weight: 600;
-  color: #111827;
+  color: rgba(255, 255, 255, 0.9);
   margin: 0;
-}
-
-/* 다크모드 토글 버튼 */
-.dark-mode-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  height: 36px;
-  border: 1px solid #e5e7eb;
-  background: transparent;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 8px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  margin-left: auto;
-  color: #374151;
-}
-
-.dark-mode-toggle:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.dark-mode-toggle:active {
-  background-color: rgba(0, 0, 0, 0.1);
 }
 
 /* 뷰어 콘텐츠 */
@@ -104,8 +79,8 @@
   width: 320px;
   flex-shrink: 0;
   height: 100%;
-  border-right: 1px solid #e5e7eb;
-  background-color: #ffffff;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #1a1a1a;
 }
 
 .viewer-column:last-child {
@@ -117,9 +92,9 @@
   padding: 12px 16px;
   font-size: 14px;
   font-weight: 600;
-  color: #6b7280;
-  background-color: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  color: rgba(255, 255, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   text-align: center;
 }
 
@@ -139,9 +114,9 @@
   padding: 10px 16px;
   margin-top: 4px;
   background-color: transparent;
-  border: 1px dashed #d1d5db;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  color: #9ca3af;
+  color: rgba(255, 255, 255, 0.4);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
@@ -149,19 +124,19 @@
 }
 
 .add-block-button:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-  color: #6b7280;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .add-block-button:active {
-  background-color: #f3f4f6;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .add-block-button.selected {
-  background-color: #dbeafe;
-  border-color: #3b82f6;
-  color: #1e40af;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
   font-weight: 500;
 }
 
@@ -173,7 +148,7 @@
   padding: 0;
   margin-bottom: 6px;
   min-height: 52px;
-  background-color: #f9fafb;
+  background-color: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   cursor: grab;
   transition: background-color 0.2s;
@@ -183,7 +158,7 @@
 }
 
 .viewer-block:hover {
-  background-color: #f3f4f6;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .viewer-block:active {
@@ -191,17 +166,17 @@
 }
 
 .viewer-block.selected {
-  background-color: #fef3c7;
+  background-color: rgba(245, 158, 11, 0.15);
 }
 
 .viewer-block.current-selected {
-  background-color: #fef3c7;
+  background-color: rgba(245, 158, 11, 0.15);
   box-shadow: 0 0 0 2px #f59e0b;
 }
 
 /* 참조 블록 스타일 */
 .viewer-block.is-reference {
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
 }
 
 .reference-badge {
@@ -236,7 +211,7 @@
 /* 블럭 화살표 */
 .block-arrow {
   font-size: 14px;
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -252,7 +227,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background-color: rgba(59, 130, 246, 0.8);
+  background-color: rgba(255, 255, 255, 0.5);
   border-radius: 2px;
   z-index: 10;
 }
@@ -265,25 +240,25 @@
   left: 0;
   right: 0;
   height: 3px;
-  background-color: rgba(59, 130, 246, 0.8);
+  background-color: rgba(255, 255, 255, 0.5);
   border-radius: 2px;
   z-index: 10;
 }
 
 /* 드롭 위치 표시 - children으로 추가 (블럭 중앙) */
 .viewer-block.show-as-child-target {
-  background-color: #dbeafe !important;
-  border: 2px dashed #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
 }
 
 /* 드래그 오버레이 */
 .dragging-overlay {
   opacity: 0.8;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   cursor: grabbing;
-  background-color: #ffffff;
-  border: 2px solid #3b82f6;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   transform: rotate(3deg);
 }
@@ -291,7 +266,7 @@
 /* 블럭 텍스트 */
 .block-text {
   font-size: 14px;
-  color: #111827;
+  color: rgba(255, 255, 255, 0.85);
   word-break: break-word;
   line-height: 1.5;
   width: 100%;
@@ -304,8 +279,8 @@
 
 /* 블럭 편집 모드 */
 .viewer-block.editing {
-  background-color: #ffffff;
-  border-color: #3b82f6;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .block-edit-input {
@@ -314,7 +289,7 @@
   outline: none;
   background: transparent;
   font-size: 14px;
-  color: #111827;
+  color: rgba(255, 255, 255, 0.9);
   line-height: 1.5;
   padding: 0;
   font-family: inherit;
@@ -324,7 +299,7 @@
 }
 
 .block-edit-input::placeholder {
-  color: #9ca3af;
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .block-edit-buttons {
@@ -342,9 +317,9 @@
   justify-content: center;
   padding: 2px 4px;
   height: 20px;
-  border: 1px solid #d1d5db;
-  background-color: #f9fafb;
-  color: #6b7280;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 11px;
   font-weight: 400;
   border-radius: 4px;
@@ -357,14 +332,14 @@
 }
 
 .add-child-button:hover {
-  background-color: #3b82f6;
-  border-color: #3b82f6;
-  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .add-child-button:active {
-  background-color: #2563eb;
-  border-color: #2563eb;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .delete-block-button {
@@ -373,9 +348,9 @@
   justify-content: center;
   padding: 2px 4px;
   height: 20px;
-  border: 1px solid #fca5a5;
-  background-color: #fee2e2;
-  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.1);
+  color: rgba(239, 68, 68, 0.8);
   font-size: 11px;
   font-weight: 400;
   border-radius: 4px;
@@ -388,174 +363,19 @@
 }
 
 .delete-block-button:hover {
-  background-color: #ef4444;
-  border-color: #ef4444;
-  color: #ffffff;
+  background-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: rgba(239, 68, 68, 1);
 }
 
 .delete-block-button:active {
-  background-color: #dc2626;
-  border-color: #dc2626;
+  background-color: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
 }
 
-/* 다크모드 스타일 */
+/* 다크모드 클래스 (기본값이므로 대부분 동일) */
 .viewer-page.dark-mode {
-  background-color: #1a1a1a;
-  color: #e5e7eb;
-}
-
-.viewer-page.dark-mode .viewer-header {
-  background-color: #111827;
-  border-bottom-color: #374151;
-}
-
-.viewer-page.dark-mode .viewer-close-button {
-  color: #e5e7eb;
-}
-
-.viewer-page.dark-mode .dark-mode-toggle {
-  color: #e5e7eb;
-  border-color: #4b5563;
-}
-
-.viewer-page.dark-mode .viewer-close-button:hover {
-  background-color: #374151;
-}
-
-.viewer-page.dark-mode .dark-mode-toggle:hover {
-  background-color: #374151;
-  border-color: #6b7280;
-}
-
-.viewer-page.dark-mode .viewer-close-button:active {
-  background-color: #4b5563;
-}
-
-.viewer-page.dark-mode .dark-mode-toggle:active {
-  background-color: #4b5563;
-}
-
-.viewer-page.dark-mode .viewer-title {
-  color: #f9fafb;
-}
-
-.viewer-page.dark-mode .viewer-column {
-  background-color: #111827;
-  border-right-color: #374151;
-}
-
-.viewer-page.dark-mode .column-header {
-  background-color: #1f2937;
-  border-bottom-color: #374151;
-  color: #9ca3af;
-}
-
-.viewer-page.dark-mode .viewer-block {
-  background-color: #1f2937;
-}
-
-.viewer-page.dark-mode .viewer-block:hover {
-  background-color: #374151;
-}
-
-.viewer-page.dark-mode .viewer-block.selected {
-  background-color: #713f12;
-}
-
-.viewer-page.dark-mode .viewer-block.current-selected {
-  background-color: #713f12;
-  box-shadow: 0 0 0 2px #f59e0b;
-}
-
-.viewer-page.dark-mode .block-text {
-  color: #e5e7eb;
-}
-
-.viewer-page.dark-mode .block-arrow {
-  color: #9ca3af;
-}
-
-.viewer-page.dark-mode .dragging-overlay {
-  background-color: #1f2937;
-  border-color: #3b82f6;
-}
-
-.viewer-page.dark-mode .viewer-block.show-as-child-target {
-  background-color: #1e3a8a !important;
-  border-color: #3b82f6;
-}
-
-.viewer-page.dark-mode .viewer-block.editing {
-  background-color: #1f2937;
-  border-color: #3b82f6;
-}
-
-.viewer-page.dark-mode .viewer-block {
-  border-color: transparent;
-}
-
-.viewer-page.dark-mode .block-edit-input {
-  color: #e5e7eb;
-}
-
-.viewer-page.dark-mode .block-edit-input::placeholder {
-  color: #6b7280;
-}
-
-.viewer-page.dark-mode .add-child-button {
-  background-color: #1f2937;
-  border-color: #4b5563;
-  color: #9ca3af;
-}
-
-.viewer-page.dark-mode .add-child-button:hover {
-  background-color: #3b82f6;
-  border-color: #3b82f6;
-  color: #ffffff;
-}
-
-.viewer-page.dark-mode .add-child-button:active {
-  background-color: #2563eb;
-  border-color: #2563eb;
-}
-
-.viewer-page.dark-mode .delete-block-button {
-  background-color: #1f2937;
-  border-color: #991b1b;
-  color: #fca5a5;
-}
-
-.viewer-page.dark-mode .delete-block-button:hover {
-  background-color: #ef4444;
-  border-color: #ef4444;
-  color: #ffffff;
-}
-
-.viewer-page.dark-mode .delete-block-button:active {
-  background-color: #dc2626;
-  border-color: #dc2626;
-}
-
-.viewer-page.dark-mode .add-block-button {
-  border-color: #4b5563;
-  color: #6b7280;
-}
-
-.viewer-page.dark-mode .add-block-button:hover {
-  background-color: #1f2937;
-  border-color: #6b7280;
-  color: #9ca3af;
-}
-
-.viewer-page.dark-mode .add-block-button:active {
-  background-color: #374151;
-}
-
-.viewer-page.dark-mode .add-block-button.selected {
-  background-color: #1e3a8a;
-  border-color: #3b82f6;
-  color: #60a5fa;
-  font-weight: 500;
+  /* 이미 다크모드가 기본이므로 추가 스타일 불필요 */
 }
 
 /* 모바일 반응형 */
@@ -570,5 +390,36 @@
 
   .block-text {
     font-size: 13px;
+  }
+
+  .viewer-header {
+    padding: 12px 16px;
+  }
+
+  .viewer-close-button {
+    width: 44px;
+    height: 44px;
+    font-size: 26px;
+  }
+
+  .viewer-title {
+    font-size: 18px;
+  }
+
+  .viewer-block {
+    min-height: 56px;
+  }
+
+  .add-block-button {
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 48px;
+  }
+
+  .add-child-button,
+  .delete-block-button {
+    height: 28px;
+    font-size: 12px;
+    padding: 4px 8px;
   }
 }

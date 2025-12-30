@@ -55,7 +55,10 @@ function App() {
 
   // UI 상태
   const [showViewer, setShowViewer] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // 모바일에서는 사이드바 기본으로 닫힘
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    return window.innerWidth > 768
+  })
 
   // 페이지 변경 시 데이터 로드
   useEffect(() => {
@@ -96,12 +99,14 @@ function App() {
 
   // 뷰어 화면
   if (showViewer) {
+    const currentPage = pages.find(p => p.id === currentPageId)
     return (
       <ViewerPage
         blocks={keyThoughtsBlocks}
         setBlocks={setKeyThoughtsBlocks}
         onSave={handleSaveKeyThoughts}
         onClose={() => setShowViewer(false)}
+        pageName={currentPage?.name || 'ThinkMap'}
       />
     )
   }
@@ -126,6 +131,7 @@ function App() {
         onPageRename={renamePage}
         onPageDelete={deletePage}
         userEmail={session?.user?.email}
+        userAvatarUrl={session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture}
         onLogout={handleLogout}
       />
 
@@ -161,7 +167,10 @@ function App() {
           showKeyThoughtsHistory={showKeyThoughtsHistory}
           onClose={() => setShowKeyThoughtsHistory(false)}
           keyThoughtsHistory={keyThoughtsHistory}
-          onRestoreVersion={restoreKeyThoughtsVersion}
+          onRestoreVersion={async (versionId) => {
+            await restoreKeyThoughtsVersion(versionId)
+            setShowKeyThoughtsHistory(false)
+          }}
         />
       </div>
     </div>
