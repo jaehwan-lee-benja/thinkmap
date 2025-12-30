@@ -24,8 +24,9 @@ const generateUUID = () => {
  * - 개별 블록 CRUD (전체 삭제/재삽입 방지)
  * - 블록 참조(Synced Block) 기능 지원
  * - 블록별 수정 이력 추적
+ * - 페이지별 블록 관리
  */
-export function useKeyThoughts(session) {
+export function useKeyThoughts(session, currentPageId) {
   const [keyThoughtsBlocks, setKeyThoughtsBlocks] = useState([
     { id: generateUUID(), type: 'toggle', content: '', children: [], isOpen: true, depth: 0 }
   ])
@@ -95,7 +96,6 @@ export function useKeyThoughts(session) {
           parent.children.push(map[block.id])
         } else {
           // orphan 블록 (부모 없음) → 최상위로
-          console.warn(`Orphan block detected: ${block.id}`)
           map[block.id].depth = 0
           roots.push(map[block.id])
         }
@@ -149,15 +149,14 @@ export function useKeyThoughts(session) {
    * 블록 데이터 로드 (DB → 트리 구조)
    */
   const fetchKeyThoughtsContent = async () => {
-    if (!session?.user?.id) return
+    if (!session?.user?.id || !currentPageId) return
 
     try {
-      console.log('📥 블록 데이터 로드 중...')
-
       const { data, error } = await supabase
         .from('blocks')
         .select('*')
         .eq('user_id', session.user.id)
+        .eq('page_id', currentPageId)
         .order('position', { ascending: true })
 
       if (error) {
@@ -166,11 +165,11 @@ export function useKeyThoughts(session) {
       }
 
       if (!data || data.length === 0) {
-        console.log('   - 블록 데이터 없음 (초기값 사용)')
         // 초기 블록 생성
         const initialBlock = {
           id: generateUUID(),
           user_id: session.user.id,
+          page_id: currentPageId,
           content: '',
           type: 'toggle',
           parent_id: null,
@@ -185,8 +184,6 @@ export function useKeyThoughts(session) {
         setKeyThoughtsBlocks([{ ...initialBlock, children: [] }])
         return
       }
-
-      console.log(`   ✅ ${data.length}개 블록 로드 완료`)
 
       // 참조 블록 enrichment
       const enriched = enrichBlockReferences(data)
@@ -205,7 +202,7 @@ export function useKeyThoughts(session) {
    * 개별 블록 생성
    */
   const createBlock = async (content = '', parentId = null, position = 0, depth = 0, type = 'toggle') => {
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !currentPageId) {
       console.error('로그인 필요')
       return null
     }
@@ -214,6 +211,7 @@ export function useKeyThoughts(session) {
       const newBlock = {
         id: generateUUID(),
         user_id: session.user.id,
+        page_id: currentPageId,
         content,
         type,
         parent_id: parentId,
@@ -236,7 +234,6 @@ export function useKeyThoughts(session) {
       // 히스토리 저장
       await saveBlockHistory(newBlock.id, 'create', null, content)
 
-      console.log(`✅ 블록 생성: ${newBlock.id}`)
       return newBlock
     } catch (error) {
       console.error('블록 생성 오류:', error.message)
@@ -270,16 +267,7 @@ export function useKeyThoughts(session) {
         return false
       }
 
-      // 내용 변경 시 히스토리 저장
-      if (updates.content !== undefined) {
-        await saveBlockHistory(
-          targetId,
-          'update',
-          null,
-          updates.content,
-          isReference ? '참조 블록에서 수정됨' : '직접 수정됨'
-        )
-      }
+      // ✨ 변경: 즉시 히스토리 저장하지 않음 (포커스 벗어날 때 저장)
 
       return true
     } catch (error) {
@@ -319,7 +307,6 @@ export function useKeyThoughts(session) {
         return false
       }
 
-      console.log(`✅ 블록 삭제: ${blockId}`)
       return true
     } catch (error) {
       console.error('블록 삭제 오류:', error.message)
@@ -361,7 +348,7 @@ export function useKeyThoughts(session) {
    * 참조 블록 생성
    */
   const createReferenceBlock = async (originalBlockId, parentId = null, position = 0, depth = 0) => {
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !currentPageId) {
       console.error('로그인 필요')
       return null
     }
@@ -370,6 +357,7 @@ export function useKeyThoughts(session) {
       const refBlock = {
         id: generateUUID(),
         user_id: session.user.id,
+        page_id: currentPageId,
         content: '',  // 참조는 content 사용 안함
         type: 'toggle',
         parent_id: parentId,
@@ -397,7 +385,6 @@ export function useKeyThoughts(session) {
         `블록 ${originalBlockId} 참조 생성`
       )
 
-      console.log(`✅ 참조 블록 생성: ${refBlock.id} → ${originalBlockId}`)
       return refBlock
     } catch (error) {
       console.error('참조 블록 생성 오류:', error.message)
@@ -409,7 +396,7 @@ export function useKeyThoughts(session) {
    * 블록 히스토리 저장
    */
   const saveBlockHistory = async (blockId, action, contentBefore = null, contentAfter = null, description = '') => {
-    if (!session?.user?.id) return
+    if (!session?.user?.id || !currentPageId) return
 
     try {
       await supabase
@@ -417,6 +404,7 @@ export function useKeyThoughts(session) {
         .insert([{
           block_id: blockId,
           user_id: session.user.id,
+          page_id: currentPageId,
           content_before: contentBefore,
           content_after: contentAfter,
           action,
@@ -429,6 +417,54 @@ export function useKeyThoughts(session) {
   }
 
   /**
+   * 블록 포커스 벗어날 때 히스토리 저장
+   */
+  const saveHistoryOnBlur = async (blockId, contentBefore, contentAfter) => {
+    if (!session?.user?.id || !currentPageId) return
+    if (contentBefore === contentAfter) return // 변경사항 없으면 저장 안 함
+
+    await saveBlockHistory(
+      blockId,
+      'update',
+      contentBefore,
+      contentAfter,
+      '내용 수정'
+    )
+  }
+
+  /**
+   * 수동으로 현재 버전 저장 (Ctrl+S 또는 버튼)
+   */
+  const manualSaveHistory = async (customDescription = null) => {
+    if (!session?.user?.id || !currentPageId) return false
+
+    try {
+      // 전체 블록 구조를 하나의 스냅샷으로 저장
+      const { error } = await supabase
+        .from('block_history')
+        .insert([{
+          block_id: null, // 스냅샷은 개별 블록이 아닌 전체 페이지
+          user_id: session.user.id,
+          page_id: currentPageId,
+          content_before: null,
+          content_after: keyThoughtsBlocks, // 전체 블록 트리를 JSON으로 저장
+          action: 'manual_snapshot',
+          description: customDescription || '수동 버전 저장'
+        }])
+
+      if (error) {
+        console.error('수동 히스토리 저장 오류:', error.message)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('수동 히스토리 저장 오류:', error.message)
+      return false
+    }
+  }
+
+  /**
    * 트리 상태를 DB와 동기화 (개선된 버전)
    *
    * ✨ 개선사항: 전체 삭제/재삽입 대신 upsert 사용
@@ -437,8 +473,6 @@ export function useKeyThoughts(session) {
     if (!session?.user?.id) return
 
     try {
-      console.log('💾 트리 → DB 동기화 시작...')
-
       // depth 자동 계산
       const blocksWithDepth = calculateDepth(treeBlocks)
 
@@ -485,6 +519,7 @@ export function useKeyThoughts(session) {
           flattenedBlocks.push({
             id: newId,
             user_id: session.user.id,
+            page_id: currentPageId,
             content: block.content || '',
             type: block.type || 'toggle',
             parent_id: newParentId,
@@ -509,6 +544,7 @@ export function useKeyThoughts(session) {
         .from('blocks')
         .select('id')
         .eq('user_id', session.user.id)
+        .eq('page_id', currentPageId)
 
       const existingIds = new Set(existingBlocks?.map(b => b.id) || [])
       const newIds = new Set(flattenedBlocks.map(b => b.id))
@@ -534,8 +570,6 @@ export function useKeyThoughts(session) {
           if (upsertError) throw upsertError
         }
       }
-
-      console.log(`   ✅ ${flattenedBlocks.length}개 블록 동기화 완료`)
 
       // 5. 로컬 상태의 ID도 업데이트 (다음 저장 시 일관성 유지)
       const updateIdsInTree = (blockList) => {
@@ -588,7 +622,6 @@ export function useKeyThoughts(session) {
         .lt('created_at', thirtyDaysAgo.toISOString())
 
       lastHistoryCleanupRef.current = today
-      console.log('✅ 오래된 히스토리 정리 완료')
     } catch (error) {
       console.error('히스토리 삭제 오류:', error.message)
     }
@@ -598,12 +631,15 @@ export function useKeyThoughts(session) {
    * 버전 히스토리 불러오기 (레거시)
    */
   const fetchKeyThoughtsHistory = async () => {
+    if (!currentPageId) return
+
     try {
       const { data, error } = await supabase
-        .from('key_thoughts_history')
+        .from('block_history')
         .select('*')
+        .eq('page_id', currentPageId)
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(100)
 
       if (error) {
         console.error('버전 히스토리 불러오기 오류:', error.message)
@@ -620,7 +656,90 @@ export function useKeyThoughts(session) {
    * 특정 버전으로 복구 (레거시)
    */
   const restoreKeyThoughtsVersion = async (versionId) => {
-    alert('⚠️  개별 레코드 방식에서는 버전 복구를 지원하지 않습니다.\n블록별 수정 이력을 확인하세요.')
+    if (!currentPageId) {
+      alert('⚠️ 페이지가 선택되지 않았습니다.')
+      return
+    }
+
+    try {
+      // 1. 해당 버전의 데이터 가져오기
+      const { data, error } = await supabase
+        .from('block_history')
+        .select('*')
+        .eq('id', versionId)
+        .single()
+
+      if (error || !data) {
+        console.error('버전 복구 오류:', error?.message)
+        alert('⚠️ 버전 데이터를 불러오는데 실패했습니다.')
+        return
+      }
+
+      // 2. manual_snapshot인 경우에만 복구 가능
+      if (data.action !== 'manual_snapshot') {
+        alert('⚠️ 개별 블록 수정 이력은 복구할 수 없습니다.\n수동 저장한 버전만 복구 가능합니다.')
+        return
+      }
+
+      // 3. content_after 파싱 (문자열이면 JSON 파싱)
+      let blockTree = data.content_after
+      if (typeof blockTree === 'string') {
+        try {
+          blockTree = JSON.parse(blockTree)
+        } catch (e) {
+          console.error('JSON 파싱 오류:', e)
+          alert('⚠️ 버전 데이터 파싱에 실패했습니다.')
+          return
+        }
+      }
+
+      // 4. 배열(블록 트리)인지 확인
+      if (!Array.isArray(blockTree)) {
+        console.error('blockTree는 배열이 아닙니다:', blockTree)
+        alert('⚠️ 잘못된 버전 데이터입니다.')
+        return
+      }
+
+      // 5. 복구 확인
+      const confirmRestore = window.confirm(
+        `이 버전으로 복구하시겠습니까?\n\n` +
+        `저장 시각: ${new Date(data.created_at).toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          timeZone: 'Asia/Seoul'
+        })}\n\n` +
+        `⚠️ 현재 내용은 사라지며, 복구 전 자동으로 현재 버전이 저장됩니다.`
+      )
+
+      if (!confirmRestore) return
+
+      // 6. 현재 버전 자동 저장 (복구 전)
+      const restoreTime = new Date().toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: 'Asia/Seoul'
+      })
+      await manualSaveHistory(`복구로 인해 히스토리로 저장된 버전 (${restoreTime})`)
+
+      // 7. 블록 트리 복원
+      setKeyThoughtsBlocks(blockTree)
+
+      // 8. DB에 동기화 (기존 블록 모두 삭제 후 새로 생성)
+      await syncTreeToDB(blockTree)
+
+      alert('✅ 버전이 성공적으로 복구되었습니다.')
+    } catch (error) {
+      console.error('버전 복구 오류:', error.message)
+      alert('⚠️ 버전 복구 중 오류가 발생했습니다.')
+    }
   }
 
   return {
@@ -662,5 +781,7 @@ export function useKeyThoughts(session) {
     cleanupOldHistory,
     fetchKeyThoughtsHistory,
     restoreKeyThoughtsVersion,
+    saveHistoryOnBlur,
+    manualSaveHistory,
   }
 }

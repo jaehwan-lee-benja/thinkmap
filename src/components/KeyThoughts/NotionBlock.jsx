@@ -14,6 +14,7 @@ function SortableNotionBlock({
   draggingChildIds = [],
   activeId,
   overId,
+  onSaveHistoryOnBlur,
 }) {
   const {
     attributes,
@@ -52,6 +53,7 @@ function SortableNotionBlock({
         draggingChildIds={draggingChildIds}
         activeId={activeId}
         overId={overId}
+        onSaveHistoryOnBlur={onSaveHistoryOnBlur}
       />
     </div>
   )
@@ -70,9 +72,11 @@ function NotionBlock({
   draggingChildIds = [],
   activeId,
   overId,
+  onSaveHistoryOnBlur,
 }) {
   const inputRef = useRef(null)
   const isProcessingEnter = useRef(false)
+  const contentBeforeEdit = useRef(block.content) // 편집 시작 시 content 저장
 
   useEffect(() => {
     if (focusedBlockId === block.id && inputRef.current) {
@@ -497,7 +501,15 @@ function NotionBlock({
           value={block.content}
           onChange={(e) => updateBlockContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => setFocusedBlockId(block.id)}
+          onFocus={() => {
+            setFocusedBlockId(block.id)
+            contentBeforeEdit.current = block.content
+          }}
+          onBlur={() => {
+            if (onSaveHistoryOnBlur) {
+              onSaveHistoryOnBlur(block.id, contentBeforeEdit.current, block.content)
+            }
+          }}
           placeholder=""
           className="notion-block-input"
           rows={1}
@@ -520,6 +532,7 @@ function NotionBlock({
               draggingChildIds={draggingChildIds}
               activeId={activeId}
               overId={overId}
+              onSaveHistoryOnBlur={onSaveHistoryOnBlur}
             />
           ))}
         </div>

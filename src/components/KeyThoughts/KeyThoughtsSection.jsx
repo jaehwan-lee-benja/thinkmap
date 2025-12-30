@@ -16,9 +16,13 @@ import {
 } from '@dnd-kit/sortable'
 import { SortableNotionBlock, NotionBlock } from './NotionBlock'
 
-function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlockId, onShowHistory }) {
+function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlockId, currentPageId, currentPageName, onPageRename, onShowHistory, onOpenViewer, onSaveHistoryOnBlur, onManualSaveHistory }) {
   const [activeBlock, setActiveBlock] = useState(null)
   const [overId, setOverId] = useState(null)
+  const [isEditingPageName, setIsEditingPageName] = useState(false)
+  const [editingPageName, setEditingPageName] = useState('')
+  const pageNameInputRef = React.useRef(null)
+  const [isSavingHistory, setIsSavingHistory] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -53,6 +57,56 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
       setBlocks(closedBlocks)
     }
   }, [blocks])
+
+  // 페이지 이름 편집 시 포커스
+  useEffect(() => {
+    if (isEditingPageName && pageNameInputRef.current) {
+      pageNameInputRef.current.focus()
+      pageNameInputRef.current.select()
+    }
+  }, [isEditingPageName])
+
+  // 페이지 이름 편집 핸들러
+  const handleStartEditPageName = () => {
+    setEditingPageName(currentPageName || 'Page')
+    setIsEditingPageName(true)
+  }
+
+  const handleSavePageName = () => {
+    if (editingPageName.trim() && currentPageId) {
+      onPageRename(currentPageId, editingPageName.trim())
+    }
+    setIsEditingPageName(false)
+  }
+
+  const handleCancelPageName = () => {
+    setIsEditingPageName(false)
+    setEditingPageName('')
+  }
+
+  // 수동 버전 저장 핸들러
+  const handleManualSaveHistory = async () => {
+    if (!onManualSaveHistory) return
+    setIsSavingHistory(true)
+    const success = await onManualSaveHistory()
+    setIsSavingHistory(false)
+    if (success) {
+      alert('✅ 현재 버전이 저장되었습니다.')
+    }
+  }
+
+  // Ctrl+S 키보드 단축키
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        handleManualSaveHistory()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onManualSaveHistory])
 
   // 모든 블록을 평탄화 (시각적으로 보이는 순서대로)
   const flattenBlocks = (blockList) => {
@@ -253,8 +307,47 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
   return (
     <div className="key-thoughts-section section-block">
       <div className="section-header">
-        <h3 className="section-title">💡 주요 생각정리</h3>
+        {isEditingPageName ? (
+          <input
+            ref={pageNameInputRef}
+            type="text"
+            className="section-title-input"
+            value={editingPageName}
+            onChange={(e) => setEditingPageName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSavePageName()
+              } else if (e.key === 'Escape') {
+                handleCancelPageName()
+              }
+            }}
+            onBlur={handleSavePageName}
+          />
+        ) : (
+          <h3
+            className="section-title editable-title"
+            onClick={handleStartEditPageName}
+            title="클릭하여 페이지 이름 수정"
+          >
+            {currentPageName || 'Page'}
+          </h3>
+        )}
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="toggle-all-button"
+            onClick={handleManualSaveHistory}
+            disabled={isSavingHistory}
+            title="현재 버전 저장 (Ctrl+S)"
+          >
+            {isSavingHistory ? '💾 저장 중...' : '💾 버전 저장'}
+          </button>
+          <button
+            className="toggle-all-button"
+            onClick={() => onOpenViewer && onOpenViewer()}
+            title="뷰어 열기"
+          >
+            📖 뷰어
+          </button>
           <button
             className="toggle-all-button"
             onClick={() => onShowHistory && onShowHistory()}
@@ -302,6 +395,7 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
                 draggingChildIds={draggingChildIds}
                 activeId={activeBlock?.id}
                 overId={overId}
+                onSaveHistoryOnBlur={onSaveHistoryOnBlur}
               />
             ))}
           </SortableContext>

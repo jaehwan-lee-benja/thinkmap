@@ -1,0 +1,232 @@
+/* 페이지 선택기 */
+.page-selector {
+  position: relative;
+  display: inline-block;
+}
+
+/* 페이지 버튼 */
+.page-selector-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 150px;
+}
+
+.page-selector-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.page-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.page-selector-button .page-name {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-chevron {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+/* 드롭다운 */
+.page-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 260px;
+  background-color: #242424;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 10000;
+  overflow: hidden;
+  animation: dropdown-appear 0.15s ease-out;
+}
+
+@keyframes dropdown-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 드롭다운 헤더 */
+.page-dropdown-header {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 페이지 목록 */
+.page-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+/* 커스텀 스크롤바 */
+.page-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.page-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.page-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.page-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 페이지 아이템 */
+.page-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+  position: relative;
+}
+
+.page-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.page-item.active {
+  background-color: rgba(100, 108, 255, 0.15);
+}
+
+.page-item.active:hover {
+  background-color: rgba(100, 108, 255, 0.2);
+}
+
+.page-item-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.page-item-name {
+  flex: 1;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-item:hover .page-item-name {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.page-item.active .page-item-name {
+  color: #646cff;
+  font-weight: 500;
+}
+
+/* 페이지 이름 수정 input */
+.page-name-input {
+  flex: 1;
+  border: 1px solid #646cff;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  outline: none;
+  background-color: #1a1a1a;
+}
+
+.page-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* 페이지 삭제 버튼 */
+.page-delete-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(239, 68, 68, 0.15);
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.page-item:hover .page-delete-button {
+  display: flex;
+}
+
+.page-delete-button:hover {
+  background-color: rgba(239, 68, 68, 0.25);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.page-delete-button:active {
+  background-color: rgba(239, 68, 68, 0.35);
+  transform: scale(0.95);
+}
+
+/* 새 페이지 버튼 */
+.add-page-button {
+  width: calc(100% - 12px);
+  margin: 6px;
+  padding: 8px 10px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-family: inherit;
+}
+
+.add-page-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.add-page-button:active {
+  background-color: rgba(255, 255, 255, 0.12);
+}

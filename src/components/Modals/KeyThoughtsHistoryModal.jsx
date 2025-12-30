@@ -1,3 +1,17 @@
+// 블록 트리를 재귀적으로 렌더링하는 헬퍼 함수
+function renderBlockTree(blocks, depth = 0) {
+  if (!Array.isArray(blocks)) return null
+
+  return blocks.map((block, idx) => (
+    <div key={idx} style={{ marginLeft: `${depth * 16}px`, marginBottom: '4px' }}>
+      <div>
+        {block.type === 'toggle' ? '▸ ' : ''}{block.content || '(빈 블록)'}
+      </div>
+      {block.children && block.children.length > 0 && renderBlockTree(block.children, depth + 1)}
+    </div>
+  ))
+}
+
 function KeyThoughtsHistoryModal({
   showKeyThoughtsHistory,
   onClose,
@@ -15,7 +29,7 @@ function KeyThoughtsHistoryModal({
         </div>
         <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
           {keyThoughtsHistory.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
+            <p style={{ textAlign: 'center', color: 'var(--color-text-tertiary)', padding: '20px' }}>
               저장된 버전이 없습니다.
             </p>
           ) : (
@@ -24,26 +38,27 @@ function KeyThoughtsHistoryModal({
                 <div
                   key={version.id}
                   style={{
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
+                    border: '1px solid var(--color-border-medium)',
+                    borderRadius: 'var(--border-radius-xl)',
                     padding: '16px',
-                    backgroundColor: '#f9f9f9'
+                    backgroundColor: 'var(--color-bg-input)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <div>
-                      <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '14px', color: 'var(--color-text-primary)' }}>
                         {new Date(version.created_at).toLocaleString('ko-KR', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit',
-                          second: '2-digit'
+                          second: '2-digit',
+                          timeZone: 'Asia/Seoul'
                         })}
                       </div>
                       {version.description && (
-                        <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
                           {version.description}
                         </div>
                       )}
@@ -52,10 +67,10 @@ function KeyThoughtsHistoryModal({
                       onClick={() => onRestoreVersion(version.id)}
                       style={{
                         padding: '6px 12px',
-                        backgroundColor: '#4CAF50',
+                        backgroundColor: 'var(--color-success)',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '4px',
+                        borderRadius: 'var(--border-radius-md)',
                         cursor: 'pointer',
                         fontSize: '12px'
                       }}
@@ -65,22 +80,24 @@ function KeyThoughtsHistoryModal({
                   </div>
                   <div style={{
                     fontSize: '12px',
-                    color: '#666',
+                    color: 'var(--color-text-secondary)',
                     maxHeight: '100px',
                     overflowY: 'auto',
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--color-bg-secondary)',
                     padding: '8px',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--border-radius-md)',
                     whiteSpace: 'pre-wrap'
                   }}>
                     {/* 블록 내용 미리보기 */}
-                    {Array.isArray(version.content) ?
-                      version.content.map((block, idx) => (
-                        <div key={idx} style={{ marginBottom: '4px' }}>
-                          {block.type === 'toggle' ? '▸ ' : ''}{block.content || '(빈 블록)'}
-                        </div>
-                      ))
-                      : '(내용 없음)'}
+                    {version.action === 'manual_snapshot' && Array.isArray(version.content_after) ? (
+                      // 수동 스냅샷: 전체 블록 트리 표시
+                      renderBlockTree(version.content_after, 0)
+                    ) : version.content_after ? (
+                      // 개별 블록 수정: content_after만 표시
+                      <div>{version.content_after}</div>
+                    ) : (
+                      '(내용 없음)'
+                    )}
                   </div>
                 </div>
               ))}

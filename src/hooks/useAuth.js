@@ -34,11 +34,6 @@ export const useAuth = () => {
       const currentOrigin = window.location.origin
       const currentHostname = window.location.hostname
 
-      console.log('🔐 로그인 시도:', {
-        origin: currentOrigin,
-        hostname: currentHostname
-      })
-
       // 개발 환경 감지
       const isDevelopment = currentHostname === 'localhost' ||
                            currentHostname.startsWith('192.') ||
@@ -46,9 +41,6 @@ export const useAuth = () => {
 
       // redirectUrl을 현재 origin으로 고정
       const redirectUrl = currentOrigin + '/thinkmap/'
-
-      console.log('✅ Redirect URL:', redirectUrl)
-      console.log('🌍 개발 환경:', isDevelopment)
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
