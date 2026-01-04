@@ -424,52 +424,71 @@ function NotionBlock({
         }
       }
     }
-    // ArrowUp: 시각적으로 위에 보이는 블록으로 이동
+    // ArrowUp: 첫 줄에 있을 때만 위 블록으로 이동
     else if (e.key === 'ArrowUp' && !e.shiftKey) {
-      e.preventDefault()
-      e.stopPropagation()
-      // 전체 트리의 루트 블록 가져오기
-      const getRootBlocks = () => {
-        // rootSetBlocks가 있으면 최상위, 없으면 현재 레벨
-        if (rootSetBlocks) {
-          let rootBlocks = []
-          rootSetBlocks(prev => {
-            rootBlocks = prev
-            return prev
-          })
-          return rootBlocks
+      const textarea = e.target
+      const cursorPosition = textarea.selectionStart
+      const textBeforeCursor = textarea.value.substring(0, cursorPosition)
+      const currentLineNumber = textBeforeCursor.split('\n').length - 1
+
+      // 첫 번째 줄에 있을 때만 블록 이동
+      if (currentLineNumber === 0) {
+        e.preventDefault()
+        e.stopPropagation()
+        // 전체 트리의 루트 블록 가져오기
+        const getRootBlocks = () => {
+          // rootSetBlocks가 있으면 최상위, 없으면 현재 레벨
+          if (rootSetBlocks) {
+            let rootBlocks = []
+            rootSetBlocks(prev => {
+              rootBlocks = prev
+              return prev
+            })
+            return rootBlocks
+          }
+          return blocks
         }
-        return blocks
+        const rootBlocks = getRootBlocks()
+        const visibleBlocks = getFlattenedVisibleBlocks(rootBlocks)
+        const currentIndex = visibleBlocks.findIndex(b => b.id === block.id)
+        if (currentIndex > 0) {
+          setFocusedBlockId(visibleBlocks[currentIndex - 1].id)
+        }
       }
-      const rootBlocks = getRootBlocks()
-      const visibleBlocks = getFlattenedVisibleBlocks(rootBlocks)
-      const currentIndex = visibleBlocks.findIndex(b => b.id === block.id)
-      if (currentIndex > 0) {
-        setFocusedBlockId(visibleBlocks[currentIndex - 1].id)
-      }
+      // 첫 줄이 아니면 textarea 기본 동작 허용 (줄 내 커서 이동)
     }
-    // ArrowDown: 시각적으로 아래에 보이는 블록으로 이동
+    // ArrowDown: 마지막 줄에 있을 때만 아래 블록으로 이동
     else if (e.key === 'ArrowDown' && !e.shiftKey) {
-      e.preventDefault()
-      e.stopPropagation()
-      // 전체 트리의 루트 블록 가져오기
-      const getRootBlocks = () => {
-        if (rootSetBlocks) {
-          let rootBlocks = []
-          rootSetBlocks(prev => {
-            rootBlocks = prev
-            return prev
-          })
-          return rootBlocks
+      const textarea = e.target
+      const cursorPosition = textarea.selectionStart
+      const textBeforeCursor = textarea.value.substring(0, cursorPosition)
+      const totalLines = textarea.value.split('\n').length
+      const currentLineNumber = textBeforeCursor.split('\n').length - 1
+
+      // 마지막 줄에 있을 때만 블록 이동
+      if (currentLineNumber === totalLines - 1) {
+        e.preventDefault()
+        e.stopPropagation()
+        // 전체 트리의 루트 블록 가져오기
+        const getRootBlocks = () => {
+          if (rootSetBlocks) {
+            let rootBlocks = []
+            rootSetBlocks(prev => {
+              rootBlocks = prev
+              return prev
+            })
+            return rootBlocks
+          }
+          return blocks
         }
-        return blocks
+        const rootBlocks = getRootBlocks()
+        const visibleBlocks = getFlattenedVisibleBlocks(rootBlocks)
+        const currentIndex = visibleBlocks.findIndex(b => b.id === block.id)
+        if (currentIndex < visibleBlocks.length - 1) {
+          setFocusedBlockId(visibleBlocks[currentIndex + 1].id)
+        }
       }
-      const rootBlocks = getRootBlocks()
-      const visibleBlocks = getFlattenedVisibleBlocks(rootBlocks)
-      const currentIndex = visibleBlocks.findIndex(b => b.id === block.id)
-      if (currentIndex < visibleBlocks.length - 1) {
-        setFocusedBlockId(visibleBlocks[currentIndex + 1].id)
-      }
+      // 마지막 줄이 아니면 textarea 기본 동작 허용 (줄 내 커서 이동)
     }
   }
 
