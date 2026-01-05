@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import TipTapEditor from './TipTapEditor'
 import { supabase } from '../../supabaseClient'
 
@@ -10,6 +10,7 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
   const [content, setContent] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(null)
+  const editorRef = useRef(null)
 
   // 페이지 로드 시 데이터 가져오기
   useEffect(() => {
@@ -99,7 +100,7 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
   return (
     <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
       <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0 }}>TipTap 에디터 테스트 (Phase 1)</h2>
+        <h2 style={{ margin: 0 }}>TipTap 에디터 테스트 (Phase 2: Toggle)</h2>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           {lastSaved && (
             <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
@@ -136,6 +137,111 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
         </div>
       </div>
 
+      {/* 툴바 버튼 */}
+      <div style={{
+        marginBottom: '1rem',
+        padding: '0.75rem',
+        backgroundColor: '#f9fafb',
+        borderRadius: '0.5rem',
+        display: 'flex',
+        gap: '0.5rem',
+        flexWrap: 'wrap',
+        border: '1px solid #e5e7eb'
+      }}>
+        <button
+          onClick={() => editorRef.current?.commands.setToggle()}
+          style={{
+            padding: '0.5rem 0.75rem',
+            backgroundColor: '#10b981',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 500
+          }}
+          title="토글 블록 생성 (Cmd+Shift+T)"
+        >
+          ▶ 토글 블록
+        </button>
+        <button
+          onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+          style={{
+            padding: '0.5rem 0.75rem',
+            backgroundColor: '#8b5cf6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 500
+          }}
+          title="3x3 표 삽입"
+        >
+          📊 표 삽입
+        </button>
+        <button
+          onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 1 }).run()}
+          style={{
+            padding: '0.5rem 0.75rem',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 500
+          }}
+        >
+          H1
+        </button>
+        <button
+          onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 2 }).run()}
+          style={{
+            padding: '0.5rem 0.75rem',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 500
+          }}
+        >
+          H2
+        </button>
+        <button
+          onClick={() => editorRef.current?.chain().focus().toggleBold().run()}
+          style={{
+            padding: '0.5rem 0.75rem',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 600
+          }}
+        >
+          B
+        </button>
+        <button
+          onClick={() => editorRef.current?.chain().focus().toggleItalic().run()}
+          style={{
+            padding: '0.5rem 0.75rem',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontStyle: 'italic'
+          }}
+        >
+          I
+        </button>
+      </div>
+
       <div style={{
         border: '1px solid #e5e7eb',
         borderRadius: '0.5rem',
@@ -147,6 +253,7 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
             content={content}
             onUpdate={handleUpdate}
             placeholder="TipTap 에디터를 테스트해보세요..."
+            editorRef={editorRef}
           />
         ) : (
           <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>
@@ -156,19 +263,24 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
       </div>
 
       <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>테스트 가이드 (Phase 2: Toggle 추가됨)</h3>
-        <ul style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.6 }}>
-          <li>텍스트 입력 및 편집 테스트</li>
-          <li>Enter: 새 문단 생성</li>
-          <li>Ctrl/Cmd + B: 볼드</li>
-          <li>Ctrl/Cmd + I: 이탤릭</li>
-          <li># + Space: H1 헤딩</li>
-          <li>## + Space: H2 헤딩</li>
-          <li>### + Space: H3 헤딩</li>
-          <li><strong>Ctrl/Cmd + Shift + T: 토글 블록 생성 (NEW)</strong></li>
-          <li>▶/▼ 버튼 클릭: 토글 열기/닫기</li>
-          <li>자동 저장 (5초 후) 또는 수동 저장 버튼 클릭</li>
-        </ul>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>🎯 테스트 가이드 (Phase 2: Toggle + 툴바)</h3>
+        <div style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.6 }}>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>✨ 새로운 기능:</p>
+          <ul style={{ marginTop: 0, marginBottom: '1rem' }}>
+            <li><strong>▶ 토글 블록</strong> 버튼 클릭 → 토글 블록 생성 (또는 Cmd+Shift+T)</li>
+            <li>토글 블록의 <strong>▶ 버튼</strong> 클릭 → 열기/닫기</li>
+            <li><strong>📊 표 삽입</strong> 버튼 클릭 → 3x3 표 자동 생성</li>
+          </ul>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>⌨️ 키보드 단축키:</p>
+          <ul style={{ marginTop: 0 }}>
+            <li>Cmd + B: 볼드</li>
+            <li>Cmd + I: 이탤릭</li>
+            <li># + Space: H1 헤딩</li>
+            <li>## + Space: H2 헤딩</li>
+            <li>### + Space: H3 헤딩</li>
+            <li>Cmd + Shift + T: 토글 블록</li>
+          </ul>
+        </div>
       </div>
     </div>
   )

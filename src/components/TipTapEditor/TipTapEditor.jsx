@@ -11,7 +11,7 @@ import { Image } from '@tiptap/extension-image'
 import { Toggle } from './extensions/ToggleExtension'
 import './TipTapEditor.css'
 
-function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...' }) {
+function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -50,6 +50,13 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       },
     },
   })
+
+  // editor 인스턴스를 ref에 할당
+  React.useEffect(() => {
+    if (editorRef && editor) {
+      editorRef.current = editor
+    }
+  }, [editor, editorRef])
 
   // content가 외부에서 변경되었을 때 에디터 업데이트
   React.useEffect(() => {
