@@ -294,8 +294,15 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
       </div>
 
       <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>🎯 사용법</h3>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>🎯 사용법 (Phase 4: BubbleMenu 추가됨!)</h3>
         <div style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.6 }}>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>🆕 텍스트 선택 메뉴 (BubbleMenu):</p>
+          <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
+            <li><strong>텍스트를 드래그</strong>하면 검은색 메뉴가 떠오름</li>
+            <li><strong>B</strong>: 볼드, <strong>I</strong>: 이탤릭, <strong>S</strong>: 취소선, <strong>&lt;/&gt;</strong>: 코드</li>
+            <li><strong>🔗</strong> 클릭 → URL 입력창 → 링크 추가</li>
+            <li>링크된 텍스트 선택 → <strong>🔗✕</strong>: 링크 제거</li>
+          </ul>
           <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>1️⃣ 토글 블록 만들기:</p>
           <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
             <li>에디터에 <strong>커서를 놓고</strong> → 위의 <span style={{ color: '#10b981', fontWeight: 600 }}>▶ 토글 블록</span> 버튼 클릭</li>

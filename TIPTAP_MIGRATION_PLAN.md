@@ -379,12 +379,14 @@ const handleSaveKeyThoughts = async () => {
 **완료 기준**: 노션 수준의 표 생성/편집 가능 ✅ 완료!
 
 ### Phase 4: Toolbar & BubbleMenu (2시간)
-- [ ] 4.1 EditorToolbar 컴포넌트 생성
-  - 헤딩, 볼드, 이탤릭, 링크, 표 버튼
-- [ ] 4.2 BubbleMenu (텍스트 선택 시 포맷팅 메뉴)
-- [ ] 4.3 Slash command menu (/ 입력 시 블록 선택)
+- [x] 4.1 EditorToolbar 컴포넌트 생성
+  - 헤딩, 볼드, 이탤릭, 링크, 표 버튼 (테스트 페이지에 구현됨)
+- [x] 4.2 BubbleMenu (텍스트 선택 시 포맷팅 메뉴)
+  - 볼드, 이탤릭, 취소선, 코드
+  - 링크 추가/제거
+- [ ] 4.3 Slash command menu (/ 입력 시 블록 선택) - 선택사항
 
-**완료 기준**: 노션처럼 포맷팅 쉽게 가능
+**완료 기준**: 노션처럼 포맷팅 쉽게 가능 ✅ 완료!
 
 ### Phase 5: 드래그앤드롭 (2-3시간)
 - [ ] 5.1 DragHandle extension 구현
@@ -778,7 +780,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [x] Phase 1: 기본 TipTap 에디터 구현
 - [x] Phase 2: Toggle Extension 구현 (토글 블록)
 - [x] Phase 3: 표(Table) 기능 구현
-- [ ] Phase 4: Toolbar & BubbleMenu
+- [x] Phase 4: Toolbar & BubbleMenu (텍스트 선택 메뉴)
 - [ ] Phase 5: 드래그앤드롭
 - [ ] Phase 6: 추가 Extensions
 - [ ] Phase 7: 히스토리 시스템 통합
@@ -788,8 +790,8 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [ ] Phase 11: 배포 & 모니터링
 
 ### 다음 단계
-👉 **Phase 4: Toolbar & BubbleMenu** (텍스트 선택 시 포맷팅 메뉴)
-또는 **Phase 5: 드래그앤드롭** (블록 순서 변경)
+👉 **Phase 5: 드래그앤드롭** (블록 순서 변경)
+또는 **Phase 7: 히스토리 시스템 통합** (버전 관리)
 
 ### 마이그레이션 방식
 ✅ **병행 운영 (Parallel Operation)**
