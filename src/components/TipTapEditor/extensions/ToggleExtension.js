@@ -82,12 +82,38 @@ export const Toggle = Node.create({
       button.classList.add('toggle-button')
       button.contentEditable = 'false'
       button.textContent = node.attrs.isOpen ? '▼' : '▶'
-      button.addEventListener('click', () => {
+
+      // Children area (contentDOM)
+      const childrenWrapper = document.createElement('div')
+      childrenWrapper.classList.add('toggle-children')
+      childrenWrapper.classList.add(node.attrs.isOpen ? 'open' : 'closed')
+
+      button.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+
         if (typeof getPos === 'function') {
           const pos = getPos()
-          editor.commands.updateAttributes('toggle', {
-            isOpen: !node.attrs.isOpen,
-          })
+          const currentNode = editor.state.doc.nodeAt(pos)
+
+          if (currentNode) {
+            const newIsOpen = !currentNode.attrs.isOpen
+
+            // Transaction으로 노드 속성 변경
+            const { tr } = editor.state
+            tr.setNodeMarkup(pos, null, {
+              ...currentNode.attrs,
+              isOpen: newIsOpen,
+            })
+            editor.view.dispatch(tr)
+
+            // DOM 즉시 업데이트 (update 함수 호출 전에)
+            button.textContent = newIsOpen ? '▼' : '▶'
+            childrenWrapper.className = newIsOpen
+              ? 'toggle-children open'
+              : 'toggle-children closed'
+            dom.setAttribute('data-is-open', newIsOpen)
+          }
         }
       })
 
@@ -97,11 +123,6 @@ export const Toggle = Node.create({
 
       header.appendChild(button)
       header.appendChild(contentWrapper)
-
-      // Children area
-      const childrenWrapper = document.createElement('div')
-      childrenWrapper.classList.add('toggle-children')
-      childrenWrapper.classList.add(node.attrs.isOpen ? 'open' : 'closed')
 
       dom.appendChild(header)
       dom.appendChild(childrenWrapper)
@@ -132,8 +153,17 @@ export const Toggle = Node.create({
 
   addCommands() {
     return {
-      setToggle: () => ({ commands }) => {
-        return commands.setNode(this.name)
+      setToggle: () => ({ commands, editor }) => {
+        return commands.insertContent({
+          type: 'toggle',
+          attrs: { isOpen: true },
+          content: [
+            {
+              type: 'paragraph',
+              content: []
+            }
+          ]
+        })
       },
       toggleToggle: () => ({ commands, editor }) => {
         const { state } = editor
