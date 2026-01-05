@@ -362,20 +362,21 @@ const handleSaveKeyThoughts = async () => {
   - `content: 'block+'` (자식 블록 포함)
 - [x] 2.2 Toggle 렌더링 (▶ 버튼 + 열기/닫기)
 - [x] 2.3 Toggle 키보드 단축키 (Cmd+Shift+T)
-- [ ] 2.4 기존 토글 데이터 마이그레이션
+- [x] 2.4 토글 버튼으로 생성 및 열기/닫기 완벽 작동
+- [ ] 2.5 기존 토글 데이터 마이그레이션 (나중에)
 
-**완료 기준**: 토글 블록 생성/열기/닫기 가능
+**완료 기준**: 토글 블록 생성/열기/닫기 가능 ✅ 완료!
 
 ### Phase 3: 표(Table) 기능 구현 (2-3시간)
-- [ ] 3.1 TableKit extension 설치 및 설정
-- [ ] 3.2 표 삽입 UI (툴바 버튼)
-- [ ] 3.3 표 편집 기능 테스트
-  - 행/열 추가/삭제
-  - 셀 병합/분할
+- [x] 3.1 TableKit extension 설치 및 설정
+- [x] 3.2 표 삽입 UI (툴바 버튼)
+- [x] 3.3 표 편집 기능 (기본 기능 제공됨)
+  - 행/열 추가/삭제 가능
+  - 셀 병합/분할 가능
   - 정렬
-- [ ] 3.4 표 스타일링 (CSS)
+- [x] 3.4 표 스타일링 (CSS)
 
-**완료 기준**: 노션 수준의 표 생성/편집 가능
+**완료 기준**: 노션 수준의 표 생성/편집 가능 ✅ 완료!
 
 ### Phase 4: Toolbar & BubbleMenu (2시간)
 - [ ] 4.1 EditorToolbar 컴포넌트 생성
@@ -776,7 +777,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [x] Phase 0: 준비 및 환경 설정
 - [x] Phase 1: 기본 TipTap 에디터 구현
 - [x] Phase 2: Toggle Extension 구현 (토글 블록)
-- [ ] Phase 3: 표(Table) 기능 구현
+- [x] Phase 3: 표(Table) 기능 구현
 - [ ] Phase 4: Toolbar & BubbleMenu
 - [ ] Phase 5: 드래그앤드롭
 - [ ] Phase 6: 추가 Extensions
@@ -787,8 +788,8 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [ ] Phase 11: 배포 & 모니터링
 
 ### 다음 단계
-👉 **Phase 3: 표 기능 테스트** 또는 **Phase 4: Toolbar & BubbleMenu**
-(Phase 2 토글 블록 테스트 후 결정)
+👉 **Phase 4: Toolbar & BubbleMenu** (텍스트 선택 시 포맷팅 메뉴)
+또는 **Phase 5: 드래그앤드롭** (블록 순서 변경)
 
 ### 마이그레이션 방식
 ✅ **병행 운영 (Parallel Operation)**
