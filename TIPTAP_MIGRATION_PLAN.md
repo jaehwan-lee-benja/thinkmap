@@ -341,10 +341,10 @@ const handleSaveKeyThoughts = async () => {
 ## 6. 단계별 구현 계획
 
 ### Phase 0: 준비 및 환경 설정 (1-2시간)
-- [ ] 0.1 Git 브랜치 생성: `feature/tiptap-migration`
-- [ ] 0.2 TipTap 라이브러리 설치
-- [ ] 0.3 기존 코드 백업 (NotionBlock.jsx → NotionBlock.backup.jsx)
-- [ ] 0.4 마이그레이션 계획서 리뷰
+- [x] 0.1 Git 브랜치 생성: `feature/tiptap-migration`
+- [x] 0.2 TipTap 라이브러리 설치
+- [x] 0.3 기존 코드 백업 (NotionBlock.jsx → NotionBlock.backup.jsx)
+- [x] 0.4 마이그레이션 계획서 리뷰
 
 ### Phase 1: 기본 TipTap 에디터 구현 (2-3시간)
 - [ ] 1.1 TipTapEditor.jsx 컴포넌트 생성
@@ -773,7 +773,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ## 현재 진행 상황
 
 ### 완료된 Phase
-- [ ] Phase 0: 준비 및 환경 설정
+- [x] Phase 0: 준비 및 환경 설정
 - [ ] Phase 1: 기본 TipTap 에디터 구현
 - [ ] Phase 2: Toggle Extension 구현
 - [ ] Phase 3: 표(Table) 기능 구현
@@ -787,7 +787,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [ ] Phase 11: 배포 & 모니터링
 
 ### 다음 단계
-👉 **Phase 0: 준비 및 환경 설정**부터 시작
+👉 **Phase 1: 기본 TipTap 에디터 구현** 시작
 
 ### 마이그레이션 방식
 ✅ **병행 운영 (Parallel Operation)**
