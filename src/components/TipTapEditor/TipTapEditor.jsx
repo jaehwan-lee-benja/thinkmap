@@ -8,6 +8,7 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Link } from '@tiptap/extension-link'
 import { Image } from '@tiptap/extension-image'
+import { Toggle } from './extensions/ToggleExtension'
 import './TipTapEditor.css'
 
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...' }) {
@@ -31,6 +32,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         openOnClick: false,
       }),
       Image,
+      Toggle,
     ],
     content: content || {
       type: 'doc',

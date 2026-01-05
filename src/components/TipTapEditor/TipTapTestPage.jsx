@@ -156,7 +156,7 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
       </div>
 
       <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>테스트 가이드</h3>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>테스트 가이드 (Phase 2: Toggle 추가됨)</h3>
         <ul style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.6 }}>
           <li>텍스트 입력 및 편집 테스트</li>
           <li>Enter: 새 문단 생성</li>
@@ -165,6 +165,8 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
           <li># + Space: H1 헤딩</li>
           <li>## + Space: H2 헤딩</li>
           <li>### + Space: H3 헤딩</li>
+          <li><strong>Ctrl/Cmd + Shift + T: 토글 블록 생성 (NEW)</strong></li>
+          <li>▶/▼ 버튼 클릭: 토글 열기/닫기</li>
           <li>자동 저장 (5초 후) 또는 수동 저장 버튼 클릭</li>
         </ul>
       </div>

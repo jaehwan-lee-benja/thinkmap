@@ -356,12 +356,12 @@ const handleSaveKeyThoughts = async () => {
 **완료 기준**: 텍스트 입력하고 저장/로드 가능
 
 ### Phase 2: Toggle Extension 구현 (3-4시간)
-- [ ] 2.1 Custom Toggle Node 정의
+- [x] 2.1 Custom Toggle Node 정의
   - `type: 'toggle'`
   - `attrs: { isOpen: boolean }`
   - `content: 'block+'` (자식 블록 포함)
-- [ ] 2.2 Toggle 렌더링 (▶ 버튼 + 열기/닫기)
-- [ ] 2.3 Toggle 키보드 단축키 (Cmd+Shift+T)
+- [x] 2.2 Toggle 렌더링 (▶ 버튼 + 열기/닫기)
+- [x] 2.3 Toggle 키보드 단축키 (Cmd+Shift+T)
 - [ ] 2.4 기존 토글 데이터 마이그레이션
 
 **완료 기준**: 토글 블록 생성/열기/닫기 가능
