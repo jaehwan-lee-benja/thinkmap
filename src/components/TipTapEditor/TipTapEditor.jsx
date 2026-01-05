@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
@@ -14,6 +14,9 @@ import './TipTapEditor.css'
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
+  const [bubbleMenuVisible, setBubbleMenuVisible] = useState(false)
+  const [bubbleMenuPosition, setBubbleMenuPosition] = useState({ top: 0, left: 0 })
+  const bubbleMenuRef = useRef(null)
 
   const editor = useEditor({
     extensions: [
@@ -68,6 +71,43 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     }
   }, [content, editor])
 
+  // 텍스트 선택 감지 및 BubbleMenu 위치 업데이트
+  useEffect(() => {
+    if (!editor) return
+
+    const updateBubbleMenu = () => {
+      const { state } = editor
+      const { selection } = state
+      const { from, to } = selection
+
+      // 텍스트가 선택되지 않았거나, 빈 선택인 경우
+      if (from === to) {
+        setBubbleMenuVisible(false)
+        return
+      }
+
+      // 선택 영역의 DOM rect 가져오기
+      const { view } = editor
+      const start = view.coordsAtPos(from)
+      const end = view.coordsAtPos(to)
+
+      // BubbleMenu 위치 계산
+      const left = (start.left + end.left) / 2
+      const top = start.top - 50 // 선택 영역 위쪽에 표시
+
+      setBubbleMenuPosition({ top, left })
+      setBubbleMenuVisible(true)
+    }
+
+    editor.on('selectionUpdate', updateBubbleMenu)
+    editor.on('transaction', updateBubbleMenu)
+
+    return () => {
+      editor.off('selectionUpdate', updateBubbleMenu)
+      editor.off('transaction', updateBubbleMenu)
+    }
+  }, [editor])
+
   if (!editor) {
     return <div>에디터 로딩 중...</div>
   }
@@ -88,11 +128,18 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
   return (
     <div className="tiptap-wrapper">
-      {editor && (
-        <BubbleMenu
-          editor={editor}
-          tippyOptions={{ duration: 100 }}
+      {/* Custom BubbleMenu (positioned absolutely) */}
+      {bubbleMenuVisible && editor && (
+        <div
+          ref={bubbleMenuRef}
           className="bubble-menu"
+          style={{
+            position: 'fixed',
+            top: `${bubbleMenuPosition.top}px`,
+            left: `${bubbleMenuPosition.left}px`,
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+          }}
         >
           {showLinkInput ? (
             <div className="bubble-menu-link-input">
@@ -182,7 +229,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
               )}
             </>
           )}
-        </BubbleMenu>
+        </div>
       )}
       <EditorContent editor={editor} />
     </div>
