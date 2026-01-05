@@ -775,7 +775,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ### 완료된 Phase
 - [x] Phase 0: 준비 및 환경 설정
 - [x] Phase 1: 기본 TipTap 에디터 구현
-- [ ] Phase 2: Toggle Extension 구현
+- [x] Phase 2: Toggle Extension 구현 (토글 블록)
 - [ ] Phase 3: 표(Table) 기능 구현
 - [ ] Phase 4: Toolbar & BubbleMenu
 - [ ] Phase 5: 드래그앤드롭
@@ -787,8 +787,8 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [ ] Phase 11: 배포 & 모니터링
 
 ### 다음 단계
-👉 **Phase 2: Toggle Extension 구현** 또는 **Phase 3: 표 기능 구현**
-(Phase 1 테스트 후 결정)
+👉 **Phase 3: 표 기능 테스트** 또는 **Phase 4: Toolbar & BubbleMenu**
+(Phase 2 토글 블록 테스트 후 결정)
 
 ### 마이그레이션 방식
 ✅ **병행 운영 (Parallel Operation)**
