@@ -347,11 +347,11 @@ const handleSaveKeyThoughts = async () => {
 - [x] 0.4 마이그레이션 계획서 리뷰
 
 ### Phase 1: 기본 TipTap 에디터 구현 (2-3시간)
-- [ ] 1.1 TipTapEditor.jsx 컴포넌트 생성
-- [ ] 1.2 StarterKit 설정 (기본 노드/마크)
-- [ ] 1.3 App.jsx에서 TipTapEditor 연동 (NotionBlock 대체)
-- [ ] 1.4 기본 텍스트 입력/편집 테스트
-- [ ] 1.5 저장/로드 로직 구현 (TipTap JSON ↔ Supabase)
+- [x] 1.1 TipTapEditor.jsx 컴포넌트 생성
+- [x] 1.2 StarterKit 설정 (기본 노드/마크)
+- [x] 1.3 App.jsx에서 TipTapEditor 연동 (NotionBlock 대체)
+- [x] 1.4 기본 텍스트 입력/편집 테스트
+- [x] 1.5 저장/로드 로직 구현 (TipTap JSON ↔ Supabase)
 
 **완료 기준**: 텍스트 입력하고 저장/로드 가능
 
@@ -774,7 +774,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 ### 완료된 Phase
 - [x] Phase 0: 준비 및 환경 설정
-- [ ] Phase 1: 기본 TipTap 에디터 구현
+- [x] Phase 1: 기본 TipTap 에디터 구현
 - [ ] Phase 2: Toggle Extension 구현
 - [ ] Phase 3: 표(Table) 기능 구현
 - [ ] Phase 4: Toolbar & BubbleMenu
@@ -787,7 +787,8 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [ ] Phase 11: 배포 & 모니터링
 
 ### 다음 단계
-👉 **Phase 1: 기본 TipTap 에디터 구현** 시작
+👉 **Phase 2: Toggle Extension 구현** 또는 **Phase 3: 표 기능 구현**
+(Phase 1 테스트 후 결정)
 
 ### 마이그레이션 방식
 ✅ **병행 운영 (Parallel Operation)**

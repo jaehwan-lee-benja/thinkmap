@@ -5,6 +5,7 @@ import GoogleAuthButton from './components/Auth/GoogleAuthButton'
 import Header from './components/Navigation/Header'
 import ViewerPage from './components/Viewer/ViewerPage'
 import Sidebar from './components/Sidebar/Sidebar'
+import TipTapTestPage from './components/TipTapEditor/TipTapTestPage'
 import { useAuth } from './hooks/useAuth'
 import { useKeyThoughts } from './hooks/useKeyThoughts'
 import { useProjects } from './hooks/useProjects'
@@ -55,6 +56,7 @@ function App() {
 
   // UI 상태
   const [showViewer, setShowViewer] = useState(false)
+  const [showTipTapTest, setShowTipTapTest] = useState(false)
   // 모바일에서는 사이드바 기본으로 닫힘
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     return window.innerWidth > 768
@@ -96,6 +98,17 @@ function App() {
     handleGoogleLogin
   })
   if (authScreen) return authScreen
+
+  // TipTap 테스트 화면 (Phase 1)
+  if (showTipTapTest) {
+    return (
+      <TipTapTestPage
+        session={session}
+        currentPageId={currentPageId}
+        onBack={() => setShowTipTapTest(false)}
+      />
+    )
+  }
 
   // 뷰어 화면
   if (showViewer) {
@@ -158,6 +171,7 @@ function App() {
               setShowKeyThoughtsHistory(true)
             }}
             onOpenViewer={() => setShowViewer(true)}
+            onOpenTipTapTest={() => setShowTipTapTest(true)}
             onSaveHistoryOnBlur={saveHistoryOnBlur}
             onManualSaveHistory={manualSaveHistory}
           />

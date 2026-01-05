@@ -1,0 +1,199 @@
+.tiptap-wrapper {
+  width: 100%;
+  min-height: 200px;
+}
+
+.tiptap-editor {
+  outline: none;
+  padding: 1rem;
+  min-height: 200px;
+}
+
+/* 기본 텍스트 스타일 */
+.tiptap-editor p {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.tiptap-editor p:first-child {
+  margin-top: 0;
+}
+
+.tiptap-editor p:last-child {
+  margin-bottom: 0;
+}
+
+/* 헤딩 스타일 */
+.tiptap-editor h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.75rem 0;
+  line-height: 1.3;
+}
+
+.tiptap-editor h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.tiptap-editor h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem 0;
+  line-height: 1.5;
+}
+
+/* 리스트 스타일 */
+.tiptap-editor ul,
+.tiptap-editor ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.tiptap-editor li {
+  margin: 0.25rem 0;
+}
+
+/* 코드 블록 스타일 */
+.tiptap-editor code {
+  background-color: #f3f4f6;
+  color: #1f2937;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+}
+
+.tiptap-editor pre {
+  background-color: #1f2937;
+  color: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.tiptap-editor pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+/* 인용구 스타일 */
+.tiptap-editor blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* 표 스타일 */
+.tiptap-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  overflow: hidden;
+  table-layout: fixed;
+}
+
+.tiptap-editor th,
+.tiptap-editor td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  min-width: 100px;
+}
+
+.tiptap-editor th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+/* 링크 스타일 */
+.tiptap-editor a {
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tiptap-editor a:hover {
+  color: #2563eb;
+}
+
+/* 이미지 스타일 */
+.tiptap-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+/* Placeholder 스타일 */
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #9ca3af;
+  pointer-events: none;
+  height: 0;
+}
+
+/* 선택 영역 스타일 */
+.tiptap-editor ::selection {
+  background-color: #bfdbfe;
+}
+
+/* 포커스 스타일 */
+.tiptap-editor:focus {
+  outline: none;
+}
+
+/* Bold, Italic, Strikethrough */
+.tiptap-editor strong {
+  font-weight: 700;
+}
+
+.tiptap-editor em {
+  font-style: italic;
+}
+
+.tiptap-editor s {
+  text-decoration: line-through;
+}
+
+/* Horizontal Rule */
+.tiptap-editor hr {
+  border: none;
+  border-top: 2px solid #e5e7eb;
+  margin: 2rem 0;
+}
+
+/* 다크모드 지원 (나중에 추가) */
+@media (prefers-color-scheme: dark) {
+  .tiptap-editor code {
+    background-color: #374151;
+    color: #f9fafb;
+  }
+
+  .tiptap-editor th,
+  .tiptap-editor td {
+    border-color: #4b5563;
+  }
+
+  .tiptap-editor th {
+    background-color: #374151;
+  }
+
+  .tiptap-editor blockquote {
+    border-left-color: #4b5563;
+    color: #9ca3af;
+  }
+
+  .tiptap-editor hr {
+    border-top-color: #4b5563;
+  }
+}

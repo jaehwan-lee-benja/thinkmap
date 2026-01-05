@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { SortableNotionBlock, NotionBlock } from './NotionBlock'
 
-function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlockId, currentPageId, currentPageName, onPageRename, onShowHistory, onOpenViewer, onSaveHistoryOnBlur, onManualSaveHistory }) {
+function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlockId, currentPageId, currentPageName, onPageRename, onShowHistory, onOpenViewer, onOpenTipTapTest, onSaveHistoryOnBlur, onManualSaveHistory }) {
   const [activeBlock, setActiveBlock] = useState(null)
   const [overId, setOverId] = useState(null)
   const [isEditingPageName, setIsEditingPageName] = useState(false)
@@ -355,6 +355,14 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
         <div className="section-buttons-desktop">
           <button
             className="toggle-all-button"
+            onClick={() => onOpenTipTapTest && onOpenTipTapTest()}
+            title="TipTap 에디터 테스트 (Phase 1)"
+            style={{ backgroundColor: '#10b981', color: 'white' }}
+          >
+            🧪 TipTap Test
+          </button>
+          <button
+            className="toggle-all-button"
             onClick={handleManualSaveHistory}
             disabled={isSavingHistory}
             title="현재 버전 저장 (Ctrl+S)"
@@ -398,6 +406,16 @@ function KeyThoughtsSection({ blocks, setBlocks, focusedBlockId, setFocusedBlock
           </button>
           {showMobileMenu && (
             <div className="mobile-dropdown-menu">
+              <button
+                className="mobile-menu-item"
+                onClick={() => {
+                  onOpenTipTapTest && onOpenTipTapTest()
+                  setShowMobileMenu(false)
+                }}
+                style={{ backgroundColor: '#10b981', color: 'white' }}
+              >
+                🧪 TipTap Test
+              </button>
               <button
                 className="mobile-menu-item"
                 onClick={() => {
