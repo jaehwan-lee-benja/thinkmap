@@ -34,13 +34,44 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
         if (data?.content_tiptap) {
           setContent(data.content_tiptap)
         } else {
-          // 빈 문서로 시작
+          // 예시 콘텐츠로 시작 (사용법 보여주기)
           setContent({
             type: 'doc',
             content: [
               {
+                type: 'heading',
+                attrs: { level: 1 },
+                content: [{ type: 'text', text: '🎯 TipTap 에디터 사용 가이드' }]
+              },
+              {
                 type: 'paragraph',
-                content: []
+                content: [{ type: 'text', text: '아래 토글 블록을 클릭해서 내용을 확인해보세요!' }]
+              },
+              {
+                type: 'toggle',
+                attrs: { isOpen: false },
+                content: [
+                  {
+                    type: 'paragraph',
+                    content: [
+                      { type: 'text', text: '토글 블록이란? ', marks: [{ type: 'bold' }] },
+                      { type: 'text', text: '내용을 접었다 펼 수 있는 블록입니다.' }
+                    ]
+                  },
+                  {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: '왼쪽 ▶ 버튼을 클릭하면 이 내용이 보입니다!' }]
+                  }
+                ]
+              },
+              {
+                type: 'heading',
+                attrs: { level: 2 },
+                content: [{ type: 'text', text: '✏️ 자유롭게 편집해보세요' }]
+              },
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: '이 내용을 모두 지우고 새로운 내용을 작성할 수 있습니다.' }]
               }
             ]
           })
@@ -262,23 +293,23 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
         )}
       </div>
 
-      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>🎯 테스트 가이드 (Phase 2: Toggle + 툴바)</h3>
+      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>🎯 사용법</h3>
         <div style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.6 }}>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>✨ 새로운 기능:</p>
-          <ul style={{ marginTop: 0, marginBottom: '1rem' }}>
-            <li><strong>▶ 토글 블록</strong> 버튼 클릭 → 토글 블록 생성 (또는 Cmd+Shift+T)</li>
-            <li>토글 블록의 <strong>▶ 버튼</strong> 클릭 → 열기/닫기</li>
-            <li><strong>📊 표 삽입</strong> 버튼 클릭 → 3x3 표 자동 생성</li>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>1️⃣ 토글 블록 만들기:</p>
+          <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
+            <li>에디터에 <strong>커서를 놓고</strong> → 위의 <span style={{ color: '#10b981', fontWeight: 600 }}>▶ 토글 블록</span> 버튼 클릭</li>
+            <li>초록색 박스에 <strong>초록색 ▶ 버튼</strong>이 나타남</li>
+            <li><strong>▶ 버튼을 클릭</strong>하면 ▼로 바뀌면서 열림/닫힘</li>
           </ul>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>⌨️ 키보드 단축키:</p>
-          <ul style={{ marginTop: 0 }}>
-            <li>Cmd + B: 볼드</li>
-            <li>Cmd + I: 이탤릭</li>
-            <li># + Space: H1 헤딩</li>
-            <li>## + Space: H2 헤딩</li>
-            <li>### + Space: H3 헤딩</li>
-            <li>Cmd + Shift + T: 토글 블록</li>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>2️⃣ 표 만들기:</p>
+          <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
+            <li><span style={{ color: '#8b5cf6', fontWeight: 600 }}>📊 표 삽입</span> 버튼 클릭 → 3x3 표 자동 생성</li>
+          </ul>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>3️⃣ 단축키:</p>
+          <ul style={{ marginTop: 0, paddingLeft: '1.5rem' }}>
+            <li>Cmd + B: 볼드, Cmd + I: 이탤릭</li>
+            <li># + Space: H1, ## + Space: H2</li>
           </ul>
         </div>
       </div>

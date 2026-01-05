@@ -1,6 +1,7 @@
 .tiptap-wrapper {
   width: 100%;
   min-height: 200px;
+  background-color: white;
 }
 
 .tiptap-editor {
@@ -8,6 +9,7 @@
   padding: 1rem;
   min-height: 200px;
   color: #1f2937;
+  background-color: white;
 }
 
 /* 기본 텍스트 스타일 */
@@ -136,7 +138,15 @@
 }
 
 /* Placeholder 스타일 */
-.tiptap-editor p.is-editor-empty:first-child::before {
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #9ca3af;
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap-editor .is-empty::before {
   content: attr(data-placeholder);
   float: left;
   color: #9ca3af;
@@ -177,6 +187,10 @@
 /* Toggle Block 스타일 */
 .toggle-block {
   margin: 0.5rem 0;
+  padding: 0.75rem;
+  border: 2px solid #10b981;
+  border-radius: 0.5rem;
+  background-color: #ecfdf5;
 }
 
 .toggle-header {
@@ -187,35 +201,45 @@
 
 .toggle-button {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: none;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #10b981;
+  background-color: white;
   cursor: pointer;
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 16px;
+  color: #10b981;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s;
+  transition: all 0.15s;
   margin-top: 2px;
+  border-radius: 6px;
+  font-weight: bold;
 }
 
 .toggle-button:hover {
-  color: #1f2937;
-  background-color: #f3f4f6;
-  border-radius: 4px;
+  color: white;
+  background-color: #10b981;
+  border-color: #059669;
 }
 
 .toggle-content-wrapper {
   flex: 1;
   min-width: 0;
+  color: #1f2937;
+}
+
+.toggle-content-wrapper p {
+  color: #1f2937;
+  margin: 0;
 }
 
 .toggle-children {
-  margin-left: 24px;
-  margin-top: 0.25rem;
+  margin-left: 36px;
+  margin-top: 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 3px solid #a7f3d0;
   overflow: hidden;
   transition: max-height 0.2s ease-out, opacity 0.2s ease-out;
 }
@@ -228,39 +252,25 @@
 .toggle-children.closed {
   max-height: 0;
   opacity: 0;
+  margin-top: 0;
+  padding-left: 0;
+  border-left: none;
 }
 
-/* 다크모드 지원 (나중에 추가) */
-@media (prefers-color-scheme: dark) {
-  .tiptap-editor code {
-    background-color: #374151;
-    color: #f9fafb;
-  }
+/* 모든 헤딩 색상 명확히 */
+.tiptap-editor h1,
+.tiptap-editor h2,
+.tiptap-editor h3 {
+  color: #1f2937;
+}
 
-  .tiptap-editor th,
-  .tiptap-editor td {
-    border-color: #4b5563;
-  }
+/* 표 내부 텍스트 색상 */
+.tiptap-editor td,
+.tiptap-editor th {
+  color: #1f2937;
+}
 
-  .tiptap-editor th {
-    background-color: #374151;
-  }
-
-  .tiptap-editor blockquote {
-    border-left-color: #4b5563;
-    color: #9ca3af;
-  }
-
-  .tiptap-editor hr {
-    border-top-color: #4b5563;
-  }
-
-  .toggle-button {
-    color: #9ca3af;
-  }
-
-  .toggle-button:hover {
-    color: #f9fafb;
-    background-color: #374151;
-  }
+/* blockquote 색상 */
+.tiptap-editor blockquote {
+  color: #4b5563;
 }
