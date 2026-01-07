@@ -1,7 +1,7 @@
 .tiptap-wrapper {
   width: 100%;
   min-height: 200px;
-  background-color: white;
+  background-color: #2d2d2d;
   position: relative;
   padding-left: 40px; /* 드래그 핸들 공간 확보 */
   overflow: visible;
@@ -11,15 +11,15 @@
   outline: none;
   padding: 1rem;
   min-height: 200px;
-  color: #1f2937;
-  background-color: white;
+  color: #e5e7eb;
+  background-color: #2d2d2d;
 }
 
 /* 기본 텍스트 스타일 */
 .tiptap-editor p {
   margin: 0.5rem 0;
   line-height: 1.6;
-  color: #1f2937;
+  color: #e5e7eb;
 }
 
 .tiptap-editor p:first-child {
@@ -65,8 +65,8 @@
 
 /* 코드 블록 스타일 */
 .tiptap-editor code {
-  background-color: #f3f4f6;
-  color: #1f2937;
+  background-color: #1a1a1a;
+  color: #10b981;
   padding: 0.2rem 0.4rem;
   border-radius: 0.25rem;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
@@ -74,12 +74,13 @@
 }
 
 .tiptap-editor pre {
-  background-color: #1f2937;
-  color: #f9fafb;
+  background-color: #1a1a1a;
+  color: #e5e7eb;
   padding: 1rem;
   border-radius: 0.5rem;
   overflow-x: auto;
   margin: 1rem 0;
+  border: 1px solid #374151;
 }
 
 .tiptap-editor pre code {
@@ -109,15 +110,16 @@
 
 .tiptap-editor th,
 .tiptap-editor td {
-  border: 1px solid #e5e7eb;
+  border: 1px solid #374151;
   padding: 0.5rem;
   text-align: left;
   vertical-align: top;
   min-width: 100px;
+  color: #e5e7eb;
 }
 
 .tiptap-editor th {
-  background-color: #f9fafb;
+  background-color: #1a1a1a;
   font-weight: 600;
 }
 
@@ -193,7 +195,7 @@
   padding: 0.75rem;
   border: 2px solid #10b981;
   border-radius: 0.5rem;
-  background-color: #ecfdf5;
+  background-color: #064e3b;
 }
 
 .toggle-header {
@@ -230,11 +232,11 @@
 .toggle-content-wrapper {
   flex: 1;
   min-width: 0;
-  color: #1f2937;
+  color: #e5e7eb;
 }
 
 .toggle-content-wrapper p {
-  color: #1f2937;
+  color: #e5e7eb;
   margin: 0;
 }
 
@@ -242,7 +244,7 @@
   margin-left: 36px;
   margin-top: 0.5rem;
   padding-left: 0.75rem;
-  border-left: 3px solid #a7f3d0;
+  border-left: 3px solid #065f46;
   overflow: hidden;
   transition: max-height 0.2s ease-out, opacity 0.2s ease-out;
 }
@@ -264,18 +266,13 @@
 .tiptap-editor h1,
 .tiptap-editor h2,
 .tiptap-editor h3 {
-  color: #1f2937;
-}
-
-/* 표 내부 텍스트 색상 */
-.tiptap-editor td,
-.tiptap-editor th {
-  color: #1f2937;
+  color: #e5e7eb;
 }
 
 /* blockquote 색상 */
 .tiptap-editor blockquote {
-  color: #4b5563;
+  color: #9ca3af;
+  border-left-color: #374151;
 }
 
 /* BubbleMenu 스타일 */
@@ -372,7 +369,7 @@
 }
 
 .drag-handle:hover {
-  background-color: #f3f4f6;
+  background-color: #374151;
 }
 
 .drag-handle:active {
@@ -385,10 +382,10 @@
 }
 
 .drag-handle-icon {
-  color: #9ca3af;
+  color: #6b7280;
   pointer-events: none;
 }
 
 .drag-handle:hover .drag-handle-icon {
-  color: #4b5563;
+  color: #9ca3af;
 }

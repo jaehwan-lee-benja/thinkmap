@@ -388,11 +388,28 @@ const handleSaveKeyThoughts = async () => {
 
 **완료 기준**: 노션처럼 포맷팅 쉽게 가능 ✅ 완료!
 
-### Phase 5: 드래그앤드롭 (2-3시간)
-- [ ] 5.1 DragHandle extension 구현
-- [ ] 5.2 블록 순서 변경 (position 업데이트)
-- [ ] 5.3 계층 구조 변경 (parent_id 업데이트)
-- [ ] 5.4 드래그 시 시각적 피드백
+### Phase 5: 드래그앤드롭 (2-3시간) - 🚧 진행 중
+- [x] 5.1 DragHandle extension 구현
+  - DragHandleExtension.js 생성 (⋮⋮ 아이콘)
+  - setTimeout으로 React 렌더링 완료 대기 (타이밍 이슈 해결)
+  - .tiptap-wrapper 찾기 로직 (parentElement 순회)
+  - mousemove 이벤트로 블록 hover 감지
+  - 드래그 시작/종료 이벤트 처리
+- [ ] 5.2 블록 순서 변경 (position 업데이트) - 기본 구현 완료, 테스트 필요
+- [ ] 5.3 계층 구조 변경 (parent_id 업데이트) - 미구현
+- [x] 5.4 드래그 시 시각적 피드백 (.dragging 클래스)
+- [x] 5.5 TipTapTestPage 다크모드 변환 (배경, 버튼, 텍스트)
+
+**현재 상태**:
+- DragHandle extension 구현 완료 (코드 수준)
+- 테스트 필요: 드래그 핸들 표시 및 드래그앤드롭 동작
+- 이슈: React 렌더링 타이밍으로 .tiptap-wrapper를 찾지 못하는 문제 → setTimeout(0)으로 해결
+
+**다음 세션 TODO**:
+1. 페이지 새로고침 후 드래그 핸들(⋮⋮) 표시 확인
+2. 블록 드래그앤드롭 동작 테스트
+3. 드롭 후 위치 변경 확인
+4. 문제 있으면 디버깅 (콘솔 로그 활용)
 
 **완료 기준**: 블록 드래그로 순서/계층 변경 가능
 

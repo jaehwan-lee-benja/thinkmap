@@ -137,17 +137,17 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
       bottom: 0,
       width: '100%',
       height: '100vh',
-      backgroundColor: '#f9fafb',
+      backgroundColor: '#1a1a1a',
       overflowY: 'auto',
       padding: '2rem 1rem',
       zIndex: 1000
     }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0 }}>TipTap 에디터 테스트 (Phase 5: Drag & Drop)</h2>
+          <h2 style={{ margin: 0, color: '#e5e7eb' }}>TipTap 에디터 테스트 (Phase 5: Drag & Drop)</h2>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           {lastSaved && (
-            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+            <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
               마지막 저장: {lastSaved.toLocaleTimeString()}
             </span>
           )}
@@ -156,7 +156,7 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
             disabled={isSaving}
             style={{
               padding: '0.5rem 1rem',
-              backgroundColor: isSaving ? '#9ca3af' : '#3b82f6',
+              backgroundColor: isSaving ? '#4b5563' : '#3b82f6',
               color: 'white',
               border: 'none',
               borderRadius: '0.375rem',
@@ -169,8 +169,8 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
             onClick={onBack}
             style={{
               padding: '0.5rem 1rem',
-              backgroundColor: '#6b7280',
-              color: 'white',
+              backgroundColor: '#374151',
+              color: '#e5e7eb',
               border: 'none',
               borderRadius: '0.375rem',
               cursor: 'pointer'
@@ -185,12 +185,12 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
       <div style={{
         marginBottom: '1rem',
         padding: '0.75rem',
-        backgroundColor: '#f9fafb',
+        backgroundColor: '#2d2d2d',
         borderRadius: '0.5rem',
         display: 'flex',
         gap: '0.5rem',
         flexWrap: 'wrap',
-        border: '1px solid #e5e7eb'
+        border: '1px solid #374151'
       }}>
         <button
           onClick={() => editorRef.current?.commands.setToggle()}
@@ -287,9 +287,9 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
       </div>
 
       <div style={{
-        border: '1px solid #e5e7eb',
+        border: '1px solid #374151',
         borderRadius: '0.5rem',
-        backgroundColor: 'white',
+        backgroundColor: '#2d2d2d',
         minHeight: '500px'
       }}>
         {content ? (
@@ -300,33 +300,32 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
             editorRef={editorRef}
           />
         ) : (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
             로딩 중...
           </div>
         )}
       </div>
 
-      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>🎯 사용법 (Phase 4: BubbleMenu 추가됨!)</h3>
-        <div style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.6 }}>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>🆕 텍스트 선택 메뉴 (BubbleMenu):</p>
+      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#2d2d2d', borderRadius: '0.5rem', border: '1px solid #374151' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>🎯 사용법 (Phase 5: Drag & Drop)</h3>
+        <div style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.6 }}>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>🆕 드래그 & 드롭 (Phase 5):</p>
+          <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
+            <li>블록 위에 마우스 올리면 왼쪽에 <strong>⋮⋮ 핸들</strong> 표시</li>
+            <li><strong>핸들을 드래그</strong>해서 블록 순서 변경</li>
+          </ul>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>텍스트 선택 메뉴 (BubbleMenu):</p>
           <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
             <li><strong>텍스트를 드래그</strong>하면 검은색 메뉴가 떠오름</li>
             <li><strong>B</strong>: 볼드, <strong>I</strong>: 이탤릭, <strong>S</strong>: 취소선, <strong>&lt;/&gt;</strong>: 코드</li>
             <li><strong>🔗</strong> 클릭 → URL 입력창 → 링크 추가</li>
-            <li>링크된 텍스트 선택 → <strong>🔗✕</strong>: 링크 제거</li>
           </ul>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>1️⃣ 토글 블록 만들기:</p>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>토글 블록:</p>
           <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
-            <li>에디터에 <strong>커서를 놓고</strong> → 위의 <span style={{ color: '#10b981', fontWeight: 600 }}>▶ 토글 블록</span> 버튼 클릭</li>
-            <li>초록색 박스에 <strong>초록색 ▶ 버튼</strong>이 나타남</li>
-            <li><strong>▶ 버튼을 클릭</strong>하면 ▼로 바뀌면서 열림/닫힘</li>
+            <li><span style={{ color: '#10b981', fontWeight: 600 }}>▶ 토글 블록</span> 버튼 클릭</li>
+            <li><strong>▶ 버튼을 클릭</strong>하면 열림/닫힘</li>
           </ul>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>2️⃣ 표 만들기:</p>
-          <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
-            <li><span style={{ color: '#8b5cf6', fontWeight: 600 }}>📊 표 삽입</span> 버튼 클릭 → 3x3 표 자동 생성</li>
-          </ul>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#1f2937' }}>3️⃣ 단축키:</p>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>단축키:</p>
           <ul style={{ marginTop: 0, paddingLeft: '1.5rem' }}>
             <li>Cmd + B: 볼드, Cmd + I: 이탤릭</li>
             <li># + Space: H1, ## + Space: H2</li>

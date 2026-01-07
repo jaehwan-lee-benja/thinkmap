@@ -34,24 +34,17 @@ export const DragHandle = Extension.create({
             </svg>
           `
 
-          // tiptap-wrapper 찾기 (editorView.dom의 상위 요소)
-          let wrapperElement = editorView.dom.parentElement
-          while (wrapperElement && !wrapperElement.classList.contains('tiptap-wrapper')) {
-            wrapperElement = wrapperElement.parentElement
-          }
-
-          if (wrapperElement) {
-            wrapperElement.appendChild(dragHandleElement)
-          } else {
-            // wrapper를 못 찾으면 직접 부모에 추가
-            editorView.dom.parentElement.appendChild(dragHandleElement)
-          }
-
-          // 마우스 이동 시 핸들 위치 업데이트
+          const editorDom = editorView.dom
+          let wrapperElement = null
           let currentNode = null
           let currentPos = null
+          let draggedNodePos = null
+          let draggedNode = null
+          let hideTimeout = null
 
+          // 마우스 이동 시 핸들 위치 업데이트
           const updateHandlePosition = (event) => {
+            console.log('🖱️ Mouse move detected', event.clientX, event.clientY)
             const pos = editorView.posAtCoords({ left: event.clientX, top: event.clientY })
             if (!pos) {
               dragHandleElement.style.display = 'none'
@@ -108,18 +101,11 @@ export const DragHandle = Extension.create({
 
               if (domNode && domNode instanceof HTMLElement && domNode !== editorView.dom) {
                 const rect = domNode.getBoundingClientRect()
-
-                // tiptap-wrapper 기준으로 위치 계산
-                let wrapperElement = editorView.dom.parentElement
-                while (wrapperElement && !wrapperElement.classList.contains('tiptap-wrapper')) {
-                  wrapperElement = wrapperElement.parentElement
-                }
-
-                const wrapperRect = wrapperElement ? wrapperElement.getBoundingClientRect() : editorView.dom.getBoundingClientRect()
+                const wrapperRect = wrapperElement.getBoundingClientRect()
 
                 dragHandleElement.style.display = 'flex'
                 dragHandleElement.style.top = `${rect.top - wrapperRect.top + rect.height / 2 - 12}px`
-                dragHandleElement.style.left = '8px' // padding-left 영역 안에 표시
+                dragHandleElement.style.left = '8px'
 
                 currentNode = node
                 currentPos = nodePos
@@ -132,34 +118,134 @@ export const DragHandle = Extension.create({
             }
           }
 
-          // 에디터 위에서 마우스 이동 감지
-          editorView.dom.addEventListener('mousemove', updateHandlePosition)
+          const scheduleHide = () => {
+            hideTimeout = setTimeout(() => {
+              dragHandleElement.style.display = 'none'
+            }, 100)
+          }
 
-          // 에디터 밖으로 나가면 핸들 숨김
-          editorView.dom.addEventListener('mouseleave', () => {
-            dragHandleElement.style.display = 'none'
-          })
-
-          // 드래그 시작
-          dragHandleElement.addEventListener('dragstart', (event) => {
-            if (currentPos !== null) {
-              // 드래그 중인 노드 정보 저장
-              event.dataTransfer.effectAllowed = 'move'
-              event.dataTransfer.setData('text/plain', currentPos.toString())
-
-              // 드래그 중 시각적 피드백
-              dragHandleElement.classList.add('dragging')
+          const cancelHide = () => {
+            if (hideTimeout) {
+              clearTimeout(hideTimeout)
+              hideTimeout = null
             }
-          })
+          }
 
-          // 드래그 종료
-          dragHandleElement.addEventListener('dragend', () => {
-            dragHandleElement.classList.remove('dragging')
-          })
+          // React 렌더링 완료 후 초기화
+          setTimeout(() => {
+            console.log('🔍 Initializing DragHandle...')
+            let element = editorDom.parentElement
+
+            console.log('🔍 Level 0 (editorDom.parentElement):', element, 'className:', element?.className)
+            console.log('🔍 Level 1 (parentElement.parentElement):', element?.parentElement, 'className:', element?.parentElement?.className)
+
+            // .tiptap-wrapper 클래스를 가진 요소 찾기
+            while (element && !element.classList.contains('tiptap-wrapper')) {
+              element = element.parentElement
+              if (element) {
+                console.log('🔍 Checking parent:', element, 'className:', element.className)
+              }
+            }
+
+            if (!element) {
+              console.error('❌ .tiptap-wrapper not found!')
+              return
+            }
+
+            wrapperElement = element
+            console.log('✅ Found .tiptap-wrapper:', wrapperElement)
+
+            // wrapperElement에 핸들 추가
+            wrapperElement.style.position = 'relative'
+            wrapperElement.appendChild(dragHandleElement)
+            console.log('✅ DragHandle appended to .tiptap-wrapper')
+
+            // 이벤트 리스너 등록
+            wrapperElement.addEventListener('mousemove', updateHandlePosition)
+            wrapperElement.addEventListener('mouseleave', scheduleHide)
+            console.log('✅ mousemove event listener registered')
+
+            // 핸들 위에서도 핸들 유지
+            dragHandleElement.addEventListener('mouseenter', () => {
+              dragHandleElement.style.display = 'flex'
+            })
+            dragHandleElement.addEventListener('mouseenter', cancelHide)
+            dragHandleElement.addEventListener('mouseleave', scheduleHide)
+
+            // 드래그 시작
+            dragHandleElement.addEventListener('dragstart', (event) => {
+              if (currentPos !== null && currentNode !== null) {
+                draggedNodePos = currentPos
+                draggedNode = currentNode
+
+                // 드래그 중인 노드 정보 저장
+                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.setData('text/plain', currentPos.toString())
+
+                // 드래그 중 시각적 피드백
+                dragHandleElement.classList.add('dragging')
+              }
+            })
+
+            // 드래그 종료
+            dragHandleElement.addEventListener('dragend', () => {
+              dragHandleElement.classList.remove('dragging')
+              draggedNodePos = null
+              draggedNode = null
+            })
+
+            // 에디터 위에 드래그오버 이벤트 (드롭 가능 표시)
+            editorView.dom.addEventListener('dragover', (event) => {
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'move'
+            })
+
+            // 드롭 이벤트 (실제 블록 이동)
+            editorView.dom.addEventListener('drop', (event) => {
+              event.preventDefault()
+
+              if (draggedNodePos === null || draggedNode === null) return
+
+              // 드롭 위치 찾기
+              const dropPos = editorView.posAtCoords({ left: event.clientX, top: event.clientY })
+              if (!dropPos) return
+
+              // 같은 위치에 드롭하면 무시
+              if (Math.abs(dropPos.pos - draggedNodePos) < 5) return
+
+              try {
+                const { tr } = editorView.state
+                const draggedNodeSize = draggedNode.nodeSize
+
+                // 드래그한 노드 삭제
+                tr.delete(draggedNodePos, draggedNodePos + draggedNodeSize)
+
+                // 삭제 후 위치 조정
+                let insertPos = dropPos.pos
+                if (dropPos.pos > draggedNodePos) {
+                  insertPos -= draggedNodeSize
+                }
+
+                // 새 위치에 노드 삽입
+                tr.insert(insertPos, draggedNode)
+
+                // 트랜잭션 실행
+                editorView.dispatch(tr)
+              } catch (error) {
+                console.error('Drag and drop error:', error)
+              }
+
+              draggedNodePos = null
+              draggedNode = null
+            })
+          }, 0) // React 렌더링 대기
 
           return {
             destroy() {
-              editorView.dom.removeEventListener('mousemove', updateHandlePosition)
+              if (wrapperElement) {
+                wrapperElement.removeEventListener('mousemove', updateHandlePosition)
+                wrapperElement.removeEventListener('mouseleave', scheduleHide)
+              }
               if (dragHandleElement.parentElement) {
                 dragHandleElement.parentElement.removeChild(dragHandleElement)
               }
