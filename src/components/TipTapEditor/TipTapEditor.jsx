@@ -9,6 +9,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { Link } from '@tiptap/extension-link'
 import { Image } from '@tiptap/extension-image'
 import { Toggle } from './extensions/ToggleExtension'
+import { DragHandle } from './extensions/DragHandleExtension'
 import './TipTapEditor.css'
 
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
@@ -39,6 +40,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       }),
       Image,
       Toggle,
+      DragHandle,
     ],
     content: content || {
       type: 'doc',
@@ -93,7 +95,17 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
       // BubbleMenu 위치 계산
       const left = (start.left + end.left) / 2
-      const top = start.top - 50 // 선택 영역 위쪽에 표시
+      const menuHeight = 50 // BubbleMenu 예상 높이
+
+      // 위쪽에 공간이 충분하면 위에, 아니면 아래에 표시
+      let top
+      if (start.top < menuHeight + 10) {
+        // 위쪽 공간 부족 → 아래에 표시
+        top = end.bottom + 10
+      } else {
+        // 위쪽에 표시
+        top = start.top - menuHeight - 10
+      }
 
       setBubbleMenuPosition({ top, left })
       setBubbleMenuVisible(true)

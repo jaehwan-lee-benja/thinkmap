@@ -117,22 +117,35 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
     }
   }
 
-  // 자동 저장 (5초 debounce)
+  // 자동 저장 (2초 debounce)
   useEffect(() => {
     if (!content) return
 
     const timer = setTimeout(() => {
       handleSave()
-    }, 5000)
+    }, 2000)
 
     return () => clearTimeout(timer)
   }, [content, session, currentPageId])
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0 }}>TipTap 에디터 테스트 (Phase 2: Toggle)</h2>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100vh',
+      backgroundColor: '#f9fafb',
+      overflowY: 'auto',
+      padding: '2rem 1rem',
+      zIndex: 1000
+    }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0 }}>TipTap 에디터 테스트 (Phase 5: Drag & Drop)</h2>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           {lastSaved && (
             <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
               마지막 저장: {lastSaved.toLocaleTimeString()}
@@ -320,6 +333,7 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
           </ul>
         </div>
       </div>
+    </div>
     </div>
   )
 }

@@ -2,6 +2,9 @@
   width: 100%;
   min-height: 200px;
   background-color: white;
+  position: relative;
+  padding-left: 40px; /* 드래그 핸들 공간 확보 */
+  overflow: visible;
 }
 
 .tiptap-editor {
@@ -352,4 +355,40 @@
 
 .link-input::placeholder {
   color: #9ca3af;
+}
+
+/* Drag Handle 스타일 */
+.drag-handle {
+  position: absolute;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  cursor: grab;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+  z-index: 10;
+}
+
+.drag-handle:hover {
+  background-color: #f3f4f6;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.drag-handle-icon {
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.drag-handle:hover .drag-handle-icon {
+  color: #4b5563;
 }
