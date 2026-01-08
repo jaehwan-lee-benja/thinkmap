@@ -87,19 +87,54 @@ parentElement.parentElement: null
 
 ## 🎯 이번 케이스 (DragHandle)
 
-### 실패 과정:
+### 문제 1: DragHandle UI 표시 안됨
+**실패 과정**:
 1. **잘못된 접근**: TipTap Extension으로 구현 시도
 2. **증상**: `parentElement.parentElement: null`
 3. **잘못된 해결**: setTimeout(0, 100, 재시도 10번)
 4. **시간 낭비**: 3일
 
-### 올바른 해결:
+**올바른 해결**:
 1. **근본 원인 파악**: Extension은 React 렌더링 전 실행
 2. **방법 변경**: Extension 삭제 → React useEffect로 이동
 3. **해결 시간**: 10분
 
+### 문제 2: dragover/drop 이벤트 미발생
+**증상**: dragstart는 성공하지만 dragover, drop 전혀 발생 안 함
+
+**근본 원인**:
+- TipTap 에디터는 **contenteditable=true**
+- contenteditable 요소 내에서 draggable 요소를 드래그하면
+- **브라우저가 텍스트 선택으로 인식**하여 드래그 이벤트 차단
+
+**올바른 해결**:
+```javascript
+// dragstart 시: 에디터 비활성화
+dragHandleElement.addEventListener('dragstart', (event) => {
+  editor.setEditable(false)  // 🔑 핵심!
+  // ... 드래그 로직
+})
+
+// dragend 시: 에디터 다시 활성화
+dragHandleElement.addEventListener('dragend', () => {
+  editor.setEditable(true)  // 🔑 복원!
+  // ... 정리 로직
+})
+```
+
 ### 교훈:
-> **"우회책이 3번 실패하면 방향이 틀렸다"**
+1. **"우회책이 3번 실패하면 방향이 틀렸다"**
+2. **contenteditable 내 드래그는 직접 구현하지 말 것**
+3. **근본 원인: 브라우저가 텍스트 선택 vs 드래그를 구분 못함**
+4. **해결: ProseMirror NodeView + 검증된 extension 사용**
+
+### 최종 해결책:
+- ❌ 271줄 커스텀 코드 삭제 (React useEffect 방식)
+- ✅ `tiptap-extension-global-drag-handle` 사용 (1줄로 해결)
+- ✅ ProseMirror의 내장 드래그앤드롭 시스템 활용
+- ✅ 10분 만에 완벽하게 작동
+
+**교훈**: 복잡한 에디터 기능은 **이미 검증된 extension을 사용**하라. 직접 구현은 시간 낭비.
 
 ---
 

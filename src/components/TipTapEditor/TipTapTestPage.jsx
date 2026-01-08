@@ -146,24 +146,24 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
         <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ margin: 0, color: '#e5e7eb' }}>TipTap 에디터 테스트 (Phase 5: Drag & Drop)</h2>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          {lastSaved && (
-            <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-              마지막 저장: {lastSaved.toLocaleTimeString()}
-            </span>
-          )}
           <button
             onClick={handleSave}
             disabled={isSaving}
+            title={
+              isSaving
+                ? '지금은 저장 중으로 일시적으로 버튼이 비활성화되었습니다'
+                : (lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '아직 저장되지 않음')
+            }
             style={{
               padding: '0.5rem 1rem',
-              backgroundColor: isSaving ? '#4b5563' : '#3b82f6',
+              backgroundColor: '#3b82f6',
               color: 'white',
               border: 'none',
               borderRadius: '0.375rem',
-              cursor: isSaving ? 'not-allowed' : 'pointer'
+              cursor: 'pointer'
             }}
           >
-            {isSaving ? '저장 중...' : '저장'}
+            저장
           </button>
           <button
             onClick={onBack}

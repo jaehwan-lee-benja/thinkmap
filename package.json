@@ -27,7 +27,8 @@
     "@tiptap/react": "^3.14.0",
     "@tiptap/starter-kit": "^3.14.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "tiptap-extension-global-drag-handle": "^0.1.18"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",
