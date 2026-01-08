@@ -1,5 +1,8 @@
 # TipTap 에디터 마이그레이션 계획서
 
+## 🚨 작업 시작 전 필독
+**[CRITICAL_LESSONS.md](./CRITICAL_LESSONS.md) - React + TipTap 통합 시 절대 규칙**
+
 ## 목차
 1. [현재 상태 분석](#1-현재-상태-분석)
 2. [마이그레이션 목표 및 이유](#2-마이그레이션-목표-및-이유)
@@ -388,30 +391,48 @@ const handleSaveKeyThoughts = async () => {
 
 **완료 기준**: 노션처럼 포맷팅 쉽게 가능 ✅ 완료!
 
-### Phase 5: 드래그앤드롭 (2-3시간) - 🚧 진행 중
-- [x] 5.1 DragHandle extension 구현
-  - DragHandleExtension.js 생성 (⋮⋮ 아이콘)
-  - setTimeout으로 React 렌더링 완료 대기 (타이밍 이슈 해결)
-  - .tiptap-wrapper 찾기 로직 (parentElement 순회)
-  - mousemove 이벤트로 블록 hover 감지
-  - 드래그 시작/종료 이벤트 처리
-- [ ] 5.2 블록 순서 변경 (position 업데이트) - 기본 구현 완료, 테스트 필요
-- [ ] 5.3 계층 구조 변경 (parent_id 업데이트) - 미구현
-- [x] 5.4 드래그 시 시각적 피드백 (.dragging 클래스)
-- [x] 5.5 TipTapTestPage 다크모드 변환 (배경, 버튼, 텍스트)
+### Phase 5: 드래그앤드롭 (2-3시간) - 🚧 진행 중 (2026-01-08)
 
-**현재 상태**:
-- DragHandle extension 구현 완료 (코드 수준)
-- 테스트 필요: 드래그 핸들 표시 및 드래그앤드롭 동작
-- 이슈: React 렌더링 타이밍으로 .tiptap-wrapper를 찾지 못하는 문제 → setTimeout(0)으로 해결
+**완료된 작업**:
+- [x] 5.1 DragHandle 구현 (**React useEffect 방식으로 변경**)
+  - ⚠️ **DragHandleExtension.js 삭제** (Extension은 React 렌더링 전 실행되어 DOM 조작 불가)
+  - ✅ TipTapEditor.jsx의 useEffect에서 직접 구현 (React 렌더링 완료 후 실행)
+  - ✅ 드래그 핸들(⋮⋮) 표시 완료 (hover 시 나타남)
+  - ✅ `isDragging` 플래그로 드래그 중 핸들 숨김 방지
+  - ✅ mouseleave 타이머에 isDragging 체크 추가
+  - ✅ dragstart 이벤트 성공적으로 발생
+  - ✅ TipTap handleDOMEvents에서 커스텀 드래그 허용
+  - ✅ setDragImage()로 드래그 시각 피드백 추가
+- [x] 5.4 드래그 시 시각적 피드백 (.dragging 클래스)
+- [x] 5.5 TipTapTestPage 다크모드 변환
+
+**미완료 작업**:
+- [ ] 5.2 블록 순서 변경 (position 업데이트) - **dragover/drop 이벤트 미발생**
+  - ⚠️ dragstart는 성공하지만 dragover, drop 이벤트가 발생하지 않음
+  - 원인 추정: 브라우저 드래그 동작이 활성화되지 않음
+  - 디버깅 로그 추가 완료 (🎬 dragstart, 📍 dragover, 📦 drop)
+- [ ] 5.3 계층 구조 변경 (parent_id 업데이트) - 미구현
+
+**주요 교훈** (CRITICAL_LESSONS.md 참조):
+- ❌ **TipTap Extension으로 UI 만들기 금지**: Extension의 `view()` 함수는 React 렌더링 전 실행
+- ✅ **React useEffect 사용**: DOM 조작은 React가 렌더링 완료한 후에만 안전
+- 🚨 3일간 Extension 방식으로 시행착오 → 10분만에 useEffect로 해결
+
+**현재 상태 (2026-01-08 세션 종료 시점)**:
+- 드래그 핸들 표시: ✅ 완료
+- 드래그 시작(dragstart): ✅ 성공
+- 실제 드래그 동작(dragover/drop): ❌ 미작동
+- 코드 상태: TipTapEditor.jsx에 모든 로직 구현 완료, 디버깅 로그 포함
 
 **다음 세션 TODO**:
-1. 페이지 새로고침 후 드래그 핸들(⋮⋮) 표시 확인
-2. 블록 드래그앤드롭 동작 테스트
-3. 드롭 후 위치 변경 확인
-4. 문제 있으면 디버깅 (콘솔 로그 활용)
+1. dragover/drop 이벤트가 발생하지 않는 원인 파악
+   - 브라우저 드래그 동작 활성화 확인
+   - TipTap의 내부 드래그 방해 여부 확인
+   - 다른 라이브러리(@dnd-kit 등)와의 충돌 확인
+2. 필요 시 공식 @tiptap/extension-drag-handle-react 사용 검토
+3. 드래그앤드롭 완전 구현 후 블록 position 업데이트 로직 연결
 
-**완료 기준**: 블록 드래그로 순서/계층 변경 가능
+**완료 기준**: 블록 드래그로 순서 변경 가능 + Supabase position 업데이트
 
 ### Phase 6: 추가 Extensions (1-2시간)
 - [ ] 6.1 Image extension (이미지 업로드/삽입)
