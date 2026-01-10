@@ -73,20 +73,16 @@ export const Toggle = Node.create({
       dom.classList.add('toggle-block')
       dom.setAttribute('data-is-open', node.attrs.isOpen)
 
-      // Header (toggle button + content)
-      const header = document.createElement('div')
-      header.classList.add('toggle-header')
-
       // Toggle button
       const button = document.createElement('button')
       button.classList.add('toggle-button')
       button.contentEditable = 'false'
       button.textContent = node.attrs.isOpen ? '▼' : '▶'
 
-      // Children area (contentDOM)
-      const childrenWrapper = document.createElement('div')
-      childrenWrapper.classList.add('toggle-children')
-      childrenWrapper.classList.add(node.attrs.isOpen ? 'open' : 'closed')
+      // Content area (contentDOM) - 버튼 옆에 배치
+      const contentWrapper = document.createElement('div')
+      contentWrapper.classList.add('toggle-content')
+      contentWrapper.classList.add(node.attrs.isOpen ? 'open' : 'closed')
 
       button.addEventListener('click', (e) => {
         e.preventDefault()
@@ -107,29 +103,22 @@ export const Toggle = Node.create({
             })
             editor.view.dispatch(tr)
 
-            // DOM 즉시 업데이트 (update 함수 호출 전에)
+            // DOM 즉시 업데이트
             button.textContent = newIsOpen ? '▼' : '▶'
-            childrenWrapper.className = newIsOpen
-              ? 'toggle-children open'
-              : 'toggle-children closed'
+            contentWrapper.className = newIsOpen
+              ? 'toggle-content open'
+              : 'toggle-content closed'
             dom.setAttribute('data-is-open', newIsOpen)
           }
         }
       })
 
-      // Content area
-      const contentWrapper = document.createElement('div')
-      contentWrapper.classList.add('toggle-content-wrapper')
-
-      header.appendChild(button)
-      header.appendChild(contentWrapper)
-
-      dom.appendChild(header)
-      dom.appendChild(childrenWrapper)
+      dom.appendChild(button)
+      dom.appendChild(contentWrapper)
 
       return {
         dom,
-        contentDOM: childrenWrapper,
+        contentDOM: contentWrapper,
         update: (updatedNode) => {
           if (updatedNode.type.name !== 'toggle') {
             return false
@@ -138,10 +127,10 @@ export const Toggle = Node.create({
           // Update button text
           button.textContent = updatedNode.attrs.isOpen ? '▼' : '▶'
 
-          // Update children visibility
-          childrenWrapper.className = updatedNode.attrs.isOpen
-            ? 'toggle-children open'
-            : 'toggle-children closed'
+          // Update content visibility
+          contentWrapper.className = updatedNode.attrs.isOpen
+            ? 'toggle-content open'
+            : 'toggle-content closed'
 
           dom.setAttribute('data-is-open', updatedNode.attrs.isOpen)
 
@@ -153,17 +142,49 @@ export const Toggle = Node.create({
 
   addCommands() {
     return {
-      setToggle: () => ({ commands, editor }) => {
-        return commands.insertContent({
-          type: 'toggle',
-          attrs: { isOpen: true },
-          content: [
-            {
-              type: 'paragraph',
-              content: []
-            }
-          ]
-        })
+      setToggle: () => ({ commands, editor, chain }) => {
+        const { state } = editor
+        const { selection } = state
+        const { $from, empty } = selection
+
+        // 에디터가 비어있는지 확인 (doc에 빈 paragraph만 있는 경우)
+        const isEmptyDoc = state.doc.content.size <= 2 ||
+          (state.doc.childCount === 1 &&
+           state.doc.firstChild?.type.name === 'paragraph' &&
+           state.doc.firstChild?.content.size === 0)
+
+        if (isEmptyDoc) {
+          // 빈 에디터: 전체를 토글로 대체
+          return chain()
+            .clearContent()
+            .insertContent({
+              type: 'toggle',
+              attrs: { isOpen: true },
+              content: [
+                {
+                  type: 'paragraph',
+                  content: []
+                }
+              ]
+            })
+            .focus()
+            .run()
+        }
+
+        // 현재 블록 끝으로 이동 후 새 줄에 토글 삽입
+        return chain()
+          .insertContentAt(selection.to, {
+            type: 'toggle',
+            attrs: { isOpen: true },
+            content: [
+              {
+                type: 'paragraph',
+                content: []
+              }
+            ]
+          })
+          .focus()
+          .run()
       },
       toggleToggle: () => ({ commands, editor }) => {
         const { state } = editor
@@ -184,6 +205,159 @@ export const Toggle = Node.create({
   addKeyboardShortcuts() {
     return {
       'Mod-Shift-t': () => this.editor.commands.setToggle(),
+
+      // 엔터: 토글 밖으로 나가서 새 토글 생성
+      'Enter': ({ editor }) => {
+        const { state } = editor
+        const { $from } = state.selection
+
+        // 현재 토글 내부에 있는지 확인
+        let toggleDepth = -1
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === 'toggle') {
+            toggleDepth = d
+            break
+          }
+        }
+
+        if (toggleDepth === -1) {
+          // 토글 내부가 아니면 기본 동작
+          return false
+        }
+
+        // 토글 다음 위치에 새 토글 삽입
+        const togglePos = $from.before(toggleDepth)
+        const toggleNode = state.doc.nodeAt(togglePos)
+        const afterTogglePos = togglePos + toggleNode.nodeSize
+
+        editor.chain()
+          .insertContentAt(afterTogglePos, {
+            type: 'toggle',
+            attrs: { isOpen: true },
+            content: [{ type: 'paragraph', content: [] }]
+          })
+          .focus(afterTogglePos + 2)
+          .run()
+
+        return true
+      },
+
+      // Shift+엔터: 블록 내부에서 줄바꿈 (soft break)
+      'Shift-Enter': ({ editor }) => {
+        return editor.commands.setHardBreak()
+      },
+
+      // Tab: 위 토글의 하위로 들여쓰기
+      'Tab': ({ editor }) => {
+        const { state } = editor
+        const { $from } = state.selection
+
+        // 현재 토글 찾기
+        let toggleDepth = -1
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === 'toggle') {
+            toggleDepth = d
+            break
+          }
+        }
+
+        if (toggleDepth === -1) return false
+
+        const togglePos = $from.before(toggleDepth)
+        const toggleNode = state.doc.nodeAt(togglePos)
+
+        // 이전 형제 노드 찾기
+        const $togglePos = state.doc.resolve(togglePos)
+        const indexInParent = $togglePos.index($togglePos.depth)
+
+        if (indexInParent === 0) {
+          // 첫번째 자식이면 들여쓰기 불가
+          return true
+        }
+
+        // 이전 형제 위치 계산
+        const prevSiblingPos = $togglePos.posAtIndex(indexInParent - 1, $togglePos.depth)
+        const prevSibling = state.doc.nodeAt(prevSiblingPos)
+
+        if (!prevSibling || prevSibling.type.name !== 'toggle') {
+          // 이전 형제가 토글이 아니면 들여쓰기 불가
+          return true
+        }
+
+        // 현재 토글을 삭제하고 이전 토글의 마지막에 삽입
+        const tr = state.tr
+
+        // 현재 토글 삭제
+        tr.delete(togglePos, togglePos + toggleNode.nodeSize)
+
+        // 이전 토글의 contentDOM 끝에 삽입
+        // 이전 토글의 끝 위치 = prevSiblingPos + prevSibling.nodeSize - 1
+        const insertPos = prevSiblingPos + prevSibling.nodeSize - 1
+        tr.insert(insertPos, toggleNode)
+
+        editor.view.dispatch(tr)
+
+        // 새 위치로 포커스
+        editor.commands.focus(insertPos + 2)
+
+        return true
+      },
+
+      // Shift+Tab: 토글 밖으로 내어쓰기
+      'Shift-Tab': ({ editor }) => {
+        const { state } = editor
+        const { $from } = state.selection
+
+        // 현재 토글 찾기
+        let toggleDepth = -1
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === 'toggle') {
+            toggleDepth = d
+            break
+          }
+        }
+
+        if (toggleDepth === -1) return false
+
+        const togglePos = $from.before(toggleDepth)
+        const toggleNode = state.doc.nodeAt(togglePos)
+
+        // 부모 토글 찾기
+        let parentToggleDepth = -1
+        for (let d = toggleDepth - 1; d > 0; d--) {
+          const node = $from.node(d)
+          if (node.type.name === 'toggle') {
+            parentToggleDepth = d
+            break
+          }
+        }
+
+        if (parentToggleDepth === -1) {
+          // 부모 토글이 없으면 내어쓰기 불가 (이미 최상위)
+          return true
+        }
+
+        // 부모 토글 다음 위치에 현재 토글 이동
+        const parentTogglePos = $from.before(parentToggleDepth)
+        const parentToggleNode = state.doc.nodeAt(parentTogglePos)
+        const afterParentPos = parentTogglePos + parentToggleNode.nodeSize
+
+        const tr = state.tr
+
+        // 현재 토글 삭제
+        tr.delete(togglePos, togglePos + toggleNode.nodeSize)
+
+        // 부모 토글 다음에 삽입 (삭제로 인한 위치 조정)
+        const adjustedInsertPos = afterParentPos - toggleNode.nodeSize
+        tr.insert(adjustedInsertPos, toggleNode)
+
+        editor.view.dispatch(tr)
+
+        // 새 위치로 포커스
+        editor.commands.focus(adjustedInsertPos + 2)
+
+        return true
+      },
     }
   },
 })

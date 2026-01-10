@@ -19,6 +19,12 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   const [bubbleMenuPosition, setBubbleMenuPosition] = useState({ top: 0, left: 0 })
   const bubbleMenuRef = useRef(null)
 
+  // 블록 컨텍스트 메뉴 상태
+  const [contextMenuVisible, setContextMenuVisible] = useState(false)
+  const [contextMenuPosition, setContextMenuPosition] = useState({ top: 0, left: 0 })
+  const [contextMenuNodePos, setContextMenuNodePos] = useState(null)
+  const contextMenuRef = useRef(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -40,7 +46,9 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       }),
       Image,
       Toggle,
-      GlobalDragHandle,  // 설정 없이 기본값 사용
+      GlobalDragHandle.configure({
+        customNodes: ['toggle'],
+      }),
     ],
     content: content || {
       type: 'doc',
@@ -85,6 +93,120 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       editor.commands.setContent(content)
     }
   }, [content, editor])
+
+  // 드래그 핸들 클릭 시 컨텍스트 메뉴 표시
+  useEffect(() => {
+    if (!editor) return
+
+    const handleDragHandleClick = (event) => {
+      // 드래그 중이면 무시
+      if (event.target.closest('.dragging')) return
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const dragHandle = event.target.closest('.drag-handle')
+      if (!dragHandle) return
+
+      // 드래그 핸들 위치에서 블록 위치 찾기
+      const rect = dragHandle.getBoundingClientRect()
+      const view = editor.view
+
+      // 드래그 핸들 옆의 블록 위치 찾기
+      const pos = view.posAtCoords({
+        left: rect.right + 50,
+        top: rect.top + rect.height / 2
+      })
+
+      if (pos) {
+        // 노드 위치 계산
+        const $pos = view.state.doc.resolve(pos.pos)
+        let nodePos = pos.pos
+
+        // 블록 레벨 노드의 시작 위치 찾기
+        if ($pos.depth > 0) {
+          nodePos = $pos.before($pos.depth)
+        }
+
+        setContextMenuNodePos(nodePos)
+        setContextMenuPosition({
+          top: rect.bottom + 5,
+          left: rect.left
+        })
+        setContextMenuVisible(true)
+      }
+    }
+
+    // 외부 클릭 시 메뉴 닫기
+    const handleClickOutside = (event) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target) &&
+          !event.target.closest('.drag-handle')) {
+        setContextMenuVisible(false)
+      }
+    }
+
+    // 드래그 핸들에 클릭 이벤트 추가 (이벤트 위임)
+    const editorElement = editor.view.dom.parentElement
+    if (editorElement) {
+      editorElement.addEventListener('click', (e) => {
+        if (e.target.closest('.drag-handle')) {
+          handleDragHandleClick(e)
+        }
+      })
+    }
+
+    document.addEventListener('click', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [editor])
+
+  // 블록 삭제 함수
+  const handleDeleteBlock = () => {
+    if (!editor || contextMenuNodePos === null) return
+
+    try {
+      const { state } = editor
+      const node = state.doc.nodeAt(contextMenuNodePos)
+
+      if (node) {
+        editor.chain()
+          .focus()
+          .deleteRange({
+            from: contextMenuNodePos,
+            to: contextMenuNodePos + node.nodeSize
+          })
+          .run()
+      }
+    } catch (error) {
+      console.error('블록 삭제 오류:', error)
+    }
+
+    setContextMenuVisible(false)
+  }
+
+  // 블록 복제 함수
+  const handleDuplicateBlock = () => {
+    if (!editor || contextMenuNodePos === null) return
+
+    try {
+      const { state } = editor
+      const node = state.doc.nodeAt(contextMenuNodePos)
+
+      if (node) {
+        const insertPos = contextMenuNodePos + node.nodeSize
+        editor.chain()
+          .focus()
+          .insertContentAt(insertPos, node.toJSON())
+          .run()
+      }
+    } catch (error) {
+      console.error('블록 복제 오류:', error)
+    }
+
+    setContextMenuVisible(false)
+  }
 
 
   // 텍스트 선택 감지 및 BubbleMenu 위치 업데이트
@@ -258,6 +380,37 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         </div>
       )}
       <EditorContent editor={editor} />
+
+      {/* 블록 컨텍스트 메뉴 */}
+      {contextMenuVisible && (
+        <div
+          ref={contextMenuRef}
+          className="block-context-menu"
+          style={{
+            position: 'fixed',
+            top: `${contextMenuPosition.top}px`,
+            left: `${contextMenuPosition.left}px`,
+            zIndex: 1000,
+          }}
+        >
+          <button
+            className="context-menu-item"
+            onClick={handleDeleteBlock}
+          >
+            <span className="context-menu-icon">🗑️</span>
+            <span>삭제</span>
+            <span className="context-menu-shortcut">Delete</span>
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={handleDuplicateBlock}
+          >
+            <span className="context-menu-icon">📋</span>
+            <span>복제</span>
+            <span className="context-menu-shortcut">⌘D</span>
+          </button>
+        </div>
+      )}
     </div>
   )
 }
