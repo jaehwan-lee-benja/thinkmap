@@ -391,25 +391,32 @@ const handleSaveKeyThoughts = async () => {
 
 **완료 기준**: 노션처럼 포맷팅 쉽게 가능 ✅ 완료!
 
-### Phase 5: 드래그앤드롭 & 블록 관리 (2-3시간) - 🚧 진행 중 (2026-01-10)
+### Phase 5: 드래그앤드롭 & 블록 관리 (2-3시간) - ✅ 완료 (2026-01-11)
 
 **완료된 작업**:
-- [x] 5.1 DragHandle 구현 (tiptap-extension-global-drag-handle 사용)
-  - ✅ 드래그 핸들(⋮⋮) 표시 완료 (hover 시 나타남)
-  - ✅ customNodes: ['toggle'] 설정으로 중첩 토글에도 핸들 표시
+- [x] 5.1 DragHandle 구현
+  - ✅ 토글 내부 드래그 핸들 (toggle-drag-handle) 구현
+  - ✅ GlobalDragHandle 라이브러리 제거 → 자체 구현으로 대체
+  - ✅ 토글 블록 hover 시 드래그 핸들 표시 (opacity 전환)
 - [x] 5.2 블록 순서 변경 (드래그로 위/아래 이동)
 - [x] 5.3 계층 구조 변경 (토글 안/밖으로 이동)
 - [x] 5.4 드래그 시 시각적 피드백
 - [x] 5.5 TipTapTestPage 다크모드 변환
+- [x] 5.6 블록 컨텍스트 메뉴 구현
+  - ✅ 드래그 핸들 클릭 시 통합 메뉴 표시
+  - ✅ 텍스트 서식 버튼 (Bold, Italic, Strike, Code)
+  - ✅ 블록 작업 버튼 (삭제, 복제)
+  - ✅ CSS :has() 선택자로 hover 하이라이트
+- [x] 5.7 토글 키보드 네비게이션
+  - ✅ Enter: 토글 밖으로 나와 새 토글 생성
+  - ✅ Tab: 이전 토글의 하위로 들여쓰기
+  - ✅ Shift+Tab: 부모 토글 밖으로 내어쓰기
+  - ✅ Shift+Enter: 블록 내부 줄바꿈 (hardBreak)
+- [x] 5.8 토글 생성 단축키
+  - ✅ "> " + Space: 현재 블록을 토글로 변환 (InputRule)
+  - ✅ Cmd+Shift+T: 토글 블록 생성
 
-**미완료 작업 (우선순위 높음)**:
-- [ ] 5.6 블록 컨텍스트 메뉴 구현
-  - 드래그 핸들 클릭 시 메뉴 표시
-  - 메뉴 항목: 삭제, 복제, 블록 타입 변경
-  - 토글/일반 블록 모두 지원
-  - 키보드 단축키 (Delete, Cmd+D 복제)
-
-**완료 기준**: 블록 드래그 이동 + 컨텍스트 메뉴로 삭제/복제 가능
+**완료 기준**: 블록 드래그 이동 + 컨텍스트 메뉴로 삭제/복제 가능 ✅
 
 ### Phase 6: 추가 Extensions (1-2시간)
 - [ ] 6.1 Image extension (이미지 업로드/삽입)
@@ -796,7 +803,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [x] Phase 2: Toggle Extension 구현 (토글 블록)
 - [x] Phase 3: 표(Table) 기능 구현
 - [x] Phase 4: Toolbar & BubbleMenu (텍스트 선택 메뉴)
-- [ ] Phase 5: 드래그앤드롭
+- [x] Phase 5: 드래그앤드롭 & 블록 관리 ✅ (2026-01-11 완료)
 - [ ] Phase 6: 추가 Extensions
 - [ ] Phase 7: 히스토리 시스템 통합
 - [ ] Phase 8: 데이터 마이그레이션 (병행 운영)
@@ -805,7 +812,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [ ] Phase 11: 배포 & 모니터링
 
 ### 다음 단계
-👉 **Phase 5: 드래그앤드롭** (블록 순서 변경)
+👉 **Phase 6: 추가 Extensions** (이미지, 링크, 코드 블록)
 또는 **Phase 7: 히스토리 시스템 통합** (버전 관리)
 
 ### 마이그레이션 방식
@@ -854,8 +861,8 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 | 항목 | 내용 |
 |------|------|
 | **작성일** | 2026-01-04 |
-| **최종 수정일** | 2026-01-04 |
-| **작성자** | Claude Sonnet 4.5 |
+| **최종 수정일** | 2026-01-11 |
+| **작성자** | Claude Sonnet 4.5 / Claude Opus 4.5 |
 | **프로젝트** | ThinkMap TipTap Migration |
 | **GitHub** | https://github.com/jaehwan-lee-benja/thinkmap |
 | **예상 소요 시간** | 20-30시간 (Phase 0-11 합계) |
@@ -865,6 +872,15 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ---
 
 ## 버전 히스토리
+
+### v1.1 (2026-01-11)
+- ✅ Phase 5 완료: 드래그앤드롭 & 블록 관리
+- ✅ 토글 내부 드래그 핸들 구현 (GlobalDragHandle 제거)
+- ✅ 통합 컨텍스트 메뉴 (서식 + 삭제/복제)
+- ✅ CSS :has() 선택자로 hover 하이라이트
+- ✅ 토글 키보드 네비게이션 (Enter, Tab, Shift+Tab, Shift+Enter)
+- ✅ "> " + Space 입력 규칙으로 토글 변환
+- ✅ blockquote 비활성화 (토글과 충돌 방지)
 
 ### v1.0 (2026-01-04)
 - ✅ 초기 계획서 작성

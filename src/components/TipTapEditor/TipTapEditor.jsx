@@ -9,16 +9,9 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { Link } from '@tiptap/extension-link'
 import { Image } from '@tiptap/extension-image'
 import { Toggle } from './extensions/ToggleExtension'
-import GlobalDragHandle from 'tiptap-extension-global-drag-handle'
 import './TipTapEditor.css'
 
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
-  const [showLinkInput, setShowLinkInput] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
-  const [bubbleMenuVisible, setBubbleMenuVisible] = useState(false)
-  const [bubbleMenuPosition, setBubbleMenuPosition] = useState({ top: 0, left: 0 })
-  const bubbleMenuRef = useRef(null)
-
   // 블록 컨텍스트 메뉴 상태
   const [contextMenuVisible, setContextMenuVisible] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ top: 0, left: 0 })
@@ -31,6 +24,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         heading: {
           levels: [1, 2, 3],
         },
+        blockquote: false, // "> " 입력 시 토글로 변환하기 위해 비활성화
       }),
       Table.configure({
         resizable: true,
@@ -46,9 +40,6 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       }),
       Image,
       Toggle,
-      GlobalDragHandle.configure({
-        customNodes: ['toggle'],
-      }),
     ],
     content: content || {
       type: 'doc',
@@ -94,70 +85,32 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     }
   }, [content, editor])
 
-  // 드래그 핸들 클릭 시 컨텍스트 메뉴 표시
+  // 토글 내부 드래그 핸들 클릭 시 컨텍스트 메뉴
   useEffect(() => {
     if (!editor) return
 
-    const handleDragHandleClick = (event) => {
-      // 드래그 중이면 무시
-      if (event.target.closest('.dragging')) return
-
-      event.preventDefault()
-      event.stopPropagation()
-
-      const dragHandle = event.target.closest('.drag-handle')
-      if (!dragHandle) return
-
-      // 드래그 핸들 위치에서 블록 위치 찾기
-      const rect = dragHandle.getBoundingClientRect()
-      const view = editor.view
-
-      // 드래그 핸들 옆의 블록 위치 찾기
-      const pos = view.posAtCoords({
-        left: rect.right + 50,
-        top: rect.top + rect.height / 2
-      })
-
-      if (pos) {
-        // 노드 위치 계산
-        const $pos = view.state.doc.resolve(pos.pos)
-        let nodePos = pos.pos
-
-        // 블록 레벨 노드의 시작 위치 찾기
-        if ($pos.depth > 0) {
-          nodePos = $pos.before($pos.depth)
-        }
-
-        setContextMenuNodePos(nodePos)
-        setContextMenuPosition({
-          top: rect.bottom + 5,
-          left: rect.left
-        })
-        setContextMenuVisible(true)
-      }
+    // 토글 드래그 핸들에서 발생하는 커스텀 이벤트 처리
+    const handleToggleContextMenu = (event) => {
+      const { pos, top, left } = event.detail
+      setContextMenuNodePos(pos)
+      setContextMenuPosition({ top, left })
+      setContextMenuVisible(true)
     }
 
     // 외부 클릭 시 메뉴 닫기
     const handleClickOutside = (event) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target) &&
-          !event.target.closest('.drag-handle')) {
+          !event.target.closest('.toggle-drag-handle')) {
         setContextMenuVisible(false)
       }
     }
 
-    // 드래그 핸들에 클릭 이벤트 추가 (이벤트 위임)
-    const editorElement = editor.view.dom.parentElement
-    if (editorElement) {
-      editorElement.addEventListener('click', (e) => {
-        if (e.target.closest('.drag-handle')) {
-          handleDragHandleClick(e)
-        }
-      })
-    }
-
+    // 이벤트 리스너 추가
+    document.addEventListener('toggle-context-menu', handleToggleContextMenu)
     document.addEventListener('click', handleClickOutside)
 
     return () => {
+      document.removeEventListener('toggle-context-menu', handleToggleContextMenu)
       document.removeEventListener('click', handleClickOutside)
     }
   }, [editor])
@@ -209,180 +162,16 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   }
 
 
-  // 텍스트 선택 감지 및 BubbleMenu 위치 업데이트
-  useEffect(() => {
-    if (!editor) return
-
-    const updateBubbleMenu = () => {
-      const { state } = editor
-      const { selection } = state
-      const { from, to } = selection
-
-      // 텍스트가 선택되지 않았거나, 빈 선택인 경우
-      if (from === to) {
-        setBubbleMenuVisible(false)
-        return
-      }
-
-      // 선택 영역의 DOM rect 가져오기
-      const { view } = editor
-      const start = view.coordsAtPos(from)
-      const end = view.coordsAtPos(to)
-
-      // BubbleMenu 위치 계산
-      const left = (start.left + end.left) / 2
-      const menuHeight = 50 // BubbleMenu 예상 높이
-
-      // 위쪽에 공간이 충분하면 위에, 아니면 아래에 표시
-      let top
-      if (start.top < menuHeight + 10) {
-        // 위쪽 공간 부족 → 아래에 표시
-        top = end.bottom + 10
-      } else {
-        // 위쪽에 표시
-        top = start.top - menuHeight - 10
-      }
-
-      setBubbleMenuPosition({ top, left })
-      setBubbleMenuVisible(true)
-    }
-
-    editor.on('selectionUpdate', updateBubbleMenu)
-    editor.on('transaction', updateBubbleMenu)
-
-    return () => {
-      editor.off('selectionUpdate', updateBubbleMenu)
-      editor.off('transaction', updateBubbleMenu)
-    }
-  }, [editor])
-
   if (!editor) {
     return <div>에디터 로딩 중...</div>
   }
 
-  const setLink = () => {
-    if (!linkUrl) return
-
-    editor
-      .chain()
-      .focus()
-      .extendMarkRange('link')
-      .setLink({ href: linkUrl })
-      .run()
-
-    setLinkUrl('')
-    setShowLinkInput(false)
-  }
-
   return (
     <div className="tiptap-wrapper">
-      {/* Custom BubbleMenu (positioned absolutely) */}
-      {bubbleMenuVisible && editor && (
-        <div
-          ref={bubbleMenuRef}
-          className="bubble-menu"
-          style={{
-            position: 'fixed',
-            top: `${bubbleMenuPosition.top}px`,
-            left: `${bubbleMenuPosition.left}px`,
-            transform: 'translateX(-50%)',
-            zIndex: 1000,
-          }}
-        >
-          {showLinkInput ? (
-            <div className="bubble-menu-link-input">
-              <input
-                type="url"
-                placeholder="https://example.com"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    setLink()
-                  } else if (e.key === 'Escape') {
-                    setShowLinkInput(false)
-                    setLinkUrl('')
-                  }
-                }}
-                autoFocus
-                className="link-input"
-              />
-              <button
-                onClick={setLink}
-                className="bubble-menu-button primary"
-              >
-                ✓
-              </button>
-              <button
-                onClick={() => {
-                  setShowLinkInput(false)
-                  setLinkUrl('')
-                }}
-                className="bubble-menu-button"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                className={editor.isActive('bold') ? 'bubble-menu-button is-active' : 'bubble-menu-button'}
-                title="Bold (Cmd+B)"
-              >
-                <strong>B</strong>
-              </button>
-              <button
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={editor.isActive('italic') ? 'bubble-menu-button is-active' : 'bubble-menu-button'}
-                title="Italic (Cmd+I)"
-              >
-                <em>I</em>
-              </button>
-              <button
-                onClick={() => editor.chain().focus().toggleStrike().run()}
-                className={editor.isActive('strike') ? 'bubble-menu-button is-active' : 'bubble-menu-button'}
-                title="Strikethrough"
-              >
-                <s>S</s>
-              </button>
-              <button
-                onClick={() => editor.chain().focus().toggleCode().run()}
-                className={editor.isActive('code') ? 'bubble-menu-button is-active' : 'bubble-menu-button'}
-                title="Code"
-              >
-                {'</>'}
-              </button>
-              <div className="bubble-menu-separator"></div>
-              <button
-                onClick={() => {
-                  const previousUrl = editor.getAttributes('link').href
-                  setLinkUrl(previousUrl || '')
-                  setShowLinkInput(true)
-                }}
-                className={editor.isActive('link') ? 'bubble-menu-button is-active' : 'bubble-menu-button'}
-                title="Link"
-              >
-                🔗
-              </button>
-              {editor.isActive('link') && (
-                <button
-                  onClick={() => editor.chain().focus().unsetLink().run()}
-                  className="bubble-menu-button"
-                  title="Remove link"
-                >
-                  🔗✕
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
       <EditorContent editor={editor} />
 
-      {/* 블록 컨텍스트 메뉴 */}
-      {contextMenuVisible && (
+      {/* 블록 컨텍스트 메뉴 (텍스트 서식 + 블록 작업 통합) */}
+      {contextMenuVisible && editor && (
         <div
           ref={contextMenuRef}
           className="block-context-menu"
@@ -393,6 +182,41 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
             zIndex: 1000,
           }}
         >
+          {/* 텍스트 서식 버튼 */}
+          <div className="context-menu-format-row">
+            <button
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className={editor.isActive('bold') ? 'format-button is-active' : 'format-button'}
+              title="Bold (Cmd+B)"
+            >
+              <strong>B</strong>
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className={editor.isActive('italic') ? 'format-button is-active' : 'format-button'}
+              title="Italic (Cmd+I)"
+            >
+              <em>I</em>
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              className={editor.isActive('strike') ? 'format-button is-active' : 'format-button'}
+              title="Strikethrough"
+            >
+              <s>S</s>
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleCode().run()}
+              className={editor.isActive('code') ? 'format-button is-active' : 'format-button'}
+              title="Code"
+            >
+              {'</>'}
+            </button>
+          </div>
+
+          <div className="context-menu-separator"></div>
+
+          {/* 블록 작업 버튼 */}
           <button
             className="context-menu-item"
             onClick={handleDeleteBlock}

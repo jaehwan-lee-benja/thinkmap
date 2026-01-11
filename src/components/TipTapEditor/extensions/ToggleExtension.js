@@ -1,4 +1,5 @@
-import { Node, mergeAttributes } from '@tiptap/core'
+import { Node, mergeAttributes, InputRule } from '@tiptap/core'
+import { NodeSelection } from '@tiptap/pm/state'
 
 /**
  * Toggle Extension for TipTap
@@ -73,6 +74,51 @@ export const Toggle = Node.create({
       dom.classList.add('toggle-block')
       dom.setAttribute('data-is-open', node.attrs.isOpen)
 
+      // 드래그 핸들 (블록 내부에 배치)
+      const dragHandle = document.createElement('div')
+      dragHandle.classList.add('toggle-drag-handle')
+      dragHandle.contentEditable = 'false'
+      dragHandle.draggable = true
+
+      // 드래그 시작 이벤트
+      dragHandle.addEventListener('dragstart', (e) => {
+        if (typeof getPos !== 'function') return
+
+        const pos = getPos()
+        const nodeAtPos = editor.state.doc.nodeAt(pos)
+        if (!nodeAtPos) return
+
+        // 노드 선택
+        const selection = NodeSelection.create(editor.state.doc, pos)
+        editor.view.dispatch(editor.state.tr.setSelection(selection))
+
+        // 드래그 데이터 설정
+        const slice = editor.state.selection.content()
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setDragImage(dom, 0, 0)
+
+        editor.view.dragging = { slice, move: true }
+      })
+
+      // 드래그 핸들 클릭 시 블록 선택 + 컨텍스트 메뉴
+      dragHandle.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (typeof getPos !== 'function') return
+
+        const pos = getPos()
+        const selection = NodeSelection.create(editor.state.doc, pos)
+        editor.view.dispatch(editor.state.tr.setSelection(selection))
+
+        // 커스텀 이벤트로 컨텍스트 메뉴 표시 요청
+        const rect = dragHandle.getBoundingClientRect()
+        dom.dispatchEvent(new CustomEvent('toggle-context-menu', {
+          bubbles: true,
+          detail: { pos, top: rect.bottom + 5, left: rect.left }
+        }))
+      })
+
       // Toggle button
       const button = document.createElement('button')
       button.classList.add('toggle-button')
@@ -113,6 +159,7 @@ export const Toggle = Node.create({
         }
       })
 
+      dom.appendChild(dragHandle)
       dom.appendChild(button)
       dom.appendChild(contentWrapper)
 
@@ -359,5 +406,36 @@ export const Toggle = Node.create({
         return true
       },
     }
+  },
+
+  addInputRules() {
+    return [
+      // "> " 입력 시 토글 블록으로 변환
+      new InputRule({
+        find: /^>\s$/,
+        handler: ({ state, range, chain }) => {
+          const { tr, doc } = state
+          const $from = doc.resolve(range.from)
+
+          // 현재 블록(paragraph)의 시작과 끝 위치
+          const blockStart = $from.start()
+          const blockEnd = $from.end()
+
+          // 토글 노드 생성
+          const toggleNode = state.schema.nodes.toggle.create(
+            { isOpen: true },
+            state.schema.nodes.paragraph.create()
+          )
+
+          // 현재 블록을 토글로 대체
+          tr.replaceRangeWith(blockStart - 1, blockEnd + 1, toggleNode)
+
+          // 토글 내부 paragraph로 커서 이동 (blockStart 위치 + 2)
+          tr.setSelection(state.selection.constructor.near(tr.doc.resolve(blockStart + 1)))
+
+          return tr
+        },
+      }),
+    ]
   },
 })
