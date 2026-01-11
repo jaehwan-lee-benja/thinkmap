@@ -8,8 +8,13 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Link } from '@tiptap/extension-link'
 import { Image } from '@tiptap/extension-image'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import { common, createLowlight } from 'lowlight'
 import { Toggle } from './extensions/ToggleExtension'
 import './TipTapEditor.css'
+
+// lowlight 인스턴스 생성 (common 언어들: js, css, html, python 등)
+const lowlight = createLowlight(common)
 
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
   // 블록 컨텍스트 메뉴 상태
@@ -18,6 +23,12 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   const [contextMenuNodePos, setContextMenuNodePos] = useState(null)
   const contextMenuRef = useRef(null)
 
+  // 이미지/링크 입력 상태
+  const [showImageInput, setShowImageInput] = useState(false)
+  const [imageUrl, setImageUrl] = useState('')
+  const [showLinkInput, setShowLinkInput] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -25,6 +36,11 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
           levels: [1, 2, 3],
         },
         blockquote: false, // "> " 입력 시 토글로 변환하기 위해 비활성화
+        codeBlock: false, // CodeBlockLowlight 사용을 위해 비활성화
+      }),
+      CodeBlockLowlight.configure({
+        lowlight,
+        defaultLanguage: 'javascript',
       }),
       Table.configure({
         resizable: true,
@@ -161,6 +177,58 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     setContextMenuVisible(false)
   }
 
+  // 파일 input ref
+  const imageInputRef = useRef(null)
+
+  // 이미지 파일 업로드 함수
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const base64 = reader.result
+      editor.chain().focus().setImage({ src: base64 }).run()
+      setShowImageInput(false)
+      setContextMenuVisible(false)
+    }
+    reader.readAsDataURL(file)
+
+    // input 초기화 (같은 파일 다시 선택 가능하도록)
+    e.target.value = ''
+  }
+
+  // 이미지 URL 삽입 함수
+  const handleInsertImage = () => {
+    if (!imageUrl) return
+
+    editor.chain().focus().setImage({ src: imageUrl }).run()
+    setImageUrl('')
+    setShowImageInput(false)
+    setContextMenuVisible(false)
+  }
+
+  // 링크 삽입 함수
+  const handleSetLink = () => {
+    if (!linkUrl) return
+
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange('link')
+      .setLink({ href: linkUrl })
+      .run()
+
+    setLinkUrl('')
+    setShowLinkInput(false)
+    setContextMenuVisible(false)
+  }
+
+  // 링크 제거 함수
+  const handleUnsetLink = () => {
+    editor.chain().focus().unsetLink().run()
+    setContextMenuVisible(false)
+  }
 
   if (!editor) {
     return <div>에디터 로딩 중...</div>
@@ -232,6 +300,108 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
             <span className="context-menu-icon">📋</span>
             <span>복제</span>
             <span className="context-menu-shortcut">⌘D</span>
+          </button>
+
+          <div className="context-menu-separator"></div>
+
+          {/* 이미지 삽입 */}
+          {!showImageInput ? (
+            <>
+              {/* 숨겨진 파일 input */}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+              />
+              <button
+                className="context-menu-item"
+                onClick={() => imageInputRef.current?.click()}
+              >
+                <span className="context-menu-icon">📁</span>
+                <span>이미지 업로드</span>
+              </button>
+              <button
+                className="context-menu-item"
+                onClick={() => setShowImageInput(true)}
+              >
+                <span className="context-menu-icon">🔗</span>
+                <span>이미지 URL</span>
+              </button>
+            </>
+          ) : (
+            <div className="context-menu-input-group">
+              <input
+                type="text"
+                placeholder="이미지 URL 입력..."
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleInsertImage()
+                  if (e.key === 'Escape') {
+                    setShowImageInput(false)
+                    setImageUrl('')
+                  }
+                }}
+                autoFocus
+              />
+              <button onClick={handleInsertImage}>삽입</button>
+            </div>
+          )}
+
+          {/* 링크 삽입/제거 */}
+          {!showLinkInput ? (
+            <>
+              <button
+                className="context-menu-item"
+                onClick={() => setShowLinkInput(true)}
+              >
+                <span className="context-menu-icon">🔗</span>
+                <span>링크 삽입</span>
+              </button>
+              {editor.isActive('link') && (
+                <button
+                  className="context-menu-item"
+                  onClick={handleUnsetLink}
+                >
+                  <span className="context-menu-icon">🔗</span>
+                  <span>링크 제거</span>
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="context-menu-input-group">
+              <input
+                type="text"
+                placeholder="링크 URL 입력..."
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSetLink()
+                  if (e.key === 'Escape') {
+                    setShowLinkInput(false)
+                    setLinkUrl('')
+                  }
+                }}
+                autoFocus
+              />
+              <button onClick={handleSetLink}>삽입</button>
+            </div>
+          )}
+
+          <div className="context-menu-separator"></div>
+
+          {/* 코드 블록 삽입 */}
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              editor.chain().focus().toggleCodeBlock().run()
+              setContextMenuVisible(false)
+            }}
+          >
+            <span className="context-menu-icon">{'</>'}</span>
+            <span>{editor.isActive('codeBlock') ? '코드 블록 해제' : '코드 블록'}</span>
           </button>
         </div>
       )}

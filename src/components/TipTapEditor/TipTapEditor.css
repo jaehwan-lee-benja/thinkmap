@@ -89,6 +89,60 @@
   font-size: 0.875rem;
 }
 
+/* Syntax Highlighting (Lowlight/highlight.js) */
+.tiptap-editor pre code .hljs-comment,
+.tiptap-editor pre code .hljs-quote {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.tiptap-editor pre code .hljs-keyword,
+.tiptap-editor pre code .hljs-selector-tag,
+.tiptap-editor pre code .hljs-built_in {
+  color: #c084fc;
+}
+
+.tiptap-editor pre code .hljs-string,
+.tiptap-editor pre code .hljs-attr {
+  color: #a5d6ff;
+}
+
+.tiptap-editor pre code .hljs-number,
+.tiptap-editor pre code .hljs-literal {
+  color: #fbbf24;
+}
+
+.tiptap-editor pre code .hljs-function,
+.tiptap-editor pre code .hljs-title {
+  color: #60a5fa;
+}
+
+.tiptap-editor pre code .hljs-variable,
+.tiptap-editor pre code .hljs-params {
+  color: #f9a8d4;
+}
+
+.tiptap-editor pre code .hljs-type,
+.tiptap-editor pre code .hljs-class {
+  color: #34d399;
+}
+
+.tiptap-editor pre code .hljs-meta {
+  color: #fb923c;
+}
+
+.tiptap-editor pre code .hljs-tag {
+  color: #f472b6;
+}
+
+.tiptap-editor pre code .hljs-name {
+  color: #f472b6;
+}
+
+.tiptap-editor pre code .hljs-attribute {
+  color: #a5b4fc;
+}
+
 /* 인용구 스타일 */
 .tiptap-editor blockquote {
   border-left: 4px solid #e5e7eb;
@@ -444,6 +498,47 @@
   color: #fecaca;
 }
 
+/* 컨텍스트 메뉴 입력 그룹 (이미지/링크 URL 입력) */
+.context-menu-input-group {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.context-menu-input-group input {
+  flex: 1;
+  padding: 6px 8px;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 4px;
+  color: #e5e7eb;
+  font-size: 13px;
+  outline: none;
+}
+
+.context-menu-input-group input:focus {
+  border-color: #3b82f6;
+}
+
+.context-menu-input-group input::placeholder {
+  color: #9ca3af;
+}
+
+.context-menu-input-group button {
+  padding: 6px 12px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.context-menu-input-group button:hover {
+  background: #2563eb;
+}
+
 /* 라이트 모드 지원 */
 @media (prefers-color-scheme: light) {
   .block-context-menu {
@@ -471,5 +566,11 @@
   .context-menu-item:first-child:hover {
     background: #fef2f2;
     color: #dc2626;
+  }
+
+  .context-menu-input-group input {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #374151;
   }
 }

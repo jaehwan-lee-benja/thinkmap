@@ -418,20 +418,40 @@ const handleSaveKeyThoughts = async () => {
 
 **완료 기준**: 블록 드래그 이동 + 컨텍스트 메뉴로 삭제/복제 가능 ✅
 
-### Phase 6: 추가 Extensions (1-2시간)
-- [ ] 6.1 Image extension (이미지 업로드/삽입)
-- [ ] 6.2 Link extension (링크 삽입/편집)
-- [ ] 6.3 CodeBlock (코드 블록 syntax highlighting)
-- [ ] 6.4 Placeholder (빈 에디터 힌트)
+### Phase 6: 추가 Extensions (1-2시간) - ✅ 완료 (2026-01-11)
 
-**완료 기준**: 이미지, 링크, 코드 블록 사용 가능
+**완료된 작업**:
+- [x] 6.1 Image extension (이미지 업로드/삽입)
+  - ✅ 컨텍스트 메뉴에 이미지 삽입 버튼 추가
+  - ✅ URL 입력 필드 및 삽입 기능 구현
+- [x] 6.2 Link extension (링크 삽입/편집)
+  - ✅ 컨텍스트 메뉴에 링크 삽입/제거 버튼 추가
+  - ✅ URL 입력 필드 및 삽입 기능 구현
+  - ✅ 활성 링크 감지 시 제거 버튼 표시
+- [x] 6.3 CodeBlock (코드 블록 syntax highlighting)
+  - ✅ @tiptap/extension-code-block-lowlight 설치
+  - ✅ lowlight (common languages) 연동
+  - ✅ Syntax highlighting CSS 스타일 추가
+- [x] 6.4 Placeholder (빈 에디터 힌트)
+  - ✅ 이미 구현됨 (Phase 1에서 완료)
 
-### Phase 7: 히스토리 시스템 통합 (2시간)
-- [ ] 7.1 TipTap JSON 기반 히스토리 저장
-- [ ] 7.2 버전 복구 기능 (TipTap setContent)
-- [ ] 7.3 히스토리 모달 업데이트
+**완료 기준**: 이미지, 링크, 코드 블록 사용 가능 ✅
 
-**완료 기준**: 히스토리 저장/복구 정상 작동
+### Phase 7: 히스토리 시스템 통합 (2시간) - ✅ 완료 (2026-01-11)
+
+**완료된 작업**:
+- [x] 7.1 TipTap JSON 기반 히스토리 저장
+  - ✅ saveHistory() 함수로 block_history 테이블에 저장
+  - ✅ action: 'tiptap_snapshot' 으로 구분
+- [x] 7.2 버전 복구 기능 (TipTap setContent)
+  - ✅ restoreVersion() 함수로 에디터에 복원
+  - ✅ editor.commands.setContent() 사용
+  - ✅ 복구 전 현재 버전 자동 저장
+- [x] 7.3 히스토리 모달 업데이트
+  - ✅ 히스토리 목록 표시 모달 구현
+  - ✅ 버전 저장/히스토리 버튼 상단바에 추가
+
+**완료 기준**: 히스토리 저장/복구 정상 작동 ✅
 
 ### Phase 8: 데이터 마이그레이션 (병행 운영, 1-2시간)
 - [ ] 8.1 Supabase Dashboard에서 백업 생성 및 다운로드
@@ -804,16 +824,15 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 - [x] Phase 3: 표(Table) 기능 구현
 - [x] Phase 4: Toolbar & BubbleMenu (텍스트 선택 메뉴)
 - [x] Phase 5: 드래그앤드롭 & 블록 관리 ✅ (2026-01-11 완료)
-- [ ] Phase 6: 추가 Extensions
-- [ ] Phase 7: 히스토리 시스템 통합
+- [x] Phase 6: 추가 Extensions ✅ (2026-01-11 완료)
+- [x] Phase 7: 히스토리 시스템 통합 ✅ (2026-01-11 완료)
 - [ ] Phase 8: 데이터 마이그레이션 (병행 운영)
 - [ ] Phase 9: 스타일링 & UI 개선
 - [ ] Phase 10: 테스트 & 버그 수정
 - [ ] Phase 11: 배포 & 모니터링
 
 ### 다음 단계
-👉 **Phase 6: 추가 Extensions** (이미지, 링크, 코드 블록)
-또는 **Phase 7: 히스토리 시스템 통합** (버전 관리)
+👉 **Phase 8: 데이터 마이그레이션** (병행 운영)
 
 ### 마이그레이션 방식
 ✅ **병행 운영 (Parallel Operation)**
@@ -872,6 +891,21 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ---
 
 ## 버전 히스토리
+
+### v1.3 (2026-01-11)
+- ✅ Phase 7 완료: 히스토리 시스템 통합
+- ✅ TipTap JSON 기반 히스토리 저장 (block_history 테이블)
+- ✅ 버전 복구 기능 (editor.commands.setContent)
+- ✅ 히스토리 모달 구현
+- ✅ 버전 저장/히스토리 버튼 추가
+
+### v1.2 (2026-01-11)
+- ✅ Phase 6 완료: 추가 Extensions
+- ✅ 이미지 파일 업로드 + URL 입력 UI
+- ✅ 링크 삽입/제거 UI
+- ✅ CodeBlockLowlight 설치 및 syntax highlighting
+- ✅ 코드 블록 버튼 추가 (컨텍스트 메뉴 + 툴바)
+- ✅ Placeholder 확인 완료
 
 ### v1.1 (2026-01-11)
 - ✅ Phase 5 완료: 드래그앤드롭 & 블록 관리
