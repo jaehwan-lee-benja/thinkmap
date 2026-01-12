@@ -1,0 +1,477 @@
+/**
+ * 마인드맵 뷰 스타일
+ * 심플하고 세련된 마인드맵 UI
+ */
+
+/* 페이지 컨테이너 */
+.mindmap-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  color: #e5e7eb;
+  overflow: hidden;
+}
+
+/* 헤더 */
+.mindmap-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.mindmap-close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.mindmap-close-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.mindmap-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  flex: 1;
+}
+
+/* 컨트롤 버튼들 */
+.mindmap-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.mindmap-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.mindmap-controls button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.zoom-level {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  min-width: 40px;
+  text-align: center;
+}
+
+/* 방향 선택 버튼 */
+.mindmap-direction-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.mindmap-direction-selector button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.mindmap-direction-selector button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.mindmap-direction-selector button.active {
+  background: rgba(99, 102, 241, 0.3);
+  color: #fff;
+}
+
+/* 힌트 */
+.mindmap-hint {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.mindmap-hint span {
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+/* 메인 컨테이너 */
+.mindmap-container {
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  position: relative;
+}
+
+.mindmap-container:active {
+  cursor: grabbing;
+}
+
+/* 캔버스 */
+.mindmap-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 60px;
+  transition: transform 0.1s ease-out;
+  min-width: max-content;
+}
+
+/* 수직 방향 캔버스 */
+.mindmap-canvas.dir-ttb,
+.mindmap-canvas.dir-btt {
+  flex-direction: column;
+}
+
+/* LTR: 루트가 왼쪽에 배치 */
+.mindmap-canvas.dir-ltr {
+  justify-content: flex-start;
+}
+
+/* 연결선 SVG */
+.mindmap-connections {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.mindmap-connection {
+  fill: none;
+  stroke: rgba(99, 102, 241, 0.4);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.mindmap-connection.root-connection {
+  stroke: rgba(99, 102, 241, 0.5);
+  stroke-width: 2.5;
+}
+
+/* 루트 노드 */
+.mindmap-root-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 28px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.mindmap-root-node:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 25px rgba(99, 102, 241, 0.4);
+}
+
+.mindmap-root-node.dimmed {
+  opacity: 0.8;
+}
+
+.add-root-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-root-child:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+/* 좌우 영역 */
+.mindmap-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.mindmap-side.right {
+  align-items: flex-start;
+}
+
+/* 상하 영역 (수직 방향) */
+.mindmap-side.top,
+.mindmap-side.bottom {
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+.mindmap-side.bottom {
+  align-items: flex-start;
+}
+
+/* 브랜치 */
+.mindmap-branch {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* 수직 방향 브랜치 */
+.mindmap-branch.dir-ttb,
+.mindmap-branch.dir-btt {
+  flex-direction: column;
+}
+
+/* 자식 컨테이너 */
+.mindmap-children {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 수직 방향 자식 컨테이너 */
+.mindmap-children.vertical {
+  flex-direction: row;
+}
+
+/* 노드 래퍼 */
+.mindmap-node-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+/* 노드 */
+.mindmap-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  max-width: 200px;
+  min-width: 80px;
+}
+
+.mindmap-node:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.mindmap-node:focus,
+.mindmap-node:focus-visible {
+  outline: none;
+}
+
+.mindmap-node.selected {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+.mindmap-node.editing {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* 레벨별 스타일 */
+.mindmap-node.level-1 {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mindmap-node.level-2 {
+  font-size: 13px;
+  padding: 8px 14px;
+}
+
+.mindmap-node.level-3,
+.mindmap-node.level-4,
+.mindmap-node.level-5 {
+  font-size: 12px;
+  padding: 6px 12px;
+  max-width: 160px;
+}
+
+/* 노드 텍스트 */
+.mindmap-node-text {
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 노드 입력 */
+.mindmap-node-input {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: inherit;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  min-width: 60px;
+}
+
+.mindmap-node-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* 노드 액션 버튼 */
+.mindmap-node-actions {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  animation: fadeIn 0.15s ease forwards;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+.mindmap-node-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 14px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.mindmap-node-actions button:hover {
+  transform: scale(1.1);
+  background: #6366f1;
+}
+
+.mindmap-node-actions button.delete {
+  background: #dc2626;
+}
+
+.mindmap-node-actions button.delete:hover {
+  background: #ef4444;
+}
+
+/* 모바일 */
+@media (max-width: 768px) {
+  .mindmap-header {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    gap: 10px;
+  }
+
+  .mindmap-hint {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .mindmap-title {
+    font-size: 16px;
+  }
+
+  .mindmap-root-node {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .mindmap-node {
+    padding: 8px 14px;
+    max-width: 150px;
+  }
+
+  .mindmap-canvas {
+    gap: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mindmap-hint {
+    display: none;
+  }
+
+  .mindmap-controls {
+    padding: 2px 4px;
+  }
+
+  .mindmap-controls button {
+    width: 28px;
+    height: 28px;
+  }
+}

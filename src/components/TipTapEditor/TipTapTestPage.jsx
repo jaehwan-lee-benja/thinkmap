@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import TipTapEditor from './TipTapEditor'
+import ColumnView from './ColumnView'
+import MindMapView from './MindMapView'
 import { supabase } from '../../supabaseClient'
 import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
+import { tiptapToColumnBlocks, columnBlocksToTiptap } from './utils/columnViewUtils'
 import {
   Save,
   Archive,
@@ -15,7 +18,9 @@ import {
   Image,
   Link,
   Code,
-  RotateCcw
+  RotateCcw,
+  Columns3,
+  GitBranch
 } from 'lucide-react'
 import './TipTapPage.css'
 
@@ -34,6 +39,14 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
   const [showHistory, setShowHistory] = useState(false)
   const [historyList, setHistoryList] = useState([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  // 칼럼 모드 상태
+  const [showColumnView, setShowColumnView] = useState(false)
+  const [columnBlocks, setColumnBlocks] = useState([])
+
+  // 마인드맵 모드 상태
+  const [showMindMap, setShowMindMap] = useState(false)
+  const [mindMapBlocks, setMindMapBlocks] = useState([])
 
   // 히스토리 불러오기
   const fetchHistory = async () => {
@@ -141,6 +154,58 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
   const openHistory = () => {
     fetchHistory()
     setShowHistory(true)
+  }
+
+  // 칼럼 모드 열기
+  const openColumnView = () => {
+    if (!content) return
+    const blocks = tiptapToColumnBlocks(content)
+    setColumnBlocks(blocks)
+    setShowColumnView(true)
+  }
+
+  // 칼럼 모드 닫기 (변경사항 적용)
+  const closeColumnView = () => {
+    // 칼럼 블록을 TipTap JSON으로 변환
+    const newContent = columnBlocksToTiptap(columnBlocks)
+
+    // 에디터에 적용
+    if (editorRef.current) {
+      editorRef.current.commands.setContent(newContent)
+    }
+    setContent(newContent)
+    setShowColumnView(false)
+  }
+
+  // 칼럼 모드에서 저장
+  const handleColumnSave = () => {
+    const newContent = columnBlocksToTiptap(columnBlocks)
+    setContent(newContent)
+    // 자동 저장이 트리거됨
+  }
+
+  // 마인드맵 모드 열기
+  const openMindMap = () => {
+    if (!content) return
+    const blocks = tiptapToColumnBlocks(content)
+    setMindMapBlocks(blocks)
+    setShowMindMap(true)
+  }
+
+  // 마인드맵 모드 닫기 (변경사항 적용)
+  const closeMindMap = () => {
+    const newContent = columnBlocksToTiptap(mindMapBlocks)
+    if (editorRef.current) {
+      editorRef.current.commands.setContent(newContent)
+    }
+    setContent(newContent)
+    setShowMindMap(false)
+  }
+
+  // 마인드맵 모드에서 저장
+  const handleMindMapSave = () => {
+    const newContent = columnBlocksToTiptap(mindMapBlocks)
+    setContent(newContent)
   }
 
   // 이미지 파일 업로드 핸들러
@@ -315,6 +380,22 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
               <History />
               히스토리
             </button>
+            <button
+              onClick={openColumnView}
+              className="tiptap-btn tiptap-btn-secondary"
+              title="칼럼 모드로 보기"
+            >
+              <Columns3 />
+              칼럼모드
+            </button>
+            <button
+              onClick={openMindMap}
+              className="tiptap-btn tiptap-btn-secondary"
+              title="마인드맵 모드로 보기"
+            >
+              <GitBranch />
+              마인드맵
+            </button>
           </div>
         </div>
 
@@ -457,6 +538,28 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
             </div>
           </div>
         </div>
+      )}
+
+      {/* 칼럼 뷰 모드 */}
+      {showColumnView && (
+        <ColumnView
+          blocks={columnBlocks}
+          setBlocks={setColumnBlocks}
+          onSave={handleColumnSave}
+          onClose={closeColumnView}
+          pageName={currentPageName}
+        />
+      )}
+
+      {/* 마인드맵 뷰 모드 */}
+      {showMindMap && (
+        <MindMapView
+          blocks={mindMapBlocks}
+          setBlocks={setMindMapBlocks}
+          onSave={handleMindMapSave}
+          onClose={closeMindMap}
+          pageName={currentPageName}
+        />
       )}
     </div>
   )
