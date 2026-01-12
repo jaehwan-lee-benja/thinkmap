@@ -28,9 +28,9 @@ export default function GoogleAuthButton({ authLoading, session, handleGoogleLog
           borderRadius: '16px',
           maxWidth: '400px'
         }}>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>💡 KeyThoughts</h1>
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>ThinkMap</h1>
           <p style={{ fontSize: '1.1rem', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '2rem' }}>
-            주요 생각정리
+            생각을 정리하는 공간
           </p>
           <button
             onClick={handleGoogleLogin}

@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import KeyThoughtsSection from './components/KeyThoughts/KeyThoughtsSection'
-import KeyThoughtsHistoryModal from './components/Modals/KeyThoughtsHistoryModal'
 import GoogleAuthButton from './components/Auth/GoogleAuthButton'
 import Header from './components/Navigation/Header'
-import ViewerPage from './components/Viewer/ViewerPage'
 import Sidebar from './components/Sidebar/Sidebar'
-import TipTapTestPage from './components/TipTapEditor/TipTapTestPage'
+import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
 import { useAuth } from './hooks/useAuth'
-import { useKeyThoughts } from './hooks/useKeyThoughts'
 import { useProjects } from './hooks/useProjects'
 import { usePages } from './hooks/usePages'
 import './App.css'
@@ -37,48 +33,10 @@ function App() {
     deletePage,
   } = usePages(session, currentProjectId)
 
-  // 블록 관리 (현재 페이지)
-  const {
-    keyThoughtsBlocks,
-    setKeyThoughtsBlocks,
-    focusedBlockId,
-    setFocusedBlockId,
-    keyThoughtsHistory,
-    showKeyThoughtsHistory,
-    setShowKeyThoughtsHistory,
-    fetchKeyThoughtsContent,
-    handleSaveKeyThoughts,
-    fetchKeyThoughtsHistory,
-    restoreKeyThoughtsVersion,
-    saveHistoryOnBlur,
-    manualSaveHistory,
-  } = useKeyThoughts(session, currentPageId)
-
-  // UI 상태
-  const [showViewer, setShowViewer] = useState(false)
-  const [showTipTapTest, setShowTipTapTest] = useState(false)
-  // 모바일에서는 사이드바 기본으로 닫힘
+  // UI 상태 - 모바일에서는 사이드바 기본으로 닫힘
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     return window.innerWidth > 768
   })
-
-  // 페이지 변경 시 데이터 로드
-  useEffect(() => {
-    if (!session || !currentPageId) return
-
-    fetchKeyThoughtsContent()
-  }, [session, currentPageId])
-
-  // 자동 저장 (5초 debounce)
-  useEffect(() => {
-    if (!session || !currentPageId) return
-
-    const timer = setTimeout(() => {
-      handleSaveKeyThoughts()
-    }, 5000)
-
-    return () => clearTimeout(timer)
-  }, [keyThoughtsBlocks, session, currentPageId])
 
   // 페이지 생성 핸들러
   const handleCreatePage = async () => {
@@ -98,31 +56,6 @@ function App() {
     handleGoogleLogin
   })
   if (authScreen) return authScreen
-
-  // TipTap 테스트 화면 (Phase 1)
-  if (showTipTapTest) {
-    return (
-      <TipTapTestPage
-        session={session}
-        currentPageId={currentPageId}
-        onBack={() => setShowTipTapTest(false)}
-      />
-    )
-  }
-
-  // 뷰어 화면
-  if (showViewer) {
-    const currentPage = pages.find(p => p.id === currentPageId)
-    return (
-      <ViewerPage
-        blocks={keyThoughtsBlocks}
-        setBlocks={setKeyThoughtsBlocks}
-        onSave={handleSaveKeyThoughts}
-        onClose={() => setShowViewer(false)}
-        pageName={currentPage?.name || 'ThinkMap'}
-      />
-    )
-  }
 
   // 메인 화면
   return (
@@ -158,34 +91,19 @@ function App() {
         />
 
         <div className="content-scrollable">
-          <KeyThoughtsSection
-            blocks={keyThoughtsBlocks}
-            setBlocks={setKeyThoughtsBlocks}
-            focusedBlockId={focusedBlockId}
-            setFocusedBlockId={setFocusedBlockId}
-            currentPageId={currentPageId}
-            currentPageName={pages.find(p => p.id === currentPageId)?.name}
-            onPageRename={renamePage}
-            onShowHistory={() => {
-              fetchKeyThoughtsHistory()
-              setShowKeyThoughtsHistory(true)
-            }}
-            onOpenViewer={() => setShowViewer(true)}
-            onOpenTipTapTest={() => setShowTipTapTest(true)}
-            onSaveHistoryOnBlur={saveHistoryOnBlur}
-            onManualSaveHistory={manualSaveHistory}
-          />
+          {currentPageId ? (
+            <TipTapEditorPage
+              session={session}
+              currentPageId={currentPageId}
+              currentPageName={pages.find(p => p.id === currentPageId)?.name}
+              onPageRename={renamePage}
+            />
+          ) : (
+            <div className="no-page-selected">
+              <p>페이지를 선택하거나 새 페이지를 만드세요</p>
+            </div>
+          )}
         </div>
-
-        <KeyThoughtsHistoryModal
-          showKeyThoughtsHistory={showKeyThoughtsHistory}
-          onClose={() => setShowKeyThoughtsHistory(false)}
-          keyThoughtsHistory={keyThoughtsHistory}
-          onRestoreVersion={async (versionId) => {
-            await restoreKeyThoughtsVersion(versionId)
-            setShowKeyThoughtsHistory(false)
-          }}
-        />
       </div>
     </div>
   )

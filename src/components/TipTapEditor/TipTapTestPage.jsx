@@ -7,7 +7,7 @@ import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
  * TipTap 에디터 테스트 페이지
  * Phase 1: 기본 기능 테스트용
  */
-function TipTapTestPage({ session, currentPageId, onBack }) {
+function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename }) {
   const [content, setContent] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(null)
@@ -261,40 +261,34 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
 
   return (
     <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
       width: '100%',
-      height: '100vh',
-      backgroundColor: '#1a1a1a',
+      height: '100%',
       overflowY: 'auto',
-      padding: '2rem 1rem',
-      zIndex: 1000
+      padding: '1.5rem'
     }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, color: '#e5e7eb' }}>TipTap 에디터 테스트 (Phase 5: Drag & Drop)</h2>
+        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h2 style={{ margin: 0, color: '#e5e7eb', fontSize: '1.25rem' }}>{currentPageName || '페이지'}</h2>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button
             onClick={handleSave}
             disabled={isSaving}
             title={
               isSaving
-                ? '지금은 저장 중으로 일시적으로 버튼이 비활성화되었습니다'
-                : (lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '아직 저장되지 않음')
+                ? '저장 중...'
+                : (lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '저장')
             }
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.375rem 0.75rem',
               backgroundColor: '#3b82f6',
               color: 'white',
               border: 'none',
               borderRadius: '0.375rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontSize: '0.875rem'
             }}
           >
-            저장
+            {isSaving ? '저장 중...' : '저장'}
           </button>
           <button
             onClick={async () => {
@@ -303,43 +297,32 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
               else alert('버전 저장에 실패했습니다.')
             }}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.375rem 0.75rem',
               backgroundColor: '#10b981',
               color: 'white',
               border: 'none',
               borderRadius: '0.375rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontSize: '0.875rem'
             }}
             title="현재 상태를 버전으로 저장"
           >
-            📸 버전 저장
+            📸 버전
           </button>
           <button
             onClick={openHistory}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.375rem 0.75rem',
               backgroundColor: '#8b5cf6',
               color: 'white',
               border: 'none',
               borderRadius: '0.375rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontSize: '0.875rem'
             }}
             title="버전 히스토리 보기"
           >
             🕐 히스토리
-          </button>
-          <button
-            onClick={onBack}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#374151',
-              color: '#e5e7eb',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer'
-            }}
-          >
-            기존 에디터로 돌아가기
           </button>
         </div>
       </div>
@@ -525,32 +508,6 @@ function TipTapTestPage({ session, currentPageId, onBack }) {
         )}
       </div>
 
-      <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#2d2d2d', borderRadius: '0.5rem', border: '1px solid #374151' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>🎯 사용법 (Phase 5: Drag & Drop)</h3>
-        <div style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.6 }}>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>🆕 드래그 & 드롭 (Phase 5):</p>
-          <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
-            <li>블록 위에 마우스 올리면 왼쪽에 <strong>⋮⋮ 핸들</strong> 표시</li>
-            <li><strong>핸들을 드래그</strong>해서 블록 순서 변경</li>
-          </ul>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>텍스트 선택 메뉴 (BubbleMenu):</p>
-          <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
-            <li><strong>텍스트를 드래그</strong>하면 검은색 메뉴가 떠오름</li>
-            <li><strong>B</strong>: 볼드, <strong>I</strong>: 이탤릭, <strong>S</strong>: 취소선, <strong>&lt;/&gt;</strong>: 코드</li>
-            <li><strong>🔗</strong> 클릭 → URL 입력창 → 링크 추가</li>
-          </ul>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>토글 블록:</p>
-          <ul style={{ marginTop: 0, marginBottom: '1rem', paddingLeft: '1.5rem' }}>
-            <li><span style={{ color: '#10b981', fontWeight: 600 }}>▶ 토글 블록</span> 버튼 클릭</li>
-            <li><strong>▶ 버튼을 클릭</strong>하면 열림/닫힘</li>
-          </ul>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#e5e7eb' }}>단축키:</p>
-          <ul style={{ marginTop: 0, paddingLeft: '1.5rem' }}>
-            <li>Cmd + B: 볼드, Cmd + I: 이탤릭</li>
-            <li># + Space: H1, ## + Space: H2</li>
-          </ul>
-        </div>
-      </div>
     </div>
 
       {/* 히스토리 모달 */}
