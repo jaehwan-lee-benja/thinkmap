@@ -1,7 +1,27 @@
+/**
+ * TipTap 에디터 코어 스타일
+ * CSS 변수를 사용하여 테마 일관성 유지
+ */
+
+/* CSS 변수 (로컬 오버라이드 가능) */
+.tiptap-wrapper {
+  --editor-bg: #2d2d2d;
+  --editor-bg-secondary: #1a1a1a;
+  --editor-text: #e5e7eb;
+  --editor-text-muted: #9ca3af;
+  --editor-text-faint: #6b7280;
+  --editor-border: #374151;
+  --editor-border-light: #4b5563;
+  --editor-accent: #3b82f6;
+  --editor-accent-hover: #2563eb;
+  --editor-success: #10b981;
+  --editor-code: #10b981;
+}
+
 .tiptap-wrapper {
   width: 100%;
   min-height: 200px;
-  background-color: #2d2d2d;
+  background-color: var(--editor-bg);
   position: relative;
   overflow: visible;
 }
@@ -10,8 +30,8 @@
   outline: none;
   padding: 1rem;
   min-height: 200px;
-  color: #e5e7eb;
-  background-color: #2d2d2d;
+  color: var(--editor-text);
+  background-color: var(--editor-bg);
 }
 
 /* 기본 텍스트 스타일 */
@@ -402,7 +422,6 @@
   border-radius: 8px;
   padding: 4px;
   min-width: 160px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   animation: contextMenuFadeIn 0.15s ease-out;
 }
 
@@ -544,7 +563,6 @@
   .block-context-menu {
     background: #ffffff;
     border-color: #e5e7eb;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   }
 
   .context-menu-item {
@@ -572,5 +590,193 @@
     background: #f9fafb;
     border-color: #d1d5db;
     color: #374151;
+  }
+}
+
+/* =====================================================
+   모바일 반응형 스타일
+   ===================================================== */
+
+/* 태블릿 */
+@media (max-width: 768px) {
+  .tiptap-editor {
+    padding: 0.875rem;
+  }
+
+  .tiptap-editor h1 {
+    font-size: 1.75rem;
+  }
+
+  .tiptap-editor h2 {
+    font-size: 1.375rem;
+  }
+
+  .tiptap-editor h3 {
+    font-size: 1.125rem;
+  }
+
+  .toggle-block {
+    gap: 0.125rem;
+  }
+
+  .toggle-drag-handle {
+    opacity: 0.5;
+  }
+
+  .toggle-button {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* 표 모바일 최적화 */
+  .tiptap-editor table {
+    font-size: 0.875rem;
+  }
+
+  .tiptap-editor th,
+  .tiptap-editor td {
+    padding: 0.375rem;
+    min-width: 80px;
+  }
+
+  /* 컨텍스트 메뉴 모바일 */
+  .block-context-menu {
+    min-width: 200px;
+  }
+
+  .context-menu-item {
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+
+  .format-button {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+}
+
+/* 모바일 */
+@media (max-width: 480px) {
+  .tiptap-editor {
+    padding: 0.75rem;
+    font-size: 0.9375rem;
+  }
+
+  .tiptap-editor h1 {
+    font-size: 1.5rem;
+    margin: 1rem 0 0.5rem 0;
+  }
+
+  .tiptap-editor h2 {
+    font-size: 1.25rem;
+    margin: 0.875rem 0 0.375rem 0;
+  }
+
+  .tiptap-editor h3 {
+    font-size: 1.125rem;
+    margin: 0.75rem 0 0.375rem 0;
+  }
+
+  .tiptap-editor p {
+    margin: 0.375rem 0;
+    line-height: 1.5;
+  }
+
+  .tiptap-editor ul,
+  .tiptap-editor ol {
+    padding-left: 1.25rem;
+  }
+
+  .tiptap-editor pre {
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .tiptap-editor code {
+    font-size: 0.85em;
+    padding: 0.15rem 0.3rem;
+  }
+
+  /* 토글 모바일 */
+  .toggle-block {
+    padding: 0.125rem;
+  }
+
+  .toggle-content > .toggle-block {
+    margin-left: 0.25rem;
+  }
+
+  /* 표 스크롤 가능하게 */
+  .tiptap-editor table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* 이미지 모바일 */
+  .tiptap-editor img {
+    margin: 0.75rem 0;
+    border-radius: 0.375rem;
+  }
+
+  /* 컨텍스트 메뉴 전체 너비 */
+  .block-context-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    border-radius: 12px 12px 0 0;
+    min-width: 100%;
+    max-height: 50vh;
+    overflow-y: auto;
+    animation: slideUpMobile 0.2s ease;
+  }
+
+  @keyframes slideUpMobile {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .context-menu-format-row {
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .format-button {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .context-menu-item {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+}
+
+/* 터치 디바이스 최적화 */
+@media (hover: none) and (pointer: coarse) {
+  .toggle-drag-handle {
+    opacity: 0.6;
+  }
+
+  .toggle-button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .context-menu-item {
+    min-height: 44px;
+  }
+
+  .format-button {
+    min-width: 44px;
+    min-height: 44px;
   }
 }

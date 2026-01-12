@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import TipTapEditor from './TipTapEditor'
 import { supabase } from '../../supabaseClient'
 import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
+import './TipTapPage.css'
 
 /**
- * TipTap 에디터 테스트 페이지
- * Phase 1: 기본 기능 테스트용
+ * TipTap 에디터 페이지
+ * 메인 에디터 컴포넌트
  */
 function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename }) {
   const [content, setContent] = useState(null)
@@ -95,7 +96,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
         `이 버전으로 복구하시겠습니까?\n\n` +
         `저장 시각: ${new Date(data.created_at).toLocaleString('ko-KR')}\n` +
         `설명: ${data.description || '(설명 없음)'}\n\n` +
-        `⚠️ 현재 내용이 대체됩니다. 복구 전 현재 버전이 자동 저장됩니다.`
+        `현재 내용이 대체됩니다. 복구 전 현재 버전이 자동 저장됩니다.`
       )
 
       if (!confirmRestore) return
@@ -260,339 +261,168 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
   }, [content, session, currentPageId])
 
   return (
-    <div style={{
-      width: '100%',
-      height: '100%',
-      overflowY: 'auto',
-      padding: '1.5rem'
-    }}>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <h2 style={{ margin: 0, color: '#e5e7eb', fontSize: '1.25rem' }}>{currentPageName || '페이지'}</h2>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+    <div className="tiptap-page">
+      <div className="tiptap-page-inner">
+        {/* 페이지 헤더 */}
+        <div className="tiptap-page-header">
+          <h2 className="tiptap-page-title">{currentPageName || '페이지'}</h2>
+          <div className="tiptap-header-actions">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="tiptap-btn tiptap-btn-primary"
+              title={
+                isSaving
+                  ? '저장 중...'
+                  : (lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '저장')
+              }
+            >
+              {isSaving ? '저장 중...' : '저장'}
+            </button>
+            <button
+              onClick={async () => {
+                const success = await saveHistory('수동 버전 저장')
+                if (success) alert('버전이 저장되었습니다.')
+                else alert('버전 저장에 실패했습니다.')
+              }}
+              className="tiptap-btn tiptap-btn-success"
+              title="현재 상태를 버전으로 저장"
+            >
+              버전 저장
+            </button>
+            <button
+              onClick={openHistory}
+              className="tiptap-btn tiptap-btn-purple"
+              title="버전 히스토리 보기"
+            >
+              히스토리
+            </button>
+          </div>
+        </div>
+
+        {/* 툴바 */}
+        <div className="tiptap-toolbar">
           <button
-            onClick={handleSave}
-            disabled={isSaving}
-            title={
-              isSaving
-                ? '저장 중...'
-                : (lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '저장')
-            }
-            style={{
-              padding: '0.375rem 0.75rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              fontSize: '0.875rem'
-            }}
+            onClick={() => editorRef.current?.commands.setToggle()}
+            className="tiptap-btn tiptap-btn-success"
+            title="토글 블록 생성 (Cmd+Shift+T)"
           >
-            {isSaving ? '저장 중...' : '저장'}
+            ▶ 토글
           </button>
           <button
-            onClick={async () => {
-              const success = await saveHistory('수동 버전 저장')
-              if (success) alert('버전이 저장되었습니다.')
-              else alert('버전 저장에 실패했습니다.')
-            }}
-            style={{
-              padding: '0.375rem 0.75rem',
-              backgroundColor: '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              fontSize: '0.875rem'
-            }}
-            title="현재 상태를 버전으로 저장"
+            onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+            className="tiptap-btn tiptap-btn-purple"
+            title="3x3 표 삽입"
           >
-            📸 버전
+            표 삽입
           </button>
           <button
-            onClick={openHistory}
-            style={{
-              padding: '0.375rem 0.75rem',
-              backgroundColor: '#8b5cf6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              fontSize: '0.875rem'
-            }}
-            title="버전 히스토리 보기"
+            onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 1 }).run()}
+            className="tiptap-btn tiptap-btn-secondary"
           >
-            🕐 히스토리
+            H1
           </button>
+          <button
+            onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 2 }).run()}
+            className="tiptap-btn tiptap-btn-secondary"
+          >
+            H2
+          </button>
+          <button
+            onClick={() => editorRef.current?.chain().focus().toggleBold().run()}
+            className="tiptap-btn tiptap-btn-secondary"
+            style={{ fontWeight: 700 }}
+          >
+            B
+          </button>
+          <button
+            onClick={() => editorRef.current?.chain().focus().toggleItalic().run()}
+            className="tiptap-btn tiptap-btn-secondary"
+            style={{ fontStyle: 'italic' }}
+          >
+            I
+          </button>
+
+          <div className="tiptap-toolbar-divider" />
+
+          {/* 숨겨진 파일 input */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            style={{ display: 'none' }}
+          />
+          <button
+            onClick={() => imageInputRef.current?.click()}
+            className="tiptap-btn tiptap-btn-secondary"
+            title="이미지 업로드"
+          >
+            이미지
+          </button>
+          <button
+            onClick={handleInsertLink}
+            className="tiptap-btn tiptap-btn-secondary"
+            title="링크 삽입"
+          >
+            링크
+          </button>
+          <button
+            onClick={() => editorRef.current?.chain().focus().toggleCodeBlock().run()}
+            className="tiptap-btn tiptap-btn-secondary"
+            title="코드 블록"
+          >
+            코드
+          </button>
+        </div>
+
+        {/* 에디터 */}
+        <div className="tiptap-editor-wrapper">
+          {content ? (
+            <TipTapEditor
+              content={content}
+              onUpdate={handleUpdate}
+              placeholder="내용을 입력하세요..."
+              editorRef={editorRef}
+            />
+          ) : (
+            <div className="tiptap-loading">로딩 중...</div>
+          )}
         </div>
       </div>
 
-      {/* 툴바 버튼 */}
-      <div style={{
-        marginBottom: '1rem',
-        padding: '0.75rem',
-        backgroundColor: '#2d2d2d',
-        borderRadius: '0.5rem',
-        display: 'flex',
-        gap: '0.5rem',
-        flexWrap: 'wrap',
-        border: '1px solid #374151'
-      }}>
-        <button
-          onClick={() => editorRef.current?.commands.setToggle()}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: 500
-          }}
-          title="토글 블록 생성 (Cmd+Shift+T)"
-        >
-          ▶ 토글 블록
-        </button>
-        <button
-          onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#8b5cf6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: 500
-          }}
-          title="3x3 표 삽입"
-        >
-          📊 표 삽입
-        </button>
-        <button
-          onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 1 }).run()}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: 500
-          }}
-        >
-          H1
-        </button>
-        <button
-          onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 2 }).run()}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: 500
-          }}
-        >
-          H2
-        </button>
-        <button
-          onClick={() => editorRef.current?.chain().focus().toggleBold().run()}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: 600
-          }}
-        >
-          B
-        </button>
-        <button
-          onClick={() => editorRef.current?.chain().focus().toggleItalic().run()}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontStyle: 'italic'
-          }}
-        >
-          I
-        </button>
-
-        <div style={{ width: '1px', height: '24px', backgroundColor: '#4b5563', margin: '0 0.25rem' }} />
-
-        {/* 숨겨진 파일 input */}
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          style={{ display: 'none' }}
-        />
-        <button
-          onClick={() => imageInputRef.current?.click()}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem'
-          }}
-          title="이미지 업로드"
-        >
-          🖼️ 이미지
-        </button>
-        <button
-          onClick={handleInsertLink}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem'
-          }}
-          title="링크 삽입"
-        >
-          🔗 링크
-        </button>
-        <button
-          onClick={() => editorRef.current?.chain().focus().toggleCodeBlock().run()}
-          style={{
-            padding: '0.5rem 0.75rem',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem'
-          }}
-          title="코드 블록"
-        >
-          {'</>'} 코드
-        </button>
-      </div>
-
-      <div style={{
-        border: '1px solid #374151',
-        borderRadius: '0.5rem',
-        backgroundColor: '#2d2d2d',
-        minHeight: '500px'
-      }}>
-        {content ? (
-          <TipTapEditor
-            content={content}
-            onUpdate={handleUpdate}
-            placeholder="TipTap 에디터를 테스트해보세요..."
-            editorRef={editorRef}
-          />
-        ) : (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-            로딩 중...
-          </div>
-        )}
-      </div>
-
-    </div>
-
       {/* 히스토리 모달 */}
       {showHistory && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 2000
-          }}
-          onClick={() => setShowHistory(false)}
-        >
-          <div
-            style={{
-              backgroundColor: '#1f2937',
-              borderRadius: '0.5rem',
-              padding: '1.5rem',
-              maxWidth: '600px',
-              width: '90%',
-              maxHeight: '80vh',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, color: '#e5e7eb' }}>🕐 버전 히스토리</h3>
-              <button
-                onClick={() => setShowHistory(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#9ca3af',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer'
-                }}
-              >
+        <div className="tiptap-modal-overlay" onClick={() => setShowHistory(false)}>
+          <div className="tiptap-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="tiptap-modal-header">
+              <h3 className="tiptap-modal-title">버전 히스토리</h3>
+              <button className="tiptap-modal-close" onClick={() => setShowHistory(false)}>
                 ✕
               </button>
             </div>
 
-            <div style={{ overflowY: 'auto', flex: 1 }}>
+            <div className="tiptap-modal-body">
               {isLoadingHistory ? (
-                <p style={{ textAlign: 'center', color: '#9ca3af' }}>로딩 중...</p>
+                <p className="tiptap-history-empty">로딩 중...</p>
               ) : historyList.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#9ca3af' }}>저장된 버전이 없습니다.</p>
+                <p className="tiptap-history-empty">저장된 버전이 없습니다.</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="tiptap-history-list">
                   {historyList.map((version) => (
-                    <div
-                      key={version.id}
-                      style={{
-                        backgroundColor: '#374151',
-                        borderRadius: '0.375rem',
-                        padding: '0.75rem'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ color: '#e5e7eb', fontSize: '0.875rem', fontWeight: 500 }}>
+                    <div key={version.id} className="tiptap-history-item">
+                      <div className="tiptap-history-item-header">
+                        <div className="tiptap-history-item-info">
+                          <div className="tiptap-history-date">
                             {new Date(version.created_at).toLocaleString('ko-KR')}
                           </div>
-                          <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                          <div className="tiptap-history-desc">
                             {version.description || '(설명 없음)'}
                           </div>
                         </div>
                         <button
                           onClick={() => restoreVersion(version.id)}
-                          style={{
-                            padding: '0.375rem 0.75rem',
-                            backgroundColor: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            cursor: 'pointer',
-                            fontSize: '0.75rem'
-                          }}
+                          className="tiptap-btn tiptap-btn-success"
                         >
                           복구
                         </button>
