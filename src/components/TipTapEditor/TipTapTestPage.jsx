@@ -2,6 +2,21 @@ import React, { useState, useEffect, useRef } from 'react'
 import TipTapEditor from './TipTapEditor'
 import { supabase } from '../../supabaseClient'
 import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
+import {
+  Save,
+  Archive,
+  History,
+  ChevronRight,
+  Table2,
+  Heading1,
+  Heading2,
+  Bold,
+  Italic,
+  Image,
+  Link,
+  Code,
+  RotateCcw
+} from 'lucide-react'
 import './TipTapPage.css'
 
 /**
@@ -277,6 +292,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
                   : (lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '저장')
               }
             >
+              <Save />
               {isSaving ? '저장 중...' : '저장'}
             </button>
             <button
@@ -288,6 +304,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
               className="tiptap-btn tiptap-btn-success"
               title="현재 상태를 버전으로 저장"
             >
+              <Archive />
               버전 저장
             </button>
             <button
@@ -295,6 +312,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
               className="tiptap-btn tiptap-btn-purple"
               title="버전 히스토리 보기"
             >
+              <History />
               히스토리
             </button>
           </div>
@@ -304,43 +322,47 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
         <div className="tiptap-toolbar">
           <button
             onClick={() => editorRef.current?.commands.setToggle()}
-            className="tiptap-btn tiptap-btn-success"
+            className="tiptap-btn tiptap-btn-secondary"
             title="토글 블록 생성 (Cmd+Shift+T)"
           >
-            ▶ 토글
+            <ChevronRight />
+            토글
           </button>
           <button
             onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-            className="tiptap-btn tiptap-btn-purple"
+            className="tiptap-btn tiptap-btn-secondary"
             title="3x3 표 삽입"
           >
-            표 삽입
+            <Table2 />
+            표
           </button>
           <button
             onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 1 }).run()}
-            className="tiptap-btn tiptap-btn-secondary"
+            className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
+            title="제목 1"
           >
-            H1
+            <Heading1 />
           </button>
           <button
             onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 2 }).run()}
-            className="tiptap-btn tiptap-btn-secondary"
+            className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
+            title="제목 2"
           >
-            H2
+            <Heading2 />
           </button>
           <button
             onClick={() => editorRef.current?.chain().focus().toggleBold().run()}
-            className="tiptap-btn tiptap-btn-secondary"
-            style={{ fontWeight: 700 }}
+            className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
+            title="굵게"
           >
-            B
+            <Bold />
           </button>
           <button
             onClick={() => editorRef.current?.chain().focus().toggleItalic().run()}
-            className="tiptap-btn tiptap-btn-secondary"
-            style={{ fontStyle: 'italic' }}
+            className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
+            title="기울임"
           >
-            I
+            <Italic />
           </button>
 
           <div className="tiptap-toolbar-divider" />
@@ -355,24 +377,24 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
           />
           <button
             onClick={() => imageInputRef.current?.click()}
-            className="tiptap-btn tiptap-btn-secondary"
+            className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
             title="이미지 업로드"
           >
-            이미지
+            <Image />
           </button>
           <button
             onClick={handleInsertLink}
-            className="tiptap-btn tiptap-btn-secondary"
+            className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
             title="링크 삽입"
           >
-            링크
+            <Link />
           </button>
           <button
             onClick={() => editorRef.current?.chain().focus().toggleCodeBlock().run()}
-            className="tiptap-btn tiptap-btn-secondary"
+            className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
             title="코드 블록"
           >
-            코드
+            <Code />
           </button>
         </div>
 
@@ -422,8 +444,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
                         </div>
                         <button
                           onClick={() => restoreVersion(version.id)}
-                          className="tiptap-btn tiptap-btn-success"
+                          className="tiptap-btn tiptap-btn-secondary"
                         >
+                          <RotateCcw />
                           복구
                         </button>
                       </div>

@@ -245,9 +245,15 @@
   height: 0;
 }
 
-/* 선택 영역 스타일 */
+/* 선택 영역 스타일 - 다크 테마에 맞게 */
 .tiptap-editor ::selection {
-  background-color: #bfdbfe;
+  background-color: rgba(59, 130, 246, 0.4);
+  color: #ffffff;
+}
+
+.tiptap-editor *::selection {
+  background-color: rgba(59, 130, 246, 0.4);
+  color: #ffffff;
 }
 
 /* 포커스 스타일 */
@@ -331,6 +337,11 @@
   opacity: 1;
 }
 
+/* 하위 토글이 hover 상태면 상위 토글 핸들 숨김 */
+.toggle-block:has(.toggle-block:hover) > .toggle-drag-handle {
+  opacity: 0;
+}
+
 /* 드래그 핸들 hover 시 블록 하이라이트 (CSS :has 사용) */
 .toggle-block:has(> .toggle-drag-handle:hover) {
   outline: 2px solid rgba(59, 130, 246, 0.3);
@@ -373,9 +384,9 @@
   background: transparent !important;
 }
 
-/* 토글 내부 중첩 토글 - 들여쓰기 */
+/* 토글 내부 중첩 토글 - 상위 토글 버튼 아래로 정렬 */
 .toggle-content > .toggle-block {
-  margin-left: 0.5rem;
+  margin-left: -16px; /* 드래그 핸들 너비만큼 왼쪽으로 당겨서 상위 버튼 아래 정렬 */
   background: transparent !important;
 }
 
@@ -704,7 +715,7 @@
   }
 
   .toggle-content > .toggle-block {
-    margin-left: 0.25rem;
+    margin-left: -16px; /* 모바일에서도 동일하게 상위 버튼 아래 정렬 */
   }
 
   /* 표 스크롤 가능하게 */
