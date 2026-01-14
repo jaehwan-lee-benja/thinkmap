@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import ShareModal from '../Share/ShareModal'
 import './Sidebar.css'
 
 /**
@@ -24,16 +25,38 @@ function Sidebar({
   // 사용자
   userEmail,
   userAvatarUrl,
-  onLogout
+  onLogout,
+  // 공유 관련
+  sharedWithMe = { projects: [], pages: [] },
+  getSharesForResource,
+  onCreateShare,
+  onUpdateSharePermission,
+  onDeleteShare,
+  sharingLoading = false,
 }) {
   const [projectsOpen, setProjectsOpen] = useState(false)
+  const [sharedOpen, setSharedOpen] = useState(false)
   const [editingPageId, setEditingPageId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [editingProjectName, setEditingProjectName] = useState('')
 
+  // 공유 모달 상태
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [shareTarget, setShareTarget] = useState({ type: null, id: null, name: '' })
+
   // 현재 프로젝트
   const currentProject = projects.find(p => p.id === currentProjectId)
+
+  // 공유받은 항목이 있는지 확인
+  const hasSharedItems = sharedWithMe.projects.length > 0 || sharedWithMe.pages.length > 0
+
+  // 공유 모달 열기
+  const openShareModal = (type, id, name, e) => {
+    e?.stopPropagation()
+    setShareTarget({ type, id, name })
+    setShareModalOpen(true)
+  }
 
   // 페이지 더블클릭 → 이름 수정
   const handlePageDoubleClick = (page) => {
@@ -170,15 +193,24 @@ function Sidebar({
                       <>
                         <span className="project-item-icon">📁</span>
                         <span className="project-item-name">{project.name}</span>
-                        {projects.length > 1 && (
+                        <div className="project-item-actions">
                           <button
-                            className="project-delete-button"
-                            onClick={(e) => handleDeleteProject(project.id, e)}
-                            title="프로젝트 삭제"
+                            className="project-share-button"
+                            onClick={(e) => openShareModal('project', project.id, project.name, e)}
+                            title="프로젝트 공유"
                           >
-                            🗑️
+                            공유
                           </button>
-                        )}
+                          {projects.length > 1 && (
+                            <button
+                              className="project-delete-button"
+                              onClick={(e) => handleDeleteProject(project.id, e)}
+                              title="프로젝트 삭제"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>
@@ -233,15 +265,24 @@ function Sidebar({
                   <>
                     <span className="page-icon">📄</span>
                     <span className="page-name">{page.name}</span>
-                    {pages.length > 1 && (
+                    <div className="page-item-actions">
                       <button
-                        className="page-delete-button"
-                        onClick={(e) => handleDeletePage(page.id, e)}
-                        title="페이지 삭제"
+                        className="page-share-button"
+                        onClick={(e) => openShareModal('page', page.id, page.name, e)}
+                        title="페이지 공유"
                       >
-                        🗑️
+                        공유
                       </button>
-                    )}
+                      {pages.length > 1 && (
+                        <button
+                          className="page-delete-button"
+                          onClick={(e) => handleDeletePage(page.id, e)}
+                          title="페이지 삭제"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -252,6 +293,62 @@ function Sidebar({
           <button className="add-page-button" onClick={handleCreatePage}>
             + 새 페이지
           </button>
+
+          {/* 공유받은 항목 섹션 */}
+          {hasSharedItems && (
+            <>
+              <div className="sidebar-section-divider"></div>
+              <div className="sidebar-shared-section">
+                <button
+                  className="sidebar-shared-toggle"
+                  onClick={() => setSharedOpen(!sharedOpen)}
+                >
+                  👥
+                  <span>공유받은 항목</span>
+                  <span className="shared-chevron">{sharedOpen ? '▴' : '▾'}</span>
+                </button>
+
+                {sharedOpen && (
+                  <div className="shared-items-list">
+                    {/* 공유받은 프로젝트 */}
+                    {sharedWithMe.projects.map((project) => (
+                      <div
+                        key={project.id}
+                        className="shared-item shared-project"
+                        onClick={() => onProjectSelect(project.id)}
+                      >
+                        <span className="shared-item-icon">📁</span>
+                        <span className="shared-item-name">{project.name}</span>
+                        <span className={`shared-permission ${project.shareInfo?.permission}`}>
+                          {project.shareInfo?.permission === 'editor' ? '편집' : '뷰어'}
+                        </span>
+                      </div>
+                    ))}
+
+                    {/* 공유받은 페이지 */}
+                    {sharedWithMe.pages.map((page) => (
+                      <div
+                        key={page.id}
+                        className="shared-item shared-page"
+                        onClick={() => {
+                          if (page.project_id) {
+                            onProjectSelect(page.project_id)
+                          }
+                          onPageSelect(page.id)
+                        }}
+                      >
+                        <span className="shared-item-icon">📄</span>
+                        <span className="shared-item-name">{page.name}</span>
+                        <span className={`shared-permission ${page.shareInfo?.permission}`}>
+                          {page.shareInfo?.permission === 'editor' ? '편집' : '뷰어'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* 사이드바 푸터: 사용자 프로필 + 로그아웃 */}
@@ -282,6 +379,20 @@ function Sidebar({
           </button>
         </div>
       </div>
+
+      {/* 공유 모달 */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        resourceType={shareTarget.type}
+        resourceId={shareTarget.id}
+        resourceName={shareTarget.name}
+        shares={getSharesForResource?.(shareTarget.type, shareTarget.id) || []}
+        onCreateShare={onCreateShare}
+        onUpdatePermission={onUpdateSharePermission}
+        onDeleteShare={onDeleteShare}
+        isLoading={sharingLoading}
+      />
     </>
   )
 }

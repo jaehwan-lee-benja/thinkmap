@@ -349,16 +349,11 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
           <div className="tiptap-header-actions">
             <button
               onClick={handleSave}
-              disabled={isSaving}
               className="tiptap-btn tiptap-btn-primary"
-              title={
-                isSaving
-                  ? '저장 중...'
-                  : (lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '저장')
-              }
+              title={lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '저장'}
             >
               <Save />
-              {isSaving ? '저장 중...' : '저장'}
+              저장
             </button>
             <button
               onClick={async () => {

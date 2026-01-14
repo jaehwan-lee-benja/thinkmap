@@ -30,10 +30,10 @@ export const usePages = (session, currentProjectId) => {
     try {
       setPagesLoading(true)
 
+      // RLS 정책이 공유된 페이지도 허용하므로 user_id 필터 제거
       const { data, error } = await supabase
         .from('pages')
         .select('*')
-        .eq('user_id', session.user.id)
         .eq('project_id', currentProjectId)
         .order('position', { ascending: true })
 

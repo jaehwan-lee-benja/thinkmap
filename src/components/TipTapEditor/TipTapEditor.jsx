@@ -29,6 +29,10 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
 
+  // 테이블 툴바 상태
+  const [tableToolbarVisible, setTableToolbarVisible] = useState(false)
+  const [tableToolbarPosition, setTableToolbarPosition] = useState({ top: 0, left: 0 })
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -100,6 +104,63 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       editor.commands.setContent(content)
     }
   }, [content, editor])
+
+  // 테이블 커서 위치 감지 및 툴바 표시
+  useEffect(() => {
+    if (!editor) return
+
+    const updateTableToolbar = () => {
+      const { selection } = editor.state
+      const isInTable = editor.isActive('table')
+
+      if (isInTable) {
+        // 현재 선택된 셀의 DOM 요소 찾기
+        const { $from } = selection
+        const domAtPos = editor.view.domAtPos($from.pos)
+        const cell = domAtPos.node?.closest?.('td, th') || domAtPos.node?.parentElement?.closest?.('td, th')
+
+        if (cell) {
+          const table = cell.closest('table')
+          if (table) {
+            const tableRect = table.getBoundingClientRect()
+            setTableToolbarPosition({
+              top: tableRect.top - 40,
+              left: tableRect.left
+            })
+            setTableToolbarVisible(true)
+            return
+          }
+        }
+      }
+      setTableToolbarVisible(false)
+    }
+
+    const handleClickOutside = (e) => {
+      const isTable = e.target.closest('table')
+      const isToolbar = e.target.closest('.table-toolbar')
+      if (!isTable && !isToolbar) {
+        setTableToolbarVisible(false)
+      }
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setTableToolbarVisible(false)
+      }
+    }
+
+    editor.on('selectionUpdate', updateTableToolbar)
+    editor.on('focus', updateTableToolbar)
+    document.addEventListener('click', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      editor.off('selectionUpdate', updateTableToolbar)
+      editor.off('focus', updateTableToolbar)
+      document.removeEventListener('click', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [editor])
 
   // 토글 내부 드래그 핸들 클릭 시 컨텍스트 메뉴
   useEffect(() => {
@@ -237,6 +298,83 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   return (
     <div className="tiptap-wrapper">
       <EditorContent editor={editor} />
+
+      {/* 테이블 툴바 */}
+      {tableToolbarVisible && editor && (
+        <div
+          className="table-toolbar"
+          style={{
+            position: 'fixed',
+            top: `${tableToolbarPosition.top}px`,
+            left: `${tableToolbarPosition.left}px`,
+            zIndex: 1000,
+          }}
+        >
+          <div className="table-toolbar-group">
+            <button
+              onClick={() => editor.chain().focus().addColumnBefore().run()}
+              title="왼쪽에 열 추가"
+              className="table-toolbar-btn"
+            >
+              ← 열
+            </button>
+            <button
+              onClick={() => editor.chain().focus().addColumnAfter().run()}
+              title="오른쪽에 열 추가"
+              className="table-toolbar-btn"
+            >
+              열 →
+            </button>
+            <button
+              onClick={() => editor.chain().focus().deleteColumn().run()}
+              title="열 삭제"
+              className="table-toolbar-btn delete"
+            >
+              열 삭제
+            </button>
+          </div>
+          <div className="table-toolbar-divider"></div>
+          <div className="table-toolbar-group">
+            <button
+              onClick={() => editor.chain().focus().addRowBefore().run()}
+              title="위에 행 추가"
+              className="table-toolbar-btn"
+            >
+              ↑ 행
+            </button>
+            <button
+              onClick={() => editor.chain().focus().addRowAfter().run()}
+              title="아래에 행 추가"
+              className="table-toolbar-btn"
+            >
+              행 ↓
+            </button>
+            <button
+              onClick={() => editor.chain().focus().deleteRow().run()}
+              title="행 삭제"
+              className="table-toolbar-btn delete"
+            >
+              행 삭제
+            </button>
+          </div>
+          <div className="table-toolbar-divider"></div>
+          <button
+            onClick={() => editor.chain().focus().deleteTable().run()}
+            title="표 삭제"
+            className="table-toolbar-btn delete"
+          >
+            표 삭제
+          </button>
+          <div className="table-toolbar-divider"></div>
+          <button
+            onClick={() => setTableToolbarVisible(false)}
+            title="닫기"
+            className="table-toolbar-btn close"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* 블록 컨텍스트 메뉴 (텍스트 서식 + 블록 작업 통합) */}
       {contextMenuVisible && editor && (

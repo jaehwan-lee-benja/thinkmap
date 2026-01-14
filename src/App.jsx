@@ -6,6 +6,7 @@ import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
 import { useAuth } from './hooks/useAuth'
 import { useProjects } from './hooks/useProjects'
 import { usePages } from './hooks/usePages'
+import { useSharing } from './hooks/useSharing'
 import './App.css'
 
 function App() {
@@ -32,6 +33,17 @@ function App() {
     renamePage,
     deletePage,
   } = usePages(session, currentProjectId)
+
+  // 공유 관리
+  const {
+    shares,
+    sharedWithMe,
+    sharingLoading,
+    createShare,
+    updateSharePermission,
+    deleteShare,
+    getSharesForResource,
+  } = useSharing(session)
 
   // UI 상태 - 모바일에서는 사이드바 기본으로 닫힘
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -73,12 +85,18 @@ function App() {
         pages={pages}
         currentPageId={currentPageId}
         onPageSelect={setCurrentPageId}
-        onPageCreate={handleCreatePage}
+        onPageCreate={createPage}
         onPageRename={renamePage}
         onPageDelete={deletePage}
         userEmail={session?.user?.email}
         userAvatarUrl={session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture}
         onLogout={handleLogout}
+        sharedWithMe={sharedWithMe}
+        getSharesForResource={getSharesForResource}
+        onCreateShare={createShare}
+        onUpdateSharePermission={updateSharePermission}
+        onDeleteShare={deleteShare}
+        sharingLoading={sharingLoading}
       />
 
       <div className={`container ${sidebarOpen ? 'with-sidebar' : ''}`}>
