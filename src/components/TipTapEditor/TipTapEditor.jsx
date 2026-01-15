@@ -1,7 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import { OrderedList } from '@tiptap/extension-ordered-list'
+import { BulletList } from '@tiptap/extension-bullet-list'
+import { ListItem } from '@tiptap/extension-list-item'
 import { Table } from '@tiptap/extension-table'
+
+// Ctrl+Z/Cmd+Z로 InputRule 취소 가능하게 하는 extension
+const UndoInputRuleOnCtrlZ = Extension.create({
+  name: 'undoInputRuleOnCtrlZ',
+
+  addKeyboardShortcuts() {
+    return {
+      'Mod-z': ({ editor }) => {
+        // undoInputRule 먼저 시도
+        if (editor.can().undoInputRule()) {
+          return editor.commands.undoInputRule()
+        }
+        // 실패하면 일반 undo
+        return editor.commands.undo()
+      },
+    }
+  },
+})
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
@@ -41,7 +62,22 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         },
         blockquote: false, // "> " 입력 시 토글로 변환하기 위해 비활성화
         codeBlock: false, // CodeBlockLowlight 사용을 위해 비활성화
+        // 리스트는 별도로 설정 (InputRule undo 지원)
+        orderedList: false,
+        bulletList: false,
+        listItem: false,
+        // History 설정 - InputRule 변환 후 즉시 undo 가능하도록
+        history: {
+          depth: 100,
+          newGroupDelay: 500,
+        },
       }),
+      // 리스트 extensions (InputRule 적용 시 undo 가능)
+      OrderedList,
+      BulletList,
+      ListItem,
+      // Ctrl+Z로 InputRule 취소 가능하게
+      UndoInputRuleOnCtrlZ,
       CodeBlockLowlight.configure({
         lowlight,
         defaultLanguage: 'javascript',
@@ -75,16 +111,25 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       attributes: {
         class: 'tiptap-editor',
       },
+      // 복사 시 paragraph 사이에 줄바꿈 1개만 (기본값은 2개)
+      clipboardTextSerializer: (slice) => {
+        let text = ''
+        slice.content.forEach((node, index) => {
+          if (index > 0) {
+            text += '\n' // paragraph 사이에 줄바꿈 1개
+          }
+          text += node.textContent
+        })
+        return text
+      },
       handleDOMEvents: {
         // TipTap의 기본 드래그 이벤트 비활성화 (우리의 커스텀 드래그 사용)
         dragstart: (view, event) => {
           // drag-handle에서 시작한 드래그는 허용
           if (event.target.closest('.drag-handle')) {
-            console.log('🟢 Allowing custom drag from drag-handle')
             return false // TipTap이 처리하지 않음
           }
           // 다른 곳에서의 드래그는 TipTap이 처리
-          console.log('🔴 TipTap handling drag')
           return false
         },
       },

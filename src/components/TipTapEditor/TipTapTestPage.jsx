@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import TipTapEditor from './TipTapEditor'
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
@@ -34,6 +34,19 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
   const [lastSaved, setLastSaved] = useState(null)
   const editorRef = useRef(null)
   const imageInputRef = useRef(null)
+
+  // 최신 content와 pageId를 ref로 추적 (cleanup 함수에서 사용)
+  const contentRef = useRef(null)
+  const pageIdRef = useRef(null)
+  const hasUnsavedChanges = useRef(false)
+  // 이전 페이지 정보 (페이지 전환 시 저장용)
+  const prevPageRef = useRef({ pageId: null, content: null })
+  // 마지막 자동 히스토리 저장 시간
+  const lastAutoHistoryRef = useRef(null)
+  // 마지막 히스토리에 저장된 content (중복 방지용)
+  const lastHistoryContentRef = useRef(null)
+  // 초기 로드 완료 여부 (초기 로드 시 불필요한 저장 방지)
+  const isInitialLoadRef = useRef(true)
 
   // 히스토리 관련 상태
   const [showHistory, setShowHistory] = useState(false)
@@ -251,11 +264,12 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
         // 2. content_tiptap이 있으면 사용
         if (data?.content_tiptap) {
           setContent(data.content_tiptap)
+          // 초기 content를 히스토리 기준점으로 설정
+          lastHistoryContentRef.current = data.content_tiptap
           return
         }
 
         // 3. content_tiptap이 없으면 기존 blocks 테이블에서 마이그레이션 시도
-        console.log('content_tiptap 없음, blocks 테이블에서 마이그레이션 시도...')
         const { data: blocks, error: blocksError } = await supabase
           .from('blocks')
           .select('*')
@@ -269,9 +283,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
 
         if (blocks && blocks.length > 0) {
           // 기존 블록을 TipTap JSON으로 변환
-          console.log(`${blocks.length}개 블록 발견, TipTap으로 변환 중...`)
           const tiptapContent = convertFlatBlocksToTiptap(blocks)
           setContent(tiptapContent)
+          // 초기 content를 히스토리 기준점으로 설정
+          lastHistoryContentRef.current = tiptapContent
 
           // 변환된 내용을 pages 테이블에 저장 (마이그레이션)
           await supabase
@@ -279,15 +294,17 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
             .update({ content_tiptap: tiptapContent })
             .eq('id', currentPageId)
 
-          console.log('마이그레이션 완료!')
           return
         }
 
         // 4. 블록도 없으면 빈 문서로 시작
-        setContent({
+        const emptyContent = {
           type: 'doc',
           content: [{ type: 'paragraph', content: [] }]
-        })
+        }
+        setContent(emptyContent)
+        // 초기 content를 히스토리 기준점으로 설정
+        lastHistoryContentRef.current = emptyContent
       } catch (err) {
         console.error('예상치 못한 오류:', err)
       }
@@ -296,8 +313,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
     loadContent()
   }, [session, currentPageId])
 
-  // 에디터 내용 변경 시
+  // 에디터 내용 변경 시 (사용자 편집)
   const handleUpdate = (newContent) => {
+    isInitialLoadRef.current = false  // 사용자가 편집 시작
     setContent(newContent)
   }
 
@@ -329,16 +347,186 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
     }
   }
 
-  // 자동 저장 (2초 debounce)
-  useEffect(() => {
-    if (!content) return
+  // 즉시 저장 함수 (동기적으로 호출 가능)
+  const saveImmediately = useCallback(async (contentToSave, pageIdToSave) => {
+    if (!contentToSave || !pageIdToSave || !session) return false
 
-    const timer = setTimeout(() => {
-      handleSave()
-    }, 2000)
+    try {
+      const { error } = await supabase
+        .from('pages')
+        .update({
+          content_tiptap: contentToSave,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pageIdToSave)
+
+      if (error) {
+        console.error('저장 실패:', error)
+        return false
+      }
+      return true
+    } catch (err) {
+      console.error('저장 오류:', err)
+      return false
+    }
+  }, [session])
+
+  // content가 변경될 때마다 ref 업데이트
+  useEffect(() => {
+    contentRef.current = content
+    if (content && content.content && content.content.length > 0) {
+      hasUnsavedChanges.current = true
+      // 현재 페이지의 유효한 content 저장 (페이지 전환 시 사용)
+      if (currentPageId) {
+        prevPageRef.current = { pageId: currentPageId, content: content }
+      }
+    }
+  }, [content, currentPageId])
+
+  useEffect(() => {
+    pageIdRef.current = currentPageId
+    // 페이지 변경 시 초기 로드 상태로 리셋
+    isInitialLoadRef.current = true
+  }, [currentPageId])
+
+  // content 비교 함수 (JSON 문자열로 비교)
+  const isContentChanged = useCallback((newContent, oldContent) => {
+    if (!oldContent) return true
+    if (!newContent) return false
+    return JSON.stringify(newContent) !== JSON.stringify(oldContent)
+  }, [])
+
+  // 자동 히스토리 저장 (5분마다, 변경된 경우에만)
+  const saveAutoHistory = useCallback(async (contentToSave, pageIdToSave) => {
+    if (!contentToSave || !pageIdToSave || !session?.user?.id) return
+
+    const now = Date.now()
+    const fiveMinutes = 5 * 60 * 1000
+
+    // 마지막 자동 히스토리 저장 후 5분이 지났는지 확인
+    if (lastAutoHistoryRef.current && (now - lastAutoHistoryRef.current) < fiveMinutes) {
+      return
+    }
+
+    // 마지막 저장된 content와 비교 - 변경 없으면 저장 안 함
+    if (!isContentChanged(contentToSave, lastHistoryContentRef.current)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('block_history')
+        .insert([{
+          block_id: null,
+          user_id: session.user.id,
+          page_id: pageIdToSave,
+          content_before: null,
+          content_after: contentToSave,
+          action: 'tiptap_snapshot',
+          description: '자동 백업'
+        }])
+
+      if (!error) {
+        lastAutoHistoryRef.current = now
+        lastHistoryContentRef.current = contentToSave
+      }
+    } catch (err) {
+      console.error('자동 히스토리 저장 오류:', err)
+    }
+  }, [session?.user?.id, isContentChanged])
+
+  // 자동 저장 (500ms debounce) - 사용자 편집 시에만
+  useEffect(() => {
+    if (!content || !session || !currentPageId) return
+
+    // 초기 로드 시에는 저장하지 않음
+    if (isInitialLoadRef.current) {
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSaving(true)
+      const success = await saveImmediately(content, currentPageId)
+      if (success) {
+        setLastSaved(new Date())
+        hasUnsavedChanges.current = false
+        // 5분마다 자동 히스토리 백업
+        saveAutoHistory(content, currentPageId)
+      }
+      setIsSaving(false)
+    }, 500)
 
     return () => clearTimeout(timer)
-  }, [content, session, currentPageId])
+  }, [content, session, currentPageId, saveImmediately, saveAutoHistory])
+
+  // 페이지 변경 시 이전 페이지 내용 저장 + 히스토리 백업
+  useEffect(() => {
+    // 이전 페이지 정보 캡처 (cleanup에서 사용)
+    const prevPage = { ...prevPageRef.current }
+    const lastHistoryContent = lastHistoryContentRef.current
+
+    return () => {
+      // 페이지 전환 시 이전 페이지의 유효한 content 저장
+      if (prevPage.content && prevPage.pageId) {
+        // 빈 문서가 아닌 경우에만 저장
+        const hasContent = prevPage.content.content &&
+                          prevPage.content.content.length > 0 &&
+                          !(prevPage.content.content.length === 1 &&
+                            prevPage.content.content[0].type === 'paragraph' &&
+                            (!prevPage.content.content[0].content || prevPage.content.content[0].content.length === 0))
+
+        if (hasContent) {
+          // content 저장
+          saveImmediately(prevPage.content, prevPage.pageId)
+
+          // 히스토리에도 백업 (변경된 경우에만)
+          const contentChanged = !lastHistoryContent ||
+            JSON.stringify(prevPage.content) !== JSON.stringify(lastHistoryContent)
+
+          if (contentChanged && session?.user?.id) {
+            supabase
+              .from('block_history')
+              .insert([{
+                block_id: null,
+                user_id: session.user.id,
+                page_id: prevPage.pageId,
+                content_before: null,
+                content_after: prevPage.content,
+                action: 'tiptap_snapshot',
+                description: '페이지 이동 시 자동 백업'
+              }])
+              .then(() => {
+                lastHistoryContentRef.current = prevPage.content
+              })
+          }
+        }
+      }
+      // 페이지 변경 시 히스토리 ref 리셋
+      lastHistoryContentRef.current = null
+    }
+  }, [currentPageId, saveImmediately, session?.user?.id])
+
+  // 브라우저 닫기/새로고침 시 저장
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges.current && contentRef.current && pageIdRef.current) {
+        // 동기적으로 저장 시도 (navigator.sendBeacon 사용)
+        const data = JSON.stringify({
+          content_tiptap: contentRef.current,
+          updated_at: new Date().toISOString()
+        })
+
+        // sendBeacon은 페이지가 닫혀도 전송을 보장
+        navigator.sendBeacon(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/pages?id=eq.${pageIdRef.current}`,
+          new Blob([data], { type: 'application/json' })
+        )
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
 
   return (
     <div className="tiptap-page">

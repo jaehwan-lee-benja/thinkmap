@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import GoogleAuthButton from './components/Auth/GoogleAuthButton'
 import Header from './components/Navigation/Header'
 import Sidebar from './components/Sidebar/Sidebar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
 import { useAuth } from './hooks/useAuth'
+import { useUserPreferences } from './hooks/useUserPreferences'
 import { useProjects } from './hooks/useProjects'
 import { usePages } from './hooks/usePages'
 import { useSharing } from './hooks/useSharing'
@@ -11,6 +12,25 @@ import './App.css'
 
 function App() {
   const { session, authLoading, handleGoogleLogin, handleLogout } = useAuth()
+
+  // 사용자 환경설정 (마지막 방문 페이지 등)
+  const {
+    lastProjectId,
+    lastPageId,
+    preferencesLoading,
+    saveLastProject,
+    saveLastPage,
+  } = useUserPreferences(session)
+
+  // 프로젝트 변경 콜백
+  const handleProjectChange = useCallback((projectId) => {
+    saveLastProject(projectId)
+  }, [saveLastProject])
+
+  // 페이지 변경 콜백
+  const handlePageChange = useCallback((pageId) => {
+    saveLastPage(pageId)
+  }, [saveLastPage])
 
   // 프로젝트 관리
   const {
@@ -21,7 +41,10 @@ function App() {
     createProject,
     renameProject,
     deleteProject,
-  } = useProjects(session)
+  } = useProjects(session, {
+    initialProjectId: lastProjectId,
+    onProjectChange: handleProjectChange,
+  })
 
   // 페이지 관리 (현재 프로젝트)
   const {
@@ -32,7 +55,10 @@ function App() {
     createPage,
     renamePage,
     deletePage,
-  } = usePages(session, currentProjectId)
+  } = usePages(session, currentProjectId, {
+    initialPageId: lastPageId,
+    onPageChange: handlePageChange,
+  })
 
   // 공유 관리
   const {
@@ -68,6 +94,15 @@ function App() {
     handleGoogleLogin
   })
   if (authScreen) return authScreen
+
+  // 환경설정 로딩 중
+  if (preferencesLoading) {
+    return (
+      <div className="app loading">
+        <div className="loading-spinner">로딩 중...</div>
+      </div>
+    )
+  }
 
   // 메인 화면
   return (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
 
 /**
@@ -17,14 +17,28 @@ const generateUUID = () => {
 
 /**
  * 프로젝트 관리 훅
+ * @param {Object} session - Supabase 세션
+ * @param {Object} options - 옵션
+ * @param {string} options.initialProjectId - 초기 프로젝트 ID (Supabase에서 가져온 마지막 프로젝트)
+ * @param {Function} options.onProjectChange - 프로젝트 변경 시 콜백 (Supabase 저장용)
  */
-export const useProjects = (session) => {
+export const useProjects = (session, options = {}) => {
+  const { initialProjectId = null, onProjectChange } = options
   const [projects, setProjects] = useState([])
   const [currentProjectId, setCurrentProjectId] = useState(null)
   const [projectsLoading, setProjectsLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
+
+  // 프로젝트 선택 (콜백 호출 포함)
+  const selectProject = useCallback((projectId) => {
+    setCurrentProjectId(projectId)
+    if (onProjectChange && projectId) {
+      onProjectChange(projectId)
+    }
+  }, [onProjectChange])
 
   // 프로젝트 목록 로드
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     if (!session?.user?.id) return
 
     try {
@@ -46,17 +60,26 @@ export const useProjects = (session) => {
         await createDefaultProject()
       } else {
         setProjects(data)
-        // 현재 프로젝트가 설정되지 않았으면 첫 번째 프로젝트 선택
+        // 현재 프로젝트가 설정되지 않았으면 초기값 또는 첫 번째 프로젝트 선택
         if (!currentProjectId && data.length > 0) {
-          setCurrentProjectId(data[0].id)
+          const targetProject = initialProjectId
+            ? data.find(p => p.id === initialProjectId)
+            : null
+          const targetProjectId = targetProject ? targetProject.id : data[0].id
+          setCurrentProjectId(targetProjectId)
+          // 초기 로드 시에는 콜백 호출하지 않음 (이미 저장된 값이므로)
+          if (!targetProject && onProjectChange) {
+            onProjectChange(targetProjectId)
+          }
         }
+        setInitialized(true)
       }
     } catch (error) {
       console.error('프로젝트 로드 오류:', error.message)
     } finally {
       setProjectsLoading(false)
     }
-  }
+  }, [session?.user?.id, initialProjectId, currentProjectId, onProjectChange])
 
   // 기본 프로젝트 생성
   const createDefaultProject = async () => {
@@ -81,6 +104,10 @@ export const useProjects = (session) => {
 
       setProjects([newProject])
       setCurrentProjectId(newProject.id)
+      if (onProjectChange) {
+        onProjectChange(newProject.id)
+      }
+      setInitialized(true)
     } catch (error) {
       console.error('기본 프로젝트 생성 오류:', error.message)
     }
@@ -167,7 +194,7 @@ export const useProjects = (session) => {
 
       // 삭제된 프로젝트가 현재 프로젝트였다면 다른 프로젝트로 전환
       if (currentProjectId === projectId && updatedProjects.length > 0) {
-        setCurrentProjectId(updatedProjects[0].id)
+        selectProject(updatedProjects[0].id)
       }
 
       return true
@@ -215,13 +242,14 @@ export const useProjects = (session) => {
       setProjects([])
       setCurrentProjectId(null)
       setProjectsLoading(false)
+      setInitialized(false)
     }
-  }, [session])
+  }, [session?.user?.id, initialProjectId])
 
   return {
     projects,
     currentProjectId,
-    setCurrentProjectId,
+    setCurrentProjectId: selectProject,
     projectsLoading,
     fetchProjects,
     createProject,

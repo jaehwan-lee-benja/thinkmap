@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 
 /**
@@ -17,14 +17,33 @@ const generateUUID = () => {
 
 /**
  * 페이지 관리 훅 (특정 프로젝트 내의 페이지 관리)
+ * @param {Object} session - Supabase 세션
+ * @param {string} currentProjectId - 현재 프로젝트 ID
+ * @param {Object} options - 옵션
+ * @param {string} options.initialPageId - 초기 페이지 ID (Supabase에서 가져온 마지막 페이지)
+ * @param {Function} options.onPageChange - 페이지 변경 시 콜백 (Supabase 저장용)
  */
-export const usePages = (session, currentProjectId) => {
+export const usePages = (session, currentProjectId, options = {}) => {
+  const { initialPageId = null, onPageChange } = options
   const [pages, setPages] = useState([])
   const [currentPageId, setCurrentPageId] = useState(null)
   const [pagesLoading, setPagesLoading] = useState(true)
 
+  // 이전 프로젝트 ID 추적 (프로젝트 변경 감지용)
+  const prevProjectIdRef = useRef(null)
+  // 초기 로드 완료 여부
+  const initialLoadDoneRef = useRef(false)
+
+  // 페이지 선택 (콜백 호출 포함)
+  const selectPage = useCallback((pageId) => {
+    setCurrentPageId(pageId)
+    if (onPageChange && pageId) {
+      onPageChange(pageId)
+    }
+  }, [onPageChange])
+
   // 페이지 목록 로드 (현재 프로젝트)
-  const fetchPages = async () => {
+  const fetchPages = useCallback(async () => {
     if (!session?.user?.id || !currentProjectId) return
 
     try {
@@ -47,9 +66,20 @@ export const usePages = (session, currentProjectId) => {
         await createDefaultPage()
       } else {
         setPages(data)
-        // 현재 페이지가 설정되지 않았으면 첫 번째 페이지 선택
+        // 현재 페이지가 설정되지 않았으면 초기값 또는 첫 번째 페이지 선택
         if (!currentPageId && data.length > 0) {
-          setCurrentPageId(data[0].id)
+          // 초기 로드 시에만 initialPageId 사용
+          const useInitialPage = !initialLoadDoneRef.current && initialPageId
+          const targetPage = useInitialPage
+            ? data.find(p => p.id === initialPageId)
+            : null
+          const targetPageId = targetPage ? targetPage.id : data[0].id
+          setCurrentPageId(targetPageId)
+          initialLoadDoneRef.current = true
+          // 초기 로드 시에는 콜백 호출하지 않음 (이미 저장된 값이므로)
+          if (!targetPage && onPageChange) {
+            onPageChange(targetPageId)
+          }
         }
       }
     } catch (error) {
@@ -57,7 +87,7 @@ export const usePages = (session, currentProjectId) => {
     } finally {
       setPagesLoading(false)
     }
-  }
+  }, [session?.user?.id, currentProjectId, currentPageId, onPageChange])
 
   // 기본 페이지 생성
   const createDefaultPage = async () => {
@@ -83,6 +113,9 @@ export const usePages = (session, currentProjectId) => {
 
       setPages([newPage])
       setCurrentPageId(newPage.id)
+      if (onPageChange) {
+        onPageChange(newPage.id)
+      }
     } catch (error) {
       console.error('기본 페이지 생성 오류:', error.message)
     }
@@ -170,7 +203,7 @@ export const usePages = (session, currentProjectId) => {
 
       // 삭제된 페이지가 현재 페이지였다면 다른 페이지로 전환
       if (currentPageId === pageId && updatedPages.length > 0) {
-        setCurrentPageId(updatedPages[0].id)
+        selectPage(updatedPages[0].id)
       }
 
       return true
@@ -180,7 +213,7 @@ export const usePages = (session, currentProjectId) => {
     }
   }
 
-  // 페이지 순서 변경 (나중에 구현 가능)
+  // 페이지 순서 변경
   const reorderPages = async (newPages) => {
     if (!session?.user?.id) return false
 
@@ -213,18 +246,30 @@ export const usePages = (session, currentProjectId) => {
   // 세션 또는 프로젝트 변경 시 페이지 로드
   useEffect(() => {
     if (session?.user?.id && currentProjectId) {
+      // 프로젝트가 실제로 변경된 경우에만 페이지 초기화
+      const projectChanged = prevProjectIdRef.current !== null &&
+                             prevProjectIdRef.current !== currentProjectId
+
+      if (projectChanged) {
+        setCurrentPageId(null)
+        initialLoadDoneRef.current = false
+      }
+
+      prevProjectIdRef.current = currentProjectId
       fetchPages()
     } else {
       setPages([])
       setCurrentPageId(null)
       setPagesLoading(false)
+      prevProjectIdRef.current = null
+      initialLoadDoneRef.current = false
     }
-  }, [session, currentProjectId])
+  }, [session?.user?.id, currentProjectId])
 
   return {
     pages,
     currentPageId,
-    setCurrentPageId,
+    setCurrentPageId: selectPage,
     pagesLoading,
     fetchPages,
     createPage,
