@@ -1,5 +1,8 @@
 import React, { useState } from 'react'
+import { HardDrive } from 'lucide-react'
 import ShareModal from '../Share/ShareModal'
+import ProjectModal from '../Project/ProjectModal'
+import BackupModal from '../Backup/BackupModal'
 import './Sidebar.css'
 
 /**
@@ -33,17 +36,29 @@ function Sidebar({
   onUpdateSharePermission,
   onDeleteShare,
   sharingLoading = false,
+  // 백업 관련
+  backups = [],
+  backupLoading = false,
+  onCreateBackup,
+  onRestoreBackup,
+  onDeleteBackup,
+  onExportBackup,
+  onImportBackup,
+  onRefreshBackups,
 }) {
-  const [projectsOpen, setProjectsOpen] = useState(false)
   const [sharedOpen, setSharedOpen] = useState(false)
   const [editingPageId, setEditingPageId] = useState(null)
   const [editingName, setEditingName] = useState('')
-  const [editingProjectId, setEditingProjectId] = useState(null)
-  const [editingProjectName, setEditingProjectName] = useState('')
 
   // 공유 모달 상태
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [shareTarget, setShareTarget] = useState({ type: null, id: null, name: '' })
+
+  // 프로젝트 모달 상태
+  const [projectModalOpen, setProjectModalOpen] = useState(false)
+
+  // 백업 모달 상태
+  const [backupModalOpen, setBackupModalOpen] = useState(false)
 
   // 현재 프로젝트
   const currentProject = projects.find(p => p.id === currentProjectId)
@@ -88,48 +103,6 @@ function Sidebar({
     }
   }
 
-  // 프로젝트 더블클릭 → 이름 수정
-  const handleProjectDoubleClick = (project, e) => {
-    e.stopPropagation()
-    setEditingProjectId(project.id)
-    setEditingProjectName(project.name)
-  }
-
-  const handleSaveProjectRename = () => {
-    if (editingProjectId && editingProjectName.trim()) {
-      onProjectRename(editingProjectId, editingProjectName.trim())
-    }
-    setEditingProjectId(null)
-    setEditingProjectName('')
-  }
-
-  const handleCancelProjectRename = () => {
-    setEditingProjectId(null)
-    setEditingProjectName('')
-  }
-
-  const handleDeleteProject = (projectId, e) => {
-    e.stopPropagation()
-    if (projects.length <= 1) {
-      alert('마지막 프로젝트는 삭제할 수 없습니다.')
-      return
-    }
-    if (window.confirm('이 프로젝트를 삭제하시겠습니까?\n프로젝트의 모든 페이지와 블록이 삭제됩니다.')) {
-      onProjectDelete(projectId)
-    }
-  }
-
-  const handleCreateProject = async () => {
-    const name = prompt('새 프로젝트 이름을 입력하세요:', 'Untitled Project')
-    if (name) {
-      const newProject = await onProjectCreate(name)
-      if (newProject) {
-        onProjectSelect(newProject.id)
-        setProjectsOpen(false)
-      }
-    }
-  }
-
   const handleCreatePage = async () => {
     const name = prompt('새 페이지 이름을 입력하세요:', 'Untitled')
     if (name) {
@@ -151,75 +124,11 @@ function Sidebar({
           <div className="sidebar-project-section">
             <button
               className="sidebar-project-toggle"
-              onClick={() => setProjectsOpen(!projectsOpen)}
+              onClick={() => setProjectModalOpen(true)}
             >
               <span className="project-icon">📁</span>
               <span className="project-name">{currentProject?.name || 'My Project'}</span>
             </button>
-
-            {/* 프로젝트 드롭다운 */}
-            {projectsOpen && (
-              <div className="sidebar-projects-dropdown">
-                {projects.map((project) => (
-                  <div
-                    key={project.id}
-                    className={`sidebar-project-item ${currentProjectId === project.id ? 'active' : ''}`}
-                    onClick={() => {
-                      if (editingProjectId !== project.id) {
-                        onProjectSelect(project.id)
-                        setProjectsOpen(false)
-                      }
-                    }}
-                    onDoubleClick={(e) => handleProjectDoubleClick(project, e)}
-                  >
-                    {editingProjectId === project.id ? (
-                      <input
-                        type="text"
-                        className="project-name-input"
-                        value={editingProjectName}
-                        onChange={(e) => setEditingProjectName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleSaveProjectRename()
-                          } else if (e.key === 'Escape') {
-                            handleCancelProjectRename()
-                          }
-                        }}
-                        onBlur={handleSaveProjectRename}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <>
-                        <span className="project-item-icon">📁</span>
-                        <span className="project-item-name">{project.name}</span>
-                        <div className="project-item-actions">
-                          <button
-                            className="project-share-button"
-                            onClick={(e) => openShareModal('project', project.id, project.name, e)}
-                            title="프로젝트 공유"
-                          >
-                            공유
-                          </button>
-                          {projects.length > 1 && (
-                            <button
-                              className="project-delete-button"
-                              onClick={(e) => handleDeleteProject(project.id, e)}
-                              title="프로젝트 삭제"
-                            >
-                              🗑️
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-                <button className="add-project-button" onClick={handleCreateProject}>
-                  + 새 프로젝트
-                </button>
-              </div>
-            )}
           </div>
 
           <button className="sidebar-close-button sidebar-close-button-desktop" onClick={onClose}>
@@ -293,6 +202,18 @@ function Sidebar({
           <button className="add-page-button" onClick={handleCreatePage}>
             + 새 페이지
           </button>
+
+          {/* 도구 모음 */}
+          <div className="sidebar-tools-section">
+            <div className="sidebar-tools-header">도구</div>
+            <button
+              className="sidebar-tool-button"
+              onClick={() => setBackupModalOpen(true)}
+            >
+              <HardDrive size={16} />
+              <span>프로젝트 백업</span>
+            </button>
+          </div>
 
           {/* 공유받은 항목 섹션 */}
           {hasSharedItems && (
@@ -392,6 +313,34 @@ function Sidebar({
         onUpdatePermission={onUpdateSharePermission}
         onDeleteShare={onDeleteShare}
         isLoading={sharingLoading}
+      />
+
+      {/* 프로젝트 모달 */}
+      <ProjectModal
+        isOpen={projectModalOpen}
+        onClose={() => setProjectModalOpen(false)}
+        projects={projects}
+        currentProjectId={currentProjectId}
+        onProjectSelect={onProjectSelect}
+        onProjectCreate={onProjectCreate}
+        onProjectRename={onProjectRename}
+        onProjectDelete={onProjectDelete}
+      />
+
+      {/* 백업 모달 */}
+      <BackupModal
+        isOpen={backupModalOpen}
+        onClose={() => setBackupModalOpen(false)}
+        project={currentProject}
+        pages={pages}
+        backups={backups}
+        isLoading={backupLoading}
+        onCreateBackup={onCreateBackup}
+        onRestoreBackup={onRestoreBackup}
+        onDeleteBackup={onDeleteBackup}
+        onExportBackup={onExportBackup}
+        onImportBackup={onImportBackup}
+        onRefresh={onRefreshBackups}
       />
     </>
   )
