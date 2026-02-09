@@ -62,6 +62,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         },
         blockquote: false, // "> " 입력 시 토글로 변환하기 위해 비활성화
         codeBlock: false, // CodeBlockLowlight 사용을 위해 비활성화
+        link: false, // 별도 Link.configure() 사용을 위해 비활성화
         // 리스트는 별도로 설정 (InputRule undo 지원)
         orderedList: false,
         bulletList: false,

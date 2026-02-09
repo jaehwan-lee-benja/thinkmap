@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 
 /**
@@ -13,6 +13,54 @@ const generateUUID = () => {
     const v = c === 'x' ? r : (r & 0x3 | 0x8)
     return v.toString(16)
   })
+}
+
+/**
+ * 플랫 페이지 배열을 트리 구조로 변환
+ * @param {Array} pages - 플랫 페이지 배열
+ * @returns {Array} - 트리 구조 페이지 배열 (각 노드에 children 포함)
+ */
+const buildPageTree = (pages) => {
+  const pageMap = {}
+  const tree = []
+
+  // 1단계: 모든 페이지를 맵에 등록 (children 배열 추가)
+  pages.forEach(page => {
+    pageMap[page.id] = { ...page, children: [] }
+  })
+
+  // 2단계: 부모-자식 관계 설정
+  pages.forEach(page => {
+    const node = pageMap[page.id]
+    if (page.parent_id && pageMap[page.parent_id]) {
+      pageMap[page.parent_id].children.push(node)
+    } else {
+      // parent_id가 없거나 부모가 존재하지 않으면 최상위
+      tree.push(node)
+    }
+  })
+
+  return tree
+}
+
+/**
+ * 특정 페이지의 모든 자손 ID를 수집
+ * @param {string} pageId - 대상 페이지 ID
+ * @param {Array} pages - 플랫 페이지 배열
+ * @returns {Array} - 자손 페이지 ID 배열
+ */
+const getDescendantIds = (pageId, pages) => {
+  const descendants = []
+  const findChildren = (parentId) => {
+    pages.forEach(p => {
+      if (p.parent_id === parentId) {
+        descendants.push(p.id)
+        findChildren(p.id)
+      }
+    })
+  }
+  findChildren(pageId)
+  return descendants
 }
 
 /**
@@ -33,6 +81,9 @@ export const usePages = (session, currentProjectId, options = {}) => {
   const prevProjectIdRef = useRef(null)
   // 초기 로드 완료 여부
   const initialLoadDoneRef = useRef(false)
+
+  // 트리 구조로 변환 (메모이제이션)
+  const pageTree = useMemo(() => buildPageTree(pages), [pages])
 
   // 페이지 선택 (콜백 호출 포함)
   const selectPage = useCallback((pageId) => {
@@ -100,6 +151,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
         project_id: currentProjectId,
         name: 'Main',
         position: 0,
+        parent_id: null,
       }
 
       const { error } = await supabase
@@ -121,17 +173,20 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }
 
-  // 새 페이지 생성
-  const createPage = async (name = 'Untitled') => {
+  // 새 페이지 생성 (parentId 지원)
+  const createPage = async (name = 'Untitled', parentId = null) => {
     if (!session?.user?.id || !currentProjectId) return null
 
     try {
+      // 같은 parent를 가진 형제 페이지 수 기반으로 position 결정
+      const siblings = pages.filter(p => p.parent_id === parentId)
       const newPage = {
         id: generateUUID(),
         user_id: session.user.id,
         project_id: currentProjectId,
         name,
-        position: pages.length,
+        position: siblings.length,
+        parent_id: parentId,
       }
 
       const { error } = await supabase
@@ -143,7 +198,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
         return null
       }
 
-      setPages([...pages, newPage])
+      setPages(prev => [...prev, newPage])
       return newPage
     } catch (error) {
       console.error('페이지 생성 오류:', error.message)
@@ -177,16 +232,23 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }
 
-  // 페이지 삭제
+  // 페이지 삭제 (자손 페이지도 함께 삭제 — DB CASCADE)
   const deletePage = async (pageId) => {
     if (!session?.user?.id) return false
-    if (pages.length <= 1) {
-      console.warn('마지막 페이지는 삭제할 수 없습니다.')
+
+    // 최상위 페이지 수 확인 (마지막 최상위 페이지는 삭제 불가)
+    const rootPages = pages.filter(p => !p.parent_id)
+    const targetPage = pages.find(p => p.id === pageId)
+    if (!targetPage) return false
+
+    // 삭제 대상이 최상위 페이지이고 최상위가 하나뿐이면 삭제 불가
+    if (!targetPage.parent_id && rootPages.length <= 1) {
+      console.warn('마지막 최상위 페이지는 삭제할 수 없습니다.')
       return false
     }
 
     try {
-      // CASCADE로 인해 해당 페이지의 모든 블록도 자동 삭제됨
+      // DB CASCADE로 자손도 자동 삭제됨
       const { error } = await supabase
         .from('pages')
         .delete()
@@ -198,11 +260,14 @@ export const usePages = (session, currentProjectId, options = {}) => {
         return false
       }
 
-      const updatedPages = pages.filter(p => p.id !== pageId)
+      // 자손 ID 수집 (로컬 상태에서도 제거)
+      const descendantIds = getDescendantIds(pageId, pages)
+      const idsToRemove = new Set([pageId, ...descendantIds])
+      const updatedPages = pages.filter(p => !idsToRemove.has(p.id))
       setPages(updatedPages)
 
-      // 삭제된 페이지가 현재 페이지였다면 다른 페이지로 전환
-      if (currentPageId === pageId && updatedPages.length > 0) {
+      // 삭제된 페이지(또는 자손)가 현재 페이지였다면 다른 페이지로 전환
+      if (idsToRemove.has(currentPageId) && updatedPages.length > 0) {
         selectPage(updatedPages[0].id)
       }
 
@@ -212,6 +277,11 @@ export const usePages = (session, currentProjectId, options = {}) => {
       return false
     }
   }
+
+  // 특정 페이지의 자손 수 반환 (삭제 경고 메시지용)
+  const getDescendantCount = useCallback((pageId) => {
+    return getDescendantIds(pageId, pages).length
+  }, [pages])
 
   // 페이지 순서 변경
   const reorderPages = async (newPages) => {
@@ -268,6 +338,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
 
   return {
     pages,
+    pageTree,
     currentPageId,
     setCurrentPageId: selectPage,
     pagesLoading,
@@ -276,5 +347,6 @@ export const usePages = (session, currentProjectId, options = {}) => {
     renamePage,
     deletePage,
     reorderPages,
+    getDescendantCount,
   }
 }

@@ -51,12 +51,14 @@ function App() {
   // 페이지 관리 (현재 프로젝트)
   const {
     pages,
+    pageTree,
     currentPageId,
     setCurrentPageId,
     pagesLoading,
     createPage,
     renamePage,
     deletePage,
+    getDescendantCount,
   } = usePages(session, currentProjectId, {
     initialPageId: lastPageId,
     onPageChange: handlePageChange,
@@ -150,17 +152,6 @@ function App() {
     return window.innerWidth > 768
   })
 
-  // 페이지 생성 핸들러
-  const handleCreatePage = async () => {
-    const name = prompt('새 페이지 이름을 입력하세요:', 'Untitled')
-    if (name) {
-      const newPage = await createPage(name)
-      if (newPage) {
-        setCurrentPageId(newPage.id)
-      }
-    }
-  }
-
   // 인증 화면
   const authScreen = GoogleAuthButton({
     authLoading,
@@ -192,11 +183,13 @@ function App() {
         onProjectRename={renameProject}
         onProjectDelete={deleteProject}
         pages={pages}
+        pageTree={pageTree}
         currentPageId={currentPageId}
         onPageSelect={setCurrentPageId}
         onPageCreate={createPage}
         onPageRename={renamePage}
         onPageDelete={deletePage}
+        getDescendantCount={getDescendantCount}
         userEmail={session?.user?.email}
         userAvatarUrl={session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture}
         onLogout={handleLogout}

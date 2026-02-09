@@ -21,11 +21,13 @@ function Sidebar({
   onProjectDelete,
   // 페이지 관련
   pages = [],
+  pageTree = [],
   currentPageId,
   onPageSelect,
   onPageCreate,
   onPageRename,
   onPageDelete,
+  getDescendantCount,
   // 사용자
   userEmail,
   userAvatarUrl,
@@ -60,6 +62,9 @@ function Sidebar({
   const [editingPageId, setEditingPageId] = useState(null)
   const [editingName, setEditingName] = useState('')
 
+  // 트리 접기/펼치기 상태 (pageId → boolean)
+  const [expandedPages, setExpandedPages] = useState({})
+
   // 공유 모달 상태
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [shareTarget, setShareTarget] = useState({ type: null, id: null, name: '' })
@@ -78,6 +83,12 @@ function Sidebar({
 
   // 공유받은 항목이 있는지 확인
   const hasSharedItems = sharedWithMe.projects.length > 0 || sharedWithMe.pages.length > 0
+
+  // 트리 토글
+  const toggleExpand = (pageId, e) => {
+    e.stopPropagation()
+    setExpandedPages(prev => ({ ...prev, [pageId]: !prev[pageId] }))
+  }
 
   // 공유 모달 열기
   const openShareModal = (type, id, name, e) => {
@@ -107,20 +118,143 @@ function Sidebar({
 
   const handleDeletePage = (pageId, e) => {
     e.stopPropagation()
-    if (pages.length <= 1) {
-      alert('마지막 페이지는 삭제할 수 없습니다.')
+
+    // 최상위 페이지가 하나뿐인지 확인
+    const rootPages = pages.filter(p => !p.parent_id)
+    const targetPage = pages.find(p => p.id === pageId)
+    if (!targetPage) return
+
+    if (!targetPage.parent_id && rootPages.length <= 1) {
+      alert('마지막 최상위 페이지는 삭제할 수 없습니다.')
       return
     }
-    if (window.confirm('이 페이지를 삭제하시겠습니까?\n페이지의 모든 블록이 삭제됩니다.')) {
+
+    // 자손 수 확인 후 경고 메시지
+    const descendantCount = getDescendantCount?.(pageId) || 0
+    let confirmMessage = '이 페이지를 삭제하시겠습니까?\n페이지의 모든 블록이 삭제됩니다.'
+    if (descendantCount > 0) {
+      confirmMessage = `이 페이지를 삭제하시겠습니까?\n하위 페이지 ${descendantCount}개도 함께 삭제됩니다.`
+    }
+
+    if (window.confirm(confirmMessage)) {
       onPageDelete(pageId)
     }
   }
 
+  // 하위 페이지 추가
+  const handleCreateSubPage = async (parentId, e) => {
+    e.stopPropagation()
+    const name = prompt('하위 페이지 이름을 입력하세요:', 'Untitled')
+    if (name) {
+      console.log('[DEBUG] 하위 페이지 생성 요청:', { name, parentId })
+      const newPage = await onPageCreate(name, parentId)
+      console.log('[DEBUG] 하위 페이지 생성 결과:', newPage)
+      if (newPage) {
+        // 부모 페이지 자동 펼침
+        setExpandedPages(prev => ({ ...prev, [parentId]: true }))
+        console.log('[DEBUG] 하위 페이지 선택:', newPage.id)
+        onPageSelect(newPage.id)
+      }
+    }
+  }
+
+  // 최상위 페이지 추가
   const handleCreatePage = async () => {
     const name = prompt('새 페이지 이름을 입력하세요:', 'Untitled')
     if (name) {
-      await onPageCreate(name)
+      const newPage = await onPageCreate(name)
+      if (newPage) {
+        onPageSelect(newPage.id)
+      }
     }
+  }
+
+  // 재귀 페이지 아이템 렌더링
+  const renderPageItem = (page, depth = 0) => {
+    const hasChildren = page.children && page.children.length > 0
+    const isExpanded = expandedPages[page.id]
+
+    return (
+      <div key={page.id} className="page-tree-node">
+        <div
+          className={`page-item ${currentPageId === page.id ? 'active' : ''}`}
+          style={{ paddingLeft: `${10 + depth * 20}px` }}
+          onClick={() => {
+            if (editingPageId !== page.id) {
+              onPageSelect(page.id)
+            }
+          }}
+          onDoubleClick={() => handlePageDoubleClick(page)}
+        >
+          {/* 토글 화살표 */}
+          {hasChildren ? (
+            <button
+              className={`page-toggle-arrow ${isExpanded ? 'expanded' : ''}`}
+              onClick={(e) => toggleExpand(page.id, e)}
+              title={isExpanded ? '접기' : '펼치기'}
+            >
+              ▸
+            </button>
+          ) : (
+            <span className="page-toggle-spacer" />
+          )}
+
+          {editingPageId === page.id ? (
+            <input
+              type="text"
+              className="page-name-input"
+              value={editingName}
+              onChange={(e) => setEditingName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSaveRename()
+                } else if (e.key === 'Escape') {
+                  handleCancelRename()
+                }
+              }}
+              onBlur={handleSaveRename}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <>
+              <span className="page-icon">📄</span>
+              <span className="page-name">{page.name}</span>
+              <div className="page-item-actions">
+                <button
+                  className="page-subpage-button"
+                  onClick={(e) => handleCreateSubPage(page.id, e)}
+                  title="하위 페이지 추가"
+                >
+                  +
+                </button>
+                <button
+                  className="page-share-button"
+                  onClick={(e) => openShareModal('page', page.id, page.name, e)}
+                  title="페이지 공유"
+                >
+                  공유
+                </button>
+                <button
+                  className="page-delete-button"
+                  onClick={(e) => handleDeletePage(page.id, e)}
+                  title="페이지 삭제"
+                >
+                  🗑️
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 자식 페이지 (펼쳐진 경우만 렌더링) */}
+        {hasChildren && isExpanded && (
+          <div className="page-children">
+            {page.children.map(child => renderPageItem(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -153,62 +287,9 @@ function Sidebar({
         <div className="sidebar-content">
           <div className="sidebar-pages-header">Pages</div>
 
-          {/* 페이지 목록 */}
+          {/* 페이지 트리 목록 */}
           <div className="page-list">
-            {pages.map((page) => (
-              <div
-                key={page.id}
-                className={`page-item ${currentPageId === page.id ? 'active' : ''}`}
-                onClick={() => {
-                  if (editingPageId !== page.id) {
-                    onPageSelect(page.id)
-                  }
-                }}
-                onDoubleClick={() => handlePageDoubleClick(page)}
-              >
-                {editingPageId === page.id ? (
-                  <input
-                    type="text"
-                    className="page-name-input"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleSaveRename()
-                      } else if (e.key === 'Escape') {
-                        handleCancelRename()
-                      }
-                    }}
-                    onBlur={handleSaveRename}
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <>
-                    <span className="page-icon">📄</span>
-                    <span className="page-name">{page.name}</span>
-                    <div className="page-item-actions">
-                      <button
-                        className="page-share-button"
-                        onClick={(e) => openShareModal('page', page.id, page.name, e)}
-                        title="페이지 공유"
-                      >
-                        공유
-                      </button>
-                      {pages.length > 1 && (
-                        <button
-                          className="page-delete-button"
-                          onClick={(e) => handleDeletePage(page.id, e)}
-                          title="페이지 삭제"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
+            {pageTree.map((page) => renderPageItem(page, 0))}
           </div>
 
           {/* 새 페이지 추가 버튼 */}

@@ -158,11 +158,41 @@ export const useBackup = (session) => {
         console.error('기존 페이지 삭제 오류:', pageDelError)
       }
 
-      // 2. 백업된 페이지 복원 (새 ID 생성)
+      // 2. 백업된 페이지 복원 (새 ID 생성, parent_id 매핑)
+      // 2-1. old ID → new ID 매핑 테이블 생성
+      const idMap = {}
       for (const page of backup.pages) {
-        const newPageId = crypto.randomUUID()
+        idMap[page.id] = crypto.randomUUID()
+      }
 
-        // 페이지 생성 (content_tiptap 포함)
+      // 2-2. 루트 페이지부터 삽입 (parent_id가 없는 페이지 먼저, 그 다음 자식들)
+      // 토폴로지 정렬: parent_id가 null인 것 먼저, 그 다음은 parent가 이미 삽입된 것
+      const sorted = []
+      const remaining = [...backup.pages]
+      const inserted = new Set()
+
+      // parent_id가 없거나 매핑에 없는 페이지 먼저
+      while (remaining.length > 0) {
+        const beforeLength = remaining.length
+        for (let i = remaining.length - 1; i >= 0; i--) {
+          const page = remaining[i]
+          if (!page.parent_id || !idMap[page.parent_id] || inserted.has(page.parent_id)) {
+            sorted.push(page)
+            inserted.add(page.id)
+            remaining.splice(i, 1)
+          }
+        }
+        // 무한루프 방지 (순환 참조 등)
+        if (remaining.length === beforeLength) {
+          sorted.push(...remaining)
+          break
+        }
+      }
+
+      for (const page of sorted) {
+        const newPageId = idMap[page.id]
+        const newParentId = page.parent_id ? (idMap[page.parent_id] || null) : null
+
         const { error: pageError } = await supabase
           .from('pages')
           .insert({
@@ -171,6 +201,7 @@ export const useBackup = (session) => {
             project_id: projectId,
             name: page.name,
             position: page.position,
+            parent_id: newParentId,
             content_tiptap: page.content_tiptap || null,
           })
 

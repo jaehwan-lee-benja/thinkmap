@@ -403,6 +403,91 @@
   color: #646cff;
 }
 
+/* 트리 노드 컨테이너 */
+.page-tree-node {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 자식 페이지 컨테이너 */
+.page-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 토글 화살표 버튼 */
+.page-toggle-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  border-radius: 3px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.page-toggle-arrow:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.page-toggle-arrow.expanded {
+  transform: rotate(90deg);
+}
+
+/* 토글 없는 페이지의 스페이서 (정렬용) */
+.page-toggle-spacer {
+  width: 18px;
+  flex-shrink: 0;
+}
+
+/* 하위 페이지 추가 버튼 */
+.page-subpage-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: rgba(100, 108, 255, 0.15);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #646cff;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  padding: 0;
+  line-height: 1;
+}
+
+.page-item:hover .page-subpage-button {
+  opacity: 0.7;
+  pointer-events: auto;
+}
+
+.page-subpage-button:hover {
+  background-color: rgba(100, 108, 255, 0.3);
+  opacity: 1 !important;
+  transform: scale(1.05);
+}
+
+.page-subpage-button:active {
+  background-color: rgba(100, 108, 255, 0.4);
+  transform: scale(0.95);
+}
+
 /* 페이지 이름 수정 input */
 .page-name-input {
   flex: 1;
