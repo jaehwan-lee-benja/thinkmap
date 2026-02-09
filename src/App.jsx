@@ -9,10 +9,11 @@ import { useProjects } from './hooks/useProjects'
 import { usePages } from './hooks/usePages'
 import { useSharing } from './hooks/useSharing'
 import { useBackup } from './hooks/useBackup'
+import { useUsers } from './hooks/useUsers'
 import './App.css'
 
 function App() {
-  const { session, authLoading, handleGoogleLogin, handleLogout } = useAuth()
+  const { session, authLoading, isMaster, handleGoogleLogin, handleLogout } = useAuth()
 
   // 사용자 환경설정 (마지막 방문 페이지 등)
   const {
@@ -82,6 +83,17 @@ function App() {
     exportBackup,
     importBackup,
   } = useBackup(session)
+
+  // 사용자 관리 (마스터 전용)
+  const {
+    users,
+    usersLoading,
+    fetchUsers,
+    addUser,
+    updateUserRole,
+    updateUserStatus,
+    deleteUser,
+  } = useUsers(session, isMaster)
 
   // 현재 프로젝트의 백업 목록
   const [backups, setBackups] = useState([])
@@ -202,6 +214,14 @@ function App() {
         onExportBackup={exportBackup}
         onImportBackup={handleImportBackup}
         onRefreshBackups={refreshBackups}
+        isMaster={isMaster}
+        users={users}
+        usersLoading={usersLoading}
+        onAddUser={addUser}
+        onUpdateUserRole={updateUserRole}
+        onUpdateUserStatus={updateUserStatus}
+        onDeleteUser={deleteUser}
+        onRefreshUsers={fetchUsers}
       />
 
       <div className={`container ${sidebarOpen ? 'with-sidebar' : ''}`}>

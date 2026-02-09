@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 
+// 마스터 계정 이메일 목록
+const MASTER_EMAILS = ['designerbenja@gmail.com']
+
 /**
  * 인증 관련 로직을 관리하는 커스텀 훅
  * @returns {Object} 인증 상태 및 핸들러
@@ -8,12 +11,20 @@ import { supabase } from '../supabaseClient'
 export const useAuth = () => {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [isMaster, setIsMaster] = useState(false)
+
+  // 마스터 여부 확인
+  const checkIsMaster = (session) => {
+    const email = session?.user?.email
+    return email ? MASTER_EMAILS.includes(email.toLowerCase()) : false
+  }
 
   // 인증 상태 확인
   useEffect(() => {
     // 현재 세션 가져오기
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
+      setIsMaster(checkIsMaster(session))
       setAuthLoading(false)
     })
 
@@ -22,6 +33,7 @@ export const useAuth = () => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      setIsMaster(checkIsMaster(session))
     })
 
     return () => subscription.unsubscribe()
@@ -68,6 +80,7 @@ export const useAuth = () => {
   return {
     session,
     authLoading,
+    isMaster,
     handleGoogleLogin,
     handleLogout
   }

@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { HardDrive } from 'lucide-react'
+import { HardDrive, Shield } from 'lucide-react'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
 import BackupModal from '../Backup/BackupModal'
+import AdminModal from '../Admin/AdminModal'
 import './Sidebar.css'
 
 /**
@@ -45,6 +46,15 @@ function Sidebar({
   onExportBackup,
   onImportBackup,
   onRefreshBackups,
+  // 마스터 관련
+  isMaster = false,
+  users = [],
+  usersLoading = false,
+  onAddUser,
+  onUpdateUserRole,
+  onUpdateUserStatus,
+  onDeleteUser,
+  onRefreshUsers,
 }) {
   const [sharedOpen, setSharedOpen] = useState(false)
   const [editingPageId, setEditingPageId] = useState(null)
@@ -59,6 +69,9 @@ function Sidebar({
 
   // 백업 모달 상태
   const [backupModalOpen, setBackupModalOpen] = useState(false)
+
+  // 관리자 모달 상태 (마스터 전용)
+  const [adminModalOpen, setAdminModalOpen] = useState(false)
 
   // 현재 프로젝트
   const currentProject = projects.find(p => p.id === currentProjectId)
@@ -213,6 +226,15 @@ function Sidebar({
               <HardDrive size={16} />
               <span>프로젝트 백업</span>
             </button>
+            {isMaster && (
+              <button
+                className="sidebar-tool-button master-button"
+                onClick={() => setAdminModalOpen(true)}
+              >
+                <Shield size={16} />
+                <span>관리자 패널</span>
+              </button>
+            )}
           </div>
 
           {/* 공유받은 항목 섹션 */}
@@ -342,6 +364,21 @@ function Sidebar({
         onImportBackup={onImportBackup}
         onRefresh={onRefreshBackups}
       />
+
+      {/* 관리자 모달 (마스터 전용) */}
+      {isMaster && (
+        <AdminModal
+          isOpen={adminModalOpen}
+          onClose={() => setAdminModalOpen(false)}
+          users={users}
+          usersLoading={usersLoading}
+          onAddUser={onAddUser}
+          onUpdateUserRole={onUpdateUserRole}
+          onUpdateUserStatus={onUpdateUserStatus}
+          onDeleteUser={onDeleteUser}
+          onRefresh={onRefreshUsers}
+        />
+      )}
     </>
   )
 }
