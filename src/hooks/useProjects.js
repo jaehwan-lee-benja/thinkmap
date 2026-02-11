@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 
 /**
@@ -28,6 +28,7 @@ export const useProjects = (session, options = {}) => {
   const [currentProjectId, setCurrentProjectId] = useState(null)
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
+  const prevUserIdRef = useRef(null)
 
   // 프로젝트 선택 (콜백 호출 포함)
   const selectProject = useCallback((projectId) => {
@@ -237,12 +238,20 @@ export const useProjects = (session, options = {}) => {
   // 세션 변경 시 프로젝트 로드
   useEffect(() => {
     if (session?.user?.id) {
+      // 사용자가 변경되면 상태 리셋 (임퍼소네이션 등)
+      if (prevUserIdRef.current && prevUserIdRef.current !== session.user.id) {
+        setProjects([])
+        setCurrentProjectId(null)
+        setInitialized(false)
+      }
+      prevUserIdRef.current = session.user.id
       fetchProjects()
     } else {
       setProjects([])
       setCurrentProjectId(null)
       setProjectsLoading(false)
       setInitialized(false)
+      prevUserIdRef.current = null
     }
   }, [session?.user?.id, initialProjectId])
 

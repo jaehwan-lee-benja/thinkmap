@@ -159,6 +159,32 @@ export const useUserPreferences = (session) => {
     }
   }, [session?.user?.id])
 
+  // 펼친 페이지 상태 저장
+  const saveExpandedPages = useCallback(async (expandedPages) => {
+    if (!session?.user?.id) return
+
+    try {
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: session.user.id,
+          expanded_pages: expandedPages,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id'
+        })
+
+      if (error) {
+        console.error('펼친 페이지 저장 오류:', error.message)
+        return
+      }
+
+      setPreferences(prev => prev ? { ...prev, expanded_pages: expandedPages } : null)
+    } catch (error) {
+      console.error('펼친 페이지 저장 오류:', error.message)
+    }
+  }, [session?.user?.id])
+
   // 세션 변경 시 환경설정 로드
   useEffect(() => {
     fetchPreferences()
@@ -169,9 +195,11 @@ export const useUserPreferences = (session) => {
     preferencesLoading,
     lastProjectId: preferences?.last_project_id || null,
     lastPageId: preferences?.last_page_id || null,
+    expandedPages: preferences?.expanded_pages || {},
     saveLastProject,
     saveLastPage,
     saveLastLocation,
+    saveExpandedPages,
     fetchPreferences,
   }
 }

@@ -19,12 +19,33 @@ export const useAuth = () => {
     return email ? MASTER_EMAILS.includes(email.toLowerCase()) : false
   }
 
+  // 로그인 시 app_users에 자동 등록
+  const ensureAppUser = async (session) => {
+    if (!session?.user?.email) return
+    const email = session.user.email.toLowerCase()
+
+    const { data } = await supabase
+      .from('app_users')
+      .select('id')
+      .eq('email', email)
+      .single()
+
+    if (!data) {
+      await supabase.from('app_users').insert([{
+        email,
+        role: MASTER_EMAILS.includes(email) ? 'master' : 'user',
+        status: 'active',
+      }])
+    }
+  }
+
   // 인증 상태 확인
   useEffect(() => {
     // 현재 세션 가져오기
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setIsMaster(checkIsMaster(session))
+      if (session) ensureAppUser(session)
       setAuthLoading(false)
     })
 
@@ -34,6 +55,7 @@ export const useAuth = () => {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setIsMaster(checkIsMaster(session))
+      if (session) ensureAppUser(session)
     })
 
     return () => subscription.unsubscribe()

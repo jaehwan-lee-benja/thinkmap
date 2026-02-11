@@ -248,21 +248,17 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
     if (!session || !currentPageId) return
 
     // 페이지 전환: 이전 콘텐츠가 새 페이지에 저장되지 않도록 즉시 플래그 설정
-    console.log('[DEBUG] 페이지 전환 시작:', currentPageId)
     isInitialLoadRef.current = true
     setContent(null)
 
     const loadContent = async () => {
       try {
-        console.log('[DEBUG] loadContent 호출, pageId:', currentPageId)
         // 1. pages 테이블에서 content_tiptap 확인
         const { data, error } = await supabase
           .from('pages')
           .select('content_tiptap')
           .eq('id', currentPageId)
           .single()
-
-        console.log('[DEBUG] DB 응답:', { pageId: currentPageId, hasContent: !!data?.content_tiptap, error: error?.message })
 
         if (error) {
           console.error('콘텐츠 로드 실패:', error)
@@ -271,7 +267,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
 
         // 2. content_tiptap이 있으면 사용
         if (data?.content_tiptap) {
-          console.log('[DEBUG] content_tiptap 로드됨, pageId:', currentPageId)
           setContent(data.content_tiptap)
           lastHistoryContentRef.current = data.content_tiptap
           // 로드 완료 후 prevPageRef를 올바른 페이지+콘텐츠로 설정
@@ -306,7 +301,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
         }
 
         // 4. 블록도 없으면 빈 문서로 시작
-        console.log('[DEBUG] 빈 문서로 시작, pageId:', currentPageId)
         const emptyContent = {
           type: 'doc',
           content: [{ type: 'paragraph', content: [] }]
@@ -389,7 +383,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
       // (이전 페이지 콘텐츠가 새 페이지 ID로 잘못 매핑되는 것 방지)
       // loadContent에서 올바르게 설정됨
       if (currentPageId && !isInitialLoadRef.current) {
-        console.log('[DEBUG] prevPageRef 업데이트 (편집):', { pageId: currentPageId, contentType: content?.type })
         prevPageRef.current = { pageId: currentPageId, content: content }
       }
     }
@@ -456,7 +449,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
     }
 
     const timer = setTimeout(async () => {
-      console.log('[DEBUG] 자동저장 실행:', { pageId: currentPageId, isInitial: isInitialLoadRef.current })
       setIsSaving(true)
       const success = await saveImmediately(content, currentPageId)
       if (success) {
@@ -479,7 +471,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
       const prevPage = { ...prevPageRef.current }
       const lastHistoryContent = lastHistoryContentRef.current
       // 페이지 전환 시 이전 페이지의 유효한 content 저장
-      console.log('[DEBUG] cleanup: 이전 페이지 저장 시도:', { prevPageId: prevPage.pageId, hasContent: !!prevPage.content })
       if (prevPage.content && prevPage.pageId) {
         // 빈 문서가 아닌 경우에만 저장
         const hasContent = prevPage.content.content &&
@@ -490,7 +481,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
 
         if (hasContent) {
           // content 저장
-          console.log('[DEBUG] cleanup: 저장 실행 ->', { saveToPageId: prevPage.pageId })
           saveImmediately(prevPage.content, prevPage.pageId)
 
           // 히스토리에도 백업 (변경된 경우에만)

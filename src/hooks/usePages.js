@@ -79,6 +79,8 @@ export const usePages = (session, currentProjectId, options = {}) => {
 
   // 이전 프로젝트 ID 추적 (프로젝트 변경 감지용)
   const prevProjectIdRef = useRef(null)
+  // 이전 사용자 ID 추적 (임퍼소네이션 변경 감지용)
+  const prevUserIdRef = useRef(null)
   // 초기 로드 완료 여부
   const initialLoadDoneRef = useRef(false)
 
@@ -316,15 +318,19 @@ export const usePages = (session, currentProjectId, options = {}) => {
   // 세션 또는 프로젝트 변경 시 페이지 로드
   useEffect(() => {
     if (session?.user?.id && currentProjectId) {
+      // 사용자가 변경되면 상태 리셋 (임퍼소네이션 등)
+      const userChanged = prevUserIdRef.current !== null &&
+                          prevUserIdRef.current !== session.user.id
       // 프로젝트가 실제로 변경된 경우에만 페이지 초기화
       const projectChanged = prevProjectIdRef.current !== null &&
                              prevProjectIdRef.current !== currentProjectId
 
-      if (projectChanged) {
+      if (userChanged || projectChanged) {
         setCurrentPageId(null)
         initialLoadDoneRef.current = false
       }
 
+      prevUserIdRef.current = session.user.id
       prevProjectIdRef.current = currentProjectId
       fetchPages()
     } else {
@@ -332,6 +338,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
       setCurrentPageId(null)
       setPagesLoading(false)
       prevProjectIdRef.current = null
+      prevUserIdRef.current = null
       initialLoadDoneRef.current = false
     }
   }, [session?.user?.id, currentProjectId])

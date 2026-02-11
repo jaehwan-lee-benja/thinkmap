@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { HardDrive, Shield } from 'lucide-react'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
@@ -57,13 +57,21 @@ function Sidebar({
   onUpdateUserStatus,
   onDeleteUser,
   onRefreshUsers,
+  // 펼침 상태 동기화
+  expandedPages: savedExpandedPages = {},
+  onExpandedPagesChange,
+  // 임퍼소네이션
+  isImpersonating = false,
+  impersonatedEmail,
+  onStopImpersonation,
+  onStartImpersonation,
 }) {
   const [sharedOpen, setSharedOpen] = useState(false)
   const [editingPageId, setEditingPageId] = useState(null)
   const [editingName, setEditingName] = useState('')
 
   // 트리 접기/펼치기 상태 (pageId → boolean)
-  const [expandedPages, setExpandedPages] = useState({})
+  const [expandedPages, setExpandedPages] = useState(savedExpandedPages)
 
   // 공유 모달 상태
   const [shareModalOpen, setShareModalOpen] = useState(false)
@@ -84,10 +92,19 @@ function Sidebar({
   // 공유받은 항목이 있는지 확인
   const hasSharedItems = sharedWithMe.projects.length > 0 || sharedWithMe.pages.length > 0
 
+  // DB에서 불러온 상태가 변경되면 로컬에 반영
+  useEffect(() => {
+    if (savedExpandedPages && Object.keys(savedExpandedPages).length > 0) {
+      setExpandedPages(savedExpandedPages)
+    }
+  }, [savedExpandedPages])
+
   // 트리 토글
   const toggleExpand = (pageId, e) => {
     e.stopPropagation()
-    setExpandedPages(prev => ({ ...prev, [pageId]: !prev[pageId] }))
+    const updated = { ...expandedPages, [pageId]: !expandedPages[pageId] }
+    setExpandedPages(updated)
+    onExpandedPagesChange?.(updated)
   }
 
   // 공유 모달 열기
@@ -146,13 +163,12 @@ function Sidebar({
     e.stopPropagation()
     const name = prompt('하위 페이지 이름을 입력하세요:', 'Untitled')
     if (name) {
-      console.log('[DEBUG] 하위 페이지 생성 요청:', { name, parentId })
       const newPage = await onPageCreate(name, parentId)
-      console.log('[DEBUG] 하위 페이지 생성 결과:', newPage)
       if (newPage) {
         // 부모 페이지 자동 펼침
-        setExpandedPages(prev => ({ ...prev, [parentId]: true }))
-        console.log('[DEBUG] 하위 페이지 선택:', newPage.id)
+        const updated = { ...expandedPages, [parentId]: true }
+        setExpandedPages(updated)
+        onExpandedPagesChange?.(updated)
         onPageSelect(newPage.id)
       }
     }
@@ -375,6 +391,24 @@ function Sidebar({
           )}
         </div>
 
+        {/* 임퍼소네이션 배너 */}
+        {isImpersonating && (
+          <div className="impersonation-banner">
+            <div className="impersonation-info">
+              <span className="impersonation-icon">👤</span>
+              <span className="impersonation-text">
+                {impersonatedEmail} 계정으로 활동 중
+              </span>
+            </div>
+            <button
+              className="impersonation-exit-button"
+              onClick={onStopImpersonation}
+            >
+              원래 계정으로 돌아가기
+            </button>
+          </div>
+        )}
+
         {/* 사이드바 푸터: 사용자 프로필 + 로그아웃 */}
         <div className="sidebar-footer">
           <div className="sidebar-user-profile">
@@ -458,6 +492,7 @@ function Sidebar({
           onUpdateUserStatus={onUpdateUserStatus}
           onDeleteUser={onDeleteUser}
           onRefresh={onRefreshUsers}
+          onStartImpersonation={onStartImpersonation}
         />
       )}
     </>

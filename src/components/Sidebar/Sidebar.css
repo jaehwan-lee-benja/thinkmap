@@ -421,18 +421,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 28px;
   color: rgba(255, 255, 255, 0.4);
   border-radius: 3px;
   transition: all 0.2s;
   flex-shrink: 0;
   padding: 0;
-  line-height: 1;
+  line-height: 0;
+  overflow: hidden;
 }
 
 .page-toggle-arrow:hover {
@@ -446,7 +447,8 @@
 
 /* 토글 없는 페이지의 스페이서 (정렬용) */
 .page-toggle-spacer {
-  width: 18px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
 }
 
@@ -634,6 +636,56 @@
 .sidebar-tool-button.master-button svg {
   opacity: 0.9;
   color: #a78bfa;
+}
+
+/* 임퍼소네이션 배너 */
+.impersonation-banner {
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(234, 88, 12, 0.15) 100%);
+  border-top: 1px solid rgba(245, 158, 11, 0.3);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.impersonation-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.impersonation-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.impersonation-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(245, 158, 11, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.impersonation-exit-button {
+  width: 100%;
+  padding: 6px 12px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  color: rgba(245, 158, 11, 0.9);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.impersonation-exit-button:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
 }
 
 /* 사이드바 푸터 */

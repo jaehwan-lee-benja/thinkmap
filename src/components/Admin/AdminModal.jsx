@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Users, UserPlus, Shield, X } from 'lucide-react'
+import { supabase } from '../../supabaseClient'
 import './AdminModal.css'
 
 function AdminModal({
@@ -12,6 +13,7 @@ function AdminModal({
   onUpdateUserStatus,
   onDeleteUser,
   onRefresh,
+  onStartImpersonation,
 }) {
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState('user')
@@ -33,6 +35,19 @@ function AdminModal({
     if (window.confirm(`${user.email}을(를) 삭제하시겠습니까?`)) {
       await onDeleteUser(user.id)
     }
+  }
+
+  const handleActAsUser = async (user) => {
+    const { data: authUid, error } = await supabase
+      .rpc('get_user_id_by_email', { email_input: user.email })
+
+    if (error || !authUid) {
+      alert('해당 사용자의 인증 정보를 찾을 수 없습니다.\n아직 로그인하지 않은 사용자일 수 있습니다.')
+      return
+    }
+
+    onStartImpersonation(authUid, user.email)
+    onClose()
   }
 
   const getRoleLabel = (role) => {
@@ -143,12 +158,20 @@ function AdminModal({
                         <option value="inactive">비활성</option>
                       </select>
                       {user.role !== 'master' && (
-                        <button
-                          className="user-delete-button"
-                          onClick={() => handleDeleteUser(user)}
-                        >
-                          삭제
-                        </button>
+                        <>
+                          <button
+                            className="user-impersonate-button"
+                            onClick={() => handleActAsUser(user)}
+                          >
+                            활동하기
+                          </button>
+                          <button
+                            className="user-delete-button"
+                            onClick={() => handleDeleteUser(user)}
+                          >
+                            삭제
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

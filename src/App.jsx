@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import GoogleAuthButton from './components/Auth/GoogleAuthButton'
 import Header from './components/Navigation/Header'
 import Sidebar from './components/Sidebar/Sidebar'
@@ -15,24 +15,49 @@ import './App.css'
 function App() {
   const { session, authLoading, isMaster, handleGoogleLogin, handleLogout } = useAuth()
 
+  // 임퍼소네이션 상태 (마스터 전용)
+  const [impersonatedUser, setImpersonatedUser] = useState(null)
+
+  const effectiveSession = useMemo(() => {
+    if (!session || !impersonatedUser) return session
+    return {
+      ...session,
+      user: {
+        ...session.user,
+        id: impersonatedUser.id,
+        email: impersonatedUser.email,
+      }
+    }
+  }, [session, impersonatedUser])
+
+  const handleStartImpersonation = useCallback((userId, userEmail) => {
+    setImpersonatedUser({ id: userId, email: userEmail })
+  }, [])
+
+  const handleStopImpersonation = useCallback(() => {
+    setImpersonatedUser(null)
+  }, [])
+
   // 사용자 환경설정 (마지막 방문 페이지 등)
   const {
     lastProjectId,
     lastPageId,
+    expandedPages,
     preferencesLoading,
     saveLastProject,
     saveLastPage,
-  } = useUserPreferences(session)
+    saveExpandedPages,
+  } = useUserPreferences(effectiveSession)
 
   // 프로젝트 변경 콜백
   const handleProjectChange = useCallback((projectId) => {
-    saveLastProject(projectId)
-  }, [saveLastProject])
+    if (!impersonatedUser) saveLastProject(projectId)
+  }, [saveLastProject, impersonatedUser])
 
   // 페이지 변경 콜백
   const handlePageChange = useCallback((pageId) => {
-    saveLastPage(pageId)
-  }, [saveLastPage])
+    if (!impersonatedUser) saveLastPage(pageId)
+  }, [saveLastPage, impersonatedUser])
 
   // 프로젝트 관리
   const {
@@ -43,7 +68,7 @@ function App() {
     createProject,
     renameProject,
     deleteProject,
-  } = useProjects(session, {
+  } = useProjects(effectiveSession, {
     initialProjectId: lastProjectId,
     onProjectChange: handleProjectChange,
   })
@@ -59,7 +84,7 @@ function App() {
     renamePage,
     deletePage,
     getDescendantCount,
-  } = usePages(session, currentProjectId, {
+  } = usePages(effectiveSession, currentProjectId, {
     initialPageId: lastPageId,
     onPageChange: handlePageChange,
   })
@@ -73,7 +98,7 @@ function App() {
     updateSharePermission,
     deleteShare,
     getSharesForResource,
-  } = useSharing(session)
+  } = useSharing(effectiveSession)
 
   // 백업 관리
   const {
@@ -84,9 +109,9 @@ function App() {
     deleteBackup,
     exportBackup,
     importBackup,
-  } = useBackup(session)
+  } = useBackup(effectiveSession)
 
-  // 사용자 관리 (마스터 전용)
+  // 사용자 관리 (마스터 전용 — 실제 session 사용)
   const {
     users,
     usersLoading,
@@ -190,9 +215,13 @@ function App() {
         onPageRename={renamePage}
         onPageDelete={deletePage}
         getDescendantCount={getDescendantCount}
-        userEmail={session?.user?.email}
-        userAvatarUrl={session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture}
+        userEmail={effectiveSession?.user?.email}
+        userAvatarUrl={impersonatedUser ? null : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture}
         onLogout={handleLogout}
+        isImpersonating={!!impersonatedUser}
+        impersonatedEmail={impersonatedUser?.email}
+        onStopImpersonation={handleStopImpersonation}
+        onStartImpersonation={handleStartImpersonation}
         sharedWithMe={sharedWithMe}
         getSharesForResource={getSharesForResource}
         onCreateShare={createShare}
@@ -215,6 +244,8 @@ function App() {
         onUpdateUserStatus={updateUserStatus}
         onDeleteUser={deleteUser}
         onRefreshUsers={fetchUsers}
+        expandedPages={expandedPages}
+        onExpandedPagesChange={saveExpandedPages}
       />
 
       <div className={`container ${sidebarOpen ? 'with-sidebar' : ''}`}>
@@ -229,7 +260,7 @@ function App() {
         <div className="content-scrollable">
           {currentPageId ? (
             <TipTapEditorPage
-              session={session}
+              session={effectiveSession}
               currentPageId={currentPageId}
               currentPageName={pages.find(p => p.id === currentPageId)?.name}
               onPageRename={renamePage}
