@@ -421,16 +421,24 @@ export const Toggle = Node.create({
           const blockStart = $from.start()
           const blockEnd = $from.end()
 
-          // 토글 노드 생성
+          // "> " 이후의 기존 내용을 보존
+          const remainingContent = doc.slice(range.to, blockEnd).content
+
+          // 기존 내용이 있으면 포함하여 paragraph 생성, 없으면 빈 paragraph
+          const innerParagraph = remainingContent.size > 0
+            ? state.schema.nodes.paragraph.create(null, remainingContent)
+            : state.schema.nodes.paragraph.create()
+
+          // 토글 노드 생성 (기존 내용 포함)
           const toggleNode = state.schema.nodes.toggle.create(
             { isOpen: true },
-            state.schema.nodes.paragraph.create()
+            innerParagraph
           )
 
           // 현재 블록을 토글로 대체
           tr.replaceRangeWith(blockStart - 1, blockEnd + 1, toggleNode)
 
-          // 토글 내부 paragraph로 커서 이동 (blockStart 위치 + 2)
+          // 토글 내부 paragraph로 커서 이동
           tr.setSelection(state.selection.constructor.near(tr.doc.resolve(blockStart + 1)))
 
           return tr
