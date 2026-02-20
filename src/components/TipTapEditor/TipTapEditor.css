@@ -49,6 +49,80 @@
   margin-bottom: 0;
 }
 
+/* Paragraph 드래그 핸들 블록 — 토글과 동일한 flex 구조 */
+.paragraph-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  margin: 0.5rem 0;
+  margin-left: 0;
+  border-radius: 0.25rem;
+}
+
+.tiptap-editor .paragraph-block:first-child {
+  margin-top: 0;
+}
+
+.tiptap-editor .paragraph-block:last-child {
+  margin-bottom: 0;
+}
+
+/* p는 마진 없이 flex 영역 전체 차지 */
+.paragraph-block > p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.6;
+  color: #e5e7eb;
+}
+
+.paragraph-drag-handle {
+  flex-shrink: 0;
+  align-self: flex-start;
+  width: 16px;
+  height: 1.6em;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' style='fill: rgba(255, 255, 255, 0.5)'%3E%3Cpath d='M3,2 C2.44771525,2 2,1.55228475 2,1 C2,0.44771525 2.44771525,0 3,0 C3.55228475,0 4,0.44771525 4,1 C4,1.55228475 3.55228475,2 3,2 Z M3,6 C2.44771525,6 2,5.55228475 2,5 C2,4.44771525 2.44771525,4 3,4 C3.55228475,4 4,4.44771525 4,5 C4,5.55228475 3.55228475,6 3,6 Z M3,10 C2.44771525,10 2,9.55228475 2,9 C2,8.44771525 2.44771525,8 3,8 C3.55228475,8 4,8.44771525 4,9 C4,9.55228475 3.55228475,10 3,10 Z M7,2 C6.44771525,2 6,1.55228475 6,1 C6,0.44771525 6.44771525,0 7,0 C7.55228475,0 8,0.44771525 8,1 C8,1.55228475 7.55228475,2 7,2 Z M7,6 C6.44771525,6 6,5.55228475 6,5 C6,4.44771525 6.44771525,4 7,4 C7.55228475,4 8,4.44771525 8,5 C8,5.55228475 7.55228475,6 7,6 Z M7,10 C6.44771525,10 6,9.55228475 6,9 C6,8.44771525 6.44771525,8 7,8 C7.55228475,8 8,8.44771525 8,9 C8,9.55228475 7.55228475,10 7,10 Z'%3E%3C/path%3E%3C/svg%3E");
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.paragraph-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* hover 시 핸들 표시 */
+.paragraph-block:hover > .paragraph-drag-handle {
+  opacity: 1;
+}
+
+/* 핸들 hover 시 블록 하이라이트 */
+.paragraph-block:has(> .paragraph-drag-handle:hover) {
+  outline: 2px solid rgba(59, 130, 246, 0.3);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 토글 / 리스트 / 테이블 내부 — 음수 마진·핸들 제거 */
+.toggle-content .paragraph-block,
+li .paragraph-block,
+td .paragraph-block,
+th .paragraph-block {
+  margin-left: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.toggle-content .paragraph-drag-handle,
+li .paragraph-drag-handle,
+td .paragraph-drag-handle,
+th .paragraph-drag-handle {
+  display: none;
+}
+
 /* 헤딩 스타일 */
 .tiptap-editor h1 {
   font-size: 2rem;
@@ -486,7 +560,8 @@
 }
 
 /* 토글 내부 paragraph */
-.toggle-content > p {
+.toggle-content > p,
+.toggle-content .paragraph-block > p {
   margin: 0;
   background: transparent !important;
 }

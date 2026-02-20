@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 
 /**
@@ -72,7 +72,7 @@ const getDescendantIds = (pageId, pages) => {
  * @param {Function} options.onPageChange - 페이지 변경 시 콜백 (Supabase 저장용)
  */
 export const usePages = (session, currentProjectId, options = {}) => {
-  const { initialPageId = null, onPageChange } = options
+  const { initialPageId = null, onPageChange, preferencesLoaded = true } = options
   const [pages, setPages] = useState([])
   const [currentPageId, setCurrentPageId] = useState(null)
   const [pagesLoading, setPagesLoading] = useState(true)
@@ -83,6 +83,11 @@ export const usePages = (session, currentProjectId, options = {}) => {
   const prevUserIdRef = useRef(null)
   // 초기 로드 완료 여부
   const initialLoadDoneRef = useRef(false)
+  // initialPageId를 항상 최신값으로 유지 (클로저 stale 방지)
+  const initialPageIdRef = useRef(initialPageId)
+  useLayoutEffect(() => {
+    initialPageIdRef.current = initialPageId
+  }, [initialPageId])
 
   // 트리 구조로 변환 (메모이제이션)
   const pageTree = useMemo(() => buildPageTree(pages), [pages])
@@ -121,10 +126,11 @@ export const usePages = (session, currentProjectId, options = {}) => {
         setPages(data)
         // 현재 페이지가 설정되지 않았으면 초기값 또는 첫 번째 페이지 선택
         if (!currentPageId && data.length > 0) {
-          // 초기 로드 시에만 initialPageId 사용
-          const useInitialPage = !initialLoadDoneRef.current && initialPageId
+          // 초기 로드 시에만 initialPageId 사용 (ref로 항상 최신값 참조)
+          const savedPageId = initialPageIdRef.current
+          const useInitialPage = !initialLoadDoneRef.current && savedPageId
           const targetPage = useInitialPage
-            ? data.find(p => p.id === initialPageId)
+            ? data.find(p => p.id === savedPageId)
             : null
           const targetPageId = targetPage ? targetPage.id : data[0].id
           setCurrentPageId(targetPageId)
@@ -315,9 +321,15 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }
 
-  // 세션 또는 프로젝트 변경 시 페이지 로드
+  // 세션 또는 프로젝트 변경 시 페이지 로드 (환경설정 로드 완료 후에만 실행)
   useEffect(() => {
     if (session?.user?.id && currentProjectId) {
+      if (!preferencesLoaded) {
+        // 환경설정 로딩 중 — 아직 페이지 로드하지 않음
+        setPagesLoading(true)
+        return
+      }
+
       // 사용자가 변경되면 상태 리셋 (임퍼소네이션 등)
       const userChanged = prevUserIdRef.current !== null &&
                           prevUserIdRef.current !== session.user.id
@@ -341,7 +353,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
       prevUserIdRef.current = null
       initialLoadDoneRef.current = false
     }
-  }, [session?.user?.id, currentProjectId])
+  }, [session?.user?.id, currentProjectId, preferencesLoaded])
 
   return {
     pages,

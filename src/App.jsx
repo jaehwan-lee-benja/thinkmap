@@ -49,15 +49,15 @@ function App() {
     saveExpandedPages,
   } = useUserPreferences(effectiveSession)
 
-  // 프로젝트 변경 콜백
+  // 프로젝트 변경 콜백 (임퍼소네이션 중에도 해당 계정 기준으로 저장)
   const handleProjectChange = useCallback((projectId) => {
-    if (!impersonatedUser) saveLastProject(projectId)
-  }, [saveLastProject, impersonatedUser])
+    saveLastProject(projectId)
+  }, [saveLastProject])
 
-  // 페이지 변경 콜백
+  // 페이지 변경 콜백 (임퍼소네이션 중에도 해당 계정 기준으로 저장)
   const handlePageChange = useCallback((pageId) => {
-    if (!impersonatedUser) saveLastPage(pageId)
-  }, [saveLastPage, impersonatedUser])
+    saveLastPage(pageId)
+  }, [saveLastPage])
 
   // 프로젝트 관리
   const {
@@ -71,6 +71,7 @@ function App() {
   } = useProjects(effectiveSession, {
     initialProjectId: lastProjectId,
     onProjectChange: handleProjectChange,
+    preferencesLoaded: !preferencesLoading,
   })
 
   // 페이지 관리 (현재 프로젝트)
@@ -87,6 +88,7 @@ function App() {
   } = usePages(effectiveSession, currentProjectId, {
     initialPageId: lastPageId,
     onPageChange: handlePageChange,
+    preferencesLoaded: !preferencesLoading,
   })
 
   // 공유 관리

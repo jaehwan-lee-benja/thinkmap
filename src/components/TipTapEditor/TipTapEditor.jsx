@@ -32,6 +32,7 @@ import { Image } from '@tiptap/extension-image'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
 import { Toggle } from './extensions/ToggleExtension'
+import { ParagraphWithHandle } from './extensions/ParagraphWithHandle'
 import './TipTapEditor.css'
 
 // lowlight 인스턴스 생성 (common 언어들: js, css, html, python 등)
@@ -60,6 +61,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         heading: {
           levels: [1, 2, 3],
         },
+        paragraph: false, // ParagraphWithHandle로 대체
         blockquote: false, // "> " 입력 시 토글로 변환하기 위해 비활성화
         codeBlock: false, // CodeBlockLowlight 사용을 위해 비활성화
         link: false, // 별도 Link.configure() 사용을 위해 비활성화
@@ -97,6 +99,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       }),
       Image,
       Toggle,
+      ParagraphWithHandle,
     ],
     content: content || {
       type: 'doc',

@@ -23,7 +23,7 @@ const generateUUID = () => {
  * @param {Function} options.onProjectChange - 프로젝트 변경 시 콜백 (Supabase 저장용)
  */
 export const useProjects = (session, options = {}) => {
-  const { initialProjectId = null, onProjectChange } = options
+  const { initialProjectId = null, onProjectChange, preferencesLoaded = true } = options
   const [projects, setProjects] = useState([])
   const [currentProjectId, setCurrentProjectId] = useState(null)
   const [projectsLoading, setProjectsLoading] = useState(true)
@@ -235,9 +235,14 @@ export const useProjects = (session, options = {}) => {
     }
   }
 
-  // 세션 변경 시 프로젝트 로드
+  // 세션 변경 시 프로젝트 로드 (환경설정 로드 완료 후에만 실행)
   useEffect(() => {
     if (session?.user?.id) {
+      if (!preferencesLoaded) {
+        // 환경설정 로딩 중 — 아직 프로젝트 로드하지 않음
+        setProjectsLoading(true)
+        return
+      }
       // 사용자가 변경되면 상태 리셋 (임퍼소네이션 등)
       if (prevUserIdRef.current && prevUserIdRef.current !== session.user.id) {
         setProjects([])
@@ -253,7 +258,7 @@ export const useProjects = (session, options = {}) => {
       setInitialized(false)
       prevUserIdRef.current = null
     }
-  }, [session?.user?.id, initialProjectId])
+  }, [session?.user?.id, initialProjectId, preferencesLoaded])
 
   return {
     projects,
