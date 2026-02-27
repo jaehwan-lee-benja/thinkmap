@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
+import { logError } from '../utils/supabaseError'
 
 /**
  * 공유 관리 훅
@@ -20,14 +21,11 @@ export const useSharing = (session) => {
         .eq('owner_id', session.user.id)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('공유 목록 로드 오류:', error.message)
-        return
-      }
+      if (logError('공유 목록 로드', error)) return
 
       setShares(data || [])
     } catch (error) {
-      console.error('공유 목록 로드 오류:', error.message)
+      logError('공유 목록 로드', error)
     }
   }, [session?.user?.id])
 
@@ -42,10 +40,7 @@ export const useSharing = (session) => {
         .select('*')
         .eq('shared_with_user_id', session.user.id)
 
-      if (sharesError) {
-        console.error('공유받은 항목 로드 오류:', sharesError.message)
-        return
-      }
+      if (logError('공유받은 항목 로드', sharesError)) return
 
       if (!sharesData || sharesData.length === 0) {
         setSharedWithMe({ projects: [], pages: [] })
@@ -95,7 +90,7 @@ export const useSharing = (session) => {
         pages: sharedPages
       })
     } catch (error) {
-      console.error('공유받은 항목 로드 오류:', error.message)
+      logError('공유받은 항목 로드', error)
     }
   }, [session?.user?.id])
 
@@ -126,14 +121,14 @@ export const useSharing = (session) => {
         if (error.code === '23505') {
           return { success: false, error: '이미 해당 사용자에게 공유되어 있습니다.' }
         }
-        console.error('공유 생성 오류:', error.message)
+        logError('공유 생성', error)
         return { success: false, error: error.message }
       }
 
       setShares(prev => [data, ...prev])
       return { success: true, data }
     } catch (error) {
-      console.error('공유 생성 오류:', error.message)
+      logError('공유 생성', error)
       return { success: false, error: error.message }
     } finally {
       setSharingLoading(false)
@@ -151,17 +146,14 @@ export const useSharing = (session) => {
         .eq('id', shareId)
         .eq('owner_id', session.user.id)
 
-      if (error) {
-        console.error('권한 변경 오류:', error.message)
-        return false
-      }
+      if (logError('권한 변경', error)) return false
 
       setShares(prev => prev.map(s =>
         s.id === shareId ? { ...s, permission: newPermission } : s
       ))
       return true
     } catch (error) {
-      console.error('권한 변경 오류:', error.message)
+      logError('권한 변경', error)
       return false
     }
   }
@@ -177,15 +169,12 @@ export const useSharing = (session) => {
         .eq('id', shareId)
         .eq('owner_id', session.user.id)
 
-      if (error) {
-        console.error('공유 삭제 오류:', error.message)
-        return false
-      }
+      if (logError('공유 삭제', error)) return false
 
       setShares(prev => prev.filter(s => s.id !== shareId))
       return true
     } catch (error) {
-      console.error('공유 삭제 오류:', error.message)
+      logError('공유 삭제', error)
       return false
     }
   }

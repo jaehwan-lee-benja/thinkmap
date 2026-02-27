@@ -1,19 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../supabaseClient'
-
-/**
- * UUID 생성 함수 (브라우저 호환)
- */
-const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
-}
+import { generateUUID } from '../utils/uuid'
+import { logError } from '../utils/supabaseError'
 
 /**
  * 프로젝트 관리 훅
@@ -51,10 +39,7 @@ export const useProjects = (session, options = {}) => {
         .eq('user_id', session.user.id)
         .order('position', { ascending: true })
 
-      if (error) {
-        console.error('프로젝트 로드 오류:', error.message)
-        return
-      }
+      if (logError('프로젝트 로드', error)) return
 
       if (!data || data.length === 0) {
         // 프로젝트가 없으면 기본 프로젝트 생성
@@ -76,7 +61,7 @@ export const useProjects = (session, options = {}) => {
         setInitialized(true)
       }
     } catch (error) {
-      console.error('프로젝트 로드 오류:', error.message)
+      logError('프로젝트 로드', error)
     } finally {
       setProjectsLoading(false)
     }
@@ -98,10 +83,7 @@ export const useProjects = (session, options = {}) => {
         .from('projects')
         .insert([newProject])
 
-      if (error) {
-        console.error('기본 프로젝트 생성 오류:', error.message)
-        return
-      }
+      if (logError('기본 프로젝트 생성', error)) return
 
       setProjects([newProject])
       setCurrentProjectId(newProject.id)
@@ -110,7 +92,7 @@ export const useProjects = (session, options = {}) => {
       }
       setInitialized(true)
     } catch (error) {
-      console.error('기본 프로젝트 생성 오류:', error.message)
+      logError('기본 프로젝트 생성', error)
     }
   }
 
@@ -130,15 +112,12 @@ export const useProjects = (session, options = {}) => {
         .from('projects')
         .insert([newProject])
 
-      if (error) {
-        console.error('프로젝트 생성 오류:', error.message)
-        return null
-      }
+      if (logError('프로젝트 생성', error)) return null
 
       setProjects([...projects, newProject])
       return newProject
     } catch (error) {
-      console.error('프로젝트 생성 오류:', error.message)
+      logError('프로젝트 생성', error)
       return null
     }
   }
@@ -154,17 +133,14 @@ export const useProjects = (session, options = {}) => {
         .eq('id', projectId)
         .eq('user_id', session.user.id)
 
-      if (error) {
-        console.error('프로젝트 이름 변경 오류:', error.message)
-        return false
-      }
+      if (logError('프로젝트 이름 변경', error)) return false
 
       setProjects(projects.map(p =>
         p.id === projectId ? { ...p, name: newName.trim() } : p
       ))
       return true
     } catch (error) {
-      console.error('프로젝트 이름 변경 오류:', error.message)
+      logError('프로젝트 이름 변경', error)
       return false
     }
   }
@@ -185,10 +161,7 @@ export const useProjects = (session, options = {}) => {
         .eq('id', projectId)
         .eq('user_id', session.user.id)
 
-      if (error) {
-        console.error('프로젝트 삭제 오류:', error.message)
-        return false
-      }
+      if (logError('프로젝트 삭제', error)) return false
 
       const updatedProjects = projects.filter(p => p.id !== projectId)
       setProjects(updatedProjects)
@@ -200,7 +173,7 @@ export const useProjects = (session, options = {}) => {
 
       return true
     } catch (error) {
-      console.error('프로젝트 삭제 오류:', error.message)
+      logError('프로젝트 삭제', error)
       return false
     }
   }
@@ -230,7 +203,7 @@ export const useProjects = (session, options = {}) => {
       setProjects(newProjects)
       return true
     } catch (error) {
-      console.error('프로젝트 순서 변경 오류:', error.message)
+      logError('프로젝트 순서 변경', error)
       return false
     }
   }

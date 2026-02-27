@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
+import { logError } from '../utils/supabaseError'
 
 /**
  * 프로젝트 백업 관리 훅
@@ -22,10 +23,7 @@ export const useBackup = (session) => {
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('백업 목록 로드 오류:', error.message)
-        return []
-      }
+      if (logError('백업 목록 로드', error)) return []
 
       // 형식 변환 (기존 인터페이스 유지)
       return (data || []).map(backup => ({
@@ -36,7 +34,7 @@ export const useBackup = (session) => {
         pages: backup.backup_data.pages,
       }))
     } catch (err) {
-      console.error('백업 목록 로드 오류:', err)
+      logError('백업 목록 로드', err)
       return []
     }
   }, [session?.user?.id])
@@ -61,9 +59,7 @@ export const useBackup = (session) => {
             .eq('id', page.id)
             .single()
 
-          if (pageError) {
-            console.error(`페이지 ${page.id} 콘텐츠 로드 오류:`, pageError)
-          }
+          if (pageError) logError(`페이지 ${page.id} 콘텐츠 로드`, pageError)
 
           return {
             ...page,
@@ -97,7 +93,7 @@ export const useBackup = (session) => {
         .single()
 
       if (error) {
-        console.error('백업 저장 오류:', error.message)
+        logError('백업 저장', error)
         setError('백업 저장에 실패했습니다.')
         setIsLoading(false)
         return null
@@ -112,7 +108,7 @@ export const useBackup = (session) => {
         pages: backupData.pages,
       }
     } catch (err) {
-      console.error('백업 생성 오류:', err)
+      logError('백업 생성', err)
       setError('백업 생성에 실패했습니다.')
       setIsLoading(false)
       return null
@@ -139,7 +135,7 @@ export const useBackup = (session) => {
         .single()
 
       if (fetchError || !backupRecord) {
-        console.error('백업 조회 오류:', fetchError)
+        logError('백업 조회', fetchError)
         setError('백업을 찾을 수 없습니다.')
         setIsLoading(false)
         return false
@@ -154,9 +150,7 @@ export const useBackup = (session) => {
         .eq('project_id', projectId)
         .eq('user_id', session.user.id)
 
-      if (pageDelError) {
-        console.error('기존 페이지 삭제 오류:', pageDelError)
-      }
+      if (pageDelError) logError('기존 페이지 삭제', pageDelError)
 
       // 2. 백업된 페이지 복원 (새 ID 생성, parent_id 매핑)
       // 2-1. old ID → new ID 매핑 테이블 생성
@@ -205,16 +199,13 @@ export const useBackup = (session) => {
             content_tiptap: page.content_tiptap || null,
           })
 
-        if (pageError) {
-          console.error('페이지 복원 오류:', pageError)
-          continue
-        }
+        if (logError('페이지 복원', pageError)) continue
       }
 
       setIsLoading(false)
       return true
     } catch (err) {
-      console.error('복원 오류:', err)
+      logError('복원', err)
       setError('복원에 실패했습니다.')
       setIsLoading(false)
       return false
@@ -232,14 +223,11 @@ export const useBackup = (session) => {
         .eq('id', backupId)
         .eq('user_id', session.user.id)
 
-      if (error) {
-        console.error('백업 삭제 오류:', error.message)
-        return false
-      }
+      if (logError('백업 삭제', error)) return false
 
       return true
     } catch (err) {
-      console.error('백업 삭제 오류:', err)
+      logError('백업 삭제', err)
       return false
     }
   }, [session?.user?.id])
@@ -313,7 +301,7 @@ export const useBackup = (session) => {
             .single()
 
           if (error) {
-            console.error('백업 가져오기 저장 오류:', error.message)
+            logError('백업 가져오기 저장', error)
             setError('백업 저장에 실패했습니다.')
             setIsLoading(false)
             resolve(null)
@@ -329,7 +317,7 @@ export const useBackup = (session) => {
             pages: importedData.pages,
           })
         } catch (err) {
-          console.error('백업 가져오기 오류:', err)
+          logError('백업 가져오기', err)
           setError('백업 파일을 읽는데 실패했습니다.')
           setIsLoading(false)
           resolve(null)

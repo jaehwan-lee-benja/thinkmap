@@ -196,6 +196,65 @@ function App() {
     )
   }
 
+  // Sidebar props 그룹화
+  const projectProps = {
+    projects,
+    currentProjectId,
+    onProjectSelect: setCurrentProjectId,
+    onProjectCreate: createProject,
+    onProjectRename: renameProject,
+    onProjectDelete: deleteProject,
+  }
+  const pageProps = {
+    pages,
+    pageTree,
+    currentPageId,
+    onPageSelect: setCurrentPageId,
+    onPageCreate: createPage,
+    onPageRename: renamePage,
+    onPageDelete: deletePage,
+    getDescendantCount,
+    expandedPages,
+    onExpandedPagesChange: saveExpandedPages,
+  }
+  const userProps = {
+    userEmail: effectiveSession?.user?.email,
+    userAvatarUrl: impersonatedUser ? null : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture,
+    onLogout: handleLogout,
+    isImpersonating: !!impersonatedUser,
+    impersonatedEmail: impersonatedUser?.email,
+    onStopImpersonation: handleStopImpersonation,
+    onStartImpersonation: handleStartImpersonation,
+  }
+  const sharingProps = {
+    sharedWithMe,
+    getSharesForResource,
+    onCreateShare: createShare,
+    onUpdateSharePermission: updateSharePermission,
+    onDeleteShare: deleteShare,
+    sharingLoading,
+  }
+  const backupProps = {
+    backups,
+    backupLoading,
+    onCreateBackup: handleCreateBackup,
+    onRestoreBackup: handleRestoreBackup,
+    onDeleteBackup: handleDeleteBackup,
+    onExportBackup: exportBackup,
+    onImportBackup: handleImportBackup,
+    onRefreshBackups: refreshBackups,
+  }
+  const adminProps = {
+    isMaster,
+    users,
+    usersLoading,
+    onAddUser: addUser,
+    onUpdateUserRole: updateUserRole,
+    onUpdateUserStatus: updateUserStatus,
+    onDeleteUser: deleteUser,
+    onRefreshUsers: fetchUsers,
+  }
+
   // 메인 화면
   return (
     <div className={`app ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -203,51 +262,12 @@ function App() {
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        projects={projects}
-        currentProjectId={currentProjectId}
-        onProjectSelect={setCurrentProjectId}
-        onProjectCreate={createProject}
-        onProjectRename={renameProject}
-        onProjectDelete={deleteProject}
-        pages={pages}
-        pageTree={pageTree}
-        currentPageId={currentPageId}
-        onPageSelect={setCurrentPageId}
-        onPageCreate={createPage}
-        onPageRename={renamePage}
-        onPageDelete={deletePage}
-        getDescendantCount={getDescendantCount}
-        userEmail={effectiveSession?.user?.email}
-        userAvatarUrl={impersonatedUser ? null : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture}
-        onLogout={handleLogout}
-        isImpersonating={!!impersonatedUser}
-        impersonatedEmail={impersonatedUser?.email}
-        onStopImpersonation={handleStopImpersonation}
-        onStartImpersonation={handleStartImpersonation}
-        sharedWithMe={sharedWithMe}
-        getSharesForResource={getSharesForResource}
-        onCreateShare={createShare}
-        onUpdateSharePermission={updateSharePermission}
-        onDeleteShare={deleteShare}
-        sharingLoading={sharingLoading}
-        backups={backups}
-        backupLoading={backupLoading}
-        onCreateBackup={handleCreateBackup}
-        onRestoreBackup={handleRestoreBackup}
-        onDeleteBackup={handleDeleteBackup}
-        onExportBackup={exportBackup}
-        onImportBackup={handleImportBackup}
-        onRefreshBackups={refreshBackups}
-        isMaster={isMaster}
-        users={users}
-        usersLoading={usersLoading}
-        onAddUser={addUser}
-        onUpdateUserRole={updateUserRole}
-        onUpdateUserStatus={updateUserStatus}
-        onDeleteUser={deleteUser}
-        onRefreshUsers={fetchUsers}
-        expandedPages={expandedPages}
-        onExpandedPagesChange={saveExpandedPages}
+        {...projectProps}
+        {...pageProps}
+        {...userProps}
+        {...sharingProps}
+        {...backupProps}
+        {...adminProps}
       />
 
       <div className={`container ${sidebarOpen ? 'with-sidebar' : ''}`}>

@@ -1,19 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
-
-/**
- * UUID 생성 함수 (브라우저 호환)
- */
-const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
-}
+import { generateUUID } from '../utils/uuid'
+import { logError } from '../utils/supabaseError'
 
 /**
  * 플랫 페이지 배열을 트리 구조로 변환
@@ -114,10 +102,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .eq('project_id', currentProjectId)
         .order('position', { ascending: true })
 
-      if (error) {
-        console.error('페이지 로드 오류:', error.message)
-        return
-      }
+      if (logError('페이지 로드', error)) return
 
       if (!data || data.length === 0) {
         // 페이지가 없으면 기본 페이지 생성
@@ -166,10 +151,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .from('pages')
         .insert([newPage])
 
-      if (error) {
-        console.error('기본 페이지 생성 오류:', error.message)
-        return
-      }
+      if (logError('기본 페이지 생성', error)) return
 
       setPages([newPage])
       setCurrentPageId(newPage.id)
@@ -177,7 +159,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
         onPageChange(newPage.id)
       }
     } catch (error) {
-      console.error('기본 페이지 생성 오류:', error.message)
+      logError('기본 페이지 생성', error)
     }
   }
 
@@ -201,15 +183,12 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .from('pages')
         .insert([newPage])
 
-      if (error) {
-        console.error('페이지 생성 오류:', error.message)
-        return null
-      }
+      if (logError('페이지 생성', error)) return null
 
       setPages(prev => [...prev, newPage])
       return newPage
     } catch (error) {
-      console.error('페이지 생성 오류:', error.message)
+      logError('페이지 생성', error)
       return null
     }
   }
@@ -225,17 +204,14 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .eq('id', pageId)
         .eq('user_id', session.user.id)
 
-      if (error) {
-        console.error('페이지 이름 변경 오류:', error.message)
-        return false
-      }
+      if (logError('페이지 이름 변경', error)) return false
 
       setPages(pages.map(p =>
         p.id === pageId ? { ...p, name: newName.trim() } : p
       ))
       return true
     } catch (error) {
-      console.error('페이지 이름 변경 오류:', error.message)
+      logError('페이지 이름 변경', error)
       return false
     }
   }
@@ -263,10 +239,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .eq('id', pageId)
         .eq('user_id', session.user.id)
 
-      if (error) {
-        console.error('페이지 삭제 오류:', error.message)
-        return false
-      }
+      if (logError('페이지 삭제', error)) return false
 
       // 자손 ID 수집 (로컬 상태에서도 제거)
       const descendantIds = getDescendantIds(pageId, pages)
@@ -281,7 +254,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
 
       return true
     } catch (error) {
-      console.error('페이지 삭제 오류:', error.message)
+      logError('페이지 삭제', error)
       return false
     }
   }
@@ -316,7 +289,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
       setPages(newPages)
       return true
     } catch (error) {
-      console.error('페이지 순서 변경 오류:', error.message)
+      logError('페이지 순서 변경', error)
       return false
     }
   }

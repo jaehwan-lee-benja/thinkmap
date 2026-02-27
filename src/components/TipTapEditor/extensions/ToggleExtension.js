@@ -1,12 +1,41 @@
 import { Node, mergeAttributes, InputRule } from '@tiptap/core'
 import { NodeSelection, TextSelection, Plugin } from '@tiptap/pm/state'
 
+// --- 헬퍼 함수 ---
+
+/** 노드에 하위 토글이 있는지 확인 (첫 번째 자식은 paragraph이므로 인덱스 1부터 검사) */
+function hasChildToggles(node) {
+  for (let i = 1; i < node.childCount; i++) {
+    if (node.child(i).type.name === 'toggle') return true
+  }
+  return false
+}
+
+/** $from 위치에서 가장 가까운 토글의 depth 반환, 없으면 -1 */
+function findToggleDepth($from) {
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type.name === 'toggle') return d
+  }
+  return -1
+}
+
+/** 빈 토글 JSON 객체 반환 */
+function emptyToggleJSON(isOpen = true) {
+  return {
+    type: 'toggle',
+    attrs: { isOpen },
+    content: [{ type: 'paragraph', content: [] }]
+  }
+}
+
 /**
  * Toggle Extension for TipTap
  * Notion-style collapsible blocks with children
  */
 export const Toggle = Node.create({
   name: 'toggle',
+
+  priority: 200, // 키보드 핸들러가 다른 익스텐션보다 먼저 실행되도록 (줄바꿈 방지)
 
   group: 'block',
 
@@ -134,19 +163,11 @@ export const Toggle = Node.create({
         e.preventDefault()
         e.stopPropagation()
 
-        if (typeof getPos !== 'function') {
-          console.warn('[TOGGLE BTN] getPos is not a function')
-          return
-        }
+        if (typeof getPos !== 'function') return
 
         const pos = getPos()
         const currentNode = editor.state.doc.nodeAt(pos)
-        console.log('[TOGGLE BTN] click | pos:', pos, '| currentNode:', currentNode?.type?.name, '| isOpen:', currentNode?.attrs?.isOpen)
-
-        if (!currentNode) {
-          console.warn('[TOGGLE BTN] currentNode not found at pos', pos)
-          return
-        }
+        if (!currentNode) return
 
         const newIsOpen = !currentNode.attrs.isOpen
         const { tr } = editor.state
@@ -156,32 +177,13 @@ export const Toggle = Node.create({
 
         // 열 때, 하위 토글이 없으면 빈 하위 토글 자동 생성
         if (newIsOpen) {
-          let hasChildToggles = false
-          for (let i = 1; i < currentNode.childCount; i++) {
-            if (currentNode.child(i).type.name === 'toggle') {
-              hasChildToggles = true
-              break
-            }
-          }
-          console.log('[TOGGLE BTN] opening | childCount:', currentNode.childCount, '| hasChildToggles:', hasChildToggles)
-          if (!hasChildToggles) {
+          if (!hasChildToggles(currentNode)) {
             const insertPos = pos + currentNode.nodeSize - 1
-            console.log('[TOGGLE BTN] inserting child toggle at insertPos:', insertPos, '(nodeSize:', currentNode.nodeSize, ')')
-            tr.insert(
-              insertPos,
-              editor.state.schema.nodeFromJSON({
-                type: 'toggle',
-                attrs: { isOpen: true },
-                content: [{ type: 'paragraph', content: [] }]
-              })
-            )
+            tr.insert(insertPos, editor.state.schema.nodeFromJSON(emptyToggleJSON()))
           }
-        } else {
-          console.log('[TOGGLE BTN] closing')
         }
 
         editor.view.dispatch(tr)
-        console.log('[TOGGLE BTN] dispatch done | new isOpen:', newIsOpen)
       })
 
       dom.appendChild(dragHandle)
@@ -192,11 +194,7 @@ export const Toggle = Node.create({
         dom,
         contentDOM: contentWrapper,
         update: (updatedNode) => {
-          if (updatedNode.type.name !== 'toggle') {
-            console.warn('[TOGGLE UPDATE] type mismatch, returning false')
-            return false
-          }
-          console.log('[TOGGLE UPDATE] isOpen:', updatedNode.attrs.isOpen, '| childCount:', updatedNode.childCount)
+          if (updatedNode.type.name !== 'toggle') return false
 
           button.textContent = updatedNode.attrs.isOpen ? '▼' : '▶'
           contentWrapper.className = updatedNode.attrs.isOpen
@@ -228,22 +226,12 @@ export const Toggle = Node.create({
               // 하위 토글이 있을 때만 자동 열기
               // 닫힘 상태에서 첫 번째 자식(paragraph)은 CSS로 이미 보이므로
               // 하위 블록 없으면 닫힌 채로 paragraph에 커서만 이동
-              let hasChildToggles = false
-              for (let i = 1; i < node.childCount; i++) {
-                if (node.child(i).type.name === 'toggle') {
-                  hasChildToggles = true
-                  break
-                }
-              }
-              console.log('[TOGGLE PLUGIN] cursor in closed toggle | depth:', d, '| hasChildToggles:', hasChildToggles)
-              if (hasChildToggles) {
+              if (hasChildToggles(node)) {
                 const pos = $from.before(d)
                 const tr = newState.tr
                 tr.setNodeMarkup(pos, null, { ...node.attrs, isOpen: true })
-                console.log('[TOGGLE PLUGIN] auto-opening toggle at pos:', pos)
                 return tr
               }
-              console.log('[TOGGLE PLUGIN] no children → stay closed, cursor at paragraph')
               break
             }
           }
@@ -271,32 +259,14 @@ export const Toggle = Node.create({
           // 빈 에디터: 전체를 토글로 대체
           return chain()
             .clearContent()
-            .insertContent({
-              type: 'toggle',
-              attrs: { isOpen: true },
-              content: [
-                {
-                  type: 'paragraph',
-                  content: []
-                }
-              ]
-            })
+            .insertContent(emptyToggleJSON())
             .focus()
             .run()
         }
 
         // 현재 블록 끝으로 이동 후 새 줄에 토글 삽입
         return chain()
-          .insertContentAt(selection.to, {
-            type: 'toggle',
-            attrs: { isOpen: true },
-            content: [
-              {
-                type: 'paragraph',
-                content: []
-              }
-            ]
-          })
+          .insertContentAt(selection.to, emptyToggleJSON())
           .focus()
           .run()
       },
@@ -317,6 +287,47 @@ export const Toggle = Node.create({
   },
 
   addKeyboardShortcuts() {
+    // 커서가 paragraph 끝에 있을 때: 열린 토글이면 하위 첫 위치에, 아니면 형제 위치에 새 토글 삽입
+    function handleEnterAtEnd(editor, $from, toggleDepth, toggleNode, togglePos, afterTogglePos) {
+      if (toggleNode.attrs.isOpen && hasChildToggles(toggleNode)) {
+        const paragraphNode = $from.node(toggleDepth + 1)
+        const firstChildPos = togglePos + 1 + paragraphNode.nodeSize
+        editor.chain()
+          .insertContentAt(firstChildPos, emptyToggleJSON())
+          .focus(firstChildPos + 2)
+          .run()
+        return true
+      }
+      editor.chain()
+        .insertContentAt(afterTogglePos, emptyToggleJSON())
+        .focus(afterTogglePos + 2)
+        .run()
+      return true
+    }
+
+    // 커서가 paragraph 중간에 있을 때: 이후 내용을 잘라서 새 토글로 분리
+    function handleEnterAtMiddle(editor, $from, toggleDepth, afterTogglePos, paragraphEnd) {
+      const { state } = editor
+      const paragraphNode = $from.node(toggleDepth + 1)
+      const offsetInParagraph = $from.pos - $from.start(toggleDepth + 1)
+      const afterContent = paragraphNode.cut(offsetInParagraph).content.toJSON()
+
+      const { tr } = state
+      tr.delete($from.pos, paragraphEnd)
+      const newInsertPos = afterTogglePos - (paragraphEnd - $from.pos)
+      tr.insert(
+        newInsertPos,
+        state.schema.nodeFromJSON({
+          type: 'toggle',
+          attrs: { isOpen: true },
+          content: [{ type: 'paragraph', content: afterContent || [] }]
+        })
+      )
+      tr.setSelection(TextSelection.near(tr.doc.resolve(newInsertPos + 2)))
+      editor.view.dispatch(tr)
+      return true
+    }
+
     return {
       'Mod-Shift-t': () => this.editor.commands.setToggle(),
 
@@ -325,60 +336,17 @@ export const Toggle = Node.create({
         const { state } = editor
         const { $from } = state.selection
 
-        // 현재 위치에서 가장 안쪽 토글 찾기
-        let toggleDepth = -1
-        for (let d = $from.depth; d > 0; d--) {
-          if ($from.node(d).type.name === 'toggle') {
-            toggleDepth = d
-            break
-          }
-        }
-
+        const toggleDepth = findToggleDepth($from)
         if (toggleDepth === -1) return false
 
         const togglePos = $from.before(toggleDepth)
         const toggleNode = state.doc.nodeAt(togglePos)
         const afterTogglePos = togglePos + toggleNode.nodeSize
-
-        // paragraph depth = toggleDepth + 1
         const paragraphEnd = $from.end(toggleDepth + 1)
 
-        // 커서가 끝에 있으면: 빈 새 토글 생성
-        if ($from.pos >= paragraphEnd) {
-          editor.chain()
-            .insertContentAt(afterTogglePos, {
-              type: 'toggle',
-              attrs: { isOpen: true },
-              content: [{ type: 'paragraph', content: [] }]
-            })
-            .focus(afterTogglePos + 2)
-            .run()
-          return true
-        }
-
-        // 커서 이후 내용을 새 토글로 분리
-        const paragraphNode = $from.node(toggleDepth + 1)
-        const offsetInParagraph = $from.pos - $from.start(toggleDepth + 1)
-        const afterContent = paragraphNode.cut(offsetInParagraph).content.toJSON()
-
-        const { tr } = state
-        // 현재 paragraph에서 커서 이후 삭제
-        tr.delete($from.pos, paragraphEnd)
-        // 삭제 후 삽입 위치 재계산
-        const newInsertPos = afterTogglePos - (paragraphEnd - $from.pos)
-        // 잘라낸 내용으로 새 토글 삽입
-        tr.insert(
-          newInsertPos,
-          state.schema.nodeFromJSON({
-            type: 'toggle',
-            attrs: { isOpen: true },
-            content: [{ type: 'paragraph', content: afterContent || [] }]
-          })
-        )
-        // 새 토글의 paragraph 첫 위치로 커서 이동
-        tr.setSelection(TextSelection.near(tr.doc.resolve(newInsertPos + 2)))
-        editor.view.dispatch(tr)
-        return true
+        if ($from.pos >= paragraphEnd)
+          return handleEnterAtEnd(editor, $from, toggleDepth, toggleNode, togglePos, afterTogglePos)
+        return handleEnterAtMiddle(editor, $from, toggleDepth, afterTogglePos, paragraphEnd)
       },
 
       // Shift+엔터: 블록 내부에서 줄바꿈 (soft break)
@@ -391,15 +359,7 @@ export const Toggle = Node.create({
         const { state } = editor
         const { $from } = state.selection
 
-        // 현재 토글 찾기
-        let toggleDepth = -1
-        for (let d = $from.depth; d > 0; d--) {
-          if ($from.node(d).type.name === 'toggle') {
-            toggleDepth = d
-            break
-          }
-        }
-
+        const toggleDepth = findToggleDepth($from)
         if (toggleDepth === -1) return false
 
         const togglePos = $from.before(toggleDepth)
@@ -447,15 +407,7 @@ export const Toggle = Node.create({
         const { state } = editor
         const { $from } = state.selection
 
-        // 현재 토글 찾기
-        let toggleDepth = -1
-        for (let d = $from.depth; d > 0; d--) {
-          if ($from.node(d).type.name === 'toggle') {
-            toggleDepth = d
-            break
-          }
-        }
-
+        const toggleDepth = findToggleDepth($from)
         if (toggleDepth === -1) return false
 
         const togglePos = $from.before(toggleDepth)
