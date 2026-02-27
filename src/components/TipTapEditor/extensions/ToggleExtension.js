@@ -28,6 +28,44 @@ function emptyToggleJSON(isOpen = true) {
   }
 }
 
+/** listItem JSON → toggle JSON 변환 (재귀: 중첩 리스트 → 중첩 토글) */
+function convertListItemToToggleJSON(listItem) {
+  const children = []
+  ;(listItem.content || []).forEach(child => {
+    if (child.type === 'paragraph') {
+      children.push(child)
+    } else if (child.type === 'orderedList' || child.type === 'bulletList') {
+      ;(child.content || []).forEach(subItem => children.push(convertListItemToToggleJSON(subItem)))
+    } else {
+      children.push(child)
+    }
+  })
+  if (children.length === 0 || children[0]?.type !== 'paragraph') {
+    children.unshift({ type: 'paragraph', content: [] })
+  }
+  const hasChildToggleNodes = children.slice(1).some(c => c.type === 'toggle')
+  return { type: 'toggle', attrs: { isOpen: hasChildToggleNodes }, content: children }
+}
+
+/** 문서 노드 JSON → toggle JSON 배열 변환 (재귀: toggle 내부도 처리) */
+function convertNodeToTogglesJSON(node) {
+  switch (node.type) {
+    case 'paragraph':
+      return [{ type: 'toggle', attrs: { isOpen: false }, content: [node] }]
+    case 'orderedList':
+    case 'bulletList':
+      return (node.content || []).map(convertListItemToToggleJSON)
+    case 'toggle': {
+      const newChildren = []
+      ;(node.content || []).forEach(child => newChildren.push(...convertNodeToTogglesJSON(child)))
+      const hasChildToggleNodes = newChildren.slice(1).some(c => c.type === 'toggle')
+      return [{ ...node, attrs: { ...node.attrs, isOpen: hasChildToggleNodes }, content: newChildren }]
+    }
+    default:
+      return [node] // heading, codeBlock, table 등 → 그대로 유지
+  }
+}
+
 /**
  * Toggle Extension for TipTap
  * Notion-style collapsible blocks with children
@@ -152,7 +190,9 @@ export const Toggle = Node.create({
       const button = document.createElement('button')
       button.classList.add('toggle-button')
       button.contentEditable = 'false'
-      button.textContent = node.attrs.isOpen ? '▼' : '▶'
+      button.textContent = hasChildToggles(node)
+        ? (node.attrs.isOpen ? '▼' : '▶')
+        : (node.attrs.isOpen ? '▽' : '▷')
 
       // Content area (contentDOM) - 버튼 옆에 배치
       const contentWrapper = document.createElement('div')
@@ -196,7 +236,9 @@ export const Toggle = Node.create({
         update: (updatedNode) => {
           if (updatedNode.type.name !== 'toggle') return false
 
-          button.textContent = updatedNode.attrs.isOpen ? '▼' : '▶'
+          button.textContent = hasChildToggles(updatedNode)
+            ? (updatedNode.attrs.isOpen ? '▼' : '▶')
+            : (updatedNode.attrs.isOpen ? '▽' : '▷')
           contentWrapper.className = updatedNode.attrs.isOpen
             ? 'toggle-content open'
             : 'toggle-content closed'
@@ -244,10 +286,9 @@ export const Toggle = Node.create({
 
   addCommands() {
     return {
-      setToggle: () => ({ commands, editor, chain }) => {
+      setToggle: () => ({ editor, chain }) => {
         const { state } = editor
         const { selection } = state
-        const { $from, empty } = selection
 
         // 에디터가 비어있는지 확인 (doc에 빈 paragraph만 있는 경우)
         const isEmptyDoc = state.doc.content.size <= 2 ||
@@ -282,6 +323,18 @@ export const Toggle = Node.create({
         }
 
         return false
+      },
+
+      // paragraph, orderedList, bulletList → toggle 변환 (heading/codeBlock 등은 유지)
+      convertAllToToggle: () => ({ editor }) => {
+        const json = editor.getJSON()
+        if (!json?.content) return false
+
+        const newContent = []
+        json.content.forEach(node => newContent.push(...convertNodeToTogglesJSON(node)))
+
+        editor.commands.setContent({ ...json, content: newContent })
+        return true
       },
     }
   },

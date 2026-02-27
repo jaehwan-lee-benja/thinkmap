@@ -597,6 +597,14 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
             토글
           </button>
           <button
+            onClick={() => editorRef.current?.commands.convertAllToToggle()}
+            className="tiptap-btn tiptap-btn-secondary"
+            title="전체 내용을 토글로 변환 (paragraph, 넘버링, 점찍힌거)"
+          >
+            <ChevronRight />
+            전체 토글화
+          </button>
+          <button
             onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
             className="tiptap-btn tiptap-btn-secondary"
             title="3x3 표 삽입"
