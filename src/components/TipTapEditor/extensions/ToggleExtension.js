@@ -1,5 +1,5 @@
 import { Node, mergeAttributes, InputRule } from '@tiptap/core'
-import { NodeSelection } from '@tiptap/pm/state'
+import { NodeSelection, TextSelection, Plugin } from '@tiptap/pm/state'
 
 /**
  * Toggle Extension for TipTap
@@ -134,29 +134,54 @@ export const Toggle = Node.create({
         e.preventDefault()
         e.stopPropagation()
 
-        if (typeof getPos === 'function') {
-          const pos = getPos()
-          const currentNode = editor.state.doc.nodeAt(pos)
-
-          if (currentNode) {
-            const newIsOpen = !currentNode.attrs.isOpen
-
-            // Transaction으로 노드 속성 변경
-            const { tr } = editor.state
-            tr.setNodeMarkup(pos, null, {
-              ...currentNode.attrs,
-              isOpen: newIsOpen,
-            })
-            editor.view.dispatch(tr)
-
-            // DOM 즉시 업데이트
-            button.textContent = newIsOpen ? '▼' : '▶'
-            contentWrapper.className = newIsOpen
-              ? 'toggle-content open'
-              : 'toggle-content closed'
-            dom.setAttribute('data-is-open', newIsOpen)
-          }
+        if (typeof getPos !== 'function') {
+          console.warn('[TOGGLE BTN] getPos is not a function')
+          return
         }
+
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        console.log('[TOGGLE BTN] click | pos:', pos, '| currentNode:', currentNode?.type?.name, '| isOpen:', currentNode?.attrs?.isOpen)
+
+        if (!currentNode) {
+          console.warn('[TOGGLE BTN] currentNode not found at pos', pos)
+          return
+        }
+
+        const newIsOpen = !currentNode.attrs.isOpen
+        const { tr } = editor.state
+        tr.setNodeMarkup(pos, null, { ...currentNode.attrs, isOpen: newIsOpen })
+        // 버튼 클릭임을 표시 → 플러그인이 자동 열기를 건너뜀
+        tr.setMeta('toggleButtonClick', true)
+
+        // 열 때, 하위 토글이 없으면 빈 하위 토글 자동 생성
+        if (newIsOpen) {
+          let hasChildToggles = false
+          for (let i = 1; i < currentNode.childCount; i++) {
+            if (currentNode.child(i).type.name === 'toggle') {
+              hasChildToggles = true
+              break
+            }
+          }
+          console.log('[TOGGLE BTN] opening | childCount:', currentNode.childCount, '| hasChildToggles:', hasChildToggles)
+          if (!hasChildToggles) {
+            const insertPos = pos + currentNode.nodeSize - 1
+            console.log('[TOGGLE BTN] inserting child toggle at insertPos:', insertPos, '(nodeSize:', currentNode.nodeSize, ')')
+            tr.insert(
+              insertPos,
+              editor.state.schema.nodeFromJSON({
+                type: 'toggle',
+                attrs: { isOpen: true },
+                content: [{ type: 'paragraph', content: [] }]
+              })
+            )
+          }
+        } else {
+          console.log('[TOGGLE BTN] closing')
+        }
+
+        editor.view.dispatch(tr)
+        console.log('[TOGGLE BTN] dispatch done | new isOpen:', newIsOpen)
       })
 
       dom.appendChild(dragHandle)
@@ -168,23 +193,65 @@ export const Toggle = Node.create({
         contentDOM: contentWrapper,
         update: (updatedNode) => {
           if (updatedNode.type.name !== 'toggle') {
+            console.warn('[TOGGLE UPDATE] type mismatch, returning false')
             return false
           }
+          console.log('[TOGGLE UPDATE] isOpen:', updatedNode.attrs.isOpen, '| childCount:', updatedNode.childCount)
 
-          // Update button text
           button.textContent = updatedNode.attrs.isOpen ? '▼' : '▶'
-
-          // Update content visibility
           contentWrapper.className = updatedNode.attrs.isOpen
             ? 'toggle-content open'
             : 'toggle-content closed'
-
           dom.setAttribute('data-is-open', updatedNode.attrs.isOpen)
 
           return true
         },
       }
     }
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        appendTransaction(transactions, _oldState, newState) {
+          // 선택 변경이 있는 트랜잭션에서만 실행
+          if (!transactions.some(tr => tr.selectionSet || tr.docChanged)) return null
+
+          // 버튼 클릭으로 직접 토글한 경우 자동 열기 건너뜀
+          if (transactions.some(tr => tr.getMeta('toggleButtonClick'))) return null
+
+          const { $from } = newState.selection
+
+          for (let d = $from.depth; d > 0; d--) {
+            const node = $from.node(d)
+            if (node.type.name === 'toggle' && !node.attrs.isOpen) {
+              // 하위 토글이 있을 때만 자동 열기
+              // 닫힘 상태에서 첫 번째 자식(paragraph)은 CSS로 이미 보이므로
+              // 하위 블록 없으면 닫힌 채로 paragraph에 커서만 이동
+              let hasChildToggles = false
+              for (let i = 1; i < node.childCount; i++) {
+                if (node.child(i).type.name === 'toggle') {
+                  hasChildToggles = true
+                  break
+                }
+              }
+              console.log('[TOGGLE PLUGIN] cursor in closed toggle | depth:', d, '| hasChildToggles:', hasChildToggles)
+              if (hasChildToggles) {
+                const pos = $from.before(d)
+                const tr = newState.tr
+                tr.setNodeMarkup(pos, null, { ...node.attrs, isOpen: true })
+                console.log('[TOGGLE PLUGIN] auto-opening toggle at pos:', pos)
+                return tr
+              }
+              console.log('[TOGGLE PLUGIN] no children → stay closed, cursor at paragraph')
+              break
+            }
+          }
+
+          return null
+        },
+      }),
+    ]
   },
 
   addCommands() {
@@ -253,12 +320,12 @@ export const Toggle = Node.create({
     return {
       'Mod-Shift-t': () => this.editor.commands.setToggle(),
 
-      // 엔터: 토글 밖으로 나가서 새 토글 생성
+      // 엔터: 커서 위치에서 토글 분리
       'Enter': ({ editor }) => {
         const { state } = editor
         const { $from } = state.selection
 
-        // 현재 토글 내부에 있는지 확인
+        // 현재 위치에서 가장 안쪽 토글 찾기
         let toggleDepth = -1
         for (let d = $from.depth; d > 0; d--) {
           if ($from.node(d).type.name === 'toggle') {
@@ -267,25 +334,50 @@ export const Toggle = Node.create({
           }
         }
 
-        if (toggleDepth === -1) {
-          // 토글 내부가 아니면 기본 동작
-          return false
-        }
+        if (toggleDepth === -1) return false
 
-        // 토글 다음 위치에 새 토글 삽입
         const togglePos = $from.before(toggleDepth)
         const toggleNode = state.doc.nodeAt(togglePos)
         const afterTogglePos = togglePos + toggleNode.nodeSize
 
-        editor.chain()
-          .insertContentAt(afterTogglePos, {
+        // paragraph depth = toggleDepth + 1
+        const paragraphEnd = $from.end(toggleDepth + 1)
+
+        // 커서가 끝에 있으면: 빈 새 토글 생성
+        if ($from.pos >= paragraphEnd) {
+          editor.chain()
+            .insertContentAt(afterTogglePos, {
+              type: 'toggle',
+              attrs: { isOpen: true },
+              content: [{ type: 'paragraph', content: [] }]
+            })
+            .focus(afterTogglePos + 2)
+            .run()
+          return true
+        }
+
+        // 커서 이후 내용을 새 토글로 분리
+        const paragraphNode = $from.node(toggleDepth + 1)
+        const offsetInParagraph = $from.pos - $from.start(toggleDepth + 1)
+        const afterContent = paragraphNode.cut(offsetInParagraph).content.toJSON()
+
+        const { tr } = state
+        // 현재 paragraph에서 커서 이후 삭제
+        tr.delete($from.pos, paragraphEnd)
+        // 삭제 후 삽입 위치 재계산
+        const newInsertPos = afterTogglePos - (paragraphEnd - $from.pos)
+        // 잘라낸 내용으로 새 토글 삽입
+        tr.insert(
+          newInsertPos,
+          state.schema.nodeFromJSON({
             type: 'toggle',
             attrs: { isOpen: true },
-            content: [{ type: 'paragraph', content: [] }]
+            content: [{ type: 'paragraph', content: afterContent || [] }]
           })
-          .focus(afterTogglePos + 2)
-          .run()
-
+        )
+        // 새 토글의 paragraph 첫 위치로 커서 이동
+        tr.setSelection(TextSelection.near(tr.doc.resolve(newInsertPos + 2)))
+        editor.view.dispatch(tr)
         return true
       },
 

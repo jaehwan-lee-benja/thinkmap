@@ -38,6 +38,28 @@ import './TipTapEditor.css'
 // lowlight 인스턴스 생성 (common 언어들: js, css, html, python 등)
 const lowlight = createLowlight(common)
 
+// 열린 토글 중 하위 토글 없는 것을 닫기 (기존 데이터 정규화)
+function normalizeToggleStates(json) {
+  if (!json?.content) return json
+  const fixNode = (node) => {
+    if (node.type === 'toggle') {
+      const children = node.content || []
+      const fixedChildren = children.map(fixNode)
+      const hasChildToggles = fixedChildren.slice(1).some(c => c.type === 'toggle')
+      if (node.attrs?.isOpen && !hasChildToggles) {
+        console.log('[NORMALIZE] 하위 토글 없는 열린 토글 → 닫기')
+        return { ...node, attrs: { ...node.attrs, isOpen: false }, content: fixedChildren }
+      }
+      return { ...node, content: fixedChildren }
+    }
+    if (node.content) {
+      return { ...node, content: node.content.map(fixNode) }
+    }
+    return node
+  }
+  return { ...json, content: json.content.map(fixNode) }
+}
+
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
   // 블록 컨텍스트 메뉴 상태
   const [contextMenuVisible, setContextMenuVisible] = useState(false)
@@ -149,8 +171,11 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
   // content가 외부에서 변경되었을 때 에디터 업데이트
   React.useEffect(() => {
-    if (editor && content && JSON.stringify(editor.getJSON()) !== JSON.stringify(content)) {
-      editor.commands.setContent(content)
+    if (editor && content) {
+      const normalized = normalizeToggleStates(content)
+      if (JSON.stringify(editor.getJSON()) !== JSON.stringify(normalized)) {
+        editor.commands.setContent(normalized)
+      }
     }
   }, [content, editor])
 
