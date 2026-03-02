@@ -114,7 +114,11 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         placeholder,
       }),
       Link.configure({
-        openOnClick: false,
+        openOnClick: true,
+        HTMLAttributes: {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
       }),
       Image,
       Toggle,
