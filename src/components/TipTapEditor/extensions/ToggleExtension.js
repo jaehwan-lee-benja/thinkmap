@@ -1,5 +1,6 @@
 import { Node, mergeAttributes, InputRule } from '@tiptap/core'
-import { NodeSelection, TextSelection, Plugin } from '@tiptap/pm/state'
+import { NodeSelection, TextSelection, Plugin, PluginKey } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 // --- 헬퍼 함수 ---
 
@@ -314,6 +315,27 @@ export const Toggle = Node.create({
           return null
         },
       }),
+      // 커서가 위치한 가장 가까운 토글 블록에 음영 표시
+      new Plugin({
+        key: new PluginKey('toggleFocusHighlight'),
+        props: {
+          decorations(state) {
+            const { $from } = state.selection
+            const depth = findToggleDepth($from)
+            if (depth === -1) return DecorationSet.empty
+
+            const pos = $from.before(depth)
+            const node = state.doc.nodeAt(pos)
+            if (!node) return DecorationSet.empty
+
+            return DecorationSet.create(state.doc, [
+              Decoration.node(pos, pos + node.nodeSize, {
+                class: 'toggle-block-focused',
+              }),
+            ])
+          },
+        },
+      }),
     ]
   },
 
@@ -440,6 +462,74 @@ export const Toggle = Node.create({
         return editor.commands.setHardBreak()
       },
 
+      // 왼쪽 화살표: 토글 paragraph 시작에서 누르면 토글 화살표 선택 (NodeSelection)
+      'ArrowLeft': ({ editor }) => {
+        const { state } = editor
+        const { $from, empty } = state.selection
+
+        if (!empty) return false
+
+        const toggleDepth = findToggleDepth($from)
+        if (toggleDepth === -1) return false
+
+        const togglePos = $from.before(toggleDepth)
+        const paragraphStart = $from.start(toggleDepth + 1)
+
+        if ($from.pos === paragraphStart) {
+          const { tr } = state
+          tr.setSelection(NodeSelection.create(state.doc, togglePos))
+          editor.view.dispatch(tr)
+          return true
+        }
+
+        return false
+      },
+
+      // 오른쪽 화살표: 토글이 NodeSelection 상태이면 내부 paragraph 시작으로 이동
+      'ArrowRight': ({ editor }) => {
+        const { state } = editor
+        const { selection } = state
+
+        if (!(selection instanceof NodeSelection)) return false
+        if (selection.node.type.name !== 'toggle') return false
+
+        const insidePos = selection.from + 2 // toggle > paragraph 시작
+        const { tr } = state
+        tr.setSelection(TextSelection.create(state.doc, insidePos))
+        editor.view.dispatch(tr)
+        return true
+      },
+
+      // 아래 화살표: 토글 화살표 선택 상태에서 토글 열기
+      'ArrowDown': ({ editor }) => {
+        const { state } = editor
+        const { selection } = state
+
+        if (!(selection instanceof NodeSelection)) return false
+        if (selection.node.type.name !== 'toggle') return false
+
+        const pos = selection.from
+        const node = selection.node
+
+        if (!node.attrs.isOpen) {
+          const { tr } = state
+          tr.setNodeMarkup(pos, null, { ...node.attrs, isOpen: true })
+
+          // 하위 토글이 없으면 빈 하위 토글 자동 생성
+          if (!hasChildToggles(node)) {
+            const insertPos = pos + node.nodeSize - 1
+            tr.insert(insertPos, state.schema.nodeFromJSON(emptyToggleJSON(true, true)))
+          }
+
+          // 커서를 내부 paragraph로 이동
+          tr.setSelection(TextSelection.create(tr.doc, pos + 2))
+          editor.view.dispatch(tr)
+          return true
+        }
+
+        return false
+      },
+
       // Tab: 위 토글의 하위로 들여쓰기
       'Tab': ({ editor }) => {
         const { state } = editor
@@ -486,6 +576,51 @@ export const Toggle = Node.create({
         editor.commands.focus(insertPos + 2)
 
         return true
+      },
+
+      // Backspace: 토글 첫 위치에서 토글 해제 방지, 단 빈 토글이면 삭제
+      'Backspace': ({ editor }) => {
+        const { state } = editor
+        const { $from, empty } = state.selection
+
+        if (!empty) return false
+
+        const toggleDepth = findToggleDepth($from)
+        if (toggleDepth === -1) return false
+
+        const togglePos = $from.before(toggleDepth)
+        const toggleNode = state.doc.nodeAt(togglePos)
+        if (!toggleNode) return false
+
+        // 커서가 블록 시작 위치에 있는지 확인
+        const blockStart = $from.start(toggleDepth + 1)
+        if ($from.pos !== blockStart) return false
+
+        // 토글의 첫 번째 자식(index 0)인 경우에만 토글 해제 방지
+        const indexInToggle = $from.index(toggleDepth)
+        if (indexInToggle > 0) return false // 두 번째 이후 자식은 기본 동작 허용
+
+        if ($from.pos === blockStart) {
+          // 첫 번째 paragraph이 비어있고 하위 토글이 없으면 → 토글 블록 삭제
+          const firstChild = toggleNode.firstChild
+          const isEmpty = firstChild && firstChild.content.size === 0 && !hasChildToggles(toggleNode)
+
+          if (isEmpty) {
+            const { tr } = state
+            tr.delete(togglePos, togglePos + toggleNode.nodeSize)
+            // 커서를 이전 블록 끝으로 이동
+            if (togglePos > 0) {
+              tr.setSelection(TextSelection.near(tr.doc.resolve(togglePos), -1))
+            }
+            editor.view.dispatch(tr)
+            return true
+          }
+
+          // 내용이 있으면 토글 해제 방지
+          return true
+        }
+
+        return false
       },
 
       // Shift+Tab: 토글 밖으로 내어쓰기

@@ -449,12 +449,16 @@ th .paragraph-drag-handle {
   border-radius: 4px;
 }
 
-/* 토글 블록 선택 시 스타일 */
+/* 토글 블록 선택 시 스타일 (NodeSelection) */
 .toggle-block.ProseMirror-selectednode {
-  outline: 2px solid rgba(59, 130, 246, 0.5);
-  outline-offset: 2px;
-  border-radius: 4px;
-  background: rgba(59, 130, 246, 0.05);
+  outline: none;
+  background: transparent;
+}
+
+.toggle-block.ProseMirror-selectednode > .toggle-button {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  border-radius: 0.25rem;
 }
 
 /* 토글 내부 요소 배경 투명 유지 */
@@ -570,6 +574,12 @@ th .paragraph-drag-handle {
 .toggle-content > .toggle-block {
   margin-left: -16px; /* 드래그 핸들 너비만큼 왼쪽으로 당겨서 상위 버튼 아래 정렬 */
   background: transparent !important;
+}
+
+/* 커서가 위치한 토글 블록 음영 표시 */
+.toggle-block-focused {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-radius: 0.25rem;
 }
 
 /* 모든 토글 관련 요소 배경 제거 (App.css 오버라이드) */
