@@ -285,7 +285,27 @@ export const Toggle = Node.create({
   },
 
   addProseMirrorPlugins() {
+    const allowedInToggle = new Set(['paragraph', 'toggle'])
     return [
+      // 토글 내부에 paragraph/toggle 외 블록 생성 방지
+      new Plugin({
+        filterTransaction(tr, state) {
+          if (!tr.docChanged) return true
+          let dominated = false
+          tr.doc.descendants((node, pos) => {
+            if (dominated) return false
+            if (node.type.name === 'toggle') {
+              node.forEach((child, _offset, index) => {
+                if (index === 0) return // 첫 번째 자식(paragraph)은 허용
+                if (!allowedInToggle.has(child.type.name)) {
+                  dominated = true
+                }
+              })
+            }
+          })
+          return !dominated
+        },
+      }),
       new Plugin({
         appendTransaction(transactions, _oldState, newState) {
           // 선택 변경이 있는 트랜잭션에서만 실행
@@ -299,13 +319,15 @@ export const Toggle = Node.create({
           for (let d = $from.depth; d > 0; d--) {
             const node = $from.node(d)
             if (node.type.name === 'toggle' && !node.attrs.isOpen) {
-              // 하위 토글이 있을 때만 자동 열기
-              // 닫힘 상태에서 첫 번째 자식(paragraph)은 CSS로 이미 보이므로
-              // 하위 블록 없으면 닫힌 채로 paragraph에 커서만 이동
+              // 커서가 첫 번째 자식(paragraph) 안에 있으면 자동 열기 안함
+              // paragraph는 닫힌 상태에서도 CSS로 보이므로 커서 이동은 정상
+              const toggleStart = $from.before(d)
+              const paragraphEnd = toggleStart + 1 + node.child(0).nodeSize
+              if ($from.pos < paragraphEnd) break
+
               if (hasChildToggles(node)) {
-                const pos = $from.before(d)
                 const tr = newState.tr
-                tr.setNodeMarkup(pos, null, { ...node.attrs, isOpen: true })
+                tr.setNodeMarkup(toggleStart, null, { ...node.attrs, isOpen: true })
                 return tr
               }
               break
@@ -500,6 +522,29 @@ export const Toggle = Node.create({
         return true
       },
 
+      // 위 화살표: 토글 화살표 선택 상태에서 토글 닫기
+      'ArrowUp': ({ editor }) => {
+        const { state } = editor
+        const { selection } = state
+
+        if (!(selection instanceof NodeSelection)) return false
+        if (selection.node.type.name !== 'toggle') return false
+
+        const pos = selection.from
+        const node = selection.node
+
+        if (node.attrs.isOpen) {
+          const { tr } = state
+          tr.setNodeMarkup(pos, null, { ...node.attrs, isOpen: false })
+          tr.setMeta('toggleButtonClick', true)
+          tr.setSelection(NodeSelection.create(tr.doc, pos))
+          editor.view.dispatch(tr)
+          return true
+        }
+
+        return false
+      },
+
       // 아래 화살표: 토글 화살표 선택 상태에서 토글 열기
       'ArrowDown': ({ editor }) => {
         const { state } = editor
@@ -512,6 +557,7 @@ export const Toggle = Node.create({
         const node = selection.node
 
         if (!node.attrs.isOpen) {
+          // 닫혀있으면 열기
           const { tr } = state
           tr.setNodeMarkup(pos, null, { ...node.attrs, isOpen: true })
 
@@ -521,8 +567,21 @@ export const Toggle = Node.create({
             tr.insert(insertPos, state.schema.nodeFromJSON(emptyToggleJSON(true, true)))
           }
 
-          // 커서를 내부 paragraph로 이동
-          tr.setSelection(TextSelection.create(tr.doc, pos + 2))
+          // 화살표 선택 상태 유지
+          tr.setMeta('toggleButtonClick', true)
+          tr.setSelection(NodeSelection.create(tr.doc, pos))
+          editor.view.dispatch(tr)
+          return true
+        }
+
+        // 이미 열려있으면 첫 번째 하위 토글의 paragraph로 커서 이동
+        if (node.childCount > 1) {
+          const paragraphNode = node.child(0)
+          const firstChildPos = pos + 1 + paragraphNode.nodeSize
+          // 첫 번째 하위 토글 내부 paragraph 시작 위치 (toggle > paragraph)
+          const cursorPos = firstChildPos + 2
+          const { tr } = state
+          tr.setSelection(TextSelection.create(state.doc, cursorPos))
           editor.view.dispatch(tr)
           return true
         }
@@ -559,21 +618,27 @@ export const Toggle = Node.create({
           return true
         }
 
-        // 현재 토글을 삭제하고 이전 토글의 마지막에 삽입
+        // 이전 토글을 열고, 현재 토글을 이전 토글 끝에 삽입 후 원래 위치에서 삭제
         const tr = state.tr
 
-        // 현재 토글 삭제
-        tr.delete(togglePos, togglePos + toggleNode.nodeSize)
+        // 이전 토글이 닫혀있으면 열기
+        if (!prevSibling.attrs.isOpen) {
+          tr.setNodeMarkup(prevSiblingPos, null, { ...prevSibling.attrs, isOpen: true })
+        }
 
-        // 이전 토글의 contentDOM 끝에 삽입
-        // 이전 토글의 끝 위치 = prevSiblingPos + prevSibling.nodeSize - 1
+        // 먼저 이전 토글의 끝에 삽입
         const insertPos = prevSiblingPos + prevSibling.nodeSize - 1
         tr.insert(insertPos, toggleNode)
+
+        // 삽입 후 매핑된 위치에서 원래 토글 삭제
+        const mappedTogglePos = tr.mapping.map(togglePos)
+        tr.delete(mappedTogglePos, mappedTogglePos + toggleNode.nodeSize)
 
         editor.view.dispatch(tr)
 
         // 새 위치로 포커스
-        editor.commands.focus(insertPos + 2)
+        const newCursorPos = tr.mapping.map(insertPos + 2)
+        editor.commands.focus(newCursorPos)
 
         return true
       },
