@@ -1,205 +1,103 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabaseClient'
 
-/**
- * 사용자 환경설정 관리 훅 (Supabase 동기화)
- * - 마지막 방문 프로젝트/페이지 저장
- * - 모든 기기에서 동기화
- */
 export const useUserPreferences = (session) => {
-  const [preferences, setPreferences] = useState(null)
+  const [prefs, setPrefs] = useState(null)
   const [preferencesLoading, setPreferencesLoading] = useState(true)
+  const userId = session?.user?.id
 
   // 환경설정 로드
-  const fetchPreferences = useCallback(async () => {
-    if (!session?.user?.id) {
-      setPreferences(null)
+  useEffect(() => {
+    if (!userId) {
+      setPrefs(null)
       setPreferencesLoading(false)
       return
     }
 
-    try {
-      setPreferencesLoading(true)
+    let cancelled = false
+    setPreferencesLoading(true)
 
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single()
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
 
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 = no rows found (정상적인 경우)
-        console.error('환경설정 로드 오류:', error.message)
-        return
+        if (cancelled) return
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('환경설정 로드 오류:', error.message)
+          return
+        }
+
+        if (data) {
+          setPrefs(data)
+        } else {
+          const { data: created } = await supabase
+            .from('user_preferences')
+            .insert([{ user_id: userId }])
+            .select()
+            .single()
+          if (!cancelled && created) setPrefs(created)
+        }
+      } catch (e) {
+        if (!cancelled) console.error('환경설정 로드 오류:', e.message)
+      } finally {
+        if (!cancelled) setPreferencesLoading(false)
       }
+    })()
 
-      if (data) {
-        setPreferences(data)
-      } else {
-        // 환경설정이 없으면 새로 생성
-        const newPrefs = await createPreferences()
-        setPreferences(newPrefs)
-      }
-    } catch (error) {
-      console.error('환경설정 로드 오류:', error.message)
-    } finally {
-      setPreferencesLoading(false)
-    }
-  }, [session?.user?.id])
+    return () => { cancelled = true }
+  }, [userId])
 
-  // 환경설정 생성
-  const createPreferences = async () => {
-    if (!session?.user?.id) return null
+  // 공통 저장 헬퍼 (모든 save 함수가 이것을 사용)
+  const save = useCallback(async (fields) => {
+    if (!userId) return
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert({ user_id: userId, updated_at: new Date().toISOString(), ...fields }, { onConflict: 'user_id' })
+    if (error) { console.error('환경설정 저장 오류:', error.message); return }
+    setPrefs(prev => prev ? { ...prev, ...fields } : null)
+  }, [userId])
 
-    try {
-      const newPrefs = {
-        user_id: session.user.id,
-        last_project_id: null,
-        last_page_id: null,
-      }
+  // 일반 탐색
+  const saveLastProject = useCallback((id) => save({ last_project_id: id }), [save])
+  const saveLastPage = useCallback((id) => save({ last_page_id: id }), [save])
+  const saveExpandedPages = useCallback((pages) => save({ expanded_pages: pages }), [save])
 
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .insert([newPrefs])
-        .select()
-        .single()
-
-      if (error) {
-        console.error('환경설정 생성 오류:', error.message)
-        return null
-      }
-
-      return data
-    } catch (error) {
-      console.error('환경설정 생성 오류:', error.message)
-      return null
-    }
-  }
-
-  // 마지막 프로젝트 저장
-  const saveLastProject = useCallback(async (projectId) => {
-    if (!session?.user?.id) return
-
-    try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: session.user.id,
-          last_project_id: projectId,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        })
-
-      if (error) {
-        console.error('마지막 프로젝트 저장 오류:', error.message)
-        return
-      }
-
-      setPreferences(prev => prev ? { ...prev, last_project_id: projectId } : null)
-    } catch (error) {
-      console.error('마지막 프로젝트 저장 오류:', error.message)
-    }
-  }, [session?.user?.id])
-
-  // 마지막 페이지 저장
-  const saveLastPage = useCallback(async (pageId) => {
-    if (!session?.user?.id) return
-
-    try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: session.user.id,
-          last_page_id: pageId,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        })
-
-      if (error) {
-        console.error('마지막 페이지 저장 오류:', error.message)
-        return
-      }
-
-      setPreferences(prev => prev ? { ...prev, last_page_id: pageId } : null)
-    } catch (error) {
-      console.error('마지막 페이지 저장 오류:', error.message)
-    }
-  }, [session?.user?.id])
-
-  // 프로젝트와 페이지 동시 저장 (효율성)
-  const saveLastLocation = useCallback(async (projectId, pageId) => {
-    if (!session?.user?.id) return
-
-    try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: session.user.id,
-          last_project_id: projectId,
-          last_page_id: pageId,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        })
-
-      if (error) {
-        console.error('마지막 위치 저장 오류:', error.message)
-        return
-      }
-
-      setPreferences(prev => prev ? {
-        ...prev,
-        last_project_id: projectId,
-        last_page_id: pageId
-      } : null)
-    } catch (error) {
-      console.error('마지막 위치 저장 오류:', error.message)
-    }
-  }, [session?.user?.id])
-
-  // 펼친 페이지 상태 저장
-  const saveExpandedPages = useCallback(async (expandedPages) => {
-    if (!session?.user?.id) return
-
-    try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: session.user.id,
-          expanded_pages: expandedPages,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        })
-
-      if (error) {
-        console.error('펼친 페이지 저장 오류:', error.message)
-        return
-      }
-
-      setPreferences(prev => prev ? { ...prev, expanded_pages: expandedPages } : null)
-    } catch (error) {
-      console.error('펼친 페이지 저장 오류:', error.message)
-    }
-  }, [session?.user?.id])
-
-  // 세션 변경 시 환경설정 로드
-  useEffect(() => {
-    fetchPreferences()
-  }, [fetchPreferences])
+  // 임퍼소네이션 (마스터 전용)
+  const saveLastImpersonation = useCallback(
+    (uid, email) => save({ last_impersonated_user_id: uid, last_impersonated_user_email: email }),
+    [save]
+  )
+  const saveLastImpersonatedProject = useCallback((id) => save({ last_impersonated_project_id: id }), [save])
+  const saveLastImpersonatedPage = useCallback((id) => save({ last_impersonated_page_id: id }), [save])
+  const clearLastImpersonation = useCallback(() => save({
+    last_impersonated_user_id: null,
+    last_impersonated_user_email: null,
+    last_impersonated_project_id: null,
+    last_impersonated_page_id: null,
+  }), [save])
 
   return {
-    preferences,
     preferencesLoading,
-    lastProjectId: preferences?.last_project_id || null,
-    lastPageId: preferences?.last_page_id || null,
-    expandedPages: preferences?.expanded_pages || {},
+    // 일반
+    lastProjectId: prefs?.last_project_id ?? null,
+    lastPageId: prefs?.last_page_id ?? null,
+    expandedPages: prefs?.expanded_pages ?? {},
     saveLastProject,
     saveLastPage,
-    saveLastLocation,
     saveExpandedPages,
-    fetchPreferences,
+    // 임퍼소네이션
+    lastImpersonatedUserId: prefs?.last_impersonated_user_id ?? null,
+    lastImpersonatedUserEmail: prefs?.last_impersonated_user_email ?? null,
+    lastImpersonatedProjectId: prefs?.last_impersonated_project_id ?? null,
+    lastImpersonatedPageId: prefs?.last_impersonated_page_id ?? null,
+    saveLastImpersonation,
+    saveLastImpersonatedProject,
+    saveLastImpersonatedPage,
+    clearLastImpersonation,
   }
 }

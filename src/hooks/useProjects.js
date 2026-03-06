@@ -17,6 +17,10 @@ export const useProjects = (session, options = {}) => {
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
   const prevUserIdRef = useRef(null)
+  // 초기 프로젝트 선택이 필요한지 여부 (stale closure 방지용 ref)
+  const needsInitialSelectRef = useRef(true)
+  // fetch 무효화용 카운터 (경쟁 조건 방지 — 오래된 응답 무시)
+  const fetchCountRef = useRef(0)
 
   // 프로젝트 선택 (콜백 호출 포함)
   const selectProject = useCallback((projectId) => {
@@ -30,6 +34,8 @@ export const useProjects = (session, options = {}) => {
   const fetchProjects = useCallback(async () => {
     if (!session?.user?.id) return
 
+    const myFetchId = ++fetchCountRef.current
+
     try {
       setProjectsLoading(true)
 
@@ -39,6 +45,9 @@ export const useProjects = (session, options = {}) => {
         .eq('user_id', session.user.id)
         .order('position', { ascending: true })
 
+      // 더 최신 fetch가 시작됐으면 이 응답은 무시 (경쟁 조건 방지)
+      if (myFetchId !== fetchCountRef.current) return
+
       if (logError('프로젝트 로드', error)) return
 
       if (!data || data.length === 0) {
@@ -46,14 +55,15 @@ export const useProjects = (session, options = {}) => {
         await createDefaultProject()
       } else {
         setProjects(data)
-        // 현재 프로젝트가 설정되지 않았으면 초기값 또는 첫 번째 프로젝트 선택
-        if (!currentProjectId && data.length > 0) {
+        // 초기 선택이 필요한 경우에만 (ref로 stale closure 방지)
+        if (needsInitialSelectRef.current && data.length > 0) {
+          needsInitialSelectRef.current = false
           const targetProject = initialProjectId
             ? data.find(p => p.id === initialProjectId)
             : null
           const targetProjectId = targetProject ? targetProject.id : data[0].id
           setCurrentProjectId(targetProjectId)
-          // 초기 로드 시에는 콜백 호출하지 않음 (이미 저장된 값이므로)
+          // 저장된 값으로 복원할 때는 콜백 호출하지 않음
           if (!targetProject && onProjectChange) {
             onProjectChange(targetProjectId)
           }
@@ -63,9 +73,9 @@ export const useProjects = (session, options = {}) => {
     } catch (error) {
       logError('프로젝트 로드', error)
     } finally {
-      setProjectsLoading(false)
+      if (myFetchId === fetchCountRef.current) setProjectsLoading(false)
     }
-  }, [session?.user?.id, initialProjectId, currentProjectId, onProjectChange])
+  }, [session?.user?.id, initialProjectId, onProjectChange])
 
   // 기본 프로젝트 생성
   const createDefaultProject = async () => {
@@ -221,6 +231,8 @@ export const useProjects = (session, options = {}) => {
         setProjects([])
         setCurrentProjectId(null)
         setInitialized(false)
+        needsInitialSelectRef.current = true  // 다음 fetch에서 초기 선택 수행
+        fetchCountRef.current++               // 진행 중인 fetch 무효화
       }
       prevUserIdRef.current = session.user.id
       fetchProjects()
@@ -230,6 +242,7 @@ export const useProjects = (session, options = {}) => {
       setProjectsLoading(false)
       setInitialized(false)
       prevUserIdRef.current = null
+      fetchCountRef.current++  // 진행 중인 fetch 무효화
     }
   }, [session?.user?.id, initialProjectId, preferencesLoaded])
 

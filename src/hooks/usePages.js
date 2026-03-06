@@ -71,6 +71,8 @@ export const usePages = (session, currentProjectId, options = {}) => {
   const prevUserIdRef = useRef(null)
   // 초기 로드 완료 여부
   const initialLoadDoneRef = useRef(false)
+  // fetch 무효화용 카운터 (경쟁 조건 방지 — 오래된 응답 무시)
+  const fetchCountRef = useRef(0)
   // initialPageId를 항상 최신값으로 유지 (클로저 stale 방지)
   const initialPageIdRef = useRef(initialPageId)
   useLayoutEffect(() => {
@@ -92,6 +94,8 @@ export const usePages = (session, currentProjectId, options = {}) => {
   const fetchPages = useCallback(async () => {
     if (!session?.user?.id || !currentProjectId) return
 
+    const myFetchId = ++fetchCountRef.current
+
     try {
       setPagesLoading(true)
 
@@ -102,6 +106,9 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .eq('project_id', currentProjectId)
         .order('position', { ascending: true })
 
+      // 더 최신 fetch가 시작됐으면 이 응답은 무시 (경쟁 조건 방지)
+      if (myFetchId !== fetchCountRef.current) return
+
       if (logError('페이지 로드', error)) return
 
       if (!data || data.length === 0) {
@@ -109,18 +116,16 @@ export const usePages = (session, currentProjectId, options = {}) => {
         await createDefaultPage()
       } else {
         setPages(data)
-        // 현재 페이지가 설정되지 않았으면 초기값 또는 첫 번째 페이지 선택
-        if (!currentPageId && data.length > 0) {
-          // 초기 로드 시에만 initialPageId 사용 (ref로 항상 최신값 참조)
+        // 초기 선택이 필요한 경우에만 (ref로 stale closure 방지)
+        if (!initialLoadDoneRef.current && data.length > 0) {
           const savedPageId = initialPageIdRef.current
-          const useInitialPage = !initialLoadDoneRef.current && savedPageId
-          const targetPage = useInitialPage
+          const targetPage = savedPageId
             ? data.find(p => p.id === savedPageId)
             : null
           const targetPageId = targetPage ? targetPage.id : data[0].id
           setCurrentPageId(targetPageId)
           initialLoadDoneRef.current = true
-          // 초기 로드 시에는 콜백 호출하지 않음 (이미 저장된 값이므로)
+          // 저장된 값으로 복원할 때는 콜백 호출하지 않음
           if (!targetPage && onPageChange) {
             onPageChange(targetPageId)
           }
@@ -129,9 +134,9 @@ export const usePages = (session, currentProjectId, options = {}) => {
     } catch (error) {
       console.error('페이지 로드 오류:', error.message)
     } finally {
-      setPagesLoading(false)
+      if (myFetchId === fetchCountRef.current) setPagesLoading(false)
     }
-  }, [session?.user?.id, currentProjectId, currentPageId, onPageChange])
+  }, [session?.user?.id, currentProjectId, onPageChange])
 
   // 기본 페이지 생성
   const createDefaultPage = async () => {
@@ -298,21 +303,27 @@ export const usePages = (session, currentProjectId, options = {}) => {
   useEffect(() => {
     if (session?.user?.id && currentProjectId) {
       if (!preferencesLoaded) {
-        // 환경설정 로딩 중 — 아직 페이지 로드하지 않음
         setPagesLoading(true)
         return
       }
 
-      // 사용자가 변경되면 상태 리셋 (임퍼소네이션 등)
       const userChanged = prevUserIdRef.current !== null &&
                           prevUserIdRef.current !== session.user.id
-      // 프로젝트가 실제로 변경된 경우에만 페이지 초기화
       const projectChanged = prevProjectIdRef.current !== null &&
                              prevProjectIdRef.current !== currentProjectId
 
       if (userChanged || projectChanged) {
         setCurrentPageId(null)
         initialLoadDoneRef.current = false
+        fetchCountRef.current++  // 진행 중인 fetch 무효화
+      }
+
+      // 유저가 바뀐 직후에는 currentProjectId가 아직 이전 유저의 것일 수 있음.
+      // 즉시 fetch하면 이전 유저의 페이지가 로드됨 → useProjects가 새 projectId를
+      // 확정할 때까지 대기 (prevProjectIdRef 미갱신으로 다음 실행에서 projectChanged 보장)
+      if (userChanged) {
+        prevUserIdRef.current = session.user.id
+        return
       }
 
       prevUserIdRef.current = session.user.id
@@ -325,6 +336,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
       prevProjectIdRef.current = null
       prevUserIdRef.current = null
       initialLoadDoneRef.current = false
+      fetchCountRef.current++  // 진행 중인 fetch 무효화
     }
   }, [session?.user?.id, currentProjectId, preferencesLoaded])
 
