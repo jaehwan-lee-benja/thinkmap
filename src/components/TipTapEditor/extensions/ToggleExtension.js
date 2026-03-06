@@ -209,7 +209,7 @@ export const Toggle = Node.create({
       contentWrapper.classList.add('toggle-content')
       contentWrapper.classList.add(node.attrs.isOpen ? 'open' : 'closed')
 
-      button.addEventListener('click', (e) => {
+      button.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
 
@@ -285,27 +285,7 @@ export const Toggle = Node.create({
   },
 
   addProseMirrorPlugins() {
-    const allowedInToggle = new Set(['paragraph', 'toggle'])
     return [
-      // 토글 내부에 paragraph/toggle 외 블록 생성 방지
-      new Plugin({
-        filterTransaction(tr, state) {
-          if (!tr.docChanged) return true
-          let dominated = false
-          tr.doc.descendants((node, pos) => {
-            if (dominated) return false
-            if (node.type.name === 'toggle') {
-              node.forEach((child, _offset, index) => {
-                if (index === 0) return // 첫 번째 자식(paragraph)은 허용
-                if (!allowedInToggle.has(child.type.name)) {
-                  dominated = true
-                }
-              })
-            }
-          })
-          return !dominated
-        },
-      }),
       new Plugin({
         appendTransaction(transactions, _oldState, newState) {
           // 선택 변경이 있는 트랜잭션에서만 실행
