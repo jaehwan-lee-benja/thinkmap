@@ -11,46 +11,66 @@ export const ParagraphWithHandle = Paragraph.extend({
       const dom = document.createElement('div')
       dom.classList.add('paragraph-block')
 
-      // 드래그 핸들
-      const dragHandle = document.createElement('div')
-      dragHandle.classList.add('paragraph-drag-handle')
-      dragHandle.contentEditable = 'false'
-      dragHandle.draggable = true
-
-      // 드래그 시작
-      dragHandle.addEventListener('dragstart', (e) => {
-        if (typeof getPos !== 'function') return
-
-        const pos = getPos()
-        const nodeAtPos = editor.state.doc.nodeAt(pos)
-        if (!nodeAtPos) return
-
-        const selection = NodeSelection.create(editor.state.doc, pos)
-        editor.view.dispatch(editor.state.tr.setSelection(selection))
-
-        const slice = editor.state.selection.content()
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setDragImage(dom, 0, 0)
-
-        editor.view.dragging = { slice, move: true }
-      })
-
-      // 클릭 시 블록 선택
-      dragHandle.addEventListener('click', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-
-        if (typeof getPos !== 'function') return
-
-        const pos = getPos()
-        const selection = NodeSelection.create(editor.state.doc, pos)
-        editor.view.dispatch(editor.state.tr.setSelection(selection))
-      })
+      // 토글 내부가 아닌 paragraph는 비활성화
+      const pos = getPos()
+      let inactive = false
+      if (typeof pos === 'number') {
+        const $pos = editor.state.doc.resolve(pos)
+        let insideToggle = false
+        for (let d = $pos.depth; d > 0; d--) {
+          if ($pos.node(d).type.name === 'toggle') {
+            insideToggle = true
+            break
+          }
+        }
+        if (!insideToggle) {
+          inactive = true
+          dom.contentEditable = 'false'
+          dom.title = '이 블럭은 비활성화된 블럭입니다'
+        }
+      }
 
       // contentDOM: 실제 p 태그
       const contentP = document.createElement('p')
 
-      dom.appendChild(dragHandle)
+      if (!inactive) {
+        // 드래그 핸들 (활성 블록에만)
+        const dragHandle = document.createElement('div')
+        dragHandle.classList.add('paragraph-drag-handle')
+        dragHandle.contentEditable = 'false'
+        dragHandle.draggable = true
+
+        dragHandle.addEventListener('dragstart', (e) => {
+          if (typeof getPos !== 'function') return
+
+          const pos = getPos()
+          const nodeAtPos = editor.state.doc.nodeAt(pos)
+          if (!nodeAtPos) return
+
+          const selection = NodeSelection.create(editor.state.doc, pos)
+          editor.view.dispatch(editor.state.tr.setSelection(selection))
+
+          const slice = editor.state.selection.content()
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setDragImage(dom, 0, 0)
+
+          editor.view.dragging = { slice, move: true }
+        })
+
+        dragHandle.addEventListener('click', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+
+          if (typeof getPos !== 'function') return
+
+          const pos = getPos()
+          const selection = NodeSelection.create(editor.state.doc, pos)
+          editor.view.dispatch(editor.state.tr.setSelection(selection))
+        })
+
+        dom.appendChild(dragHandle)
+      }
+
       dom.appendChild(contentP)
 
       return {

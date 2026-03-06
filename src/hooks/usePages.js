@@ -221,7 +221,11 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }
 
-  // 페이지 삭제 (자손 페이지도 함께 삭제 — DB CASCADE)
+  // 삭제 예약 타이머 ref
+  const deleteTimerRef = useRef(null)
+  const pendingDeleteRef = useRef(null)
+
+  // 페이지 삭제 (자손 페이지도 함께 삭제 — DB 삭제는 지연)
   const deletePage = async (pageId) => {
     if (!session?.user?.id) return false
 
@@ -236,33 +240,78 @@ export const usePages = (session, currentProjectId, options = {}) => {
       return false
     }
 
-    try {
-      // DB CASCADE로 자손도 자동 삭제됨
-      const { error } = await supabase
-        .from('pages')
-        .delete()
-        .eq('id', pageId)
-        .eq('user_id', session.user.id)
-
-      if (logError('페이지 삭제', error)) return false
-
-      // 자손 ID 수집 (로컬 상태에서도 제거)
-      const descendantIds = getDescendantIds(pageId, pages)
-      const idsToRemove = new Set([pageId, ...descendantIds])
-      const updatedPages = pages.filter(p => !idsToRemove.has(p.id))
-      setPages(updatedPages)
-
-      // 삭제된 페이지(또는 자손)가 현재 페이지였다면 다른 페이지로 전환
-      if (idsToRemove.has(currentPageId) && updatedPages.length > 0) {
-        selectPage(updatedPages[0].id)
-      }
-
-      return true
-    } catch (error) {
-      logError('페이지 삭제', error)
-      return false
+    // 이전 대기 중인 삭제가 있으면 즉시 실행
+    if (deleteTimerRef.current && pendingDeleteRef.current) {
+      clearTimeout(deleteTimerRef.current)
+      const prev = pendingDeleteRef.current
+      supabase.from('pages').delete().eq('id', prev.pageId).eq('user_id', session.user.id)
+      deleteTimerRef.current = null
+      pendingDeleteRef.current = null
     }
+
+    // 자손 ID 수집 (로컬 상태에서도 제거)
+    const descendantIds = getDescendantIds(pageId, pages)
+    const idsToRemove = new Set([pageId, ...descendantIds])
+    const removedPages = pages.filter(p => idsToRemove.has(p.id))
+    const updatedPages = pages.filter(p => !idsToRemove.has(p.id))
+    setPages(updatedPages)
+
+    // 삭제된 페이지(또는 자손)가 현재 페이지였다면 다른 페이지로 전환
+    const prevPageId = currentPageId
+    if (idsToRemove.has(currentPageId) && updatedPages.length > 0) {
+      selectPage(updatedPages[0].id)
+    }
+
+    // 삭제 정보 저장 (undo용)
+    pendingDeleteRef.current = {
+      pageId,
+      removedPages,
+      prevPageId,
+      pageName: targetPage.name,
+    }
+
+    // 5초 후 DB에서 실제 삭제
+    deleteTimerRef.current = setTimeout(async () => {
+      try {
+        const { error } = await supabase
+          .from('pages')
+          .delete()
+          .eq('id', pageId)
+          .eq('user_id', session.user.id)
+        if (error) logError('페이지 삭제', error)
+      } catch (error) {
+        logError('페이지 삭제', error)
+      }
+      pendingDeleteRef.current = null
+      deleteTimerRef.current = null
+    }, 5000)
+
+    return targetPage.name
   }
+
+  // 삭제 취소 (undo)
+  const undoDeletePage = useCallback(() => {
+    if (!deleteTimerRef.current || !pendingDeleteRef.current) return false
+
+    clearTimeout(deleteTimerRef.current)
+    const { removedPages, prevPageId } = pendingDeleteRef.current
+
+    // 로컬 상태 복원
+    setPages(prev => {
+      const existingIds = new Set(prev.map(p => p.id))
+      const toRestore = removedPages.filter(p => !existingIds.has(p.id))
+      return [...prev, ...toRestore].sort((a, b) => a.position - b.position)
+    })
+
+    // 이전 페이지로 복원
+    if (prevPageId) {
+      selectPage(prevPageId)
+    }
+
+    pendingDeleteRef.current = null
+    deleteTimerRef.current = null
+    return true
+  }, [selectPage])
 
   // 특정 페이지의 자손 수 반환 (삭제 경고 메시지용)
   const getDescendantCount = useCallback((pageId) => {
@@ -350,6 +399,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
     createPage,
     renamePage,
     deletePage,
+    undoDeletePage,
     reorderPages,
     getDescendantCount,
   }

@@ -1,0 +1,70 @@
+.delete-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-index-toast);
+  min-width: 300px;
+  max-width: 480px;
+  background: #323232;
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  animation: toast-slide-up 0.3s ease-out;
+}
+
+@keyframes toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.delete-toast-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: 12px 16px;
+}
+
+.delete-toast-message {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.delete-toast-undo {
+  background: none;
+  border: none;
+  color: #8ab4f8;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--border-radius-sm);
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.delete-toast-undo:hover {
+  background: rgba(138, 180, 248, 0.15);
+}
+
+.delete-toast-progress {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.delete-toast-progress-bar {
+  height: 100%;
+  background: #8ab4f8;
+  transition: width 0.05s linear;
+}

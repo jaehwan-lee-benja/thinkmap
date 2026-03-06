@@ -651,6 +651,9 @@ export const Toggle = Node.create({
           const isEmpty = firstChild && firstChild.content.size === 0 && !hasChildToggles(toggleNode)
 
           if (isEmpty) {
+            // 이전 블록이 없으면 삭제 방지 (문서 첫 블록)
+            if (togglePos === 0) return true
+
             const { tr } = state
             tr.delete(togglePos, togglePos + toggleNode.nodeSize)
             // 커서를 이전 블록 끝으로 이동

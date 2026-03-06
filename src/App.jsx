@@ -11,6 +11,7 @@ import { usePages } from './hooks/usePages'
 import { useSharing } from './hooks/useSharing'
 import { useBackup } from './hooks/useBackup'
 import { useUsers } from './hooks/useUsers'
+import DeleteToast from './components/Common/DeleteToast'
 import './App.css'
 
 function App() {
@@ -78,6 +79,7 @@ function App() {
     createPage,
     renamePage,
     deletePage,
+    undoDeletePage,
     getDescendantCount,
   } = usePages(effectiveSession, currentProjectId, {
     initialPageId,
@@ -138,6 +140,21 @@ function App() {
     return result
   }, [currentProjectId, importBackup, refreshBackups])
 
+  // 삭제 토스트 상태
+  const [deleteToast, setDeleteToast] = useState(null)
+
+  const handleDeletePage = useCallback(async (pageId) => {
+    const pageName = await deletePage(pageId)
+    if (pageName) {
+      setDeleteToast({ key: Date.now(), pageName })
+    }
+  }, [deletePage])
+
+  const handleUndoDelete = useCallback(() => {
+    undoDeletePage()
+    setDeleteToast(null)
+  }, [undoDeletePage])
+
   // UI
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768)
 
@@ -173,7 +190,7 @@ function App() {
         onPageSelect={setCurrentPageId}
         onPageCreate={createPage}
         onPageRename={renamePage}
-        onPageDelete={deletePage}
+        onPageDelete={handleDeletePage}
         getDescendantCount={getDescendantCount}
         expandedPages={expandedPages}
         onExpandedPagesChange={saveExpandedPages}
@@ -236,6 +253,17 @@ function App() {
           )}
         </div>
       </div>
+
+      {/* 삭제 취소 토스트 */}
+      {deleteToast && (
+        <DeleteToast
+          key={deleteToast.key}
+          pageName={deleteToast.pageName}
+          onUndo={handleUndoDelete}
+          onDismiss={() => setDeleteToast(null)}
+          duration={5000}
+        />
+      )}
     </div>
   )
 }
