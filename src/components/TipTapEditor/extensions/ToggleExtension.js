@@ -146,10 +146,15 @@ export const Toggle = Node.create({
   },
 
   addNodeView() {
-    return ({ node, editor, getPos }) => {
+    return ({ node, editor, getPos, decorations }) => {
       const dom = document.createElement('div')
       dom.classList.add('toggle-block')
       dom.setAttribute('data-is-open', node.attrs.isOpen)
+
+      // 초기 decoration 적용
+      const hasFocusClass = (decos) =>
+        decos?.some(d => d.type?.attrs?.class?.includes('toggle-block-focused'))
+      if (hasFocusClass(decorations)) dom.classList.add('toggle-block-focused')
 
       // 드래그 핸들 (블록 내부에 배치)
       const dragHandle = document.createElement('div')
@@ -267,7 +272,7 @@ export const Toggle = Node.create({
       return {
         dom,
         contentDOM: contentWrapper,
-        update: (updatedNode) => {
+        update: (updatedNode, outerDecorations) => {
           if (updatedNode.type.name !== 'toggle') return false
 
           button.textContent = hasChildToggles(updatedNode)
@@ -277,6 +282,9 @@ export const Toggle = Node.create({
             ? 'toggle-content open'
             : 'toggle-content closed'
           dom.setAttribute('data-is-open', updatedNode.attrs.isOpen)
+
+          // Decoration 반영 (Plugin이 전달한 포커스 상태)
+          dom.classList.toggle('toggle-block-focused', hasFocusClass(outerDecorations))
 
           return true
         },
@@ -317,7 +325,7 @@ export const Toggle = Node.create({
           return null
         },
       }),
-      // 커서가 위치한 가장 가까운 토글 블록에 음영 표시
+      // 커서가 위치한 가장 가까운(가장 안쪽) 토글 블록에 포커스 decoration
       new Plugin({
         key: new PluginKey('toggleFocusHighlight'),
         props: {

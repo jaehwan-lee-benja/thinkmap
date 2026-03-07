@@ -582,6 +582,7 @@ th .paragraph-drag-handle {
   border-radius: 0.25rem;
 }
 
+
 /* 모든 토글 관련 요소 배경 제거 (App.css 오버라이드) */
 .tiptap-editor .toggle-block,
 .tiptap-editor .toggle-content,

@@ -173,20 +173,9 @@ function App() {
     onSwipeLeft: useCallback(() => { if (isTablet && sidebarOpen) setSidebarOpen(false) }, [isTablet, sidebarOpen]),
   })
 
-  // 인증 화면
-  const authScreen = GoogleAuthButton({ authLoading, session, handleGoogleLogin })
-  if (authScreen) return authScreen
+  // Context values (Hooks 규칙: early return 전에 모든 Hook 호출)
+  const userAvatarUrl = impersonatedUser ? null : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture
 
-  // 환경설정 로딩 중
-  if (preferencesLoading) {
-    return (
-      <div className="app loading">
-        <div className="loading-spinner">로딩 중...</div>
-      </div>
-    )
-  }
-
-  // Context values
   const projectCtx = useMemo(() => ({
     projects, currentProjectId, setCurrentProjectId,
     createProject, renameProject, deleteProject,
@@ -210,7 +199,6 @@ function App() {
     refreshBackups,
   }), [backups, backupLoading, handleCreateBackup, handleRestoreBackup, handleDeleteBackup, exportBackup, handleImportBackup, refreshBackups])
 
-  const userAvatarUrl = impersonatedUser ? null : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture
   const authCtx = useMemo(() => ({
     userEmail: effectiveSession?.user?.email, userAvatarUrl,
     handleLogout, isMaster,
@@ -224,6 +212,19 @@ function App() {
     toggleSidebar: () => setSidebarOpen(prev => !prev),
     closeSidebar: () => setSidebarOpen(false),
   }), [sidebarOpen])
+
+  // 인증 화면
+  const authScreen = GoogleAuthButton({ authLoading, session, handleGoogleLogin })
+  if (authScreen) return authScreen
+
+  // 환경설정 로딩 중
+  if (preferencesLoading) {
+    return (
+      <div className="app loading">
+        <div className="loading-spinner">로딩 중...</div>
+      </div>
+    )
+  }
 
   return (
     <AuthContext.Provider value={authCtx}>
