@@ -8,3 +8,12 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// 서비스 워커 등록 (프로덕션 환경에서만)
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/thinkmap/sw.js').catch(() => {
+      // 서비스 워커 등록 실패 무시 (기능에 영향 없음)
+    })
+  })
+}

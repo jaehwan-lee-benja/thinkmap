@@ -3,6 +3,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragOverlay,
@@ -179,8 +180,14 @@ function ColumnView({ blocks, setBlocks, onSave, onClose, pageName = 'ThinkMap' 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        delay: 500,
+        delay: 300,
         tolerance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 400,
+        tolerance: 10,
       },
     })
   )

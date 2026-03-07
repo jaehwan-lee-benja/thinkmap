@@ -24,8 +24,8 @@
   left: 0;
   width: 300px;
   height: 100%;
-  background-color: #1a1a1a;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border-light);
   z-index: 1000;
   transition: transform 0.3s ease;
   display: flex;
@@ -61,9 +61,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px;
+  padding-top: calc(12px + var(--safe-area-top));
+  padding-left: calc(12px + var(--safe-area-left));
   gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: #1a1a1a;
+  border-bottom: 1px solid var(--color-border-light);
+  background-color: var(--color-bg-secondary);
 }
 
 /* 프로젝트 섹션 */
@@ -122,12 +124,12 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background-color: #242424;
+  background-color: var(--color-bg-primary);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   z-index: 1001;
   overflow: hidden;
-  animation: dropdown-appear 0.15s ease-out;
+  animation: dropdownAppear 0.15s ease-out;
   max-height: 320px;
   overflow-y: auto;
   padding: 6px;
@@ -135,16 +137,7 @@
   backface-visibility: hidden;
 }
 
-@keyframes dropdown-appear {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* dropdown-appear -> _animations.css (dropdownAppear) */
 
 /* 프로젝트 아이템 */
 .sidebar-project-item {
@@ -164,13 +157,13 @@
 }
 
 .sidebar-project-item.active {
-  background-color: rgba(100, 108, 255, 0.15);
-  border-color: rgba(100, 108, 255, 0.3); /* active 상태에서만 border 표시 */
+  background-color: var(--color-primary-active);
+  border-color: var(--color-primary-border); /* active 상태에서만 border 표시 */
 }
 
 .sidebar-project-item.active:hover {
-  background-color: rgba(100, 108, 255, 0.2);
-  border-color: rgba(100, 108, 255, 0.4);
+  background-color: var(--color-primary-active-hover);
+  border-color: var(--color-primary-border-hover);
 }
 
 .project-item-icon {
@@ -192,20 +185,20 @@
 }
 
 .sidebar-project-item.active .project-item-name {
-  color: #646cff;
+  color: var(--color-primary);
   font-weight: 500;
 }
 
 /* 프로젝트 이름 수정 input */
 .project-name-input {
   flex: 1;
-  border: 1px solid #646cff;
+  border: 1px solid var(--color-primary);
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.9);
   outline: none;
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-secondary);
   font-family: inherit;
 }
 
@@ -221,7 +214,7 @@
   width: 24px;
   height: 24px;
   border: none;
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--color-danger-bg-subtle);
   cursor: pointer;
   font-size: 12px;
   border-radius: 4px;
@@ -237,13 +230,13 @@
 }
 
 .project-delete-button:hover {
-  background-color: rgba(239, 68, 68, 0.25);
+  background-color: var(--color-danger-bg-strong);
   opacity: 1 !important;
   transform: scale(1.05);
 }
 
 .project-delete-button:active {
-  background-color: rgba(239, 68, 68, 0.35);
+  background-color: var(--color-danger-bg-stronger);
   transform: scale(0.95);
 }
 
@@ -308,9 +301,10 @@
   flex: 1;
   overflow-y: auto;
   padding: 12px;
+  padding-left: calc(12px + var(--safe-area-left));
   display: flex;
   flex-direction: column;
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-secondary);
 }
 
 /* 커스텀 스크롤바 */
@@ -356,7 +350,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px; /* border 2px를 고려하여 padding 조정 */
+  padding: 6px 10px;
+  padding-left: calc(10px + var(--depth, 0) * 20px);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
@@ -371,14 +366,14 @@
 }
 
 .page-item.active {
-  background-color: rgba(100, 108, 255, 0.15);
+  background-color: var(--color-primary-active);
   font-weight: 500;
-  border-color: rgba(100, 108, 255, 0.3); /* active 상태에서만 border 표시 */
+  border-color: var(--color-primary-border); /* active 상태에서만 border 표시 */
 }
 
 .page-item.active:hover {
-  background-color: rgba(100, 108, 255, 0.2);
-  border-color: rgba(100, 108, 255, 0.4);
+  background-color: var(--color-primary-active-hover);
+  border-color: var(--color-primary-border-hover);
 }
 
 .page-icon {
@@ -400,7 +395,7 @@
 }
 
 .page-item.active .page-name {
-  color: #646cff;
+  color: var(--color-primary);
 }
 
 /* 트리 노드 컨테이너 */
@@ -460,11 +455,11 @@
   width: 22px;
   height: 22px;
   border: none;
-  background: rgba(100, 108, 255, 0.15);
+  background: var(--color-primary-active);
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  color: #646cff;
+  color: var(--color-primary);
   border-radius: 4px;
   transition: all 0.2s;
   flex-shrink: 0;
@@ -480,26 +475,26 @@
 }
 
 .page-subpage-button:hover {
-  background-color: rgba(100, 108, 255, 0.3);
+  background-color: var(--color-primary-stronger);
   opacity: 1 !important;
   transform: scale(1.05);
 }
 
 .page-subpage-button:active {
-  background-color: rgba(100, 108, 255, 0.4);
+  background-color: var(--color-primary-border-hover);
   transform: scale(0.95);
 }
 
 /* 페이지 이름 수정 input */
 .page-name-input {
   flex: 1;
-  border: 1px solid #646cff;
+  border: 1px solid var(--color-primary);
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 14px;
   color: rgba(255, 255, 255, 0.9);
   outline: none;
-  background-color: #242424;
+  background-color: var(--color-bg-primary);
   font-family: inherit;
 }
 
@@ -515,7 +510,7 @@
   width: 26px;
   height: 26px;
   border: none;
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--color-danger-bg-subtle);
   cursor: pointer;
   font-size: 13px;
   border-radius: 4px;
@@ -531,13 +526,13 @@
 }
 
 .page-delete-button:hover {
-  background-color: rgba(239, 68, 68, 0.25);
+  background-color: var(--color-danger-bg-strong);
   opacity: 1 !important;
   transform: scale(1.05);
 }
 
 .page-delete-button:active {
-  background-color: rgba(239, 68, 68, 0.35);
+  background-color: var(--color-danger-bg-stronger);
   transform: scale(0.95);
 }
 
@@ -624,7 +619,7 @@
 .sidebar-tool-button.master-button {
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
   border: 1px solid rgba(102, 126, 234, 0.3);
-  color: #a78bfa;
+  color: var(--color-master-text);
 }
 
 .sidebar-tool-button.master-button:hover {
@@ -635,15 +630,15 @@
 
 .sidebar-tool-button.master-button svg {
   opacity: 0.9;
-  color: #a78bfa;
+  color: var(--color-master-text);
 }
 
 /* 임퍼소네이션 배너 */
 .impersonation-banner {
   padding: 12px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(234, 88, 12, 0.15) 100%);
-  border-top: 1px solid rgba(245, 158, 11, 0.3);
-  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  background: linear-gradient(135deg, var(--color-amber-bg) 0%, rgba(234, 88, 12, 0.15) 100%);
+  border-top: 1px solid var(--color-amber-border);
+  border-bottom: 1px solid var(--color-amber-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -663,7 +658,7 @@
 .impersonation-text {
   font-size: 12px;
   font-weight: 600;
-  color: rgba(245, 158, 11, 0.9);
+  color: var(--color-amber);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -672,10 +667,10 @@
 .impersonation-exit-button {
   width: 100%;
   padding: 6px 12px;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: var(--color-amber-bg);
+  border: 1px solid var(--color-amber-border);
   border-radius: 6px;
-  color: rgba(245, 158, 11, 0.9);
+  color: var(--color-amber);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -684,8 +679,8 @@
 }
 
 .impersonation-exit-button:hover {
-  background: rgba(245, 158, 11, 0.25);
-  border-color: rgba(245, 158, 11, 0.5);
+  background: var(--color-amber-bg-hover);
+  border-color: var(--color-amber-border-hover);
 }
 
 /* 사이드바 푸터 */
@@ -694,8 +689,10 @@
   align-items: center;
   gap: 8px;
   padding: 12px;
+  padding-bottom: calc(12px + var(--safe-area-bottom));
+  padding-left: calc(12px + var(--safe-area-left));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: #242424;
+  background-color: var(--color-bg-primary);
 }
 
 /* 사용자 프로필 */
@@ -711,7 +708,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #646cff 0%, #4f56d8 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -799,14 +796,14 @@
   justify-content: center;
   padding: 2px 6px;
   border: none;
-  background: rgba(100, 108, 255, 0.15);
+  background: var(--color-primary-active);
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
   flex-shrink: 0;
   opacity: 0;
   pointer-events: none;
-  color: #646cff;
+  color: var(--color-primary);
   font-size: 11px;
   font-weight: 500;
 }
@@ -819,14 +816,14 @@
 
 .project-share-button:hover,
 .page-share-button:hover {
-  background-color: rgba(100, 108, 255, 0.25);
+  background-color: var(--color-primary-strong);
   opacity: 1 !important;
   transform: scale(1.05);
 }
 
 .project-share-button:active,
 .page-share-button:active {
-  background-color: rgba(100, 108, 255, 0.35);
+  background-color: var(--color-primary-border-hover);
   transform: scale(0.95);
 }
 
@@ -921,8 +918,8 @@
 }
 
 .shared-permission.viewer {
-  background: rgba(100, 108, 255, 0.15);
-  color: rgba(100, 108, 255, 0.9);
+  background: var(--color-primary-active);
+  color: var(--color-primary-text);
 }
 
 .shared-permission.editor {
@@ -935,5 +932,90 @@
   .sidebar {
     width: 280px;
     left: -280px;
+  }
+}
+
+/* 터치 디바이스 최적화 */
+@media (hover: none) and (pointer: coarse) {
+  .page-item {
+    padding: 8px 10px;
+    min-height: var(--touch-target-min);
+  }
+
+  .sidebar-project-item {
+    padding: 8px 8px;
+    min-height: var(--touch-target-min);
+  }
+
+  .page-toggle-arrow {
+    width: 36px;
+    height: 36px;
+  }
+
+  .page-toggle-spacer {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sidebar-close-button {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+  }
+
+  .sidebar-project-toggle {
+    min-height: var(--touch-target-min);
+  }
+
+  .sidebar-tool-button {
+    min-height: var(--touch-target-min);
+  }
+
+  .sidebar-shared-toggle {
+    min-height: var(--touch-target-min);
+  }
+
+  .shared-item {
+    min-height: var(--touch-target-min);
+  }
+
+  .add-page-button {
+    min-height: var(--touch-target-min);
+  }
+
+  .add-project-button {
+    min-height: var(--touch-target-min);
+  }
+
+  .sidebar-logout-button {
+    min-height: var(--touch-target-min);
+  }
+
+  .page-subpage-button {
+    width: 32px;
+    height: 32px;
+    opacity: 0.7;
+    pointer-events: auto;
+  }
+
+  .page-delete-button {
+    width: 32px;
+    height: 32px;
+    opacity: 0.7;
+    pointer-events: auto;
+  }
+
+  .project-delete-button {
+    width: 32px;
+    height: 32px;
+    opacity: 0.7;
+    pointer-events: auto;
+  }
+
+  .project-share-button,
+  .page-share-button {
+    padding: 4px 8px;
+    min-height: 32px;
+    opacity: 0.7;
+    pointer-events: auto;
   }
 }

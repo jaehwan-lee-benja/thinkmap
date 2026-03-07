@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
+import { useClickOutside } from '../../../hooks/useClickOutside'
 
 export function BlockContextMenu({ editor, position, nodePos, onClose }) {
   const [showImageInput, setShowImageInput] = useState(false)
@@ -9,16 +10,10 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
   const imageInputRef = useRef(null)
 
   // 외부 클릭 시 메뉴 닫기
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target) &&
-          !event.target.closest('.toggle-drag-handle')) {
-        onClose()
-      }
-    }
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [onClose])
+  useClickOutside(menuRef, onClose, true, {
+    event: 'click',
+    ignoreSelector: '.toggle-drag-handle',
+  })
 
   const handleDeleteBlock = () => {
     if (nodePos === null) return
@@ -80,17 +75,22 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
     onClose()
   }
 
+  // 터치 디바이스 감지
+  const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+
   return (
     <div
       ref={menuRef}
-      className="block-context-menu"
-      style={{
+      className={`block-context-menu ${isTouch ? 'block-context-menu--touch' : ''}`}
+      style={isTouch ? { zIndex: 1000 } : {
         position: 'fixed',
         top: `${position.top}px`,
         left: `${position.left}px`,
         zIndex: 1000,
       }}
     >
+      {/* 모바일 바텀시트 핸들 */}
+      {isTouch && <div className="context-menu-handle"><div className="context-menu-handle-bar" /></div>}
       {/* 텍스트 서식 버튼 */}
       <div className="context-menu-format-row">
         <button

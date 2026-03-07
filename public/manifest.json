@@ -1,0 +1,24 @@
+{
+  "name": "ThinkMap",
+  "short_name": "ThinkMap",
+  "description": "Notion-style hierarchical note-taking app",
+  "start_url": "/thinkmap/",
+  "scope": "/thinkmap/",
+  "display": "standalone",
+  "background_color": "#242424",
+  "theme_color": "#242424",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

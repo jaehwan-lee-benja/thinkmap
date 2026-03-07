@@ -10,18 +10,7 @@
   border-radius: var(--border-radius-xl);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   overflow: hidden;
-  animation: toast-slide-up 0.3s ease-out;
-}
-
-@keyframes toast-slide-up {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  animation: toastSlideUp 0.3s ease-out;
 }
 
 .delete-toast-content {
@@ -67,4 +56,19 @@
   height: 100%;
   background: #8ab4f8;
   transition: width 0.05s linear;
+}
+
+/* 모바일 - safe area 대응 */
+@media (max-width: 768px) {
+  .delete-toast {
+    bottom: calc(24px + var(--safe-area-bottom));
+    min-width: auto;
+    width: calc(100% - 32px);
+    max-width: 480px;
+  }
+
+  .delete-toast-undo {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+  }
 }

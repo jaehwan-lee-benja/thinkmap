@@ -394,9 +394,7 @@
   animation: fadeIn 0.15s ease forwards;
 }
 
-@keyframes fadeIn {
-  to { opacity: 1; }
-}
+/* fadeIn -> _animations.css */
 
 .mindmap-node-actions button {
   display: flex;
@@ -424,7 +422,7 @@
 }
 
 .mindmap-node-actions button.delete:hover {
-  background: #ef4444;
+  background: var(--color-danger);
 }
 
 /* 모바일 */
@@ -473,5 +471,81 @@
   .mindmap-controls button {
     width: 28px;
     height: 28px;
+  }
+}
+
+/* 터치 디바이스 최적화 */
+@media (hover: none) and (pointer: coarse) {
+  .mindmap-container {
+    touch-action: none;
+    cursor: default;
+  }
+
+  .mindmap-container:active {
+    cursor: default;
+  }
+
+  /* 노드 터치 타겟 확대 */
+  .mindmap-node {
+    min-height: var(--touch-target-min);
+    min-width: 90px;
+    padding: 10px 16px;
+  }
+
+  .mindmap-node.level-2 {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+
+  .mindmap-node.level-3,
+  .mindmap-node.level-4,
+  .mindmap-node.level-5 {
+    min-height: 36px;
+    padding: 7px 12px;
+  }
+
+  /* 노드 액션 버튼 확대 */
+  .mindmap-node-actions {
+    top: -12px;
+    right: -12px;
+    gap: 4px;
+  }
+
+  .mindmap-node-actions button {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+
+  .add-root-child {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+
+  /* 힌트 숨기기 (터치에서는 불필요) */
+  .mindmap-hint {
+    display: none;
+  }
+
+  /* 컨트롤 버튼 터치 타겟 */
+  .mindmap-controls button {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+  }
+
+  .mindmap-direction-selector button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .mindmap-close-button {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+  }
+
+  /* 캔버스 트랜지션 제거 (터치 패닝 시 끊김 방지) */
+  .mindmap-canvas {
+    transition: none;
   }
 }

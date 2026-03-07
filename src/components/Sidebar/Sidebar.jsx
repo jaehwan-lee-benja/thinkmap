@@ -6,68 +6,25 @@ import BackupModal from '../Backup/BackupModal'
 import AdminModal from '../Admin/AdminModal'
 import { SidebarHeader } from './components/SidebarHeader'
 import { PageTree } from './components/PageTree'
+import { useProjectContext } from '../../contexts/ProjectContext'
+import { usePageContext } from '../../contexts/PageContext'
+import { useSharingContext } from '../../contexts/SharingContext'
+import { useBackupContext } from '../../contexts/BackupContext'
+import { useAuthContext } from '../../contexts/AuthContext'
+import { useUIContext } from '../../contexts/UIContext'
 import './Sidebar.css'
 
 /**
  * 노션 스타일 사이드바
  */
-function Sidebar({
-  isOpen,
-  onClose,
-  // 프로젝트 관련
-  projects = [],
-  currentProjectId,
-  onProjectSelect,
-  onProjectCreate,
-  onProjectRename,
-  onProjectDelete,
-  // 페이지 관련
-  pages = [],
-  pageTree = [],
-  currentPageId,
-  onPageSelect,
-  onPageCreate,
-  onPageRename,
-  onPageDelete,
-  getDescendantCount,
-  // 사용자
-  userEmail,
-  userAvatarUrl,
-  onLogout,
-  // 공유 관련
-  sharedWithMe = { projects: [], pages: [] },
-  getSharesForResource,
-  onCreateShare,
-  onUpdateSharePermission,
-  onDeleteShare,
-  sharingLoading = false,
-  // 백업 관련
-  backups = [],
-  backupLoading = false,
-  onCreateBackup,
-  onRestoreBackup,
-  onDeleteBackup,
-  onExportBackup,
-  onImportBackup,
-  onRefreshBackups,
-  // 마스터 관련
-  isMaster = false,
-  users = [],
-  usersLoading = false,
-  onAddUser,
-  onUpdateUserRole,
-  onUpdateUserStatus,
-  onDeleteUser,
-  onRefreshUsers,
-  // 펼침 상태 동기화
-  expandedPages: savedExpandedPages = {},
-  onExpandedPagesChange,
-  // 임퍼소네이션
-  isImpersonating = false,
-  impersonatedEmail,
-  onStopImpersonation,
-  onStartImpersonation,
-}) {
+function Sidebar() {
+  const { projects, currentProjectId, setCurrentProjectId, createProject, renameProject, deleteProject } = useProjectContext()
+  const { pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, deletePage, getDescendantCount, expandedPages, saveExpandedPages } = usePageContext()
+  const { sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource } = useSharingContext()
+  const { backups, backupLoading, createBackup, restoreBackup, deleteBackup, exportBackup, importBackup, refreshBackups } = useBackupContext()
+  const { userEmail, userAvatarUrl, handleLogout, isMaster, isImpersonating, impersonatedEmail, startImpersonation, stopImpersonation, users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers } = useAuthContext()
+  const { sidebarOpen: isOpen, closeSidebar: onClose } = useUIContext()
+
   const [sharedOpen, setSharedOpen] = useState(false)
 
   // 공유 모달 상태
@@ -121,13 +78,13 @@ function Sidebar({
             pages={pages}
             pageTree={pageTree}
             currentPageId={currentPageId}
-            onPageSelect={onPageSelect}
-            onPageCreate={onPageCreate}
-            onPageRename={onPageRename}
-            onPageDelete={onPageDelete}
+            onPageSelect={setCurrentPageId}
+            onPageCreate={createPage}
+            onPageRename={renamePage}
+            onPageDelete={deletePage}
             getDescendantCount={getDescendantCount}
-            savedExpandedPages={savedExpandedPages}
-            onExpandedPagesChange={onExpandedPagesChange}
+            savedExpandedPages={expandedPages}
+            onExpandedPagesChange={saveExpandedPages}
             onOpenShare={openShareModal}
           />
 
@@ -173,7 +130,7 @@ function Sidebar({
                       <div
                         key={project.id}
                         className="shared-item shared-project"
-                        onClick={() => onProjectSelect(project.id)}
+                        onClick={() => setCurrentProjectId(project.id)}
                       >
                         <span className="shared-item-icon">📁</span>
                         <span className="shared-item-name">{project.name}</span>
@@ -190,9 +147,9 @@ function Sidebar({
                         className="shared-item shared-page"
                         onClick={() => {
                           if (page.project_id) {
-                            onProjectSelect(page.project_id)
+                            setCurrentProjectId(page.project_id)
                           }
-                          onPageSelect(page.id)
+                          setCurrentPageId(page.id)
                         }}
                       >
                         <span className="shared-item-icon">📄</span>
@@ -220,7 +177,7 @@ function Sidebar({
             </div>
             <button
               className="impersonation-exit-button"
-              onClick={onStopImpersonation}
+              onClick={stopImpersonation}
             >
               원래 계정으로 돌아가기
             </button>
@@ -245,7 +202,7 @@ function Sidebar({
             className="sidebar-logout-button"
             onClick={() => {
               if (window.confirm('로그아웃 하시겠습니까?')) {
-                onLogout()
+                handleLogout()
               }
             }}
             title="로그아웃"
@@ -264,9 +221,9 @@ function Sidebar({
         resourceId={shareTarget.id}
         resourceName={shareTarget.name}
         shares={getSharesForResource?.(shareTarget.type, shareTarget.id) || []}
-        onCreateShare={onCreateShare}
-        onUpdatePermission={onUpdateSharePermission}
-        onDeleteShare={onDeleteShare}
+        onCreateShare={createShare}
+        onUpdatePermission={updateSharePermission}
+        onDeleteShare={deleteShare}
         isLoading={sharingLoading}
       />
 
@@ -276,10 +233,10 @@ function Sidebar({
         onClose={() => setProjectModalOpen(false)}
         projects={projects}
         currentProjectId={currentProjectId}
-        onProjectSelect={onProjectSelect}
-        onProjectCreate={onProjectCreate}
-        onProjectRename={onProjectRename}
-        onProjectDelete={onProjectDelete}
+        onProjectSelect={setCurrentProjectId}
+        onProjectCreate={createProject}
+        onProjectRename={renameProject}
+        onProjectDelete={deleteProject}
       />
 
       {/* 백업 모달 */}
@@ -290,12 +247,12 @@ function Sidebar({
         pages={pages}
         backups={backups}
         isLoading={backupLoading}
-        onCreateBackup={onCreateBackup}
-        onRestoreBackup={onRestoreBackup}
-        onDeleteBackup={onDeleteBackup}
-        onExportBackup={onExportBackup}
-        onImportBackup={onImportBackup}
-        onRefresh={onRefreshBackups}
+        onCreateBackup={createBackup}
+        onRestoreBackup={restoreBackup}
+        onDeleteBackup={deleteBackup}
+        onExportBackup={exportBackup}
+        onImportBackup={importBackup}
+        onRefresh={refreshBackups}
       />
 
       {/* 관리자 모달 (마스터 전용) */}
@@ -305,12 +262,12 @@ function Sidebar({
           onClose={() => setAdminModalOpen(false)}
           users={users}
           usersLoading={usersLoading}
-          onAddUser={onAddUser}
-          onUpdateUserRole={onUpdateUserRole}
-          onUpdateUserStatus={onUpdateUserStatus}
-          onDeleteUser={onDeleteUser}
-          onRefresh={onRefreshUsers}
-          onStartImpersonation={onStartImpersonation}
+          onAddUser={addUser}
+          onUpdateUserRole={updateUserRole}
+          onUpdateUserStatus={updateUserStatus}
+          onDeleteUser={deleteUser}
+          onRefresh={fetchUsers}
+          onStartImpersonation={startImpersonation}
         />
       )}
     </>

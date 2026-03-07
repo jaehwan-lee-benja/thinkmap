@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useEditableField } from '../../../hooks/useEditableField'
 
 export function PageTree({
   pages,
@@ -13,8 +14,7 @@ export function PageTree({
   onExpandedPagesChange,
   onOpenShare,
 }) {
-  const [editingPageId, setEditingPageId] = useState(null)
-  const [editingName, setEditingName] = useState('')
+  const editing = useEditableField(onPageRename)
   const [expandedPages, setExpandedPages] = useState(savedExpandedPages)
 
   // DB에서 불러온 상태가 변경되면 로컬에 반영
@@ -29,24 +29,6 @@ export function PageTree({
     const updated = { ...expandedPages, [pageId]: !expandedPages[pageId] }
     setExpandedPages(updated)
     onExpandedPagesChange?.(updated)
-  }
-
-  const handlePageDoubleClick = (page) => {
-    setEditingPageId(page.id)
-    setEditingName(page.name)
-  }
-
-  const handleSaveRename = () => {
-    if (editingPageId && editingName.trim()) {
-      onPageRename(editingPageId, editingName.trim())
-    }
-    setEditingPageId(null)
-    setEditingName('')
-  }
-
-  const handleCancelRename = () => {
-    setEditingPageId(null)
-    setEditingName('')
   }
 
   const handleDeletePage = (pageId, e) => {
@@ -104,13 +86,13 @@ export function PageTree({
       <div key={page.id} className="page-tree-node">
         <div
           className={`page-item ${currentPageId === page.id ? 'active' : ''}`}
-          style={{ paddingLeft: `${10 + depth * 20}px` }}
+          style={{ '--depth': depth }}
           onClick={() => {
-            if (editingPageId !== page.id) {
+            if (!editing.isEditing(page.id)) {
               onPageSelect(page.id)
             }
           }}
-          onDoubleClick={() => handlePageDoubleClick(page)}
+          onDoubleClick={() => editing.startEdit(page.id, page.name)}
         >
           {hasChildren ? (
             <button
@@ -124,17 +106,14 @@ export function PageTree({
             <span className="page-toggle-spacer" />
           )}
 
-          {editingPageId === page.id ? (
+          {editing.isEditing(page.id) ? (
             <input
               type="text"
               className="page-name-input"
-              value={editingName}
-              onChange={(e) => setEditingName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSaveRename()
-                else if (e.key === 'Escape') handleCancelRename()
-              }}
-              onBlur={handleSaveRename}
+              value={editing.editingValue}
+              onChange={(e) => editing.setEditingValue(e.target.value)}
+              onKeyDown={editing.handleKeyDown}
+              onBlur={editing.saveEdit}
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />

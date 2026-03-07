@@ -1,0 +1,75 @@
+/**
+ * 공통 애니메이션 정의
+ * 여러 컴포넌트에서 재사용
+ */
+
+/* 페이드 인 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 슬라이드 인 (위에서 아래로) */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 바텀시트 슬라이드 업 (모달용) */
+@keyframes slideUpModal {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* 드롭다운 등장 */
+@keyframes dropdownAppear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 토스트 슬라이드 업 */
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 스피너 회전 */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 컨텍스트 메뉴 페이드 인 */
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 모바일 바텀시트 슬라이드 업 (컨텍스트 메뉴용) */
+@keyframes slideUpMobile {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

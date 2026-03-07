@@ -10,7 +10,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-secondary);
   z-index: 9999;
   display: flex;
   flex-direction: column;
@@ -24,7 +24,7 @@
   gap: 16px;
   padding: 12px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-secondary);
 }
 
 /* 닫기 버튼 */
@@ -99,7 +99,7 @@
   flex-shrink: 0;
   height: 100%;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-secondary);
 }
 
 .column-view-column:last-child {
@@ -369,9 +369,9 @@
   justify-content: center;
   padding: 2px 4px;
   height: 20px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  background-color: rgba(239, 68, 68, 0.1);
-  color: rgba(239, 68, 68, 0.8);
+  border: 1px solid var(--color-danger-border);
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text-strong);
   font-size: 11px;
   font-weight: 500;
   border-radius: 4px;
@@ -383,13 +383,13 @@
 }
 
 .delete-block-button:hover {
-  background-color: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.5);
-  color: rgba(239, 68, 68, 1);
+  background-color: var(--color-danger-bg-hover);
+  border-color: var(--color-danger-border-hover);
+  color: var(--color-danger);
 }
 
 .delete-block-button:active {
-  background-color: rgba(239, 68, 68, 0.3);
+  background-color: var(--color-danger-bg-strong);
 }
 
 /* 모바일 반응형 */
@@ -453,5 +453,55 @@
 
   .column-view-hint {
     display: none;
+  }
+}
+
+/* 터치 디바이스 드래그 최적화 */
+@media (hover: none) and (pointer: coarse) {
+  .column-block {
+    min-height: 56px;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* 드래그 오버레이 시각 피드백 */
+  .dragging-overlay {
+    transform: scale(1.03);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    opacity: 0.95;
+  }
+
+  /* 드롭 영역 확대 (터치 부정확성 보완) */
+  .column-block.show-drop-line-top::before,
+  .column-block.show-drop-line-bottom::after {
+    height: 4px;
+  }
+
+  .column-block.show-as-child-target {
+    outline-width: 3px;
+  }
+
+  .add-block-button {
+    min-height: var(--touch-target-min);
+  }
+
+  .add-child-button,
+  .delete-block-button {
+    min-height: 36px;
+    min-width: 48px;
+  }
+
+  .column-view-close-button {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+  }
+
+  /* 스크롤 스냅 (모바일에서 컬럼 단위 이동) */
+  .columns-container {
+    scroll-snap-type: x mandatory;
+  }
+
+  .column-view-column {
+    scroll-snap-align: start;
   }
 }

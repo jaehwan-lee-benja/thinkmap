@@ -23,15 +23,55 @@
   --color-border-medium: rgba(255, 255, 255, 0.12);
   --color-border-strong: rgba(255, 255, 255, 0.3);
 
-  /* 색상 - 강조 */
+  /* 색상 - 강조 (Primary) */
   --color-primary: #646cff;
+  --color-primary-dark: #4f56d8;
   --color-primary-bg: rgba(100, 108, 255, 0.1);
+  --color-primary-active: rgba(100, 108, 255, 0.15);
+  --color-primary-active-hover: rgba(100, 108, 255, 0.2);
+  --color-primary-strong: rgba(100, 108, 255, 0.25);
+  --color-primary-stronger: rgba(100, 108, 255, 0.3);
+  --color-primary-border: rgba(100, 108, 255, 0.3);
+  --color-primary-border-hover: rgba(100, 108, 255, 0.4);
+  --color-primary-text: rgba(100, 108, 255, 0.9);
+
+  /* 색상 - 상태 (Success) */
   --color-success: #4CAF50;
   --color-success-bg: rgba(76, 175, 80, 0.1);
   --color-success-text: rgba(76, 175, 80, 0.7);
+
+  /* 색상 - 상태 (Warning) */
   --color-warning: #FFC107;
   --color-warning-bg: rgba(255, 193, 7, 0.1);
   --color-warning-text: rgba(255, 193, 7, 0.9);
+
+  /* 색상 - 상태 (Danger) */
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.1);
+  --color-danger-bg-subtle: rgba(239, 68, 68, 0.15);
+  --color-danger-bg-hover: rgba(239, 68, 68, 0.2);
+  --color-danger-bg-strong: rgba(239, 68, 68, 0.25);
+  --color-danger-bg-stronger: rgba(239, 68, 68, 0.35);
+  --color-danger-text: rgba(239, 68, 68, 0.7);
+  --color-danger-text-strong: rgba(239, 68, 68, 0.8);
+  --color-danger-border: rgba(239, 68, 68, 0.3);
+  --color-danger-border-hover: rgba(239, 68, 68, 0.5);
+
+  /* 색상 - 마스터/관리자 */
+  --color-master-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --color-master-text: #a78bfa;
+  --color-admin-text: #818cf8;
+
+  /* 색상 - 임퍼소네이션 (Amber) */
+  --color-amber: rgba(245, 158, 11, 0.9);
+  --color-amber-bg: rgba(245, 158, 11, 0.15);
+  --color-amber-bg-hover: rgba(245, 158, 11, 0.25);
+  --color-amber-border: rgba(245, 158, 11, 0.3);
+  --color-amber-border-hover: rgba(245, 158, 11, 0.5);
+  --color-amber-text: rgba(245, 158, 11, 0.8);
+
+  /* 색상 - 앱 전용 */
+  --color-text-title: #e0e7ff;
 
   /* 색상 - 스크롤바 */
   --color-scrollbar-thumb: rgba(255, 255, 255, 0.3);
@@ -87,6 +127,15 @@
   --breakpoint-tablet: 768px;
   --breakpoint-desktop: 1024px;
   --breakpoint-wide: 1440px;
+
+  /* Safe Area */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+
+  /* 모바일 터치 타겟 최소 크기 */
+  --touch-target-min: 44px;
 }
 
 /* 다크 모드는 기본이므로 별도 정의 불필요 */

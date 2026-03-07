@@ -1,0 +1,68 @@
+/* 인증 화면 공통 */
+.auth-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+/* 로딩 화면 */
+.auth-loading {
+  text-align: center;
+}
+
+.auth-loading-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+/* 로그인 화면 */
+.auth-login-card {
+  text-align: center;
+  padding: 3rem;
+  background: var(--color-bg-hover);
+  border-radius: 16px;
+  max-width: 400px;
+}
+
+.auth-login-title {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.auth-login-subtitle {
+  font-size: 1.1rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 2rem;
+}
+
+.auth-login-button {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 auto;
+  transition: opacity var(--transition-fast);
+}
+
+.auth-login-button:hover {
+  opacity: 0.9;
+}
+
+/* 반응형 - 모바일 */
+@media (max-width: 768px) {
+  .auth-login-card {
+    margin: 0 1rem;
+    padding: 2rem;
+  }
+
+  .auth-login-button {
+    min-height: var(--touch-target-min);
+  }
+}

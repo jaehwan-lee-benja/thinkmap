@@ -1,73 +1,52 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useRef, useEffect } from 'react'
+import { useEditableField } from '../../hooks/useEditableField'
+import { useProjectContext } from '../../contexts/ProjectContext'
+import { useUIContext } from '../../contexts/UIContext'
 
-// 헤더 컴포넌트 (노션 스타일)
-function Header({
-  onToggleSidebar,
-  currentProjectId,
-  currentProjectName,
-  onProjectRename,
-  sidebarOpen,
-}) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editingName, setEditingName] = useState('')
+function Header() {
+  const { projects, currentProjectId, renameProject } = useProjectContext()
+  const { sidebarOpen, toggleSidebar } = useUIContext()
+
+  const currentProjectName = projects.find(p => p.id === currentProjectId)?.name
   const inputRef = useRef(null)
 
+  const editing = useEditableField((id, name) => {
+    renameProject(id, name)
+  })
+
   useEffect(() => {
-    if (isEditing && inputRef.current) {
+    if (editing.editingId && inputRef.current) {
       inputRef.current.focus()
       inputRef.current.select()
     }
-  }, [isEditing])
-
-  const handleStartEdit = () => {
-    setEditingName(currentProjectName || 'My Project')
-    setIsEditing(true)
-  }
-
-  const handleSave = () => {
-    if (editingName.trim() && currentProjectId) {
-      onProjectRename(currentProjectId, editingName.trim())
-    }
-    setIsEditing(false)
-  }
-
-  const handleCancel = () => {
-    setIsEditing(false)
-    setEditingName('')
-  }
+  }, [editing.editingId])
 
   return (
     <div className="header-fixed">
       <div className="settings-bar">
         {!sidebarOpen && (
           <button
-            onClick={onToggleSidebar}
+            onClick={toggleSidebar}
             className="header-hamburger-button"
             title="사이드바 열기"
           >
             ☰
           </button>
         )}
-        {isEditing ? (
+        {editing.editingId ? (
           <input
             ref={inputRef}
             type="text"
             className="header-title-input"
-            value={editingName}
-            onChange={(e) => setEditingName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSave()
-              } else if (e.key === 'Escape') {
-                handleCancel()
-              }
-            }}
-            onBlur={handleSave}
+            value={editing.editingValue}
+            onChange={(e) => editing.setEditingValue(e.target.value)}
+            onKeyDown={editing.handleKeyDown}
+            onBlur={editing.saveEdit}
           />
         ) : (
           <h1
             className="app-title editable-title"
-            onClick={handleStartEdit}
+            onClick={() => editing.startEdit(currentProjectId, currentProjectName || 'My Project')}
             title="클릭하여 프로젝트 이름 수정"
           >
             {currentProjectName || 'My Project'}

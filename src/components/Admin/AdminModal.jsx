@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { Users, UserPlus, Shield, X } from 'lucide-react'
+import { Users, UserPlus, Shield } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
+import { Modal, ModalHeader, ModalBody } from '../Common/Modal/Modal'
 import './AdminModal.css'
 
 function AdminModal({
@@ -17,8 +18,6 @@ function AdminModal({
 }) {
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState('user')
-
-  if (!isOpen) return null
 
   const handleAddUser = async (e) => {
     e.preventDefault()
@@ -69,119 +68,95 @@ function AdminModal({
   }
 
   return (
-    <div className="admin-modal-overlay" onClick={onClose}>
-      <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="admin-modal-header">
-          <div className="admin-modal-title">
-            <Shield size={20} />
-            <span>관리자 패널</span>
+    <Modal isOpen={isOpen} onClose={onClose} className="admin-modal">
+      <ModalHeader icon={Shield} title="관리자 패널" onClose={onClose} className="admin-modal-header" />
+
+      <ModalBody className="admin-modal-content">
+        {/* 사용자 추가 폼 */}
+        <div className="admin-section">
+          <div className="admin-section-header">
+            <UserPlus size={16} />
+            <span>사용자 추가</span>
           </div>
-          <button className="admin-modal-close" onClick={onClose}>
-            <X size={20} />
-          </button>
+          <form className="add-user-form" onSubmit={handleAddUser}>
+            <input
+              type="email"
+              placeholder="이메일 주소"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="add-user-input"
+            />
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+              className="add-user-role"
+            >
+              <option value="user">사용자</option>
+              <option value="admin">관리자</option>
+            </select>
+            <button type="submit" className="add-user-button">추가</button>
+          </form>
         </div>
 
-        <div className="admin-modal-content">
-          {/* 사용자 추가 폼 */}
-          <div className="admin-section">
-            <div className="admin-section-header">
-              <UserPlus size={16} />
-              <span>사용자 추가</span>
-            </div>
-            <form className="add-user-form" onSubmit={handleAddUser}>
-              <input
-                type="email"
-                placeholder="이메일 주소"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="add-user-input"
-              />
-              <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
-                className="add-user-role"
-              >
-                <option value="user">사용자</option>
-                <option value="admin">관리자</option>
-              </select>
-              <button type="submit" className="add-user-button">
-                추가
-              </button>
-            </form>
+        {/* 사용자 목록 */}
+        <div className="admin-section">
+          <div className="admin-section-header">
+            <Users size={16} />
+            <span>사용자 목록</span>
+            <button className="refresh-button" onClick={onRefresh}>새로고침</button>
           </div>
 
-          {/* 사용자 목록 */}
-          <div className="admin-section">
-            <div className="admin-section-header">
-              <Users size={16} />
-              <span>사용자 목록</span>
-              <button className="refresh-button" onClick={onRefresh}>
-                새로고침
-              </button>
-            </div>
-
-            {usersLoading ? (
-              <div className="users-loading">로딩 중...</div>
-            ) : users.length === 0 ? (
-              <div className="users-empty">등록된 사용자가 없습니다.</div>
-            ) : (
-              <div className="users-list">
-                {users.map((user) => (
-                  <div key={user.id} className="user-item">
-                    <div className="user-info">
-                      <div className="user-email">{user.email}</div>
-                      <div className="user-meta">
-                        <span className={`user-role ${user.role}`}>
-                          {getRoleLabel(user.role)}
-                        </span>
-                        <span className={`user-status ${user.status}`}>
-                          {getStatusLabel(user.status)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="user-actions">
-                      <select
-                        value={user.role}
-                        onChange={(e) => onUpdateUserRole(user.id, e.target.value)}
-                        className="user-role-select"
-                        disabled={user.role === 'master'}
-                      >
-                        <option value="user">사용자</option>
-                        <option value="admin">관리자</option>
-                      </select>
-                      <select
-                        value={user.status}
-                        onChange={(e) => onUpdateUserStatus(user.id, e.target.value)}
-                        className="user-status-select"
-                      >
-                        <option value="active">활성</option>
-                        <option value="inactive">비활성</option>
-                      </select>
-                      {user.role !== 'master' && (
-                        <>
-                          <button
-                            className="user-impersonate-button"
-                            onClick={() => handleActAsUser(user)}
-                          >
-                            활동하기
-                          </button>
-                          <button
-                            className="user-delete-button"
-                            onClick={() => handleDeleteUser(user)}
-                          >
-                            삭제
-                          </button>
-                        </>
-                      )}
+          {usersLoading ? (
+            <div className="users-loading">로딩 중...</div>
+          ) : users.length === 0 ? (
+            <div className="users-empty">등록된 사용자가 없습니다.</div>
+          ) : (
+            <div className="users-list">
+              {users.map((user) => (
+                <div key={user.id} className="user-item">
+                  <div className="user-info">
+                    <div className="user-email">{user.email}</div>
+                    <div className="user-meta">
+                      <span className={`user-role ${user.role}`}>{getRoleLabel(user.role)}</span>
+                      <span className={`user-status ${user.status}`}>{getStatusLabel(user.status)}</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <div className="user-actions">
+                    <select
+                      value={user.role}
+                      onChange={(e) => onUpdateUserRole(user.id, e.target.value)}
+                      className="user-role-select"
+                      disabled={user.role === 'master'}
+                    >
+                      <option value="user">사용자</option>
+                      <option value="admin">관리자</option>
+                    </select>
+                    <select
+                      value={user.status}
+                      onChange={(e) => onUpdateUserStatus(user.id, e.target.value)}
+                      className="user-status-select"
+                    >
+                      <option value="active">활성</option>
+                      <option value="inactive">비활성</option>
+                    </select>
+                    {user.role !== 'master' && (
+                      <>
+                        <button className="user-impersonate-button" onClick={() => handleActAsUser(user)}>
+                          활동하기
+                        </button>
+                        <button className="user-delete-button" onClick={() => handleDeleteUser(user)}>
+                          삭제
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+      </ModalBody>
+    </Modal>
   )
 }
 

@@ -1,10 +1,8 @@
 import React, { useState } from 'react'
-import { X, UserPlus, Trash2, Users } from 'lucide-react'
+import { UserPlus, Trash2, Users } from 'lucide-react'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../Common/Modal/Modal'
 import './ShareModal.css'
 
-/**
- * 공유 모달 컴포넌트
- */
 function ShareModal({
   isOpen,
   onClose,
@@ -20,8 +18,6 @@ function ShareModal({
   const [email, setEmail] = useState('')
   const [permission, setPermission] = useState('viewer')
   const [error, setError] = useState('')
-
-  if (!isOpen) return null
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -61,64 +57,49 @@ function ShareModal({
   const resourceLabel = resourceType === 'project' ? '프로젝트' : '페이지'
 
   return (
-    <div className="share-modal-overlay" onClick={onClose}>
-      <div className="share-modal" onClick={(e) => e.stopPropagation()}>
-        {/* 헤더 */}
-        <div className="share-modal-header">
-          <div className="share-modal-title">
-            <Users size={20} />
-            <span>{resourceLabel} 공유</span>
-          </div>
-          <button className="share-modal-close" onClick={onClose}>
-            <X size={20} />
+    <Modal isOpen={isOpen} onClose={onClose} className="share-modal">
+      <ModalHeader icon={Users} title={`${resourceLabel} 공유`} onClose={onClose} />
+
+      {/* 리소스 이름 */}
+      <div className="share-modal-resource">
+        <span className="share-resource-label">{resourceLabel}:</span>
+        <span className="share-resource-name">{resourceName}</span>
+      </div>
+
+      {/* 공유 추가 폼 */}
+      <form className="share-form" onSubmit={handleSubmit}>
+        <div className="share-form-row">
+          <input
+            type="email"
+            className="share-email-input"
+            placeholder="이메일 주소 입력"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
+          />
+          <select
+            className="share-permission-select"
+            value={permission}
+            onChange={(e) => setPermission(e.target.value)}
+            disabled={isLoading}
+          >
+            <option value="viewer">뷰어</option>
+            <option value="editor">편집자</option>
+          </select>
+          <button type="submit" className="share-add-button" disabled={isLoading}>
+            <UserPlus size={18} />
+            추가
           </button>
         </div>
+        {error && <div className="share-error">{error}</div>}
+      </form>
 
-        {/* 리소스 이름 */}
-        <div className="share-modal-resource">
-          <span className="share-resource-label">{resourceLabel}:</span>
-          <span className="share-resource-name">{resourceName}</span>
-        </div>
-
-        {/* 공유 추가 폼 */}
-        <form className="share-form" onSubmit={handleSubmit}>
-          <div className="share-form-row">
-            <input
-              type="email"
-              className="share-email-input"
-              placeholder="이메일 주소 입력"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
-            />
-            <select
-              className="share-permission-select"
-              value={permission}
-              onChange={(e) => setPermission(e.target.value)}
-              disabled={isLoading}
-            >
-              <option value="viewer">뷰어</option>
-              <option value="editor">편집자</option>
-            </select>
-            <button
-              type="submit"
-              className="share-add-button"
-              disabled={isLoading}
-            >
-              <UserPlus size={18} />
-              추가
-            </button>
-          </div>
-          {error && <div className="share-error">{error}</div>}
-        </form>
-
-        {/* 공유된 사용자 목록 */}
+      {/* 공유된 사용자 목록 */}
+      <ModalBody>
         <div className="share-list">
           <div className="share-list-header">공유된 사용자</div>
           {shares.length === 0 ? (
-            <div className="share-list-empty">
-              아직 공유된 사용자가 없습니다.
-            </div>
+            <div className="share-list-empty">아직 공유된 사용자가 없습니다.</div>
           ) : (
             <div className="share-list-items">
               {shares.map((share) => (
@@ -153,14 +134,13 @@ function ShareModal({
             </div>
           )}
         </div>
+      </ModalBody>
 
-        {/* 안내 */}
-        <div className="share-info">
-          <p><strong>뷰어:</strong> 내용을 볼 수만 있습니다.</p>
-          <p><strong>편집자:</strong> 내용을 수정할 수 있습니다.</p>
-        </div>
-      </div>
-    </div>
+      <ModalFooter>
+        <p><strong>뷰어:</strong> 내용을 볼 수만 있습니다.</p>
+        <p><strong>편집자:</strong> 내용을 수정할 수 있습니다.</p>
+      </ModalFooter>
+    </Modal>
   )
 }
 

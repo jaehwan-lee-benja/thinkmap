@@ -4,8 +4,9 @@
  * 레거시 NotionBlock, Todo, Viewer 스타일 제거됨
  */
 
-/* CSS 변수 import */
+/* CSS 변수 및 공통 스타일 import */
 @import './styles/variables.css';
+@import './styles/_animations.css';
 
 /* =====================================================
    기본 HTML 스타일
@@ -62,6 +63,7 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 
 .app {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   display: flex;
   justify-content: center;
@@ -83,12 +85,14 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 2rem;
+  padding-right: calc(2rem + var(--safe-area-right));
   overflow-x: visible;
   position: relative;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   transition: margin-left 0.3s ease;
 }
 
@@ -107,8 +111,9 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: #242424;
+  background: var(--color-bg-primary);
   padding: 1.5rem 0 0 0;
+  padding-top: calc(1.5rem + var(--safe-area-top));
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -197,7 +202,7 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 .app-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #e0e7ff;
+  color: var(--color-text-title);
   margin: 0;
   display: flex;
   align-items: center;
@@ -220,9 +225,9 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 .header-title-input {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #e0e7ff;
+  color: var(--color-text-title);
   background: rgba(255, 255, 255, 0.05);
-  border: 2px solid #646cff;
+  border: 2px solid var(--color-primary);
   border-radius: 6px;
   padding: 4px 8px;
   outline: none;
@@ -283,21 +288,7 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
    애니메이션
    ===================================================== */
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* fadeIn, slideIn -> _animations.css */
 
 /* =====================================================
    Toast 알림
@@ -305,7 +296,7 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 
 .undo-toast {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + var(--safe-area-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -320,7 +311,7 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 }
 
 .undo-button {
-  background: #646cff;
+  background: var(--color-primary);
   color: white;
   border: none;
   padding: 6px 12px;
@@ -373,22 +364,27 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
     padding: 0;
     align-items: flex-start;
     min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .container {
     width: 100%;
     max-width: 100%;
     height: 100vh;
+    height: 100dvh;
     padding: 0 0.75rem;
+    padding-left: calc(0.75rem + var(--safe-area-left));
+    padding-right: calc(0.75rem + var(--safe-area-right));
     margin: 0 auto;
   }
 
   .header-fixed {
     padding: 0.75rem 0 0 0;
+    padding-top: calc(0.75rem + var(--safe-area-top));
   }
 
   .content-scrollable {
-    padding: 0.5rem 0 120px 0;
+    padding: 0.5rem 0 calc(120px + var(--safe-area-bottom)) 0;
   }
 
   .app-title {
@@ -420,11 +416,66 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 
 /* 포커스 표시 */
 :focus-visible {
-  outline: 2px solid #646cff;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 /* 버튼 기본 리셋 */
 button {
   font-family: inherit;
+}
+
+/* =====================================================
+   모바일 성능 최적화
+   ===================================================== */
+
+/* 사이드바 GPU 가속 힌트 */
+.sidebar {
+  will-change: transform;
+}
+
+/* 터치 디바이스: 불필요한 hover 효과 비활성화 */
+@media (hover: none) and (pointer: coarse) {
+  /* hover 트랜지션 간소화 */
+  .page-item,
+  .sidebar-project-item,
+  .sidebar-tool-button,
+  .sidebar-shared-toggle,
+  .shared-item,
+  .add-page-button,
+  .add-project-button,
+  .sidebar-logout-button,
+  .sidebar-project-toggle {
+    transition: background-color 0.15s ease;
+  }
+
+  /* 모바일에서 hover 상태 무시 (터치 시 잔존하는 hover 방지) */
+  .page-item:hover,
+  .sidebar-project-item:hover,
+  .sidebar-tool-button:hover,
+  .shared-item:hover {
+    background-color: transparent;
+  }
+
+  /* active 상태로 대체 (터치 피드백) */
+  .page-item:active,
+  .sidebar-project-item:active,
+  .sidebar-tool-button:active,
+  .shared-item:active {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* active 상태인 항목은 유지 */
+  .page-item.active,
+  .page-item.active:hover,
+  .sidebar-project-item.active,
+  .sidebar-project-item.active:hover {
+    background-color: var(--color-primary-active);
+  }
+
+  /* 스크롤 성능 */
+  .content-scrollable,
+  .sidebar-content {
+    -webkit-overflow-scrolling: touch;
+  }
 }

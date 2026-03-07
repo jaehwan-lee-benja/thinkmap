@@ -431,7 +431,7 @@ function MindMapView({ blocks, setBlocks, onSave, onClose, pageName = 'ThinkMap'
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedId, editingId, blocks, onClose])
 
-  // 패닝
+  // 패닝 (마우스)
   const handleMouseDown = (e) => {
     if (e.target.closest('.mindmap-node')) return
     setIsPanning(true)
@@ -446,6 +446,64 @@ function MindMapView({ blocks, setBlocks, onSave, onClose, pageName = 'ThinkMap'
   const handleMouseUp = () => {
     setIsPanning(false)
   }
+
+  // 터치 패닝 + 핀치 줌
+  const lastTouchRef = useRef(null)
+  const lastPinchDistRef = useRef(null)
+
+  const handleTouchStart = useCallback((e) => {
+    if (e.target.closest('.mindmap-node')) return
+
+    if (e.touches.length === 1) {
+      // 1-finger: 패닝
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    } else if (e.touches.length === 2) {
+      // 2-finger: 핀치 줌 준비
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      lastPinchDistRef.current = Math.hypot(dx, dy)
+      lastTouchRef.current = null
+    }
+  }, [])
+
+  const handleTouchMove = useCallback((e) => {
+    if (e.target.closest('.mindmap-node-input')) return
+
+    if (e.touches.length === 1 && lastTouchRef.current) {
+      // 1-finger 패닝
+      const dx = e.touches[0].clientX - lastTouchRef.current.x
+      const dy = e.touches[0].clientY - lastTouchRef.current.y
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      e.preventDefault()
+    } else if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
+      // 핀치 줌
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const dist = Math.hypot(dx, dy)
+      const scale = dist / lastPinchDistRef.current
+      setZoom(prev => Math.min(Math.max(prev * scale, 0.3), 3))
+      lastPinchDistRef.current = dist
+      e.preventDefault()
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    lastTouchRef.current = null
+    lastPinchDistRef.current = null
+  }, [])
+
+  // 더블탭 줌 리셋
+  const lastTapRef = useRef(0)
+  const handleDoubleTap = useCallback((e) => {
+    if (e.target.closest('.mindmap-node')) return
+    const now = Date.now()
+    if (now - lastTapRef.current < 300) {
+      setZoom(1)
+      setPan({ x: 0, y: 0 })
+    }
+    lastTapRef.current = now
+  }, [])
 
   // 노드 선택
   const handleSelect = (id) => {
@@ -591,6 +649,10 @@ function MindMapView({ blocks, setBlocks, onSave, onClose, pageName = 'ThinkMap'
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={handleDoubleTap}
       >
         <div
           ref={canvasRef}

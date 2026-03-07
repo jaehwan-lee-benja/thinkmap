@@ -6,7 +6,7 @@
 /* CSS 변수 (로컬 오버라이드 가능) */
 .tiptap-wrapper {
   --editor-bg: #2d2d2d;
-  --editor-bg-secondary: #1a1a1a;
+  --editor-bg-secondary: var(--color-bg-secondary);
   --editor-text: #e5e7eb;
   --editor-text-muted: #9ca3af;
   --editor-text-faint: #6b7280;
@@ -158,7 +158,7 @@ th .paragraph-drag-handle {
 
 /* 코드 블록 스타일 */
 .tiptap-editor code {
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-secondary);
   color: #10b981;
   padding: 0.2rem 0.4rem;
   border-radius: 0.25rem;
@@ -167,7 +167,7 @@ th .paragraph-drag-handle {
 }
 
 .tiptap-editor pre {
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-secondary);
   color: #e5e7eb;
   padding: 1rem;
   border-radius: 0.5rem;
@@ -271,7 +271,7 @@ th .paragraph-drag-handle {
 }
 
 .tiptap-editor th {
-  background-color: #1a1a1a;
+  background-color: var(--color-bg-secondary);
   font-weight: 600;
 }
 
@@ -288,7 +288,7 @@ th .paragraph-drag-handle {
   top: 0;
   width: 4px;
   height: 100%;
-  background-color: #646cff;
+  background-color: var(--color-primary);
   cursor: col-resize;
   z-index: 20;
   pointer-events: auto;
@@ -311,7 +311,7 @@ th .paragraph-drag-handle {
   right: 0;
   top: 0;
   bottom: 0;
-  background: rgba(100, 108, 255, 0.15);
+  background: var(--color-primary-active);
   pointer-events: none;
   z-index: 10;
 }
@@ -359,12 +359,12 @@ th .paragraph-drag-handle {
 }
 
 .table-toolbar-btn.delete {
-  color: rgba(239, 68, 68, 0.8);
+  color: var(--color-danger-text-strong);
 }
 
 .table-toolbar-btn.delete:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: var(--color-danger-bg-subtle);
+  color: var(--color-danger);
 }
 
 .table-toolbar-btn.close {
@@ -628,16 +628,7 @@ th .paragraph-drag-handle {
   animation: contextMenuFadeIn 0.15s ease-out;
 }
 
-@keyframes contextMenuFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* contextMenuFadeIn -> _animations.css */
 
 .context-menu-item {
   display: flex;
@@ -935,16 +926,10 @@ th .paragraph-drag-handle {
     max-height: 50vh;
     overflow-y: auto;
     animation: slideUpMobile 0.2s ease;
+    padding-bottom: var(--safe-area-bottom);
   }
 
-  @keyframes slideUpMobile {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
+  /* slideUpMobile -> _animations.css */
 
   .context-menu-format-row {
     justify-content: center;
@@ -970,16 +955,95 @@ th .paragraph-drag-handle {
   }
 
   .toggle-button {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
   }
 
   .context-menu-item {
-    min-height: 44px;
+    min-height: var(--touch-target-min);
   }
 
   .format-button {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
   }
+
+  /* paragraph 드래그 핸들 터치에서 항상 표시 */
+  .paragraph-drag-handle {
+    opacity: 0.4;
+  }
+
+  /* 토글 버튼 터치 영역 확대 */
+  .toggle-button {
+    width: 36px;
+    height: 36px;
+    font-size: 0.85rem;
+    /* 투명 패딩으로 터치 영역 확대 */
+    position: relative;
+  }
+
+  .toggle-button::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+  }
+
+  /* 토글 드래그 핸들 터치에서 항상 표시 */
+  .toggle-drag-handle {
+    width: 20px;
+    height: 28px;
+  }
+
+  /* 테이블 툴바 터치 타겟 */
+  .table-toolbar-btn {
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+}
+
+/* =====================================================
+   컨텍스트 메뉴 바텀시트 핸들 (터치 전용)
+   ===================================================== */
+
+.context-menu-handle {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px 0;
+  cursor: grab;
+}
+
+.context-menu-handle-bar {
+  width: 36px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+/* 터치 전용 바텀시트 오버라이드 */
+.block-context-menu--touch {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  border-radius: 12px 12px 0 0;
+  min-width: 100%;
+  max-height: 60vh;
+  overflow-y: auto;
+  animation: slideUpMobile 0.2s ease;
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* =====================================================
+   키보드 대응
+   ===================================================== */
+
+.tiptap-editor {
+  /* 키보드 올라올 때 에디터 하단 여백 자동 조절 */
+  padding-bottom: max(1rem, var(--keyboard-height, 0px));
+  transition: padding-bottom 0.15s ease;
 }

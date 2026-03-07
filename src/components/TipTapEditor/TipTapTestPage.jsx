@@ -20,8 +20,11 @@ import {
   Code,
   RotateCcw,
   Columns3,
-  GitBranch
+  GitBranch,
+  PenLine,
+  MoreHorizontal
 } from 'lucide-react'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import './TipTapPage.css'
 
 /**
@@ -34,6 +37,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
   const [lastSaved, setLastSaved] = useState(null)
   const editorRef = useRef(null)
   const imageInputRef = useRef(null)
+  const { isTablet } = useIsMobile()
+
+  // 모바일 현재 뷰 모드: 'editor' | 'column' | 'mindmap'
+  const [mobileView, setMobileView] = useState('editor')
 
   // 최신 content와 pageId를 ref로 추적 (cleanup 함수에서 사용)
   const contentRef = useRef(null)
@@ -532,8 +539,28 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
+  // 모바일: 하단바에서 뷰 전환
+  const handleMobileViewChange = (view) => {
+    if (view === mobileView) return
+    // 이전 뷰 닫기
+    if (mobileView === 'column' && showColumnView) closeColumnView()
+    if (mobileView === 'mindmap' && showMindMap) closeMindMap()
+    // 새 뷰 열기
+    if (view === 'column') openColumnView()
+    else if (view === 'mindmap') openMindMap()
+    else {
+      // editor로 돌아올 때 열려있는 뷰 닫기
+      if (showColumnView) closeColumnView()
+      if (showMindMap) closeMindMap()
+    }
+    setMobileView(view)
+  }
+
+  // 모바일 더보기 메뉴
+  const [showMobileMore, setShowMobileMore] = useState(false)
+
   return (
-    <div className="tiptap-page">
+    <div className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
       <div className="tiptap-page-inner">
         {/* 페이지 헤더 */}
         <div className="tiptap-page-header">
@@ -545,15 +572,16 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
               title={lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '저장'}
             >
               <Save />
-              저장
+              <span className="tiptap-btn-label">저장</span>
             </button>
+            {/* 데스크톱에서만 표시되는 버튼들 */}
             <button
               onClick={async () => {
                 const success = await saveHistory('수동 버전 저장')
                 if (success) alert('버전이 저장되었습니다.')
                 else alert('버전 저장에 실패했습니다.')
               }}
-              className="tiptap-btn tiptap-btn-success"
+              className="tiptap-btn tiptap-btn-success desktop-only"
               title="현재 상태를 버전으로 저장"
             >
               <Archive />
@@ -561,7 +589,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
             </button>
             <button
               onClick={openHistory}
-              className="tiptap-btn tiptap-btn-purple"
+              className="tiptap-btn tiptap-btn-purple desktop-only"
               title="버전 히스토리 보기"
             >
               <History />
@@ -569,7 +597,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
             </button>
             <button
               onClick={openColumnView}
-              className="tiptap-btn tiptap-btn-secondary"
+              className="tiptap-btn tiptap-btn-secondary desktop-only"
               title="칼럼 모드로 보기"
             >
               <Columns3 />
@@ -577,12 +605,37 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
             </button>
             <button
               onClick={openMindMap}
-              className="tiptap-btn tiptap-btn-secondary"
+              className="tiptap-btn tiptap-btn-secondary desktop-only"
               title="마인드맵 모드로 보기"
             >
               <GitBranch />
               마인드맵
             </button>
+            {/* 모바일 더보기 버튼 */}
+            {isTablet && (
+              <div className="mobile-more-wrapper">
+                <button
+                  onClick={() => setShowMobileMore(!showMobileMore)}
+                  className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
+                  title="더보기"
+                >
+                  <MoreHorizontal />
+                </button>
+                {showMobileMore && (
+                  <>
+                    <div className="mobile-more-overlay" onClick={() => setShowMobileMore(false)} />
+                    <div className="mobile-more-menu">
+                      <button onClick={() => { saveHistory('수동 버전 저장').then(ok => alert(ok ? '버전이 저장되었습니다.' : '버전 저장에 실패했습니다.')); setShowMobileMore(false) }}>
+                        <Archive size={16} /> 버전 저장
+                      </button>
+                      <button onClick={() => { openHistory(); setShowMobileMore(false) }}>
+                        <History size={16} /> 히스토리
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -594,11 +647,11 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
             title="토글 블록 생성 (Cmd+Shift+T)"
           >
             <ChevronRight />
-            토글
+            <span className="tiptap-btn-label">토글</span>
           </button>
           <button
             onClick={() => editorRef.current?.commands.convertAllToToggle()}
-            className="tiptap-btn tiptap-btn-secondary"
+            className="tiptap-btn tiptap-btn-secondary desktop-only"
             title="전체 내용을 토글로 변환 (paragraph, 넘버링, 점찍힌거)"
           >
             <ChevronRight />
@@ -610,7 +663,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
             title="3x3 표 삽입"
           >
             <Table2 />
-            표
+            <span className="tiptap-btn-label">표</span>
           </button>
           <button
             onClick={() => editorRef.current?.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -755,6 +808,33 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
           onClose={closeMindMap}
           pageName={currentPageName}
         />
+      )}
+
+      {/* 모바일 하단 뷰 전환 바 */}
+      {isTablet && (
+        <div className="mobile-bottom-bar">
+          <button
+            className={`mobile-bottom-tab ${mobileView === 'editor' ? 'active' : ''}`}
+            onClick={() => handleMobileViewChange('editor')}
+          >
+            <PenLine size={18} />
+            <span>에디터</span>
+          </button>
+          <button
+            className={`mobile-bottom-tab ${mobileView === 'column' ? 'active' : ''}`}
+            onClick={() => handleMobileViewChange('column')}
+          >
+            <Columns3 size={18} />
+            <span>칼럼</span>
+          </button>
+          <button
+            className={`mobile-bottom-tab ${mobileView === 'mindmap' ? 'active' : ''}`}
+            onClick={() => handleMobileViewChange('mindmap')}
+          >
+            <GitBranch size={18} />
+            <span>마인드맵</span>
+          </button>
+        </div>
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import GoogleAuthButton from './components/Auth/GoogleAuthButton'
 import Header from './components/Navigation/Header'
 import Sidebar from './components/Sidebar/Sidebar'
@@ -11,7 +11,15 @@ import { usePages } from './hooks/usePages'
 import { useSharing } from './hooks/useSharing'
 import { useBackup } from './hooks/useBackup'
 import { useUsers } from './hooks/useUsers'
+import { useIsMobile } from './hooks/useIsMobile'
+import { useSwipeGesture } from './hooks/useSwipeGesture'
 import DeleteToast from './components/Common/DeleteToast'
+import ProjectContext from './contexts/ProjectContext'
+import PageContext from './contexts/PageContext'
+import SharingContext from './contexts/SharingContext'
+import BackupContext from './contexts/BackupContext'
+import AuthContext from './contexts/AuthContext'
+import UIContext from './contexts/UIContext'
 import './App.css'
 
 function App() {
@@ -156,7 +164,14 @@ function App() {
   }, [undoDeletePage])
 
   // UI
+  const { isTablet, isTouch } = useIsMobile()
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768)
+
+  // 모바일 스와이프로 사이드바 열기/닫기
+  useSwipeGesture({
+    onSwipeRight: useCallback(() => { if (isTablet) setSidebarOpen(true) }, [isTablet]),
+    onSwipeLeft: useCallback(() => { if (isTablet && sidebarOpen) setSidebarOpen(false) }, [isTablet, sidebarOpen]),
+  })
 
   // 인증 화면
   const authScreen = GoogleAuthButton({ authLoading, session, handleGoogleLogin })
@@ -171,100 +186,91 @@ function App() {
     )
   }
 
+  // Context values
+  const projectCtx = useMemo(() => ({
+    projects, currentProjectId, setCurrentProjectId,
+    createProject, renameProject, deleteProject,
+  }), [projects, currentProjectId, setCurrentProjectId, createProject, renameProject, deleteProject])
+
+  const pageCtx = useMemo(() => ({
+    pages, pageTree, currentPageId, setCurrentPageId,
+    createPage, renamePage, deletePage: handleDeletePage, getDescendantCount,
+    expandedPages, saveExpandedPages,
+  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, handleDeletePage, getDescendantCount, expandedPages, saveExpandedPages])
+
+  const sharingCtx = useMemo(() => ({
+    sharedWithMe, sharingLoading,
+    createShare, updateSharePermission, deleteShare, getSharesForResource,
+  }), [sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource])
+
+  const backupCtx = useMemo(() => ({
+    backups, backupLoading,
+    createBackup: handleCreateBackup, restoreBackup: handleRestoreBackup,
+    deleteBackup: handleDeleteBackup, exportBackup, importBackup: handleImportBackup,
+    refreshBackups,
+  }), [backups, backupLoading, handleCreateBackup, handleRestoreBackup, handleDeleteBackup, exportBackup, handleImportBackup, refreshBackups])
+
+  const userAvatarUrl = impersonatedUser ? null : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture
+  const authCtx = useMemo(() => ({
+    userEmail: effectiveSession?.user?.email, userAvatarUrl,
+    handleLogout, isMaster,
+    isImpersonating, impersonatedEmail: impersonatedUser?.email,
+    startImpersonation, stopImpersonation,
+    users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers,
+  }), [effectiveSession?.user?.email, userAvatarUrl, handleLogout, isMaster, isImpersonating, impersonatedUser?.email, startImpersonation, stopImpersonation, users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers])
+
+  const uiCtx = useMemo(() => ({
+    sidebarOpen, setSidebarOpen,
+    toggleSidebar: () => setSidebarOpen(prev => !prev),
+    closeSidebar: () => setSidebarOpen(false),
+  }), [sidebarOpen])
+
   return (
-    <div className={`app ${sidebarOpen ? 'sidebar-open' : ''}`}>
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        // 프로젝트
-        projects={projects}
-        currentProjectId={currentProjectId}
-        onProjectSelect={setCurrentProjectId}
-        onProjectCreate={createProject}
-        onProjectRename={renameProject}
-        onProjectDelete={deleteProject}
-        // 페이지
-        pages={pages}
-        pageTree={pageTree}
-        currentPageId={currentPageId}
-        onPageSelect={setCurrentPageId}
-        onPageCreate={createPage}
-        onPageRename={renamePage}
-        onPageDelete={handleDeletePage}
-        getDescendantCount={getDescendantCount}
-        expandedPages={expandedPages}
-        onExpandedPagesChange={saveExpandedPages}
-        // 사용자
-        userEmail={effectiveSession?.user?.email}
-        userAvatarUrl={impersonatedUser ? null : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture}
-        onLogout={handleLogout}
-        isImpersonating={isImpersonating}
-        impersonatedEmail={impersonatedUser?.email}
-        onStopImpersonation={stopImpersonation}
-        onStartImpersonation={startImpersonation}
-        // 공유
-        sharedWithMe={sharedWithMe}
-        getSharesForResource={getSharesForResource}
-        onCreateShare={createShare}
-        onUpdateSharePermission={updateSharePermission}
-        onDeleteShare={deleteShare}
-        sharingLoading={sharingLoading}
-        // 백업
-        backups={backups}
-        backupLoading={backupLoading}
-        onCreateBackup={handleCreateBackup}
-        onRestoreBackup={handleRestoreBackup}
-        onDeleteBackup={handleDeleteBackup}
-        onExportBackup={exportBackup}
-        onImportBackup={handleImportBackup}
-        onRefreshBackups={refreshBackups}
-        // 관리자
-        isMaster={isMaster}
-        users={users}
-        usersLoading={usersLoading}
-        onAddUser={addUser}
-        onUpdateUserRole={updateUserRole}
-        onUpdateUserStatus={updateUserStatus}
-        onDeleteUser={deleteUser}
-        onRefreshUsers={fetchUsers}
-      />
+    <AuthContext.Provider value={authCtx}>
+    <ProjectContext.Provider value={projectCtx}>
+    <PageContext.Provider value={pageCtx}>
+    <SharingContext.Provider value={sharingCtx}>
+    <BackupContext.Provider value={backupCtx}>
+    <UIContext.Provider value={uiCtx}>
+      <div className={`app ${sidebarOpen ? 'sidebar-open' : ''}`}>
+        <Sidebar />
 
-      <div className={`container ${sidebarOpen ? 'with-sidebar' : ''}`}>
-        <Header
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          currentProjectId={currentProjectId}
-          currentProjectName={projects.find(p => p.id === currentProjectId)?.name}
-          onProjectRename={renameProject}
-          sidebarOpen={sidebarOpen}
-        />
+        <div className={`container ${sidebarOpen ? 'with-sidebar' : ''}`}>
+          <Header />
 
-        <div className="content-scrollable">
-          {currentPageId ? (
-            <TipTapEditorPage
-              session={effectiveSession}
-              currentPageId={currentPageId}
-              currentPageName={pages.find(p => p.id === currentPageId)?.name}
-              onPageRename={renamePage}
-            />
-          ) : (
-            <div className="no-page-selected">
-              <p>페이지를 선택하거나 새 페이지를 만드세요</p>
-            </div>
-          )}
+          <div className="content-scrollable">
+            {currentPageId ? (
+              <TipTapEditorPage
+                session={effectiveSession}
+                currentPageId={currentPageId}
+                currentPageName={pages.find(p => p.id === currentPageId)?.name}
+                onPageRename={renamePage}
+              />
+            ) : (
+              <div className="no-page-selected">
+                <p>페이지를 선택하거나 새 페이지를 만드세요</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* 삭제 취소 토스트 */}
-      {deleteToast && (
-        <DeleteToast
-          key={deleteToast.key}
-          pageName={deleteToast.pageName}
-          onUndo={handleUndoDelete}
-          onDismiss={() => setDeleteToast(null)}
-          duration={5000}
-        />
-      )}
-    </div>
+        {/* 삭제 취소 토스트 */}
+        {deleteToast && (
+          <DeleteToast
+            key={deleteToast.key}
+            pageName={deleteToast.pageName}
+            onUndo={handleUndoDelete}
+            onDismiss={() => setDeleteToast(null)}
+            duration={5000}
+          />
+        )}
+      </div>
+    </UIContext.Provider>
+    </BackupContext.Provider>
+    </SharingContext.Provider>
+    </PageContext.Provider>
+    </ProjectContext.Provider>
+    </AuthContext.Provider>
   )
 }
 

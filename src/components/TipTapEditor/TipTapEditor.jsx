@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { TableToolbar } from './components/TableToolbar'
 import { BlockContextMenu } from './components/BlockContextMenu'
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { OrderedList } from '@tiptap/extension-ordered-list'
@@ -68,6 +69,9 @@ function isOnlyIsOpenDiff(json1, json2) {
 }
 
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
+  // 키보드 높이 감지 (CSS 변수 --keyboard-height 자동 설정)
+  useKeyboardHeight()
+
   // 블록 컨텍스트 메뉴 상태 (그룹)
   const [contextMenu, setContextMenu] = useState({ visible: false, position: { top: 0, left: 0 }, nodePos: null })
 
@@ -252,6 +256,71 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
     document.addEventListener('toggle-context-menu', handleToggleContextMenu)
     return () => document.removeEventListener('toggle-context-menu', handleToggleContextMenu)
+  }, [editor])
+
+  // 롱프레스로 컨텍스트 메뉴 열기 (터치 디바이스)
+  useEffect(() => {
+    if (!editor) return
+    const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+    if (!isTouch) return
+
+    let longPressTimer = null
+    let touchStartPos = null
+
+    const handleTouchStart = (e) => {
+      const target = e.target
+      // 에디터 내부에서만 작동
+      if (!target.closest('.tiptap-editor')) return
+
+      touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+
+      longPressTimer = setTimeout(() => {
+        // 노드 위치 찾기
+        const pos = editor.view.posAtCoords({ left: touchStartPos.x, top: touchStartPos.y })
+        if (pos) {
+          // 가장 가까운 블록 노드 찾기
+          const $pos = editor.state.doc.resolve(pos.pos)
+          let nodePos = $pos.before($pos.depth)
+          setContextMenu({
+            visible: true,
+            position: { top: touchStartPos.y, left: touchStartPos.x },
+            nodePos
+          })
+          // 기본 컨텍스트 메뉴 방지
+          e.preventDefault()
+        }
+      }, 600)
+    }
+
+    const handleTouchMove = (e) => {
+      if (!touchStartPos || !longPressTimer) return
+      const dx = Math.abs(e.touches[0].clientX - touchStartPos.x)
+      const dy = Math.abs(e.touches[0].clientY - touchStartPos.y)
+      // 10px 이상 이동하면 롱프레스 취소
+      if (dx > 10 || dy > 10) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+      }
+    }
+
+    const handleTouchEnd = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+      }
+    }
+
+    const editorDom = editor.view.dom
+    editorDom.addEventListener('touchstart', handleTouchStart, { passive: false })
+    editorDom.addEventListener('touchmove', handleTouchMove, { passive: true })
+    editorDom.addEventListener('touchend', handleTouchEnd, { passive: true })
+
+    return () => {
+      editorDom.removeEventListener('touchstart', handleTouchStart)
+      editorDom.removeEventListener('touchmove', handleTouchMove)
+      editorDom.removeEventListener('touchend', handleTouchEnd)
+      if (longPressTimer) clearTimeout(longPressTimer)
+    }
   }, [editor])
 
   if (!editor) {

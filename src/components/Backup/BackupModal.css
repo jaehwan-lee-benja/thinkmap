@@ -1,66 +1,4 @@
-/* 백업 모달 오버레이 */
-.backup-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-bg-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-index-modal);
-}
-
-/* 백업 모달 */
-.backup-modal {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-medium);
-  border-radius: var(--border-radius-xl);
-  width: 90%;
-  max-width: 520px;
-  max-height: 85vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-/* 헤더 */
-.backup-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.backup-modal-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.backup-modal-close {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  border-radius: var(--border-radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--transition-fast);
-}
-
-.backup-modal-close:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
+/* 백업 모달 (기본 스타일은 Modal.css에서 상속) */
 
 /* 프로젝트 정보 */
 .backup-project-info {
@@ -306,8 +244,8 @@
 }
 
 .backup-action-btn.delete:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .backup-item-description {
@@ -350,23 +288,7 @@
   cursor: not-allowed;
 }
 
-/* 안내 */
-.backup-info {
-  padding: var(--spacing-md);
-  background: var(--color-bg-secondary);
-  border-top: 1px solid var(--color-border-light);
-}
-
-.backup-info p {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  line-height: 1.5;
-}
-
-.backup-info p + p {
-  margin-top: var(--spacing-xs);
-}
+/* 안내: ModalFooter 사용 (.modal-footer) */
 
 /* 로딩 오버레이 */
 .backup-loading-overlay {
@@ -391,22 +313,11 @@
   border: 3px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
-  animation: backup-spin 1s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
-@keyframes backup-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 반응형 */
-@media (max-width: 480px) {
-  .backup-modal {
-    width: 95%;
-    max-height: 90vh;
-  }
-
+/* 반응형 - 모바일 */
+@media (max-width: 768px) {
   .backup-create-form {
     flex-direction: column;
   }
@@ -414,4 +325,28 @@
   .backup-item-actions {
     opacity: 1;
   }
+
+  .backup-create-button {
+    min-height: var(--touch-target-min);
+    justify-content: center;
+  }
+
+  .backup-import-button {
+    min-height: var(--touch-target-min);
+  }
+
+  .backup-action-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .backup-restore-button {
+    min-height: 36px;
+  }
+
+  .backup-description-input {
+    min-height: var(--touch-target-min);
+  }
 }
+
+/* slideUpBackupModal -> _animations.css (slideUpModal) */

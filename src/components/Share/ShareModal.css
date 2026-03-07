@@ -1,65 +1,4 @@
-/* 공유 모달 오버레이 */
-.share-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-bg-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-index-modal);
-}
-
-/* 공유 모달 */
-.share-modal {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-medium);
-  border-radius: var(--border-radius-xl);
-  width: 90%;
-  max-width: 480px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 헤더 */
-.share-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.share-modal-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.share-modal-close {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  border-radius: var(--border-radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--transition-fast);
-}
-
-.share-modal-close:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
+/* 공유 모달 (기본 스타일은 Modal.css에서 상속) */
 
 /* 리소스 이름 */
 .share-modal-resource {
@@ -151,7 +90,7 @@
 
 .share-error {
   margin-top: var(--spacing-sm);
-  color: #ef4444;
+  color: var(--color-danger);
   font-size: var(--font-size-sm);
 }
 
@@ -253,46 +192,52 @@
 }
 
 .share-item-remove:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
-/* 안내 */
-.share-info {
-  padding: var(--spacing-md);
-  background: var(--color-bg-secondary);
-  border-top: 1px solid var(--color-border-light);
-}
+/* 안내: ModalFooter 사용 (.modal-footer) */
 
-.share-info p {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  line-height: 1.5;
-}
-
-.share-info p + p {
-  margin-top: var(--spacing-xs);
-}
-
-/* 반응형 */
-@media (max-width: 480px) {
+/* 반응형 - 모바일 */
+@media (max-width: 768px) {
   .share-form-row {
     flex-direction: column;
   }
 
   .share-add-button {
     justify-content: center;
+    min-height: var(--touch-target-min);
   }
 
   .share-item {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-sm);
+    min-height: var(--touch-target-min);
   }
 
   .share-item-actions {
     width: 100%;
     justify-content: flex-end;
   }
+
+  .share-item-remove {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .share-modal-close {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+  }
+
+  .share-permission-select {
+    min-height: var(--touch-target-min);
+  }
+
+  .share-email-input {
+    min-height: var(--touch-target-min);
+  }
 }
+
+/* slideUpShareModal -> _animations.css (slideUpModal) */

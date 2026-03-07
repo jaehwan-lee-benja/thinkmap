@@ -1,65 +1,4 @@
-/* 프로젝트 모달 오버레이 */
-.project-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-bg-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-index-modal);
-}
-
-/* 프로젝트 모달 */
-.project-modal {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-medium);
-  border-radius: var(--border-radius-xl);
-  width: 90%;
-  max-width: 420px;
-  max-height: 70vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 헤더 */
-.project-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.project-modal-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.project-modal-close {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  border-radius: var(--border-radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--transition-fast);
-}
-
-.project-modal-close:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
+/* 프로젝트 모달 (기본 스타일은 Modal.css에서 상속) */
 
 /* 프로젝트 목록 */
 .project-modal-list {
@@ -156,8 +95,8 @@
 }
 
 .project-action-button.delete:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 /* 이름 수정 폼 */
@@ -240,14 +179,22 @@
   color: var(--color-primary);
 }
 
-/* 반응형 */
-@media (max-width: 480px) {
-  .project-modal {
-    width: 95%;
-    max-height: 80vh;
-  }
-
+/* 반응형 - 모바일 */
+@media (max-width: 768px) {
   .project-item-actions {
     opacity: 1;
+  }
+
+  .project-modal-item {
+    min-height: var(--touch-target-min);
+  }
+
+  .project-action-button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .project-modal-add {
+    min-height: var(--touch-target-min);
   }
 }
