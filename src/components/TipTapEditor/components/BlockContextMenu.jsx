@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useLayoutEffect } from 'react'
 import { useClickOutside } from '../../../hooks/useClickOutside'
 
 export function BlockContextMenu({ editor, position, nodePos, onClose }) {
@@ -11,7 +11,7 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
 
   // 외부 클릭 시 메뉴 닫기
   useClickOutside(menuRef, onClose, true, {
-    event: 'click',
+    event: 'mousedown',
     ignoreSelector: '.toggle-drag-handle',
   })
 
@@ -78,14 +78,32 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
   // 터치 디바이스 감지
   const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
+  // 뷰포트 밖으로 벗어나면 위치 보정
+  const [adjustedPos, setAdjustedPos] = useState(position)
+  useLayoutEffect(() => {
+    if (isTouch || !menuRef.current) return
+    const rect = menuRef.current.getBoundingClientRect()
+    const margin = 8
+    let { top, left } = position
+    if (top + rect.height > window.innerHeight - margin) {
+      top = window.innerHeight - rect.height - margin
+    }
+    if (left + rect.width > window.innerWidth - margin) {
+      left = window.innerWidth - rect.width - margin
+    }
+    if (top < margin) top = margin
+    if (left < margin) left = margin
+    setAdjustedPos({ top, left })
+  }, [position, isTouch])
+
   return (
     <div
       ref={menuRef}
       className={`block-context-menu ${isTouch ? 'block-context-menu--touch' : ''}`}
       style={isTouch ? { zIndex: 1000 } : {
         position: 'fixed',
-        top: `${position.top}px`,
-        left: `${position.left}px`,
+        top: `${adjustedPos.top}px`,
+        left: `${adjustedPos.left}px`,
         zIndex: 1000,
       }}
     >

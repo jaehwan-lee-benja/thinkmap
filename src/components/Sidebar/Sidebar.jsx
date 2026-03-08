@@ -19,7 +19,7 @@ import './Sidebar.css'
  */
 function Sidebar() {
   const { projects, currentProjectId, setCurrentProjectId, createProject, renameProject, deleteProject } = useProjectContext()
-  const { pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, deletePage, getDescendantCount, expandedPages, saveExpandedPages } = usePageContext()
+  const { pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, deletePage, reorderPages, getDescendantCount, expandedPages, saveExpandedPages } = usePageContext()
   const { sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource } = useSharingContext()
   const { backups, backupLoading, createBackup, restoreBackup, deleteBackup, exportBackup, importBackup, refreshBackups } = useBackupContext()
   const { userEmail, userAvatarUrl, handleLogout, isMaster, isImpersonating, impersonatedEmail, startImpersonation, stopImpersonation, users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers } = useAuthContext()
@@ -82,6 +82,7 @@ function Sidebar() {
             onPageCreate={createPage}
             onPageRename={renamePage}
             onPageDelete={deletePage}
+            onReorderPages={reorderPages}
             getDescendantCount={getDescendantCount}
             savedExpandedPages={expandedPages}
             onExpandedPagesChange={saveExpandedPages}

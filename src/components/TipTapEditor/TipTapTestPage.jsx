@@ -6,7 +6,6 @@ import { supabase } from '../../supabaseClient'
 import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
 import { tiptapToColumnBlocks, columnBlocksToTiptap } from './utils/columnViewUtils'
 import {
-  Save,
   Archive,
   History,
   ChevronRight,
@@ -22,7 +21,7 @@ import {
   Columns3,
   GitBranch,
   PenLine,
-  MoreHorizontal
+  Settings
 } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import './TipTapPage.css'
@@ -329,33 +328,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
     setContent(newContent)
   }
 
-  // 저장 함수
-  const handleSave = async () => {
-    if (!session || !currentPageId || !content) return
-
-    setIsSaving(true)
-    try {
-      const { error } = await supabase
-        .from('pages')
-        .update({
-          content_tiptap: content,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', currentPageId)
-
-      if (error) {
-        console.error('저장 실패:', error)
-        alert('저장에 실패했습니다: ' + error.message)
-      } else {
-        setLastSaved(new Date())
-      }
-    } catch (err) {
-      console.error('예상치 못한 오류:', err)
-      alert('저장 중 오류가 발생했습니다')
-    } finally {
-      setIsSaving(false)
-    }
-  }
 
   // 즉시 저장 함수 (동기적으로 호출 가능)
   const saveImmediately = useCallback(async (contentToSave, pageIdToSave) => {
@@ -557,90 +529,86 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
   }
 
   // 모바일 더보기 메뉴
-  const [showMobileMore, setShowMobileMore] = useState(false)
+  // 설정 드롭다운
+  const [showSettings, setShowSettings] = useState(false)
+  const [showToolbar, setShowToolbar] = useState(false)
+  const settingsRef = useRef(null)
 
   return (
     <div className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
       <div className="tiptap-page-inner">
         {/* 페이지 헤더 */}
         <div className="tiptap-page-header">
-          <h2 className="tiptap-page-title">{currentPageName || '페이지'}</h2>
+          <h2
+            className="tiptap-page-title"
+            contentEditable
+            suppressContentEditableWarning
+            spellCheck={false}
+            onBlur={(e) => {
+              const newName = e.target.textContent.trim()
+              if (newName && newName !== currentPageName && onPageRename) {
+                onPageRename(currentPageId, newName)
+              } else {
+                e.target.textContent = currentPageName || '페이지'
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); e.target.blur() }
+              if (e.key === 'Escape') { e.target.textContent = currentPageName || '페이지'; e.target.blur() }
+            }}
+          >{currentPageName || '페이지'}</h2>
           <div className="tiptap-header-actions">
             <button
-              onClick={handleSave}
-              className="tiptap-btn tiptap-btn-primary"
-              title={lastSaved ? `마지막 저장: ${lastSaved.toLocaleTimeString()}` : '저장'}
-            >
-              <Save />
-              <span className="tiptap-btn-label">저장</span>
-            </button>
-            {/* 데스크톱에서만 표시되는 버튼들 */}
-            <button
               onClick={async () => {
+                if (!confirm('현재 버전을 저장하시겠습니까?\n\n저장된 내용은 히스토리에서 확인할 수 있습니다.')) return
                 const success = await saveHistory('수동 버전 저장')
                 if (success) alert('버전이 저장되었습니다.')
                 else alert('버전 저장에 실패했습니다.')
               }}
-              className="tiptap-btn tiptap-btn-success desktop-only"
+              className="tiptap-btn tiptap-btn-success"
               title="현재 상태를 버전으로 저장"
             >
               <Archive />
-              버전 저장
+              <span className="tiptap-btn-label">버전 저장</span>
             </button>
             <button
               onClick={openHistory}
-              className="tiptap-btn tiptap-btn-purple desktop-only"
+              className="tiptap-btn tiptap-btn-purple"
               title="버전 히스토리 보기"
             >
               <History />
-              히스토리
+              <span className="tiptap-btn-label">히스토리</span>
             </button>
-            <button
-              onClick={openColumnView}
-              className="tiptap-btn tiptap-btn-secondary desktop-only"
-              title="칼럼 모드로 보기"
-            >
-              <Columns3 />
-              칼럼모드
-            </button>
-            <button
-              onClick={openMindMap}
-              className="tiptap-btn tiptap-btn-secondary desktop-only"
-              title="마인드맵 모드로 보기"
-            >
-              <GitBranch />
-              마인드맵
-            </button>
-            {/* 모바일 더보기 버튼 */}
-            {isTablet && (
-              <div className="mobile-more-wrapper">
-                <button
-                  onClick={() => setShowMobileMore(!showMobileMore)}
-                  className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
-                  title="더보기"
-                >
-                  <MoreHorizontal />
-                </button>
-                {showMobileMore && (
-                  <>
-                    <div className="mobile-more-overlay" onClick={() => setShowMobileMore(false)} />
-                    <div className="mobile-more-menu">
-                      <button onClick={() => { saveHistory('수동 버전 저장').then(ok => alert(ok ? '버전이 저장되었습니다.' : '버전 저장에 실패했습니다.')); setShowMobileMore(false) }}>
-                        <Archive size={16} /> 버전 저장
-                      </button>
-                      <button onClick={() => { openHistory(); setShowMobileMore(false) }}>
-                        <History size={16} /> 히스토리
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="settings-wrapper" ref={settingsRef}>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="tiptap-btn tiptap-btn-secondary tiptap-btn-icon"
+                title="설정"
+              >
+                <Settings />
+              </button>
+              {showSettings && (
+                <>
+                  <div className="settings-overlay" onClick={() => setShowSettings(false)} />
+                  <div className="settings-menu">
+                    <button onClick={() => { openColumnView(); setShowSettings(false) }}>
+                      <Columns3 size={16} /> 칼럼모드
+                    </button>
+                    <button onClick={() => { openMindMap(); setShowSettings(false) }}>
+                      <GitBranch size={16} /> 마인드맵
+                    </button>
+                    <button onClick={() => { setShowToolbar(prev => !prev); setShowSettings(false) }}>
+                      <PenLine size={16} /> {showToolbar ? '툴바 숨기기' : '툴바 보기'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         {/* 툴바 */}
-        <div className="tiptap-toolbar">
+        {showToolbar && <div className="tiptap-toolbar">
           <button
             onClick={() => editorRef.current?.commands.setToggle()}
             className="tiptap-btn tiptap-btn-secondary"
@@ -725,7 +693,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
           >
             <Code />
           </button>
-        </div>
+        </div>}
 
         {/* 에디터 */}
         <div className="tiptap-editor-wrapper">

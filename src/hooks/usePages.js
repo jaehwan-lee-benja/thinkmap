@@ -318,23 +318,22 @@ export const usePages = (session, currentProjectId, options = {}) => {
     return getDescendantIds(pageId, pages).length
   }, [pages])
 
-  // 페이지 순서 변경
+  // 페이지 순서 변경 (position + parent_id)
   const reorderPages = async (newPages) => {
     if (!session?.user?.id) return false
 
     try {
-      // 각 페이지의 position 업데이트
-      const updates = newPages.map((page, index) => ({
-        id: page.id,
-        position: index,
-        updated_at: new Date().toISOString()
-      }))
+      // 변경된 페이지만 업데이트
+      const now = new Date().toISOString()
+      for (const newPage of newPages) {
+        const oldPage = pages.find(p => p.id === newPage.id)
+        if (!oldPage) continue
+        if (oldPage.position === newPage.position && oldPage.parent_id === newPage.parent_id) continue
 
-      for (const update of updates) {
         const { error } = await supabase
           .from('pages')
-          .update({ position: update.position, updated_at: update.updated_at })
-          .eq('id', update.id)
+          .update({ position: newPage.position, parent_id: newPage.parent_id || null, updated_at: now })
+          .eq('id', newPage.id)
           .eq('user_id', session.user.id)
 
         if (error) throw error

@@ -88,6 +88,7 @@ function App() {
     renamePage,
     deletePage,
     undoDeletePage,
+    reorderPages,
     getDescendantCount,
   } = usePages(effectiveSession, currentProjectId, {
     initialPageId,
@@ -183,9 +184,9 @@ function App() {
 
   const pageCtx = useMemo(() => ({
     pages, pageTree, currentPageId, setCurrentPageId,
-    createPage, renamePage, deletePage: handleDeletePage, getDescendantCount,
+    createPage, renamePage, deletePage: handleDeletePage, reorderPages, getDescendantCount,
     expandedPages, saveExpandedPages,
-  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, handleDeletePage, getDescendantCount, expandedPages, saveExpandedPages])
+  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, handleDeletePage, reorderPages, getDescendantCount, expandedPages, saveExpandedPages])
 
   const sharingCtx = useMemo(() => ({
     sharedWithMe, sharingLoading,

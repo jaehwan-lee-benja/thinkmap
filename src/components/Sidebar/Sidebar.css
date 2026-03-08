@@ -411,6 +411,35 @@
   gap: 2px;
 }
 
+.page-item-placeholder .page-icon,
+.page-item-placeholder .page-name {
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+.page-item-placeholder:hover .page-icon,
+.page-item-placeholder:hover .page-name {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 드래그 앤 드롭 */
+.page-item.dragging {
+  opacity: 0.4;
+}
+
+.page-item.drop-before {
+  box-shadow: 0 -2px 0 0 var(--color-primary, #3b82f6);
+}
+
+.page-item.drop-after {
+  box-shadow: 0 2px 0 0 var(--color-primary, #3b82f6);
+}
+
+.page-item.drop-inside {
+  background-color: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
 /* 토글 화살표 버튼 */
 .page-toggle-arrow {
   display: flex;
@@ -440,11 +469,12 @@
   transform: rotate(90deg);
 }
 
-/* 토글 없는 페이지의 스페이서 (정렬용) */
-.page-toggle-spacer {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
+.page-toggle-arrow.empty {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+.page-toggle-arrow.empty:hover {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* 하위 페이지 추가 버튼 */
@@ -463,15 +493,8 @@
   border-radius: 4px;
   transition: all 0.2s;
   flex-shrink: 0;
-  opacity: 0;
-  pointer-events: none;
   padding: 0;
   line-height: 1;
-}
-
-.page-item:hover .page-subpage-button {
-  opacity: 0.7;
-  pointer-events: auto;
 }
 
 .page-subpage-button:hover {
@@ -516,13 +539,6 @@
   border-radius: 4px;
   transition: all 0.2s;
   flex-shrink: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.page-item:hover .page-delete-button {
-  opacity: 0.7;
-  pointer-events: auto;
 }
 
 .page-delete-button:hover {
@@ -782,10 +798,25 @@
 /* 프로젝트/페이지 액션 버튼 그룹 */
 .project-item-actions,
 .page-item-actions {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
+  position: absolute;
+  right: 8px;
+  padding-left: 12px;
+}
+
+.page-item:hover .page-item-actions {
+  display: flex;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05) 12px);
+}
+
+.page-item.active .page-item-actions {
+  background: linear-gradient(90deg, transparent, var(--color-primary-active) 12px);
+}
+
+.page-item.active:hover .page-item-actions {
+  background: linear-gradient(90deg, transparent, var(--color-primary-active-hover) 12px);
 }
 
 /* 공유 버튼 */
@@ -801,15 +832,17 @@
   border-radius: 4px;
   transition: all 0.2s;
   flex-shrink: 0;
-  opacity: 0;
-  pointer-events: none;
   color: var(--color-primary);
   font-size: 11px;
   font-weight: 500;
 }
 
-.sidebar-project-item:hover .project-share-button,
-.page-item:hover .page-share-button {
+.project-share-button {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-project-item:hover .project-share-button {
   opacity: 0.7;
   pointer-events: auto;
 }
@@ -951,7 +984,7 @@
     height: 36px;
   }
 
-  .page-toggle-spacer {
+  .page-toggle-arrow.empty {
     width: 36px;
     height: 36px;
   }

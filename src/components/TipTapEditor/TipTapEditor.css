@@ -571,8 +571,14 @@ th .paragraph-drag-handle {
   justify-content: center;
 }
 
-.toggle-todo-checkbox:hover {
+.toggle-todo-checkbox:hover,
+.toggle-checkbox-focused > .toggle-todo-checkbox {
   border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+}
+
+.toggle-checkbox-focused > .toggle-content {
+  caret-color: transparent;
 }
 
 .toggle-todo-checkbox.checked {
