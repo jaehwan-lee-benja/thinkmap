@@ -137,6 +137,29 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
         <span className="context-menu-shortcut">⌘D</span>
       </button>
 
+      {/* 투두 전환 (토글 블록일 때만) */}
+      {nodePos !== null && editor.state.doc.nodeAt(nodePos)?.type.name === 'toggle' && (
+        <button className="context-menu-item" onClick={() => {
+          const node = editor.state.doc.nodeAt(nodePos)
+          if (node) {
+            const newIsTodo = !node.attrs.isTodo
+            const { tr } = editor.state
+            tr.setNodeMarkup(nodePos, null, {
+              ...node.attrs,
+              isTodo: newIsTodo,
+              todoChecked: newIsTodo ? node.attrs.todoChecked : false,
+            })
+            editor.view.dispatch(tr)
+          }
+          onClose()
+        }}>
+          <span className="context-menu-icon">
+            {editor.state.doc.nodeAt(nodePos)?.attrs.isTodo ? '☑' : '☐'}
+          </span>
+          <span>{editor.state.doc.nodeAt(nodePos)?.attrs.isTodo ? '투두 해제' : '투두 전환'}</span>
+        </button>
+      )}
+
       <div className="context-menu-separator"></div>
 
       {/* 이미지 삽입 */}

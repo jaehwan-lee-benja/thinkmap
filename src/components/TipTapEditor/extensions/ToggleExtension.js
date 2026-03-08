@@ -78,7 +78,7 @@ export const Toggle = Node.create({
 
   group: 'block',
 
-  content: 'block+',
+  content: '(paragraph | toggle)+',
 
   defining: true,
 
@@ -101,6 +101,16 @@ export const Toggle = Node.create({
             'data-auto-generated': 'true',
           } : {}
         },
+      },
+      isTodo: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-is-todo') === 'true',
+        renderHTML: attributes => attributes.isTodo ? { 'data-is-todo': 'true' } : {},
+      },
+      todoChecked: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-todo-checked') === 'true',
+        renderHTML: attributes => attributes.todoChecked ? { 'data-todo-checked': 'true' } : {},
       },
     }
   },
@@ -265,8 +275,31 @@ export const Toggle = Node.create({
         editor.view.dispatch(tr)
       })
 
+      // Todo checkbox
+      const checkbox = document.createElement('div')
+      checkbox.classList.add('toggle-todo-checkbox')
+      checkbox.contentEditable = 'false'
+      if (!node.attrs.isTodo) checkbox.style.display = 'none'
+      if (node.attrs.todoChecked) {
+        checkbox.classList.add('checked')
+        dom.classList.add('toggle-todo-checked')
+      }
+
+      checkbox.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (typeof getPos !== 'function') return
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        if (!currentNode) return
+        const { tr } = editor.state
+        tr.setNodeMarkup(pos, null, { ...currentNode.attrs, todoChecked: !currentNode.attrs.todoChecked })
+        editor.view.dispatch(tr)
+      })
+
       dom.appendChild(dragHandle)
       dom.appendChild(button)
+      dom.appendChild(checkbox)
       dom.appendChild(contentWrapper)
 
       return {
@@ -285,6 +318,17 @@ export const Toggle = Node.create({
 
           // Decoration 반영 (Plugin이 전달한 포커스 상태)
           dom.classList.toggle('toggle-block-focused', hasFocusClass(outerDecorations))
+
+          // Todo checkbox update
+          if (updatedNode.attrs.isTodo) {
+            checkbox.style.display = ''
+            checkbox.classList.toggle('checked', updatedNode.attrs.todoChecked)
+            dom.classList.toggle('toggle-todo-checked', updatedNode.attrs.todoChecked)
+          } else {
+            checkbox.style.display = 'none'
+            checkbox.classList.remove('checked')
+            dom.classList.remove('toggle-todo-checked')
+          }
 
           return true
         },
@@ -323,6 +367,28 @@ export const Toggle = Node.create({
           }
 
           return null
+        },
+      }),
+      // 스페이스바: 투두 토글이 NodeSelection일 때 완료/미완료 전환
+      new Plugin({
+        props: {
+          handleKeyDown(view, event) {
+            if (event.key !== ' ') return false
+            const { state } = view
+            const { selection } = state
+
+            if (!(selection instanceof NodeSelection)) return false
+            if (selection.node.type.name !== 'toggle') return false
+            if (!selection.node.attrs.isTodo) return false
+
+            const pos = selection.from
+            const node = selection.node
+            const { tr } = state
+            tr.setNodeMarkup(pos, null, { ...node.attrs, todoChecked: !node.attrs.todoChecked })
+            tr.setSelection(NodeSelection.create(tr.doc, pos))
+            view.dispatch(tr)
+            return true
+          },
         },
       }),
       // 커서가 위치한 가장 가까운(가장 안쪽) 토글 블록에 포커스 decoration
@@ -375,6 +441,33 @@ export const Toggle = Node.create({
           .insertContentAt(selection.to, emptyToggleJSON())
           .focus()
           .run()
+      },
+      toggleTodo: () => ({ editor }) => {
+        const { state } = editor
+        const { selection } = state
+        let togglePos, toggleNode
+
+        if (selection instanceof NodeSelection && selection.node.type.name === 'toggle') {
+          togglePos = selection.from
+          toggleNode = selection.node
+        } else {
+          const toggleDepth = findToggleDepth(state.selection.$from)
+          if (toggleDepth === -1) return false
+          togglePos = state.selection.$from.before(toggleDepth)
+          toggleNode = state.doc.nodeAt(togglePos)
+        }
+
+        if (!toggleNode) return false
+
+        const { tr } = state
+        const newIsTodo = !toggleNode.attrs.isTodo
+        tr.setNodeMarkup(togglePos, null, {
+          ...toggleNode.attrs,
+          isTodo: newIsTodo,
+          todoChecked: newIsTodo ? toggleNode.attrs.todoChecked : false,
+        })
+        editor.view.dispatch(tr)
+        return true
       },
       toggleToggle: () => ({ commands, editor }) => {
         const { state } = editor
@@ -731,6 +824,32 @@ export const Toggle = Node.create({
 
   addInputRules() {
     return [
+      // "[] " 입력 시 투두 토글로 변환
+      new InputRule({
+        find: /^\[\]\s$/,
+        handler: ({ state, range }) => {
+          const { tr, doc } = state
+          const $from = doc.resolve(range.from)
+
+          let toggleDepth = -1
+          for (let d = $from.depth; d > 0; d--) {
+            if ($from.node(d).type.name === 'toggle') {
+              toggleDepth = d
+              break
+            }
+          }
+          if (toggleDepth === -1) return null
+
+          const togglePos = $from.before(toggleDepth)
+          const toggleNode = doc.nodeAt(togglePos)
+          if (!toggleNode || toggleNode.attrs.isTodo) return null
+
+          // "[] " 텍스트 삭제
+          tr.delete(range.from, range.to)
+          // 토글을 투두로 변환
+          tr.setNodeMarkup(togglePos, null, { ...toggleNode.attrs, isTodo: true, todoChecked: false })
+        },
+      }),
       // "> " 입력 시 토글 블록으로 변환
       new InputRule({
         find: /^>\s$/,

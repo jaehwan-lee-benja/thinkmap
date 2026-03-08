@@ -556,6 +556,45 @@ th .paragraph-drag-handle {
   color: #10b981;
 }
 
+/* Todo 체크박스 */
+.toggle-todo-checkbox {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #6b7280;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-top: 3px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-todo-checkbox:hover {
+  border-color: #3b82f6;
+}
+
+.toggle-todo-checkbox.checked {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.toggle-todo-checkbox.checked::after {
+  content: '✓';
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* 완료된 투두 - 취소선 + 투명도 */
+.toggle-block.toggle-todo-checked > .toggle-content > p,
+.toggle-block.toggle-todo-checked > .toggle-content > .paragraph-block > p {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
 /* 토글 콘텐츠 영역 */
 .toggle-content {
   flex: 1;
@@ -996,6 +1035,13 @@ th .paragraph-drag-handle {
   .toggle-drag-handle {
     width: 20px;
     height: 28px;
+  }
+
+  /* 투두 체크박스 터치 영역 */
+  .toggle-todo-checkbox {
+    width: 22px;
+    height: 22px;
+    margin-top: 5px;
   }
 
   /* 테이블 툴바 터치 타겟 */
