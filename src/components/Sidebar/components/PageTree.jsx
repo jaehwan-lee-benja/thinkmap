@@ -121,8 +121,8 @@ export function PageTree({
     const ratio = y / rect.height
 
     let position
-    if (ratio < 0.25) position = 'before'
-    else if (ratio > 0.75) position = 'after'
+    if (ratio < 0.35) position = 'before'
+    else if (ratio > 0.65) position = 'after'
     else position = 'inside'
 
     setDropTarget({ id: pageId, position })
@@ -216,7 +216,7 @@ export function PageTree({
     }
 
     return (
-      <div key={page.id} className="page-tree-node">
+      <div key={page.id} className="page-tree-node" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
         <div
           className={`page-item ${currentPageId === page.id ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${dropClass}`}
           style={{ '--depth': depth }}

@@ -28,6 +28,14 @@ const buildPageTree = (pages) => {
     }
   })
 
+  // position 기준 정렬
+  tree.sort((a, b) => a.position - b.position)
+  Object.values(pageMap).forEach(node => {
+    if (node.children.length > 1) {
+      node.children.sort((a, b) => a.position - b.position)
+    }
+  })
+
   return tree
 }
 
