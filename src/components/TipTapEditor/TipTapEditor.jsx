@@ -153,6 +153,61 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         })
         return text
       },
+      // 여러 줄 붙여넣기: 토글 블록 안에서 각 줄을 별도 블록으로 생성
+      handlePaste: (view, event) => {
+        const text = event.clipboardData?.getData('text/plain')
+        if (!text || !text.includes('\n')) return false
+
+        const { state } = view
+        const { $from } = state.selection
+
+        // 토글 블록 안인지 확인
+        let toggleDepth = -1
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === 'toggle') {
+            toggleDepth = d
+            break
+          }
+        }
+        if (toggleDepth === -1) return false
+
+        const lines = text.split('\n')
+        const toggleNode = $from.node(toggleDepth)
+        const togglePos = $from.before(toggleDepth)
+        const afterTogglePos = togglePos + toggleNode.nodeSize
+
+        // 첫 줄은 현재 커서 위치에 삽입
+        const { tr } = state
+        if (lines[0]) {
+          tr.insertText(lines[0], $from.pos)
+        }
+
+        // 나머지 줄은 현재 토글 뒤에 새 토글 블록으로 삽입
+        const newAttrs = { isOpen: true }
+        if (toggleNode.attrs.isTodo) {
+          newAttrs.isTodo = true
+          newAttrs.todoChecked = false
+        }
+
+        let insertPos = afterTogglePos + (lines[0] ? lines[0].length : 0)
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i]
+          const newToggle = state.schema.nodeFromJSON({
+            type: 'toggle',
+            attrs: newAttrs,
+            content: [{
+              type: 'paragraph',
+              content: line ? [{ type: 'text', text: line }] : []
+            }]
+          })
+          tr.insert(insertPos, newToggle)
+          insertPos += newToggle.nodeSize
+        }
+
+        view.dispatch(tr)
+        event.preventDefault()
+        return true
+      },
       handleDOMEvents: {
         // TipTap의 기본 드래그 이벤트 비활성화 (우리의 커스텀 드래그 사용)
         dragstart: (view, event) => {

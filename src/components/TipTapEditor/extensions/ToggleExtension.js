@@ -206,8 +206,8 @@ export const Toggle = Node.create({
             class: 'toggle-button',
             contenteditable: 'false',
             'data-toggle-button': 'true',
+            'data-arrow': node.attrs.isOpen ? '▼' : '▶',
           },
-          node.attrs.isOpen ? '▼' : '▶',
         ],
         ['div', { class: 'toggle-content-wrapper' }, 0],
       ],
@@ -284,7 +284,7 @@ export const Toggle = Node.create({
       const button = document.createElement('button')
       button.classList.add('toggle-button')
       button.contentEditable = 'false'
-      button.textContent = hasChildToggles(node)
+      button.dataset.arrow = hasChildToggles(node)
         ? (node.attrs.isOpen ? '▼' : '▶')
         : (node.attrs.isOpen ? '▽' : '▷')
 
@@ -402,7 +402,7 @@ export const Toggle = Node.create({
         update: (updatedNode, outerDecorations) => {
           if (updatedNode.type.name !== 'toggle') return false
 
-          button.textContent = hasChildToggles(updatedNode)
+          button.dataset.arrow = hasChildToggles(updatedNode)
             ? (updatedNode.attrs.isOpen ? '▼' : '▶')
             : (updatedNode.attrs.isOpen ? '▽' : '▷')
           contentWrapper.className = updatedNode.attrs.isOpen

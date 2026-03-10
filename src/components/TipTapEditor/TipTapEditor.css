@@ -552,6 +552,10 @@ th .paragraph-drag-handle {
   padding: 0;
 }
 
+.toggle-button::before {
+  content: attr(data-arrow);
+}
+
 .toggle-button:hover {
   color: #10b981;
 }
