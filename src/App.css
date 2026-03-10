@@ -80,163 +80,22 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 .app:has(.container) {
   justify-content: flex-start;
   align-items: flex-start;
+  flex-direction: column;
 }
 
 .container {
   width: 100%;
-  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
-  padding-right: calc(2rem + var(--safe-area-right));
+  padding: 0;
   overflow-x: visible;
   position: relative;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
-  transition: margin-left 0.3s ease;
-}
-
-/* 데스크탑: 사이드바 열렸을 때 */
-@media (min-width: 769px) {
-  .container.with-sidebar {
-    margin-left: var(--sidebar-width, 300px);
-  }
-}
-
-/* =====================================================
-   헤더
-   ===================================================== */
-
-.header-fixed {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--color-bg-primary);
-  padding: 1.5rem 0 0 0;
-  padding-top: calc(1.5rem + var(--safe-area-top));
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.header-fixed > * {
-  max-width: 100%;
-  width: 100%;
-}
-
-/* 데스크탑: 한 줄 레이아웃 */
-@media (min-width: 769px) {
-  .header-fixed {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.5rem 0 0 0;
-  }
-
-  .header-fixed > * {
-    max-width: none;
-    width: auto;
-    flex-shrink: 0;
-  }
-
-  .header-fixed .settings-bar {
-    margin: 0;
-    padding: 0 0 1rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    gap: 1rem;
-    flex: 1;
-    justify-content: flex-start;
-  }
-}
-
-/* 설정바 */
-.settings-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  flex-wrap: wrap;
-  padding-left: 0;
-  padding-right: 0;
-  width: 100%;
-  min-height: 40px;
-}
-
-/* 헤더 햄버거 버튼 */
-.header-hamburger-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 26px;
-  color: rgba(255, 255, 255, 0.7);
-  border-radius: 8px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  margin-right: 0.5rem;
-}
-
-.header-hamburger-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.header-hamburger-button:active {
-  background-color: rgba(255, 255, 255, 0.15);
-  transform: scale(0.95);
-}
-
-/* 앱 타이틀 */
-.app-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text-title);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   flex: 1;
+  min-height: 0;
 }
 
-.editable-title {
-  cursor: pointer;
-  transition: all 0.2s;
-  border-radius: 6px;
-  padding: 4px 8px;
-  margin: -4px -8px -4px 0;
-}
-
-.editable-title:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-.header-title-input {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text-title);
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid var(--color-primary);
-  border-radius: 6px;
-  padding: 4px 8px;
-  outline: none;
-  font-family: inherit;
-  min-width: 200px;
-  flex: 1;
-}
 
 /* =====================================================
    콘텐츠 영역
@@ -272,6 +131,25 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 }
 
 /* =====================================================
+   패널 (Pane) — 단일/분할 공용
+   ===================================================== */
+
+.pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+/* 분할 모드 활성 패널 강조 (탭바 하단 라인) */
+.split-active .pane-active .tab-bar {
+  box-shadow: inset 0 -2px 0 var(--color-primary, #646cff);
+}
+
+/* =====================================================
    분할 뷰
    ===================================================== */
 
@@ -282,98 +160,12 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
   min-height: 0;
 }
 
-.split-pane {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
-  position: relative;
-  border-top: 2px solid transparent;
-  transition: border-color 0.15s ease;
-}
-
-.split-pane.active {
-  border-top-color: var(--color-primary, #646cff);
-}
-
-.split-pane .content-scrollable {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  padding: 0;
-  width: 100%;
-  box-sizing: border-box;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.split-pane .content-scrollable::-webkit-scrollbar {
-  display: none;
-}
-
-/* 패널 헤더 (탭 이름 표시) */
-.split-pane-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  flex-shrink: 0;
-  user-select: none;
-}
-
-.split-pane.active .split-pane-header {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.split-pane-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.split-pane-dot.left {
-  background: var(--color-primary, #646cff);
-}
-
-.split-pane-dot.right {
-  background: #22c55e;
-}
-
-.split-pane-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 분할선 */
 .split-divider {
   width: 1px;
   background: rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
 }
 
-/* =====================================================
-   사이드바 오버레이 (공통)
-   ===================================================== */
-
-.sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 999;
-  animation: fadeIn 0.2s ease;
-}
 
 /* =====================================================
    애니메이션
@@ -420,35 +212,6 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
    모바일 반응형
    ===================================================== */
 
-/* 태블릿 */
-@media (max-width: 768px) {
-  .container {
-    width: 100%;
-    max-width: 100%;
-    padding: 0 1.5rem;
-    margin: 0 auto;
-  }
-
-  .header-fixed {
-    padding: 1rem 0 0 0;
-  }
-
-  .settings-bar {
-    gap: 0.5rem;
-  }
-
-  .app-title {
-    font-size: 1.25rem;
-  }
-
-  .header-hamburger-button {
-    width: 48px;
-    height: 48px;
-    font-size: 28px;
-    margin-right: 0.25rem;
-  }
-}
-
 /* 모바일 */
 @media (max-width: 600px) {
   .app {
@@ -458,33 +221,8 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
     min-height: 100dvh;
   }
 
-  .container {
-    width: 100%;
-    max-width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    padding: 0 0.75rem;
-    padding-left: calc(0.75rem + var(--safe-area-left));
-    padding-right: calc(0.75rem + var(--safe-area-right));
-    margin: 0 auto;
-  }
-
-  .header-fixed {
-    padding: 0.75rem 0 0 0;
-    padding-top: calc(0.75rem + var(--safe-area-top));
-  }
-
   .content-scrollable {
     padding: 0.5rem 0 calc(120px + var(--safe-area-bottom)) 0;
-  }
-
-  .app-title {
-    font-size: 1.125rem;
-  }
-
-  .header-title-input {
-    font-size: 1.125rem;
-    min-width: 150px;
   }
 }
 
@@ -520,43 +258,30 @@ button {
    모바일 성능 최적화
    ===================================================== */
 
-/* 사이드바 GPU 가속 힌트 */
-.sidebar {
-  will-change: transform;
-}
-
 /* 터치 디바이스: 불필요한 hover 효과 비활성화 */
 @media (hover: none) and (pointer: coarse) {
-  /* hover 트랜지션 간소화 */
   .page-item,
   .sidebar-project-item,
-  .sidebar-tool-button,
   .sidebar-shared-toggle,
   .shared-item,
   .add-page-button,
   .add-project-button,
-  .sidebar-logout-button,
   .sidebar-project-toggle {
     transition: background-color 0.15s ease;
   }
 
-  /* 모바일에서 hover 상태 무시 (터치 시 잔존하는 hover 방지) */
   .page-item:hover,
   .sidebar-project-item:hover,
-  .sidebar-tool-button:hover,
   .shared-item:hover {
     background-color: transparent;
   }
 
-  /* active 상태로 대체 (터치 피드백) */
   .page-item:active,
   .sidebar-project-item:active,
-  .sidebar-tool-button:active,
   .shared-item:active {
     background-color: rgba(255, 255, 255, 0.08);
   }
 
-  /* active 상태인 항목은 유지 */
   .page-item.active,
   .page-item.active:hover,
   .sidebar-project-item.active,
@@ -564,7 +289,6 @@ button {
     background-color: var(--color-primary-active);
   }
 
-  /* 스크롤 성능 */
   .content-scrollable,
   .sidebar-content {
     -webkit-overflow-scrolling: touch;

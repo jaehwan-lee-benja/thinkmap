@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import GoogleAuthButton from './components/Auth/GoogleAuthButton'
-import Header from './components/Navigation/Header'
+import { GlobalTopBar } from './components/GlobalTopBar/GlobalTopBar'
 import Sidebar from './components/Sidebar/Sidebar'
 import { TabBar } from './components/TabBar/TabBar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
@@ -13,15 +13,12 @@ import { usePages } from './hooks/usePages'
 import { useSharing } from './hooks/useSharing'
 import { useBackup } from './hooks/useBackup'
 import { useUsers } from './hooks/useUsers'
-import { useIsMobile } from './hooks/useIsMobile'
-import { useSwipeGesture } from './hooks/useSwipeGesture'
 import DeleteToast from './components/Common/DeleteToast'
 import ProjectContext from './contexts/ProjectContext'
 import PageContext from './contexts/PageContext'
 import SharingContext from './contexts/SharingContext'
 import BackupContext from './contexts/BackupContext'
 import AuthContext from './contexts/AuthContext'
-import UIContext from './contexts/UIContext'
 import './App.css'
 
 function App() {
@@ -37,7 +34,6 @@ function App() {
     saveLastProject, saveLastPage,
     saveLastImpersonatedProject, saveLastImpersonatedPage,
     saveExpandedPages,
-    sidebarWidth: savedSidebarWidth, saveSidebarWidth,
   } = prefs
 
   // 임퍼소네이션
@@ -50,16 +46,11 @@ function App() {
     stopImpersonation,
   } = useImpersonation(session, isMaster, prefs)
 
-  // 사이드바 너비 복원 (prefs 로드 후)
-  useEffect(() => {
-    if (!preferencesLoading && savedSidebarWidth) {
-      setSidebarWidth(Math.max(200, Math.min(600, savedSidebarWidth)))
-    }
-  }, [preferencesLoading, savedSidebarWidth])
-
-  // 탭 관리
+  // 탭 관리 (패널 기반)
   const {
-    tabs,
+    panes,
+    splitMode,
+    activePaneIndex,
     activeTab,
     activeTabId,
     initialized: tabsInitialized,
@@ -67,13 +58,9 @@ function App() {
     removeTab,
     switchTab,
     updateActiveTab,
-    renameTab,
+    toggleSplit,
+    focusPane,
   } = useTabs(prefs)
-
-  // ─── 분할 뷰 상태 ───
-  const [splitMode, setSplitMode] = useState(false)
-  const [splitPanes, setSplitPanes] = useState([null, null]) // [leftTabId, rightTabId]
-  const [activePaneIndex, setActivePaneIndex] = useState(0)
 
   // 탭 전환 시 임퍼소네이션 및 네비게이션 동기화
   const prevActiveTabIdRef = useRef(null)
@@ -182,79 +169,6 @@ function App() {
     })
   }, [stopImpersonation, updateActiveTab])
 
-  // ─── 분할 뷰 핸들러 ───
-
-  const handleSplitToggle = useCallback(() => {
-    if (splitMode) {
-      // 분할 닫기
-      setSplitMode(false)
-      setSplitPanes([null, null])
-      setActivePaneIndex(0)
-    } else {
-      // 분할 열기: 왼쪽=현재 탭, 오른쪽=다음 탭 (없으면 새 탭 생성)
-      const otherTab = tabs.find(t => t.id !== activeTabId)
-      if (otherTab) {
-        setSplitPanes([activeTabId, otherTab.id])
-      } else {
-        const newTab = addTab({ label: `탭 ${tabs.length + 1}` })
-        if (newTab) {
-          setSplitPanes([activeTabId, newTab.id])
-        }
-      }
-      setSplitMode(true)
-      setActivePaneIndex(0)
-    }
-  }, [splitMode, tabs, activeTabId, addTab])
-
-  // 패널 클릭 → 활성 패널 전환 + 해당 탭 활성화
-  const handlePaneClick = useCallback((paneIndex) => {
-    if (!splitMode || activePaneIndex === paneIndex) return
-    setActivePaneIndex(paneIndex)
-    const tabId = splitPanes[paneIndex]
-    if (tabId && tabId !== activeTabId) {
-      switchTab(tabId)
-    }
-  }, [splitMode, activePaneIndex, splitPanes, activeTabId, switchTab])
-
-  // 탭바에서 탭 전환 시 → 활성 패널에 해당 탭 배치
-  const handleTabSwitch = useCallback((tabId) => {
-    if (splitMode) {
-      const newPanes = [...splitPanes]
-      newPanes[activePaneIndex] = tabId
-      setSplitPanes(newPanes)
-    }
-    switchTab(tabId)
-  }, [splitMode, splitPanes, activePaneIndex, switchTab])
-
-  // 탭 닫기 시 → 분할 패널에 포함된 탭이면 분할 해제
-  const handleTabRemove = useCallback((tabId) => {
-    if (splitMode && splitPanes.includes(tabId)) {
-      const otherPaneIndex = splitPanes[0] === tabId ? 1 : 0
-      const otherTabId = splitPanes[otherPaneIndex]
-      setSplitMode(false)
-      setSplitPanes([null, null])
-      setActivePaneIndex(0)
-      if (otherTabId && tabId === activeTabId) {
-        switchTab(otherTabId)
-      }
-    }
-    removeTab(tabId)
-  }, [splitMode, splitPanes, activeTabId, switchTab, removeTab])
-
-  // 분할 모드 패널별 페이지 ID 계산
-  const getPageIdForPane = (paneIndex) => {
-    if (!splitMode) return currentPageId
-    if (paneIndex === activePaneIndex) return currentPageId
-    const tabId = splitPanes[paneIndex]
-    const tab = tabs.find(t => t.id === tabId)
-    return tab?.pageId || null
-  }
-
-  const getPageNameForPane = (paneIndex) => {
-    const pageId = getPageIdForPane(paneIndex)
-    return pages.find(p => p.id === pageId)?.name || ''
-  }
-
   // 공유 관리
   const {
     sharedWithMe,
@@ -323,16 +237,16 @@ function App() {
     setDeleteToast(null)
   }, [undoDeletePage])
 
-  // UI
-  const { isTablet, isTouch } = useIsMobile()
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768)
-  const [sidebarWidth, setSidebarWidth] = useState(300)
+  // 패널별 사이드바 상태
+  const [paneSidebarOpen, setPaneSidebarOpen] = useState([false, false])
 
-  // 모바일 스와이프로 사이드바 열기/닫기
-  useSwipeGesture({
-    onSwipeRight: useCallback(() => { if (isTablet) setSidebarOpen(true) }, [isTablet]),
-    onSwipeLeft: useCallback(() => { if (isTablet && sidebarOpen) setSidebarOpen(false) }, [isTablet, sidebarOpen]),
-  })
+  const togglePaneSidebar = useCallback((paneIndex) => {
+    setPaneSidebarOpen(prev => prev.map((v, i) => i === paneIndex ? !v : v))
+  }, [])
+
+  const closePaneSidebar = useCallback((paneIndex) => {
+    setPaneSidebarOpen(prev => prev.map((v, i) => i === paneIndex ? false : v))
+  }, [])
 
   // Context values (Hooks 규칙: early return 전에 모든 Hook 호출)
   const userAvatarUrl = impersonatedUser ? null : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture
@@ -369,23 +283,44 @@ function App() {
     users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers,
   }), [effectiveSession?.user?.email, userAvatarUrl, handleLogout, isMaster, isImpersonating, impersonatedUser?.email, handleStartImpersonation, handleStopImpersonation, users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers])
 
-  const sidebarWidthSaveTimerRef = useRef(null)
-  const handleSidebarWidthChange = useCallback((width) => {
-    const clamped = Math.max(200, Math.min(600, width))
-    setSidebarWidth(clamped)
-    // 디바운스: 드래그 중 잦은 저장 방지
-    if (sidebarWidthSaveTimerRef.current) clearTimeout(sidebarWidthSaveTimerRef.current)
-    sidebarWidthSaveTimerRef.current = setTimeout(() => {
-      saveSidebarWidth(clamped)
-    }, 500)
-  }, [saveSidebarWidth])
+  // ─── Breadcrumb ───
 
-  const uiCtx = useMemo(() => ({
-    sidebarOpen, setSidebarOpen,
-    toggleSidebar: () => setSidebarOpen(prev => !prev),
-    closeSidebar: () => setSidebarOpen(false),
-    sidebarWidth, setSidebarWidth: handleSidebarWidthChange,
-  }), [sidebarOpen, sidebarWidth, handleSidebarWidthChange])
+  const buildBreadcrumb = useCallback((tab) => {
+    const parts = []
+    const proj = projects.find(p => p.id === tab.projectId)
+    if (proj) parts.push({ type: 'project', id: proj.id, name: proj.name })
+    if (tab.pageId && pages.length > 0) {
+      const path = []
+      let cur = pages.find(p => p.id === tab.pageId)
+      while (cur) {
+        path.unshift({ type: 'page', id: cur.id, name: cur.name, parentId: cur.parent_id || null })
+        cur = cur.parent_id ? pages.find(p => p.id === cur.parent_id) : null
+      }
+      parts.push(...path)
+    }
+    return parts.length > 0 ? parts : [{ type: 'none', id: null, name: '새 탭' }]
+  }, [projects, pages])
+
+  const getBreadcrumbSiblings = useCallback((part) => {
+    if (part.type === 'project') {
+      return projects.map(p => ({ id: p.id, name: p.name }))
+    }
+    if (part.type === 'page') {
+      return pages
+        .filter(p => (p.parent_id || null) === (part.parentId || null))
+        .sort((a, b) => a.position - b.position)
+        .map(p => ({ id: p.id, name: p.name }))
+    }
+    return []
+  }, [projects, pages])
+
+  const handleBreadcrumbNavigate = useCallback((type, id) => {
+    if (type === 'project') {
+      setCurrentProjectId(id)
+    } else if (type === 'page') {
+      setCurrentPageId(id)
+    }
+  }, [setCurrentProjectId, setCurrentPageId])
 
   // 인증 화면
   const authScreen = GoogleAuthButton({ authLoading, session, handleGoogleLogin })
@@ -400,10 +335,18 @@ function App() {
     )
   }
 
-  // 에디터 패널 렌더링 헬퍼
-  const renderEditorPane = (paneIndex) => {
-    const pageId = getPageIdForPane(paneIndex)
-    const pageName = getPageNameForPane(paneIndex)
+  // ─── 패널 콘텐츠 렌더링 ───
+
+  const renderPaneContent = (paneIndex) => {
+    const pane = panes[paneIndex]
+    if (!pane) return null
+    const tab = pane.tabs.find(t => t.id === pane.activeTabId) || pane.tabs[0]
+    if (!tab) return null
+
+    // 활성 패널이면 앱의 currentPageId를 사용, 비활성이면 탭의 pageId를 직접 사용
+    const pageId = paneIndex === activePaneIndex ? currentPageId : (tab.pageId || null)
+    const pageName = pages.find(p => p.id === pageId)?.name || ''
+
     if (!pageId) {
       return (
         <div className="no-page-selected">
@@ -422,84 +365,76 @@ function App() {
     )
   }
 
+  const renderPane = (paneIndex) => {
+    const pane = panes[paneIndex]
+    if (!pane) return null
+    const isActive = paneIndex === activePaneIndex
+    const isSidebarOpen = paneSidebarOpen[paneIndex] || false
+
+    return (
+      <div
+        className={`pane ${isActive ? 'pane-active' : ''}`}
+        onMouseDown={() => focusPane(paneIndex)}
+      >
+        {tabsInitialized && pane.tabs.length > 0 && (
+          <TabBar
+            tabs={pane.tabs}
+            activeTabId={pane.activeTabId}
+            onSwitch={(tabId) => switchTab(paneIndex, tabId)}
+            onAdd={() => addTab(paneIndex)}
+            onRemove={(tabId) => removeTab(paneIndex, tabId)}
+            onSplitToggle={toggleSplit}
+            splitMode={splitMode}
+            buildBreadcrumb={buildBreadcrumb}
+            getBreadcrumbSiblings={getBreadcrumbSiblings}
+            onBreadcrumbNavigate={(type, id) => {
+              focusPane(paneIndex)
+              handleBreadcrumbNavigate(type, id)
+            }}
+            sidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => togglePaneSidebar(paneIndex)}
+            paneIndex={paneIndex}
+          />
+        )}
+        <div className="content-scrollable">
+          {renderPaneContent(paneIndex)}
+        </div>
+
+        {/* 패널별 사이드바 */}
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => closePaneSidebar(paneIndex)}
+          onPageSelect={(pageId) => {
+            focusPane(paneIndex)
+            setCurrentPageId(pageId)
+          }}
+          onProjectSelect={(projectId) => {
+            focusPane(paneIndex)
+            setCurrentProjectId(projectId)
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <AuthContext.Provider value={authCtx}>
     <ProjectContext.Provider value={projectCtx}>
     <PageContext.Provider value={pageCtx}>
     <SharingContext.Provider value={sharingCtx}>
     <BackupContext.Provider value={backupCtx}>
-    <UIContext.Provider value={uiCtx}>
-      <div className={`app ${sidebarOpen ? 'sidebar-open' : ''}`}>
-        <Sidebar />
+      <div className="app">
+        <GlobalTopBar />
 
-        <div
-          className={`container ${sidebarOpen ? 'with-sidebar' : ''}`}
-          style={sidebarOpen ? { '--sidebar-width': `${sidebarWidth}px` } : undefined}
-        >
-          <Header />
-
-          {tabsInitialized && tabs.length > 0 && (
-            <TabBar
-              tabs={tabs}
-              activeTabId={activeTabId}
-              splitMode={splitMode}
-              splitPanes={splitPanes}
-              activePaneIndex={activePaneIndex}
-              onSwitch={handleTabSwitch}
-              onAdd={() => addTab()}
-              onRemove={handleTabRemove}
-              onRename={renameTab}
-              onSplitToggle={handleSplitToggle}
-            />
-          )}
-
+        <div className={`container ${splitMode ? 'split-active' : ''}`}>
           {splitMode ? (
             <div className="split-container">
-              <div
-                className={`split-pane ${activePaneIndex === 0 ? 'active' : ''}`}
-                onMouseDown={() => handlePaneClick(0)}
-              >
-                <div className="split-pane-header">
-                  <span className="split-pane-dot left" />
-                  <span className="split-pane-label">
-                    {tabs.find(t => t.id === splitPanes[0])?.label || ''}
-                  </span>
-                </div>
-                <div className="content-scrollable">
-                  {renderEditorPane(0)}
-                </div>
-              </div>
+              {renderPane(0)}
               <div className="split-divider" />
-              <div
-                className={`split-pane ${activePaneIndex === 1 ? 'active' : ''}`}
-                onMouseDown={() => handlePaneClick(1)}
-              >
-                <div className="split-pane-header">
-                  <span className="split-pane-dot right" />
-                  <span className="split-pane-label">
-                    {tabs.find(t => t.id === splitPanes[1])?.label || ''}
-                  </span>
-                </div>
-                <div className="content-scrollable">
-                  {renderEditorPane(1)}
-                </div>
-              </div>
+              {renderPane(1)}
             </div>
           ) : (
-            <div className="content-scrollable">
-              {currentPageId ? (
-                <TipTapEditorPage
-                  session={effectiveSession}
-                  currentPageId={currentPageId}
-                  currentPageName={pages.find(p => p.id === currentPageId)?.name}
-                  onPageRename={renamePage}
-                />
-              ) : (
-                <div className="no-page-selected">
-                  <p>페이지를 선택하거나 새 페이지를 만드세요</p>
-                </div>
-              )}
-            </div>
+            renderPane(0)
           )}
         </div>
 
@@ -514,7 +449,6 @@ function App() {
           />
         )}
       </div>
-    </UIContext.Provider>
     </BackupContext.Provider>
     </SharingContext.Provider>
     </PageContext.Provider>

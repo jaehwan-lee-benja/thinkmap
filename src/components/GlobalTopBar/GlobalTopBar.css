@@ -1,0 +1,158 @@
+/* =====================================================
+   글로벌 상단바
+   ===================================================== */
+
+.global-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--color-bg-secondary, #1a1a1a);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  z-index: 200;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  user-select: none;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.topbar-app-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: -0.01em;
+}
+
+/* 임퍼소네이션 배너 (인라인) */
+.topbar-impersonation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 4px;
+  font-size: 11px;
+  color: rgba(245, 158, 11, 0.9);
+}
+
+.topbar-impersonation button {
+  background: none;
+  border: none;
+  color: rgba(245, 158, 11, 0.9);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 4px;
+  text-decoration: underline;
+  font-family: inherit;
+}
+
+.topbar-impersonation button:hover {
+  color: #f59e0b;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 상단바 버튼 */
+.topbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+
+.topbar-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.topbar-admin {
+  color: rgba(167, 139, 250, 0.7);
+}
+
+.topbar-admin:hover {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
+}
+
+/* 유저 프로필 */
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.topbar-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(100, 108, 255, 0.2);
+  color: rgba(100, 108, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.topbar-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.topbar-email {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-logout {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.topbar-logout:hover {
+  color: rgba(239, 68, 68, 0.8);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* =====================================================
+   모바일
+   ===================================================== */
+
+@media (max-width: 600px) {
+  .topbar-email {
+    display: none;
+  }
+
+  .global-topbar {
+    padding: 0 8px;
+  }
+}
