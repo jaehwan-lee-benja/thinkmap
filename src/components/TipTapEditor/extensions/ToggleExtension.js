@@ -2,6 +2,42 @@ import { Node, mergeAttributes, InputRule } from '@tiptap/core'
 import { NodeSelection, TextSelection, Selection, Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
+export const multiSelectPluginKey = new PluginKey('multiSelect')
+
+// --- 멀티셀렉트 삭제 헬퍼 ---
+function deleteMultiSelected(state, dispatch) {
+  const pluginState = multiSelectPluginKey.getState(state)
+  if (!pluginState || pluginState.selectedPositions.length === 0) return false
+
+  const entries = pluginState.selectedPositions
+    .map(pos => ({ pos, node: state.doc.nodeAt(pos) }))
+    .filter(e => e.node && e.node.type.name === 'toggle')
+    .map(e => ({ pos: e.pos, end: e.pos + e.node.nodeSize }))
+    .sort((a, b) => a.pos - b.pos)
+
+  // 중첩된 토글 필터링 (부모가 선택되었으면 자식 제외)
+  const filtered = []
+  for (const entry of entries) {
+    const isNested = filtered.some(f => entry.pos >= f.pos && entry.end <= f.end)
+    if (!isNested) filtered.push(entry)
+  }
+
+  if (filtered.length === 0) return false
+
+  const { tr } = state
+  for (let i = filtered.length - 1; i >= 0; i--) {
+    const mappedPos = tr.mapping.map(filtered[i].pos)
+    const node = tr.doc.nodeAt(mappedPos)
+    if (node && node.type.name === 'toggle') {
+      tr.delete(mappedPos, mappedPos + node.nodeSize)
+    }
+  }
+
+  tr.setMeta(multiSelectPluginKey, { type: 'clear' })
+  if (dispatch) dispatch(tr)
+  return true
+}
+
 // --- CheckboxSelection: 체크박스가 '선택된' 상태를 나타내는 커스텀 Selection ---
 
 class CheckboxBookmark {
@@ -232,8 +268,11 @@ export const Toggle = Node.create({
         decos?.some(d => d.type?.attrs?.class?.includes('toggle-block-focused'))
       const hasCheckboxFocusClass = (decos) =>
         decos?.some(d => d.type?.attrs?.class?.includes('toggle-checkbox-focused'))
+      const hasMultiSelectClass = (decos) =>
+        decos?.some(d => d.type?.attrs?.class?.includes('toggle-block-multiselected'))
       if (hasFocusClass(decorations)) dom.classList.add('toggle-block-focused')
       if (hasCheckboxFocusClass(decorations)) dom.classList.add('toggle-checkbox-focused')
+      if (hasMultiSelectClass(decorations)) dom.classList.add('toggle-block-multiselected')
 
       // 드래그 핸들 (블록 내부에 배치)
       const dragHandle = document.createElement('div')
@@ -261,7 +300,7 @@ export const Toggle = Node.create({
         editor.view.dragging = { slice, move: true }
       })
 
-      // 드래그 핸들 클릭 시 블록 선택 + 컨텍스트 메뉴
+      // 드래그 핸들 클릭 시 블록 선택 + 컨텍스트 메뉴 (멀티셀렉트 지원)
       dragHandle.addEventListener('click', (e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -269,10 +308,58 @@ export const Toggle = Node.create({
         if (typeof getPos !== 'function') return
 
         const pos = getPos()
+
+        // Cmd/Ctrl+click → 멀티셀렉트 토글
+        if (e.metaKey || e.ctrlKey) {
+          editor.view.dispatch(
+            editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos })
+          )
+          return
+        }
+
+        // Shift+click → 범위 선택
+        if (e.shiftKey) {
+          const pluginState = multiSelectPluginKey.getState(editor.state)
+          const lastPos = pluginState?.lastClickedPos
+          if (lastPos !== null && lastPos !== undefined) {
+            const positions = collectVisiblePositions(editor.state.doc)
+            const togglePositions = positions.filter(p => {
+              const n = editor.state.doc.nodeAt(p)
+              return n && n.type.name === 'toggle'
+            })
+            const idx1 = togglePositions.indexOf(lastPos)
+            const idx2 = togglePositions.indexOf(pos)
+            if (idx1 !== -1 && idx2 !== -1) {
+              const [start, end] = idx1 < idx2 ? [idx1, idx2] : [idx2, idx1]
+              editor.view.dispatch(
+                editor.state.tr.setMeta(multiSelectPluginKey, {
+                  type: 'set',
+                  positions: togglePositions.slice(start, end + 1),
+                  lastClickedPos: pos
+                })
+              )
+              return
+            }
+          }
+          // lastPos가 없으면 단일 토글 선택
+          editor.view.dispatch(
+            editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos })
+          )
+          return
+        }
+
+        // 멀티셀렉트 활성 시 일반 클릭 → 해제
+        const pluginState = multiSelectPluginKey.getState(editor.state)
+        if (pluginState?.selectedPositions.length > 0) {
+          editor.view.dispatch(
+            editor.state.tr.setMeta(multiSelectPluginKey, { type: 'clear' })
+          )
+        }
+
+        // 일반 클릭: NodeSelection + 컨텍스트 메뉴
         const selection = NodeSelection.create(editor.state.doc, pos)
         editor.view.dispatch(editor.state.tr.setSelection(selection))
 
-        // 커스텀 이벤트로 컨텍스트 메뉴 표시 요청
         const rect = dragHandle.getBoundingClientRect()
         dom.dispatchEvent(new CustomEvent('toggle-context-menu', {
           bubbles: true,
@@ -298,6 +385,14 @@ export const Toggle = Node.create({
         e.stopPropagation()
 
         if (typeof getPos !== 'function') return
+
+        // Cmd/Ctrl+click → 멀티셀렉트
+        if (e.metaKey || e.ctrlKey) {
+          editor.view.dispatch(
+            editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos: getPos() })
+          )
+          return
+        }
 
         const pos = getPos()
         const currentNode = editor.state.doc.nodeAt(pos)
@@ -377,6 +472,15 @@ export const Toggle = Node.create({
         e.preventDefault()
         e.stopPropagation()
         if (typeof getPos !== 'function') return
+
+        // Cmd/Ctrl+click → 멀티셀렉트
+        if (e.metaKey || e.ctrlKey) {
+          editor.view.dispatch(
+            editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos: getPos() })
+          )
+          return
+        }
+
         const pos = getPos()
         const currentNode = editor.state.doc.nodeAt(pos)
         if (!currentNode) return
@@ -413,6 +517,7 @@ export const Toggle = Node.create({
           // Decoration 반영 (Plugin이 전달한 포커스 상태)
           dom.classList.toggle('toggle-block-focused', hasFocusClass(outerDecorations))
           dom.classList.toggle('toggle-checkbox-focused', hasCheckboxFocusClass(outerDecorations))
+          dom.classList.toggle('toggle-block-multiselected', hasMultiSelectClass(outerDecorations))
 
           // Todo checkbox update
           if (updatedNode.attrs.isTodo) {
@@ -567,6 +672,92 @@ export const Toggle = Node.create({
           },
         },
       }),
+      // 멀티셀렉트 플러그인: 여러 블록 동시 선택
+      new Plugin({
+        key: multiSelectPluginKey,
+        state: {
+          init() {
+            return { selectedPositions: [], lastClickedPos: null }
+          },
+          apply(tr, prevState) {
+            const meta = tr.getMeta(multiSelectPluginKey)
+            if (meta) {
+              switch (meta.type) {
+                case 'toggle': {
+                  const pos = meta.pos
+                  const existing = prevState.selectedPositions.includes(pos)
+                  return {
+                    selectedPositions: existing
+                      ? prevState.selectedPositions.filter(p => p !== pos)
+                      : [...prevState.selectedPositions, pos],
+                    lastClickedPos: pos
+                  }
+                }
+                case 'set':
+                  return {
+                    selectedPositions: meta.positions,
+                    lastClickedPos: meta.lastClickedPos ?? prevState.lastClickedPos
+                  }
+                case 'clear':
+                  return { selectedPositions: [], lastClickedPos: null }
+                default:
+                  return prevState
+              }
+            }
+            // 문서 변경 시 위치 매핑
+            if (tr.docChanged && prevState.selectedPositions.length > 0) {
+              const mapped = prevState.selectedPositions
+                .map(pos => tr.mapping.map(pos))
+                .filter(pos => {
+                  const node = tr.doc.nodeAt(pos)
+                  return node && node.type.name === 'toggle'
+                })
+              if (mapped.length === 0) return { selectedPositions: [], lastClickedPos: null }
+              return { ...prevState, selectedPositions: mapped }
+            }
+            return prevState
+          }
+        },
+        props: {
+          decorations(state) {
+            const pluginState = multiSelectPluginKey.getState(state)
+            if (!pluginState || pluginState.selectedPositions.length === 0) return DecorationSet.empty
+            const decos = []
+            pluginState.selectedPositions.forEach(pos => {
+              const node = state.doc.nodeAt(pos)
+              if (node && node.type.name === 'toggle') {
+                decos.push(Decoration.node(pos, pos + node.nodeSize, {
+                  class: 'toggle-block-multiselected'
+                }))
+              }
+            })
+            return DecorationSet.create(state.doc, decos)
+          },
+          handleClick(view, pos, event) {
+            // 일반 클릭 → 멀티셀렉트 해제
+            if (!event.metaKey && !event.ctrlKey && !event.shiftKey) {
+              const pluginState = multiSelectPluginKey.getState(view.state)
+              if (pluginState && pluginState.selectedPositions.length > 0) {
+                view.dispatch(view.state.tr.setMeta(multiSelectPluginKey, { type: 'clear' }))
+              }
+            }
+            return false
+          },
+          handleKeyDown(view, event) {
+            const pluginState = multiSelectPluginKey.getState(view.state)
+            if (!pluginState || pluginState.selectedPositions.length === 0) return false
+
+            if (event.key === 'Escape') {
+              view.dispatch(view.state.tr.setMeta(multiSelectPluginKey, { type: 'clear' }))
+              return true
+            }
+            if (event.key === 'Delete' || event.key === 'Backspace') {
+              return deleteMultiSelected(view.state, (tr) => view.dispatch(tr))
+            }
+            return false
+          }
+        }
+      }),
     ]
   },
 
@@ -636,6 +827,46 @@ export const Toggle = Node.create({
         }
 
         return false
+      },
+
+      // 멀티셀렉트: 체크박스(투두) 전환
+      multiSelectConvertToTodo: () => ({ editor }) => {
+        const pluginState = multiSelectPluginKey.getState(editor.state)
+        if (!pluginState || pluginState.selectedPositions.length === 0) return false
+
+        const allAreTodo = pluginState.selectedPositions.every(pos => {
+          const node = editor.state.doc.nodeAt(pos)
+          return node && node.attrs.isTodo
+        })
+
+        const { tr } = editor.state
+        pluginState.selectedPositions.forEach(pos => {
+          const node = tr.doc.nodeAt(pos)
+          if (node && node.type.name === 'toggle') {
+            tr.setNodeMarkup(pos, null, {
+              ...node.attrs,
+              isTodo: !allAreTodo,
+              todoChecked: !allAreTodo ? node.attrs.todoChecked : false
+            })
+          }
+        })
+
+        tr.setMeta(multiSelectPluginKey, { type: 'clear' })
+        editor.view.dispatch(tr)
+        return true
+      },
+
+      // 멀티셀렉트: 선택된 블록 삭제
+      multiSelectDelete: () => ({ editor }) => {
+        return deleteMultiSelected(editor.state, (tr) => editor.view.dispatch(tr))
+      },
+
+      // 멀티셀렉트: 선택 해제
+      multiSelectClear: () => ({ editor }) => {
+        editor.view.dispatch(
+          editor.state.tr.setMeta(multiSelectPluginKey, { type: 'clear' })
+        )
+        return true
       },
 
       // paragraph, orderedList, bulletList → toggle 변환 (heading/codeBlock 등은 유지)

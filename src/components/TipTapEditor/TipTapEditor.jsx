@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { TableToolbar } from './components/TableToolbar'
 import { BlockContextMenu } from './components/BlockContextMenu'
+import { MultiSelectToolbar } from './components/MultiSelectToolbar'
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -34,7 +35,7 @@ import { Link } from '@tiptap/extension-link'
 import { Image } from '@tiptap/extension-image'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
-import { Toggle } from './extensions/ToggleExtension'
+import { Toggle, multiSelectPluginKey } from './extensions/ToggleExtension'
 import { ParagraphWithHandle } from './extensions/ParagraphWithHandle'
 import './TipTapEditor.css'
 
@@ -77,6 +78,9 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
   // 테이블 툴바 상태 (그룹)
   const [tableToolbar, setTableToolbar] = useState({ visible: false, position: { top: 0, left: 0 } })
+
+  // 멀티셀렉트 상태
+  const [multiSelectCount, setMultiSelectCount] = useState(0)
 
   const editor = useEditor({
     extensions: [
@@ -378,6 +382,19 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     }
   }, [editor])
 
+  // 멀티셀렉트 상태 추적
+  useEffect(() => {
+    if (!editor) return
+
+    const updateMultiSelect = () => {
+      const pluginState = multiSelectPluginKey.getState(editor.state)
+      setMultiSelectCount(pluginState?.selectedPositions?.length || 0)
+    }
+
+    editor.on('transaction', updateMultiSelect)
+    return () => editor.off('transaction', updateMultiSelect)
+  }, [editor])
+
   if (!editor) {
     return <div>에디터 로딩 중...</div>
   }
@@ -402,6 +419,16 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
           position={contextMenu.position}
           nodePos={contextMenu.nodePos}
           onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+        />
+      )}
+
+      {/* 멀티셀렉트 툴바 */}
+      {multiSelectCount > 0 && editor && (
+        <MultiSelectToolbar
+          count={multiSelectCount}
+          onConvertToTodo={() => editor.commands.multiSelectConvertToTodo()}
+          onDelete={() => editor.commands.multiSelectDelete()}
+          onClear={() => editor.commands.multiSelectClear()}
         />
       )}
     </div>

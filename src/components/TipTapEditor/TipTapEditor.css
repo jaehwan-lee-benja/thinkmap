@@ -1208,6 +1208,137 @@ th .paragraph-drag-handle {
 }
 
 /* =====================================================
+   멀티셀렉트 하이라이트
+   ===================================================== */
+
+.toggle-block-multiselected {
+  position: relative;
+}
+
+.toggle-block-multiselected::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -4px;
+  right: -4px;
+  bottom: -1px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid rgba(59, 130, 246, 0.35);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 멀티셀렉트 시 포커스 하이라이트 숨김 */
+.toggle-block-multiselected.toggle-block-focused::after {
+  display: none;
+}
+
+/* 마키 선택 영역 (드래그 사각형) */
+.marquee-selection {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 2px;
+}
+
+/* =====================================================
+   멀티셀렉트 툴바
+   ===================================================== */
+
+.multi-select-toolbar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+.multi-select-count {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+.multi-select-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.multi-select-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.multi-select-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.multi-select-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.multi-select-btn.todo {
+  color: #3b82f6;
+}
+
+.multi-select-btn.todo:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.multi-select-btn.delete {
+  color: #f87171;
+}
+
+.multi-select-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.multi-select-btn.close {
+  padding: 6px 8px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.multi-select-btn.close:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 모바일 멀티셀렉트 툴바 */
+@media (max-width: 480px) {
+  .multi-select-toolbar {
+    bottom: calc(16px + var(--safe-area-bottom, 0px));
+    padding: 10px 14px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  .multi-select-btn {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+/* =====================================================
    키보드 대응
    ===================================================== */
 

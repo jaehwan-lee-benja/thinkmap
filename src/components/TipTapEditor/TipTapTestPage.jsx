@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import TipTapEditor from './TipTapEditor'
+import { multiSelectPluginKey } from './extensions/ToggleExtension'
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
 import { supabase } from '../../supabaseClient'
@@ -36,6 +37,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
   const [lastSaved, setLastSaved] = useState(null)
   const editorRef = useRef(null)
   const imageInputRef = useRef(null)
+  const pageRef = useRef(null)
   const { isTablet } = useIsMobile()
 
   // 모바일 현재 뷰 모드: 'editor' | 'column' | 'mindmap'
@@ -534,8 +536,194 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
   const [showToolbar, setShowToolbar] = useState(false)
   const settingsRef = useRef(null)
 
+  // 마키(사각형) 드래그 선택 + Cmd/Ctrl 추가 선택
+  // Google Sheets 모델: Mac=Cmd, Win=Ctrl 누르며 클릭/드래그 → 기존 선택에 추가
+  useEffect(() => {
+    const page = pageRef.current
+    if (!page) return
+
+    // 절대 제외 UI
+    const isExcludedUI = (target) =>
+      !!target.closest('.tiptap-page-header, .tiptap-toolbar, .tiptap-modal-overlay, .mobile-bottom-bar, .multi-select-toolbar, .table-toolbar, .block-context-menu, button, input, a, .tiptap-btn')
+
+    // 여백(빈 공간)인지 판별
+    const isEmptySpace = (target) => {
+      if (isExcludedUI(target)) return false
+      if (target.closest('p, h1, h2, h3, pre, td, th, li, img')) return false
+      if (target.closest('.toggle-todo-checkbox, .toggle-button, .toggle-drag-handle')) return false
+      return true
+    }
+
+    // 마키에 걸리는 토글 블록 위치 수집
+    const collectMarqueeHits = (editor, left, top, width, height) => {
+      const marqueeRect = { left, top, right: left + width, bottom: top + height }
+      const toggleBlocks = editor.view.dom.querySelectorAll('.toggle-block')
+      const positions = []
+
+      toggleBlocks.forEach(block => {
+        const blockRect = block.getBoundingClientRect()
+        const headerBottom = Math.min(blockRect.bottom, blockRect.top + 32)
+
+        if (
+          blockRect.left < marqueeRect.right &&
+          blockRect.right > marqueeRect.left &&
+          blockRect.top < marqueeRect.bottom &&
+          headerBottom > marqueeRect.top
+        ) {
+          try {
+            const pos = editor.view.posAtDOM(block, 0)
+            const nodeAtPos = editor.state.doc.nodeAt(pos)
+            if (nodeAtPos && nodeAtPos.type.name === 'toggle') {
+              if (!positions.includes(pos)) positions.push(pos)
+            } else {
+              const $pos = editor.state.doc.resolve(pos)
+              for (let d = $pos.depth; d > 0; d--) {
+                if ($pos.node(d).type.name === 'toggle') {
+                  const tPos = $pos.before(d)
+                  if (!positions.includes(tPos)) positions.push(tPos)
+                  break
+                }
+              }
+            }
+          } catch (err) { /* ignore */ }
+        }
+      })
+      return positions
+    }
+
+    // 클릭 좌표에서 가장 가까운 토글 위치 찾기
+    const findToggleAtCoords = (editor, x, y) => {
+      const pos = editor.view.posAtCoords({ left: x, top: y })
+      if (!pos) return null
+      const $pos = editor.state.doc.resolve(pos.pos)
+      for (let d = $pos.depth; d > 0; d--) {
+        if ($pos.node(d).type.name === 'toggle') return $pos.before(d)
+      }
+      return null
+    }
+
+    // capture: true → Cmd/Ctrl+클릭 시 ProseMirror보다 먼저 가로챔
+    const handleMouseDown = (e) => {
+      if (e.button !== 0) return
+      if (isExcludedUI(e.target)) return
+
+      const editor = editorRef.current
+      if (!editor) return
+
+      const hasModifier = e.metaKey || e.ctrlKey
+
+      // 수식키 없음: 여백에서만 시작
+      if (!hasModifier && !isEmptySpace(e.target)) return
+
+      // 수식키 있음: 토글 자체 컨트롤(핸들/버튼/체크박스)은 자체 처리에 맡김
+      if (hasModifier && e.target.closest('.toggle-drag-handle, .toggle-button, .toggle-todo-checkbox')) return
+
+      // 수식키 + 콘텐츠 영역 → ProseMirror 기본 동작(커서 이동) 방지
+      if (hasModifier && !isEmptySpace(e.target)) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+
+      const startX = e.clientX
+      const startY = e.clientY
+      let marqueeActive = false
+      let overlay = null
+      let rafId = null
+
+      // 수식키 시 기존 선택 보존 (마키 축소 시에도 원래 선택 유지)
+      const basePositions = hasModifier
+        ? [...(multiSelectPluginKey.getState(editor.state)?.selectedPositions || [])]
+        : []
+
+      const updateMarquee = (left, top, width, height) => {
+        const marqueeHits = collectMarqueeHits(editor, left, top, width, height)
+        // 수식키: XOR 토글 — 기존 선택 ↔ 마키 히트를 반전
+        // 마키에 걸린 기존 선택 블록은 해제, 미선택 블록은 추가
+        const finalPositions = hasModifier
+          ? [
+              ...basePositions.filter(p => !marqueeHits.includes(p)),
+              ...marqueeHits.filter(p => !basePositions.includes(p))
+            ]
+          : marqueeHits
+
+        editor.view.dispatch(
+          editor.state.tr.setMeta(multiSelectPluginKey, {
+            type: 'set',
+            positions: finalPositions,
+            lastClickedPos: marqueeHits[marqueeHits.length - 1] ?? null
+          })
+        )
+      }
+
+      const handleMove = (moveEvent) => {
+        const dx = moveEvent.clientX - startX
+        const dy = moveEvent.clientY - startY
+
+        if (!marqueeActive && (dx * dx + dy * dy) > 25) {
+          marqueeActive = true
+          window.getSelection()?.removeAllRanges()
+          overlay = document.createElement('div')
+          overlay.className = 'marquee-selection'
+          overlay.style.cssText = 'position:fixed;pointer-events:none;z-index:999'
+          document.body.appendChild(overlay)
+        }
+
+        if (!marqueeActive) return
+
+        moveEvent.preventDefault()
+        window.getSelection()?.removeAllRanges()
+
+        const left = Math.min(startX, moveEvent.clientX)
+        const top = Math.min(startY, moveEvent.clientY)
+        const width = Math.abs(moveEvent.clientX - startX)
+        const height = Math.abs(moveEvent.clientY - startY)
+
+        overlay.style.left = left + 'px'
+        overlay.style.top = top + 'px'
+        overlay.style.width = width + 'px'
+        overlay.style.height = height + 'px'
+
+        if (rafId) cancelAnimationFrame(rafId)
+        rafId = requestAnimationFrame(() => updateMarquee(left, top, width, height))
+      }
+
+      const handleUp = () => {
+        document.removeEventListener('mousemove', handleMove)
+        document.removeEventListener('mouseup', handleUp)
+        if (rafId) cancelAnimationFrame(rafId)
+        if (overlay?.parentNode) overlay.parentNode.removeChild(overlay)
+
+        if (!marqueeActive) {
+          if (hasModifier) {
+            // Cmd/Ctrl+클릭(드래그 없이) → 해당 블록 토글 선택
+            const togglePos = findToggleAtCoords(editor, startX, startY)
+            if (togglePos !== null) {
+              editor.view.dispatch(
+                editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos: togglePos })
+              )
+            }
+          } else {
+            // 여백 클릭 → 멀티셀렉트 해제
+            const pluginState = multiSelectPluginKey.getState(editor.state)
+            if (pluginState?.selectedPositions.length > 0) {
+              editor.view.dispatch(
+                editor.state.tr.setMeta(multiSelectPluginKey, { type: 'clear' })
+              )
+            }
+          }
+        }
+      }
+
+      document.addEventListener('mousemove', handleMove)
+      document.addEventListener('mouseup', handleUp)
+    }
+
+    page.addEventListener('mousedown', handleMouseDown, { capture: true })
+    return () => page.removeEventListener('mousedown', handleMouseDown, { capture: true })
+  }, [])
+
   return (
-    <div className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
+    <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
       <div className="tiptap-page-inner">
         {/* 페이지 헤더 */}
         <div className="tiptap-page-header">
