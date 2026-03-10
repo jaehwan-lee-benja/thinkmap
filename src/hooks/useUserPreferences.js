@@ -81,6 +81,12 @@ export const useUserPreferences = (session) => {
     last_impersonated_page_id: null,
   }), [save])
 
+  // 탭
+  const saveTabs = useCallback((tabs, activeTabId) => save({ tabs, active_tab_id: activeTabId }), [save])
+
+  // UI 설정
+  const saveSidebarWidth = useCallback((width) => save({ sidebar_width: width }), [save])
+
   return {
     preferencesLoading,
     // 일반
@@ -99,5 +105,12 @@ export const useUserPreferences = (session) => {
     saveLastImpersonatedProject,
     saveLastImpersonatedPage,
     clearLastImpersonation,
+    // 탭
+    tabs: prefs?.tabs ?? null,
+    activeTabId: prefs?.active_tab_id ?? null,
+    saveTabs,
+    // UI 설정
+    sidebarWidth: prefs?.sidebar_width ?? null,
+    saveSidebarWidth,
   }
 }

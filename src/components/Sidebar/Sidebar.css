@@ -22,7 +22,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 300px;
+  width: var(--sidebar-width, 300px);
   height: 100%;
   background-color: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border-light);
@@ -40,8 +40,37 @@
 /* 데스크탑: 사이드바 닫힘 상태 */
 @media (min-width: 769px) {
   .sidebar:not(.open) {
-    transform: translateX(-300px);
+    transform: translateX(calc(-1 * var(--sidebar-width, 300px)));
   }
+}
+
+/* 리사이즈 핸들 */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1001;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.dragging {
+  background: var(--color-primary, #646cff);
+}
+
+/* 드래그 중 전체 커서 오버라이드 */
+body.sidebar-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+body.sidebar-resizing * {
+  cursor: col-resize !important;
 }
 
 /* 모바일: 사이드바 닫힘 상태 */
@@ -964,6 +993,10 @@
 @media (max-width: 768px) {
   .sidebar {
     width: 280px;
+  }
+
+  .sidebar-resize-handle {
+    display: none;
   }
 }
 

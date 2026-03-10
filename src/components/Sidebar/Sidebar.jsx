@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { HardDrive, Shield } from 'lucide-react'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
@@ -23,9 +23,40 @@ function Sidebar() {
   const { sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource } = useSharingContext()
   const { backups, backupLoading, createBackup, restoreBackup, deleteBackup, exportBackup, importBackup, refreshBackups } = useBackupContext()
   const { userEmail, userAvatarUrl, handleLogout, isMaster, isImpersonating, impersonatedEmail, startImpersonation, stopImpersonation, users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers } = useAuthContext()
-  const { sidebarOpen: isOpen, closeSidebar: onClose } = useUIContext()
+  const { sidebarOpen: isOpen, closeSidebar: onClose, sidebarWidth, setSidebarWidth } = useUIContext()
 
   const [sharedOpen, setSharedOpen] = useState(false)
+
+  // ─── 리사이즈 드래그 ───
+  const [isDragging, setIsDragging] = useState(false)
+  const sidebarRef = useRef(null)
+
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault()
+    setIsDragging(true)
+    document.body.classList.add('sidebar-resizing')
+  }, [])
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e) => {
+      const newWidth = e.clientX
+      if (setSidebarWidth) setSidebarWidth(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      document.body.classList.remove('sidebar-resizing')
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, setSidebarWidth])
 
   // 공유 모달 상태
   const [shareModalOpen, setShareModalOpen] = useState(false)
@@ -61,7 +92,16 @@ function Sidebar() {
       )}
 
       {/* 사이드바 */}
-      <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <div
+        ref={sidebarRef}
+        className={`sidebar ${isOpen ? 'open' : ''}`}
+        style={sidebarWidth ? { '--sidebar-width': `${sidebarWidth}px` } : undefined}
+      >
+        {/* 리사이즈 핸들 (데스크탑 전용) */}
+        <div
+          className={`sidebar-resize-handle ${isDragging ? 'dragging' : ''}`}
+          onMouseDown={handleResizeStart}
+        />
         {/* 헤더: 프로젝트 선택 */}
         <SidebarHeader
           currentProject={currentProject}
