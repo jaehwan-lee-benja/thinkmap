@@ -12,34 +12,10 @@
     <meta name="apple-mobile-web-app-title" content="ThinkMap" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
     <title>ThinkMap</title>
-    <script type="module" crossorigin src="/thinkmap/assets/index-DZJI0rUs.js"></script>
+    <script type="module" crossorigin src="/thinkmap/assets/index-DglQ5o98.js"></script>
     <link rel="stylesheet" crossorigin href="/thinkmap/assets/index-BdN86ik2.css">
   </head>
   <body>
     <div id="root"></div>
-    <div id="dbg" style="position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.9);color:#0f0;font:11px/1.4 monospace;padding:6px 8px;pointer-events:none;white-space:pre-wrap;max-height:40vh;overflow:auto;"></div>
-    <script>
-      // React 외부 에러 캐처 — React 크래시도 잡음
-      var dbg=document.getElementById('dbg'),logs=[];
-      function dlog(m){logs.push(m);if(logs.length>30)logs.shift();dbg.textContent=logs.join('\n');}
-      window.onerror=function(m,s,l,c,e){dlog('ERR:'+m+' @'+(s||'').split('/').pop()+':'+l);};
-      window.onunhandledrejection=function(e){dlog('REJECT:'+String(e.reason).slice(0,300));};
-      // console.error 가로채기 — React 내부 에러 캡처
-      var origErr=console.error;
-      console.error=function(){
-        var msg=Array.prototype.slice.call(arguments).map(function(a){
-          return a instanceof Error ? a.message+'\n'+a.stack : String(a);
-        }).join(' ').slice(0,500);
-        dlog('CERR:'+msg);
-        origErr.apply(console,arguments);
-      };
-      // 엘리먼트 높이 모니터링 (200ms 간격)
-      setInterval(function(){
-        var r=document.getElementById('root');
-        var ch=r?r.children.length:0;
-        var a=document.querySelector('.app');
-        dlog('t='+Date.now()%100000+' root='+(r?r.offsetHeight:0)+' app='+(a?a.offsetHeight:0)+' ch='+ch);
-      },200);
-    </script>
   </body>
 </html>
