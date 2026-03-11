@@ -16,7 +16,7 @@ export const useUsers = (session, isMaster) => {
     try {
       const { data, error } = await supabase
         .from('app_users')
-        .select('*')
+        .select('*, auth_uid')
         .order('created_at', { ascending: false })
 
       if (error) throw error

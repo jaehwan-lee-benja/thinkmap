@@ -62,8 +62,8 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
    ===================================================== */
 
 .app {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   width: 100%;
   display: flex;
   justify-content: center;
@@ -72,7 +72,7 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
   margin: 0;
   overscroll-behavior: none;
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow: hidden;
   background-color: var(--color-bg-primary);
   color: rgba(255, 255, 255, 0.87);
 }
@@ -101,12 +101,23 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
    콘텐츠 영역
    ===================================================== */
 
+/* 탭 바 아래 콘텐츠+사이드바 wrapper */
+.pane-content-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
 .content-scrollable {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 0;
   width: 100%;
   box-sizing: border-box;
@@ -120,6 +131,7 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 
 /* 페이지 미선택 상태 */
 .no-page-selected {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -128,6 +140,29 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
   color: rgba(255, 255, 255, 0.5);
   font-size: 1rem;
   text-align: center;
+}
+
+.no-page-selected .content-sidebar-toggle {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.no-page-selected .content-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* =====================================================
@@ -141,7 +176,6 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
   overflow: hidden;
   min-width: 0;
   min-height: 0;
-  position: relative;
 }
 
 /* 분할 모드 활성 패널 강조 (탭바 하단 라인) */
@@ -161,9 +195,26 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 }
 
 .split-divider {
-  width: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  width: 5px;
+  background: rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  transition: background 0.15s;
+}
+
+.split-divider:hover,
+.split-divider:active {
+  background: rgba(100, 108, 255, 0.3);
+}
+
+.split-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -3px;
+  right: -3px;
+  bottom: 0;
 }
 
 
@@ -223,6 +274,7 @@ body.is-scrolling::-webkit-scrollbar-thumb:hover {
 
   .content-scrollable {
     padding: 0.5rem 0 calc(120px + var(--safe-area-bottom)) 0;
+    scrollbar-gutter: auto;
   }
 }
 

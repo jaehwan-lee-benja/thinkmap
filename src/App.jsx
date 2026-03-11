@@ -131,6 +131,7 @@ function App() {
     initialProjectId,
     onProjectChange: handleProjectChange,
     preferencesLoaded: !preferencesLoading,
+    isImpersonating,
   })
 
   // 페이지 관리
@@ -150,6 +151,7 @@ function App() {
     initialPageId,
     onPageChange: handlePageChange,
     preferencesLoaded: !preferencesLoading,
+    isImpersonating,
   })
 
   // 임퍼소네이션 래핑: 변경 시 활성 탭도 업데이트
@@ -158,6 +160,8 @@ function App() {
     updateActiveTab({
       impersonatedUserId: userId,
       impersonatedUserEmail: userEmail,
+      projectId: null,
+      pageId: null,
     })
   }, [startImpersonation, updateActiveTab])
 
@@ -166,6 +170,8 @@ function App() {
     updateActiveTab({
       impersonatedUserId: null,
       impersonatedUserEmail: null,
+      projectId: null,
+      pageId: null,
     })
   }, [stopImpersonation, updateActiveTab])
 
@@ -237,15 +243,45 @@ function App() {
     setDeleteToast(null)
   }, [undoDeletePage])
 
-  // 패널별 사이드바 상태
-  const [paneSidebarOpen, setPaneSidebarOpen] = useState([false, false])
+  // 탭별 사이드바 상태
+  const [tabSidebarOpen, setTabSidebarOpen] = useState({})
 
-  const togglePaneSidebar = useCallback((paneIndex) => {
-    setPaneSidebarOpen(prev => prev.map((v, i) => i === paneIndex ? !v : v))
+  const toggleTabSidebar = useCallback((tabId) => {
+    setTabSidebarOpen(prev => ({ ...prev, [tabId]: !prev[tabId] }))
   }, [])
 
-  const closePaneSidebar = useCallback((paneIndex) => {
-    setPaneSidebarOpen(prev => prev.map((v, i) => i === paneIndex ? false : v))
+  const closeTabSidebar = useCallback((tabId) => {
+    setTabSidebarOpen(prev => ({ ...prev, [tabId]: false }))
+  }, [])
+
+  // 분할 리사이즈
+  const [splitRatio, setSplitRatio] = useState(0.5)
+  const splitContainerRef = useRef(null)
+  const isDraggingRef = useRef(false)
+
+  const handleDividerMouseDown = useCallback((e) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMouseMove = (e) => {
+      if (!isDraggingRef.current || !splitContainerRef.current) return
+      const rect = splitContainerRef.current.getBoundingClientRect()
+      const ratio = (e.clientX - rect.left) / rect.width
+      setSplitRatio(Math.max(0.2, Math.min(0.8, ratio)))
+    }
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
   }, [])
 
   // Context values (Hooks 규칙: early return 전에 모든 Hook 호출)
@@ -285,23 +321,83 @@ function App() {
 
   // ─── Breadcrumb ───
 
-  const buildBreadcrumb = useCallback((tab) => {
-    const parts = []
-    const proj = projects.find(p => p.id === tab.projectId)
-    if (proj) parts.push({ type: 'project', id: proj.id, name: proj.name })
-    if (tab.pageId && pages.length > 0) {
+  const ownEmail = session?.user?.email
+
+  // 활성 탭의 프로젝트명/페이지경로를 탭 객체에 동기화 (서버 영속화 → 다른 기기에서도 유지)
+  useEffect(() => {
+    if (!activeTab || !tabsInitialized) return
+
+    const fields = {}
+
+    if (activeTab.projectId) {
+      const proj = projects.find(p => p.id === activeTab.projectId)
+      if (proj && proj.name !== activeTab.projectName) {
+        fields.projectName = proj.name
+      }
+    }
+
+    if (activeTab.pageId && pages.length > 0) {
       const path = []
-      let cur = pages.find(p => p.id === tab.pageId)
+      let cur = pages.find(p => p.id === activeTab.pageId)
       while (cur) {
-        path.unshift({ type: 'page', id: cur.id, name: cur.name, parentId: cur.parent_id || null })
+        path.unshift({ id: cur.id, name: cur.name, parentId: cur.parent_id || null })
         cur = cur.parent_id ? pages.find(p => p.id === cur.parent_id) : null
       }
-      parts.push(...path)
+      if (path.length > 0 && JSON.stringify(path) !== JSON.stringify(activeTab.pagePath)) {
+        fields.pagePath = path
+      }
+    }
+
+    if (Object.keys(fields).length > 0) {
+      updateActiveTab(fields)
+    }
+  }, [projects, pages, activeTab?.projectId, activeTab?.pageId, tabsInitialized])
+
+  const buildBreadcrumb = useCallback((tab) => {
+    const parts = []
+    // 관리자: 맨 앞에 계정 표시
+    if (isMaster) {
+      const email = tab.impersonatedUserEmail || ownEmail || 'User'
+      const label = email.split('@')[0]
+      parts.push({ type: 'user', id: tab.impersonatedUserId || null, name: label })
+    }
+    // 프로젝트: 라이브 데이터 → 탭 저장값 폴백
+    const proj = projects.find(p => p.id === tab.projectId)
+    if (proj) {
+      parts.push({ type: 'project', id: proj.id, name: proj.name })
+    } else if (tab.projectName) {
+      parts.push({ type: 'project', id: tab.projectId, name: tab.projectName })
+    }
+    // 페이지 경로: 라이브 데이터 → 탭 저장값 폴백
+    if (tab.pageId) {
+      let pageParts = []
+      if (pages.length > 0) {
+        let cur = pages.find(p => p.id === tab.pageId)
+        while (cur) {
+          pageParts.unshift({ type: 'page', id: cur.id, name: cur.name, parentId: cur.parent_id || null })
+          cur = cur.parent_id ? pages.find(p => p.id === cur.parent_id) : null
+        }
+      }
+      if (pageParts.length === 0 && tab.pagePath) {
+        pageParts = tab.pagePath.map(p => ({ type: 'page', id: p.id, name: p.name, parentId: p.parentId || null }))
+      }
+      parts.push(...pageParts)
     }
     return parts.length > 0 ? parts : [{ type: 'none', id: null, name: '새 탭' }]
-  }, [projects, pages])
+  }, [projects, pages, isMaster, ownEmail])
 
   const getBreadcrumbSiblings = useCallback((part) => {
+    if (part.type === 'user') {
+      // 자신 + 등록된 사용자 목록
+      const list = []
+      if (ownEmail) list.push({ id: null, name: ownEmail.split('@')[0], email: ownEmail })
+      if (users) {
+        users.forEach(u => {
+          if (u.email !== ownEmail) list.push({ id: u.id, name: u.email.split('@')[0], email: u.email })
+        })
+      }
+      return list
+    }
     if (part.type === 'project') {
       return projects.map(p => ({ id: p.id, name: p.name }))
     }
@@ -312,15 +408,23 @@ function App() {
         .map(p => ({ id: p.id, name: p.name }))
     }
     return []
-  }, [projects, pages])
+  }, [projects, pages, users, ownEmail])
 
   const handleBreadcrumbNavigate = useCallback((type, id) => {
-    if (type === 'project') {
+    if (type === 'user') {
+      // id === null → 본인 계정으로 돌아가기, 그 외 → 해당 계정으로 임퍼소네이션
+      if (id === null) {
+        handleStopImpersonation()
+      } else {
+        const user = users?.find(u => u.id === id)
+        if (user) handleStartImpersonation(user.auth_uid || user.id, user.email)
+      }
+    } else if (type === 'project') {
       setCurrentProjectId(id)
     } else if (type === 'page') {
       setCurrentPageId(id)
     }
-  }, [setCurrentProjectId, setCurrentPageId])
+  }, [setCurrentProjectId, setCurrentPageId, handleStartImpersonation, handleStopImpersonation, users])
 
   // 인증 화면
   const authScreen = GoogleAuthButton({ authLoading, session, handleGoogleLogin })
@@ -343,6 +447,9 @@ function App() {
     const tab = pane.tabs.find(t => t.id === pane.activeTabId) || pane.tabs[0]
     if (!tab) return null
 
+    const tabId = tab.id
+    const isSidebarOpen = tabSidebarOpen[tabId] || false
+
     // 활성 패널이면 앱의 currentPageId를 사용, 비활성이면 탭의 pageId를 직접 사용
     const pageId = paneIndex === activePaneIndex ? currentPageId : (tab.pageId || null)
     const pageName = pages.find(p => p.id === pageId)?.name || ''
@@ -350,7 +457,16 @@ function App() {
     if (!pageId) {
       return (
         <div className="no-page-selected">
-          <p>페이지를 선택하세요</p>
+          <button
+            className="content-sidebar-toggle"
+            onClick={() => toggleTabSidebar(tabId)}
+            title={isSidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+          <p>{projectsLoading || pagesLoading ? '로딩 중...' : '페이지를 선택하세요'}</p>
         </div>
       )
     }
@@ -361,6 +477,9 @@ function App() {
         currentPageId={pageId}
         currentPageName={pageName}
         onPageRename={renamePage}
+        isImpersonating={isImpersonating}
+        sidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => toggleTabSidebar(tabId)}
       />
     )
   }
@@ -369,7 +488,8 @@ function App() {
     const pane = panes[paneIndex]
     if (!pane) return null
     const isActive = paneIndex === activePaneIndex
-    const isSidebarOpen = paneSidebarOpen[paneIndex] || false
+    const activeTabForPane = pane.tabs.find(t => t.id === pane.activeTabId) || pane.tabs[0]
+    const isSidebarOpen = tabSidebarOpen[activeTabForPane?.id] || false
 
     return (
       <div
@@ -381,38 +501,39 @@ function App() {
             tabs={pane.tabs}
             activeTabId={pane.activeTabId}
             onSwitch={(tabId) => switchTab(paneIndex, tabId)}
-            onAdd={() => addTab(paneIndex)}
+            onAdd={() => addTab(paneIndex, {
+              projectId: currentProjectId || projects[0]?.id || null,
+              pageId: currentPageId || pages[0]?.id || null,
+            })}
             onRemove={(tabId) => removeTab(paneIndex, tabId)}
-            onSplitToggle={toggleSplit}
-            splitMode={splitMode}
             buildBreadcrumb={buildBreadcrumb}
             getBreadcrumbSiblings={getBreadcrumbSiblings}
             onBreadcrumbNavigate={(type, id) => {
               focusPane(paneIndex)
               handleBreadcrumbNavigate(type, id)
             }}
-            sidebarOpen={isSidebarOpen}
-            onToggleSidebar={() => togglePaneSidebar(paneIndex)}
             paneIndex={paneIndex}
           />
         )}
-        <div className="content-scrollable">
-          {renderPaneContent(paneIndex)}
-        </div>
+        <div className="pane-content-area">
+          <div className="content-scrollable">
+            {renderPaneContent(paneIndex)}
+          </div>
 
-        {/* 패널별 사이드바 */}
-        <Sidebar
-          isOpen={isSidebarOpen}
-          onClose={() => closePaneSidebar(paneIndex)}
-          onPageSelect={(pageId) => {
-            focusPane(paneIndex)
-            setCurrentPageId(pageId)
-          }}
-          onProjectSelect={(projectId) => {
-            focusPane(paneIndex)
-            setCurrentProjectId(projectId)
-          }}
-        />
+          {/* 탭별 사이드바 */}
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => closeTabSidebar(activeTabForPane?.id)}
+            onPageSelect={(pageId) => {
+              focusPane(paneIndex)
+              setCurrentPageId(pageId)
+            }}
+            onProjectSelect={(projectId) => {
+              focusPane(paneIndex)
+              setCurrentProjectId(projectId)
+            }}
+          />
+        </div>
       </div>
     )
   }
@@ -424,14 +545,18 @@ function App() {
     <SharingContext.Provider value={sharingCtx}>
     <BackupContext.Provider value={backupCtx}>
       <div className="app">
-        <GlobalTopBar />
+        <GlobalTopBar splitMode={splitMode} onSplitToggle={toggleSplit} />
 
         <div className={`container ${splitMode ? 'split-active' : ''}`}>
           {splitMode ? (
-            <div className="split-container">
-              {renderPane(0)}
-              <div className="split-divider" />
-              {renderPane(1)}
+            <div className="split-container" ref={splitContainerRef}>
+              <div style={{ flex: `0 0 ${splitRatio * 100}%`, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                {renderPane(0)}
+              </div>
+              <div className="split-divider" onMouseDown={handleDividerMouseDown} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                {renderPane(1)}
+              </div>
             </div>
           ) : (
             renderPane(0)

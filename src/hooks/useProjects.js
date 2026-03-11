@@ -11,7 +11,7 @@ import { logError } from '../utils/supabaseError'
  * @param {Function} options.onProjectChange - 프로젝트 변경 시 콜백 (Supabase 저장용)
  */
 export const useProjects = (session, options = {}) => {
-  const { initialProjectId = null, onProjectChange, preferencesLoaded = true } = options
+  const { initialProjectId = null, onProjectChange, preferencesLoaded = true, isImpersonating = false } = options
   const [projects, setProjects] = useState([])
   const [currentProjectId, setCurrentProjectId] = useState(null)
   const [projectsLoading, setProjectsLoading] = useState(true)
@@ -51,8 +51,13 @@ export const useProjects = (session, options = {}) => {
       if (logError('프로젝트 로드', error)) return
 
       if (!data || data.length === 0) {
-        // 프로젝트가 없으면 기본 프로젝트 생성
-        await createDefaultProject()
+        if (isImpersonating) {
+          // 임퍼소네이션 중에는 기본 프로젝트를 생성하지 않음
+          setProjects([])
+          setInitialized(true)
+        } else {
+          await createDefaultProject()
+        }
       } else {
         setProjects(data)
         // 초기 선택이 필요한 경우에만 (ref로 stale closure 방지)

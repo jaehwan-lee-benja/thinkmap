@@ -3,9 +3,7 @@ import './TabBar.css'
 
 export function TabBar({
   tabs, activeTabId, onSwitch, onAdd, onRemove,
-  onSplitToggle, splitMode,
   buildBreadcrumb, getBreadcrumbSiblings, onBreadcrumbNavigate,
-  sidebarOpen, onToggleSidebar,
 }) {
   // 드롭다운 상태: { tabId, partIndex, type, items, anchorRect }
   const [dropdown, setDropdown] = useState(null)
@@ -55,6 +53,10 @@ export function TabBar({
     setDropdown(null)
   }, [onBreadcrumbNavigate])
 
+  const dropdownHeader = dropdown
+    ? dropdown.type === 'user' ? '계정' : dropdown.type === 'project' ? '프로젝트' : '페이지'
+    : ''
+
   const renderBreadcrumb = (tab) => {
     if (!buildBreadcrumb) return <span className="tab-bar-label">새 탭</span>
     const parts = buildBreadcrumb(tab)
@@ -83,19 +85,6 @@ export function TabBar({
 
   return (
     <div className="tab-bar">
-      {/* 사이드바 토글 */}
-      {onToggleSidebar && (
-        <button
-          className={`tab-bar-hamburger ${sidebarOpen ? 'sidebar-is-open' : ''}`}
-          onClick={onToggleSidebar}
-          title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
-      )}
-
       <div className="tab-bar-tabs">
         {tabs.map(tab => (
           <div
@@ -104,11 +93,6 @@ export function TabBar({
             onClick={() => { if (tab.id !== activeTabId) onSwitch(tab.id) }}
           >
             {renderBreadcrumb(tab)}
-            {tab.impersonatedUserEmail && (
-              <span className="tab-bar-badge" title={`${tab.impersonatedUserEmail}로 활동 중`}>
-                {tab.impersonatedUserEmail.split('@')[0].slice(0, 6)}
-              </span>
-            )}
             {tabs.length > 1 && (
               <button
                 className="tab-bar-close"
@@ -126,18 +110,6 @@ export function TabBar({
         <button className="tab-bar-add" onClick={onAdd} title="새 탭 추가">
           +
         </button>
-        {onSplitToggle && (
-          <button
-            className={`tab-bar-split ${splitMode ? 'active' : ''}`}
-            onClick={onSplitToggle}
-            title={splitMode ? '분할 닫기' : '화면 분할'}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <rect x="1" y="1" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              <line x1="7" y1="1.5" x2="7" y2="12.5" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-          </button>
-        )}
       </div>
 
       {/* Breadcrumb 드롭다운 */}
@@ -151,12 +123,12 @@ export function TabBar({
           }}
         >
           <div className="breadcrumb-dropdown-header">
-            {dropdown.type === 'project' ? '프로젝트' : '페이지'}
+            {dropdownHeader}
           </div>
           <div className="breadcrumb-dropdown-list">
             {dropdown.items.map(item => (
               <button
-                key={item.id}
+                key={item.id ?? '__self__'}
                 className={`breadcrumb-dropdown-item ${item.id === dropdown.currentId ? 'current' : ''}`}
                 onClick={() => handleDropdownSelect(dropdown.type, item.id)}
               >

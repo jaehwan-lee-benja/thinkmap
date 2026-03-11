@@ -1,14 +1,10 @@
 import React, { useState } from 'react'
-import { HardDrive, Shield } from 'lucide-react'
-import BackupModal from '../Backup/BackupModal'
+import { Shield } from 'lucide-react'
 import AdminModal from '../Admin/AdminModal'
 import { useAuthContext } from '../../contexts/AuthContext'
-import { useProjectContext } from '../../contexts/ProjectContext'
-import { usePageContext } from '../../contexts/PageContext'
-import { useBackupContext } from '../../contexts/BackupContext'
 import './GlobalTopBar.css'
 
-export function GlobalTopBar() {
+export function GlobalTopBar({ splitMode, onSplitToggle }) {
   const {
     userEmail, userAvatarUrl, handleLogout, isMaster,
     isImpersonating, impersonatedEmail, stopImpersonation,
@@ -16,14 +12,7 @@ export function GlobalTopBar() {
     startImpersonation,
   } = useAuthContext()
 
-  const { projects, currentProjectId } = useProjectContext()
-  const { pages } = usePageContext()
-  const { backups, backupLoading, createBackup, restoreBackup, deleteBackup, exportBackup, importBackup, refreshBackups } = useBackupContext()
-
-  const [backupModalOpen, setBackupModalOpen] = useState(false)
   const [adminModalOpen, setAdminModalOpen] = useState(false)
-
-  const currentProject = projects.find(p => p.id === currentProjectId)
 
   return (
     <>
@@ -32,22 +21,20 @@ export function GlobalTopBar() {
           <span className="topbar-app-name">ThinkMap</span>
         </div>
 
-        {/* 임퍼소네이션 배너 */}
-        {isImpersonating && (
-          <div className="topbar-impersonation">
-            <span>{impersonatedEmail} 계정으로 활동 중</span>
-            <button onClick={stopImpersonation}>돌아가기</button>
-          </div>
-        )}
-
         <div className="topbar-right">
-          <button
-            className="topbar-button"
-            onClick={() => setBackupModalOpen(true)}
-            title="프로젝트 백업"
-          >
-            <HardDrive size={15} />
-          </button>
+          {onSplitToggle && (
+            <button
+              className={`topbar-button topbar-split ${splitMode ? 'topbar-split-active' : ''}`}
+              onClick={onSplitToggle}
+              title={splitMode ? '분할 닫기' : '화면 분할'}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="1" y="1" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                <line x1="7" y1="1.5" x2="7" y2="12.5" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+              <span>분할</span>
+            </button>
+          )}
 
           {isMaster && (
             <button
@@ -56,17 +43,11 @@ export function GlobalTopBar() {
               title="관리자 패널"
             >
               <Shield size={15} />
+              <span>관리자</span>
             </button>
           )}
 
           <div className="topbar-user">
-            <div className="topbar-avatar">
-              {userAvatarUrl ? (
-                <img src={userAvatarUrl} alt="" className="topbar-avatar-img" />
-              ) : (
-                userEmail ? userEmail.charAt(0).toUpperCase() : 'U'
-              )}
-            </div>
             <span className="topbar-email">{userEmail || 'User'}</span>
           </div>
 
@@ -83,22 +64,6 @@ export function GlobalTopBar() {
           </button>
         </div>
       </div>
-
-      {/* 백업 모달 */}
-      <BackupModal
-        isOpen={backupModalOpen}
-        onClose={() => setBackupModalOpen(false)}
-        project={currentProject}
-        pages={pages}
-        backups={backups}
-        isLoading={backupLoading}
-        onCreateBackup={createBackup}
-        onRestoreBackup={restoreBackup}
-        onDeleteBackup={deleteBackup}
-        onExportBackup={exportBackup}
-        onImportBackup={importBackup}
-        onRefresh={refreshBackups}
-      />
 
       {/* 관리자 모달 */}
       {isMaster && (

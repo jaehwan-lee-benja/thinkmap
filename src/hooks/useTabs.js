@@ -98,14 +98,40 @@ export const useTabs = (prefs) => {
 
   // ─── 저장 ───
   const saveTimerRef = useRef(null)
+  const pendingSaveRef = useRef(null)
+
   const save = useCallback((newPanes, newActivePaneIndex) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    const payload = { panes: newPanes, activePaneIndex: newActivePaneIndex ?? activePaneIndexRef.current }
+    pendingSaveRef.current = payload
     saveTimerRef.current = setTimeout(() => {
       const fn = persistTabsRef.current
       if (!fn) return
-      // 새 형식으로 저장: { panes, activePaneIndex }
-      fn({ panes: newPanes, activePaneIndex: newActivePaneIndex ?? activePaneIndexRef.current }, null)
+      fn(payload, null)
+      pendingSaveRef.current = null
     }, 300)
+  }, [])
+
+  // 디바운스 없이 즉시 저장 (분할 모드 토글 등 중요 상태 변경용)
+  const saveImmediate = useCallback((newPanes, newActivePaneIndex) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    pendingSaveRef.current = null
+    const fn = persistTabsRef.current
+    if (!fn) return
+    fn({ panes: newPanes, activePaneIndex: newActivePaneIndex ?? activePaneIndexRef.current }, null)
+  }, [])
+
+  // 페이지 떠날 때 대기 중인 저장 플러시
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (pendingSaveRef.current) {
+        const fn = persistTabsRef.current
+        if (fn) fn(pendingSaveRef.current, null)
+        pendingSaveRef.current = null
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
   // ─── 패널별 탭 조작 ───
@@ -197,7 +223,7 @@ export const useTabs = (prefs) => {
         }
         setSplitMode(false)
         setActivePaneIndex(0)
-        save([merged], 0)
+        saveImmediate([merged], 0)
         return [merged]
       } else {
         // 분할 열기 → 현재 활성 탭을 복제하여 pane 1 생성
@@ -211,11 +237,11 @@ export const useTabs = (prefs) => {
         }
         const newPanes = [prev[0], { tabs: [newTab], activeTabId: newTab.id }]
         setSplitMode(true)
-        save(newPanes, 0)
+        saveImmediate(newPanes, 0)
         return newPanes
       }
     })
-  }, [save])
+  }, [saveImmediate])
 
   const focusPane = useCallback((paneIndex) => {
     if (activePaneIndexRef.current === paneIndex) return

@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
+import { HardDrive } from 'lucide-react'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
+import BackupModal from '../Backup/BackupModal'
 import { SidebarHeader } from './components/SidebarHeader'
 import { PageTree } from './components/PageTree'
 import { useProjectContext } from '../../contexts/ProjectContext'
 import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
+import { useBackupContext } from '../../contexts/BackupContext'
 import './Sidebar.css'
 
 /**
@@ -17,8 +20,10 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect }) {
   const { projects, currentProjectId, createProject, renameProject, deleteProject } = useProjectContext()
   const { pages, pageTree, currentPageId, createPage, renamePage, deletePage, reorderPages, getDescendantCount, expandedPages, saveExpandedPages } = usePageContext()
   const { sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource } = useSharingContext()
+  const { backups, backupLoading, createBackup, restoreBackup, deleteBackup, exportBackup, importBackup, refreshBackups } = useBackupContext()
 
   const [sharedOpen, setSharedOpen] = useState(false)
+  const [backupModalOpen, setBackupModalOpen] = useState(false)
 
   // 공유 모달 상태
   const [shareModalOpen, setShareModalOpen] = useState(false)
@@ -125,6 +130,17 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect }) {
               </div>
             </>
           )}
+
+          {/* 백업 */}
+          <div className="sidebar-backup-section">
+            <button
+              className="sidebar-backup-button"
+              onClick={() => setBackupModalOpen(true)}
+            >
+              <HardDrive size={15} />
+              <span>프로젝트 백업</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -152,6 +168,22 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect }) {
         onProjectCreate={createProject}
         onProjectRename={renameProject}
         onProjectDelete={deleteProject}
+      />
+
+      {/* 백업 모달 */}
+      <BackupModal
+        isOpen={backupModalOpen}
+        onClose={() => setBackupModalOpen(false)}
+        project={currentProject}
+        pages={pages}
+        backups={backups}
+        isLoading={backupLoading}
+        onCreateBackup={createBackup}
+        onRestoreBackup={restoreBackup}
+        onDeleteBackup={deleteBackup}
+        onExportBackup={exportBackup}
+        onImportBackup={importBackup}
+        onRefresh={refreshBackups}
       />
     </>
   )

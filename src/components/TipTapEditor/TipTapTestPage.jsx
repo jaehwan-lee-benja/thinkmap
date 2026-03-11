@@ -31,7 +31,7 @@ import './TipTapPage.css'
  * TipTap 에디터 페이지
  * 메인 에디터 컴포넌트
  */
-function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename }) {
+function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename, isImpersonating = false, sidebarOpen, onToggleSidebar }) {
   const [content, setContent] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(null)
@@ -98,7 +98,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
 
   // 히스토리 저장 (수동)
   const saveHistory = async (description = '수동 저장') => {
-    if (!session?.user?.id || !currentPageId || !content) return false
+    if (!session?.user?.id || !currentPageId || !content || isImpersonating) return false
 
     try {
       const { error } = await supabase
@@ -383,7 +383,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
 
   // 자동 히스토리 저장 (5분마다, 변경된 경우에만)
   const saveAutoHistory = useCallback(async (contentToSave, pageIdToSave) => {
-    if (!contentToSave || !pageIdToSave || !session?.user?.id) return
+    if (!contentToSave || !pageIdToSave || !session?.user?.id || isImpersonating) return
 
     const now = Date.now()
     const fiveMinutes = 5 * 60 * 1000
@@ -418,7 +418,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
     } catch (err) {
       console.error('자동 히스토리 저장 오류:', err)
     }
-  }, [session?.user?.id, isContentChanged])
+  }, [session?.user?.id, isContentChanged, isImpersonating])
 
   // 자동 저장 (500ms debounce) - 사용자 편집 시에만
   useEffect(() => {
@@ -468,7 +468,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
           const contentChanged = !lastHistoryContent ||
             JSON.stringify(prevPage.content) !== JSON.stringify(lastHistoryContent)
 
-          if (contentChanged && session?.user?.id) {
+          if (contentChanged && session?.user?.id && !isImpersonating) {
             supabase
               .from('block_history')
               .insert([{
@@ -724,6 +724,17 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
 
   return (
     <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
+      {onToggleSidebar && (
+        <button
+          className="content-sidebar-toggle"
+          onClick={onToggleSidebar}
+          title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      )}
       <div className="tiptap-page-inner">
         {/* 페이지 헤더 */}
         <div className="tiptap-page-header">
@@ -992,6 +1003,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename 
           </button>
         </div>
       )}
+
     </div>
   )
 }

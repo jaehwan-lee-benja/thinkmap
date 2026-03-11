@@ -68,7 +68,7 @@ const getDescendantIds = (pageId, pages) => {
  * @param {Function} options.onPageChange - 페이지 변경 시 콜백 (Supabase 저장용)
  */
 export const usePages = (session, currentProjectId, options = {}) => {
-  const { initialPageId = null, onPageChange, preferencesLoaded = true } = options
+  const { initialPageId = null, onPageChange, preferencesLoaded = true, isImpersonating = false } = options
   const [pages, setPages] = useState([])
   const [currentPageId, setCurrentPageId] = useState(null)
   const [pagesLoading, setPagesLoading] = useState(true)
@@ -120,8 +120,12 @@ export const usePages = (session, currentProjectId, options = {}) => {
       if (logError('페이지 로드', error)) return
 
       if (!data || data.length === 0) {
-        // 페이지가 없으면 기본 페이지 생성
-        await createDefaultPage()
+        if (isImpersonating) {
+          // 임퍼소네이션 중에는 기본 페이지를 생성하지 않음
+          setPages([])
+        } else {
+          await createDefaultPage()
+        }
       } else {
         setPages(data)
         // 초기 선택이 필요한 경우에만 (ref로 stale closure 방지)

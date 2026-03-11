@@ -20,29 +20,6 @@
   display: none;
 }
 
-/* 햄버거 (사이드바 토글) */
-.tab-bar-hamburger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  border-radius: 6px;
-  flex-shrink: 0;
-  margin-right: 4px;
-  margin-bottom: 2px;
-  transition: all 0.15s ease;
-  padding: 0;
-}
-
-.tab-bar-hamburger:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
-}
 
 .tab-bar-tabs {
   display: flex;
@@ -345,36 +322,6 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* 분할 버튼 */
-.tab-bar-split {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-  border-radius: 50%;
-  flex-shrink: 0;
-  transition: all 0.15s ease;
-  padding: 0;
-}
-
-.tab-bar-split:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.tab-bar-split.active {
-  color: var(--color-primary, #646cff);
-  background: rgba(100, 108, 255, 0.12);
-}
-
-.tab-bar-split.active:hover {
-  background: rgba(100, 108, 255, 0.2);
-}
 
 /* =====================================================
    모바일 반응형
@@ -400,15 +347,9 @@
     opacity: 1;
   }
 
-  .tab-bar-add,
-  .tab-bar-split {
+  .tab-bar-add {
     width: 30px;
     height: 30px;
-  }
-
-  /* 모바일에서는 분할 숨김 */
-  .tab-bar-split {
-    display: none;
   }
 
   .breadcrumb-dropdown {

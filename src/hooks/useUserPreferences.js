@@ -10,7 +10,8 @@ export const useUserPreferences = (session) => {
   useEffect(() => {
     if (!userId) {
       setPrefs(null)
-      setPreferencesLoading(false)
+      // userId가 없을 때 preferencesLoading을 false로 바꾸지 않음
+      // → useTabs가 서버 데이터 없이 초기화되는 것을 방지
       return
     }
 

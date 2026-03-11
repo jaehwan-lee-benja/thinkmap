@@ -19,23 +19,30 @@ export const useAuth = () => {
     return email ? MASTER_EMAILS.includes(email.toLowerCase()) : false
   }
 
-  // 로그인 시 app_users에 자동 등록
+  // 로그인 시 app_users에 자동 등록 + auth_uid 동기화
   const ensureAppUser = async (session) => {
     if (!session?.user?.email) return
     const email = session.user.email.toLowerCase()
+    const authUid = session.user.id
 
     const { data } = await supabase
       .from('app_users')
-      .select('id')
+      .select('id, auth_uid')
       .eq('email', email)
       .single()
 
     if (!data) {
       await supabase.from('app_users').insert([{
         email,
+        auth_uid: authUid,
         role: MASTER_EMAILS.includes(email) ? 'master' : 'user',
         status: 'active',
       }])
+    } else if (!data.auth_uid || data.auth_uid !== authUid) {
+      // auth_uid가 없거나 변경된 경우 업데이트
+      await supabase.from('app_users')
+        .update({ auth_uid: authUid })
+        .eq('id', data.id)
     }
   }
 
