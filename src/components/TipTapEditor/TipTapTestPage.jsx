@@ -557,7 +557,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     // 마키에 걸리는 토글 블록 위치 수집
     const collectMarqueeHits = (editor, left, top, width, height) => {
       const marqueeRect = { left, top, right: left + width, bottom: top + height }
-      const toggleBlocks = editor.view.dom.querySelectorAll('.toggle-block')
+      let editorViewDom
+      try { editorViewDom = editor.view.dom } catch { return [] }
+      const toggleBlocks = editorViewDom.querySelectorAll('.toggle-block')
       const positions = []
 
       toggleBlocks.forEach(block => {

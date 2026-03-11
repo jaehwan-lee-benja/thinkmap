@@ -21,6 +21,23 @@ import BackupContext from './contexts/BackupContext'
 import AuthContext from './contexts/AuthContext'
 import './App.css'
 
+// 에러 바운더리 — React 크래시 시 에러 메시지 표시
+class AppErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(error) { return { error } }
+  componentDidCatch(error, info) {
+    console.error('AppErrorBoundary:', error, info.componentStack)
+  }
+  render() {
+    if (this.state.error) {
+      return <div style={{ padding: 20, color: '#f66', fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap' }}>
+        {'CRASH: ' + this.state.error.message + '\n\n' + (this.state.error.stack || '').slice(0, 1000)}
+      </div>
+    }
+    return this.props.children
+  }
+}
+
 function App() {
   const { session, authLoading, isMaster, handleGoogleLogin, handleLogout } = useAuth()
 
@@ -544,7 +561,7 @@ function App() {
     <PageContext.Provider value={pageCtx}>
     <SharingContext.Provider value={sharingCtx}>
     <BackupContext.Provider value={backupCtx}>
-      <div className="app">
+      <div className="app app-main">
         <GlobalTopBar splitMode={splitMode} onSplitToggle={toggleSplit} />
 
         <div className={`container ${splitMode ? 'split-active' : ''}`}>
@@ -582,4 +599,5 @@ function App() {
   )
 }
 
+export { AppErrorBoundary }
 export default App

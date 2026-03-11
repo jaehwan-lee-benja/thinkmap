@@ -262,7 +262,8 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       if (isInTable) {
         // 현재 선택된 셀의 DOM 요소 찾기
         const { $from } = selection
-        const domAtPos = editor.view.domAtPos($from.pos)
+        let domAtPos
+        try { domAtPos = editor.view.domAtPos($from.pos) } catch { return }
         const cell = domAtPos.node?.closest?.('td, th') || domAtPos.node?.parentElement?.closest?.('td, th')
 
         if (cell) {
@@ -369,15 +370,26 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       }
     }
 
-    const editorDom = editor.view.dom
-    editorDom.addEventListener('touchstart', handleTouchStart, { passive: false })
-    editorDom.addEventListener('touchmove', handleTouchMove, { passive: true })
-    editorDom.addEventListener('touchend', handleTouchEnd, { passive: true })
+    // editor.view가 아직 마운트 전일 수 있으므로 다음 프레임에서 접근
+    let editorDom = null
+    const rafId = requestAnimationFrame(() => {
+      try {
+        editorDom = editor.view.dom
+      } catch {
+        return // editor view not ready
+      }
+      editorDom.addEventListener('touchstart', handleTouchStart, { passive: false })
+      editorDom.addEventListener('touchmove', handleTouchMove, { passive: true })
+      editorDom.addEventListener('touchend', handleTouchEnd, { passive: true })
+    })
 
     return () => {
-      editorDom.removeEventListener('touchstart', handleTouchStart)
-      editorDom.removeEventListener('touchmove', handleTouchMove)
-      editorDom.removeEventListener('touchend', handleTouchEnd)
+      cancelAnimationFrame(rafId)
+      if (editorDom) {
+        editorDom.removeEventListener('touchstart', handleTouchStart)
+        editorDom.removeEventListener('touchmove', handleTouchMove)
+        editorDom.removeEventListener('touchend', handleTouchEnd)
+      }
       if (longPressTimer) clearTimeout(longPressTimer)
     }
   }, [editor])
