@@ -2,12 +2,18 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import './TabBar.css'
 
 export function TabBar({
-  tabs, activeTabId, onSwitch, onAdd, onRemove,
+  tabs, activeTabId, onSwitch, onAdd, onRemove, onReorder, onMoveTab,
+  paneIndex,
   buildBreadcrumb, getBreadcrumbSiblings, onBreadcrumbNavigate,
 }) {
   // 드롭다운 상태: { tabId, partIndex, type, items, anchorRect }
   const [dropdown, setDropdown] = useState(null)
   const dropdownRef = useRef(null)
+
+  // 드래그 앤 드롭 상태
+  const [dragIndex, setDragIndex] = useState(null)
+  const [dropIndex, setDropIndex] = useState(null)
+  const [crossDrop, setCrossDrop] = useState(false) // 다른 패널에서 드래그 중
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
@@ -85,25 +91,86 @@ export function TabBar({
 
   return (
     <div className="tab-bar">
-      <div className="tab-bar-tabs">
-        {tabs.map(tab => (
+      <div
+        className={`tab-bar-tabs ${crossDrop && dropIndex === null ? 'tab-bar-cross-drop' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          try {
+            const data = JSON.parse(e.dataTransfer.getData('application/tab-drag'))
+            if (data.paneIndex !== paneIndex && onMoveTab) {
+              onMoveTab(data.paneIndex, data.tabIndex, tabs.length)
+            }
+          } catch {}
+          setDragIndex(null)
+          setDropIndex(null)
+          setCrossDrop(false)
+        }}
+      >
+        {tabs.map((tab, index) => {
+          const isDragging = dragIndex === index && !crossDrop
+          const isDropTarget = dropIndex === index
+          const dropClass = isDropTarget
+            ? (crossDrop || (dragIndex !== null && dragIndex < index) ? 'tab-drop-right' : 'tab-drop-left')
+            : ''
+          return (
           <div
             key={tab.id}
-            className={`tab-bar-tab ${tab.id === activeTabId ? 'active' : ''}`}
+            className={`tab-bar-tab ${tab.id === activeTabId ? 'active' : ''} ${isDragging ? 'tab-dragging' : ''} ${dropClass}`}
+            draggable
+            onDragStart={(e) => {
+              setDragIndex(index)
+              setCrossDrop(false)
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('application/tab-drag', JSON.stringify({ paneIndex, tabIndex: index }))
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              // 같은 패널 내 드래그
+              if (dragIndex !== null && index !== dragIndex) {
+                setDropIndex(index)
+              }
+              // 다른 패널에서 드래그 들어옴
+              if (dragIndex === null) {
+                setDropIndex(index)
+                setCrossDrop(true)
+              }
+            }}
+            onDragLeave={() => { setDropIndex(null); setCrossDrop(false) }}
+            onDrop={(e) => {
+              e.preventDefault()
+              try {
+                const data = JSON.parse(e.dataTransfer.getData('application/tab-drag'))
+                if (data.paneIndex !== paneIndex && onMoveTab) {
+                  // 크로스 패널 이동
+                  onMoveTab(data.paneIndex, data.tabIndex, index)
+                } else if (data.paneIndex === paneIndex && data.tabIndex !== index && onReorder) {
+                  // 같은 패널 내 순서 변경
+                  onReorder(data.tabIndex, index)
+                }
+              } catch {}
+              setDragIndex(null)
+              setDropIndex(null)
+              setCrossDrop(false)
+            }}
+            onDragEnd={() => { setDragIndex(null); setDropIndex(null); setCrossDrop(false) }}
             onClick={() => { if (tab.id !== activeTabId) onSwitch(tab.id) }}
           >
             {renderBreadcrumb(tab)}
-            {tabs.length > 1 && (
-              <button
-                className="tab-bar-close"
-                onClick={e => { e.stopPropagation(); onRemove(tab.id) }}
-                title="탭 닫기"
-              >
-                ✕
-              </button>
-            )}
+            <button
+              className="tab-bar-close"
+              onClick={e => { e.stopPropagation(); onRemove(tab.id) }}
+              title="탭 닫기"
+            >
+              ✕
+            </button>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       <div className="tab-bar-actions">

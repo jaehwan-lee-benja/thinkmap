@@ -100,6 +100,19 @@
   display: none;
 }
 
+/* 탭 드래그 앤 드롭 */
+.tab-bar-tab.tab-dragging {
+  opacity: 0.4;
+}
+
+.tab-bar-tab.tab-drop-left {
+  box-shadow: -2px 0 0 0 var(--color-primary, #646cff);
+}
+
+.tab-bar-tab.tab-drop-right {
+  box-shadow: 2px 0 0 0 var(--color-primary, #646cff);
+}
+
 /* =====================================================
    Breadcrumb (프로젝트 / 페이지 / 하위페이지)
    ===================================================== */

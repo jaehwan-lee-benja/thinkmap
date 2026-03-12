@@ -144,10 +144,10 @@ export const useTabs = (prefs) => {
       const current = pane.tabs.find(t => t.id === pane.activeTabId)
       const newTab = {
         id: generateTabId(),
-        projectId: opts.projectId ?? current?.projectId ?? null,
-        pageId: opts.pageId ?? current?.pageId ?? null,
-        impersonatedUserId: opts.impersonatedUserId ?? current?.impersonatedUserId ?? null,
-        impersonatedUserEmail: opts.impersonatedUserEmail ?? current?.impersonatedUserEmail ?? null,
+        projectId: 'projectId' in opts ? opts.projectId : (current?.projectId ?? null),
+        pageId: 'pageId' in opts ? opts.pageId : (current?.pageId ?? null),
+        impersonatedUserId: 'impersonatedUserId' in opts ? opts.impersonatedUserId : (current?.impersonatedUserId ?? null),
+        impersonatedUserEmail: 'impersonatedUserEmail' in opts ? opts.impersonatedUserEmail : (current?.impersonatedUserEmail ?? null),
       }
       const newPanes = prev.map((p, i) =>
         i === pi
@@ -162,12 +162,20 @@ export const useTabs = (prefs) => {
   const removeTab = useCallback((paneIndex, tabId) => {
     setPanes(prev => {
       const pane = prev[paneIndex]
-      if (!pane || pane.tabs.length <= 1) return prev
+      if (!pane) return prev
       const idx = pane.tabs.findIndex(t => t.id === tabId)
+      if (idx === -1) return prev
       const newTabs = pane.tabs.filter(t => t.id !== tabId)
       let newActiveId = pane.activeTabId
       if (pane.activeTabId === tabId) {
-        newActiveId = (idx > 0 ? pane.tabs[idx - 1] : pane.tabs[idx + 1])?.id
+        if (newTabs.length > 0) {
+          newActiveId = (idx > 0 ? pane.tabs[idx - 1] : pane.tabs[idx + 1])?.id || newTabs[0]?.id
+        } else {
+          // 마지막 탭 닫으면 빈 탭 생성
+          const emptyTab = { id: generateTabId(), projectId: null, pageId: null, impersonatedUserId: null, impersonatedUserEmail: null }
+          newTabs.push(emptyTab)
+          newActiveId = emptyTab.id
+        }
       }
       const newPanes = prev.map((p, i) =>
         i === paneIndex
@@ -211,6 +219,21 @@ export const useTabs = (prefs) => {
     })
   }, [save])
 
+  // 특정 패널의 활성 탭 필드 업데이트 (PaneProvider에서 사용)
+  const updateTabInPane = useCallback((paneIndex, fields) => {
+    setPanes(prev => {
+      const pane = prev[paneIndex]
+      if (!pane) return prev
+      const newPanes = prev.map((p, i) =>
+        i === paneIndex
+          ? { ...p, tabs: p.tabs.map(t => t.id === p.activeTabId ? { ...t, ...fields } : t) }
+          : p
+      )
+      save(newPanes)
+      return newPanes
+    })
+  }, [save])
+
   // ─── 분할 모드 ───
 
   const toggleSplit = useCallback(() => {
@@ -243,6 +266,65 @@ export const useTabs = (prefs) => {
     })
   }, [saveImmediate])
 
+  const reorderTab = useCallback((paneIndex, fromIndex, toIndex) => {
+    setPanes(prev => {
+      const pane = prev[paneIndex]
+      if (!pane) return prev
+      const tabs = [...pane.tabs]
+      if (fromIndex < 0 || fromIndex >= tabs.length || toIndex < 0 || toIndex >= tabs.length) return prev
+      if (fromIndex === toIndex) return prev
+      const [moved] = tabs.splice(fromIndex, 1)
+      tabs.splice(toIndex, 0, moved)
+      const newPanes = prev.map((p, i) =>
+        i === paneIndex ? { ...p, tabs } : p
+      )
+      save(newPanes)
+      return newPanes
+    })
+  }, [save])
+
+  const moveTabToPane = useCallback((fromPaneIndex, tabIndex, toPaneIndex, toIndex) => {
+    setPanes(prev => {
+      const srcPane = prev[fromPaneIndex]
+      const dstPane = prev[toPaneIndex]
+      if (!srcPane || !dstPane) return prev
+      if (dstPane.tabs.length >= MAX_TABS_PER_PANE) return prev
+
+      const srcTabs = [...srcPane.tabs]
+      if (tabIndex < 0 || tabIndex >= srcTabs.length) return prev
+      const [moved] = srcTabs.splice(tabIndex, 1)
+      if (!moved) return prev
+      // 대상 패널이 빈 탭(projectId 없는)만 있으면 제거
+      const dstTabs = dstPane.tabs.filter(t => t.projectId != null || t.pageId != null).length > 0
+        ? [...dstPane.tabs]
+        : []
+      const insertAt = toIndex != null ? Math.min(toIndex, dstTabs.length) : dstTabs.length
+      dstTabs.splice(insertAt, 0, moved)
+
+      // 원본 패널의 활성 탭이 이동된 경우 다음 탭 활성화
+      let srcActiveId = srcPane.activeTabId
+      if (srcActiveId === moved.id) {
+        if (srcTabs.length > 0) {
+          srcActiveId = srcTabs[Math.min(tabIndex, srcTabs.length - 1)]?.id
+        } else {
+          // 원본 패널이 비면 빈 탭 생성
+          const emptyTab = { id: generateTabId(), projectId: null, pageId: null, impersonatedUserId: null, impersonatedUserEmail: null }
+          srcTabs.push(emptyTab)
+          srcActiveId = emptyTab.id
+        }
+      }
+
+      const newPanes = prev.map((p, i) => {
+        if (i === fromPaneIndex) return { tabs: srcTabs, activeTabId: srcActiveId }
+        if (i === toPaneIndex) return { tabs: dstTabs, activeTabId: moved.id }
+        return p
+      })
+      save(newPanes, toPaneIndex)
+      return newPanes
+    })
+    setActivePaneIndex(toPaneIndex)
+  }, [save])
+
   const focusPane = useCallback((paneIndex) => {
     if (activePaneIndexRef.current === paneIndex) return
     setActivePaneIndex(paneIndex)
@@ -265,7 +347,10 @@ export const useTabs = (prefs) => {
     removeTab,
     switchTab,
     updateActiveTab,
+    updateTabInPane,
     toggleSplit,
     focusPane,
+    reorderTab,
+    moveTabToPane,
   }
 }

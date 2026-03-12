@@ -735,6 +735,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       {onToggleSidebar && (
         <button
           className="content-sidebar-toggle"
+          onMouseDown={e => e.stopPropagation()}
           onClick={onToggleSidebar}
           title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
         >
