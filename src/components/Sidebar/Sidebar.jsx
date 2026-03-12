@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { HardDrive } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch } from 'lucide-react'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
 import BackupModal from '../Backup/BackupModal'
@@ -16,7 +17,8 @@ import './Sidebar.css'
  * - 프로젝트 선택 + 페이지 트리
  * - 각 분할 패널에 독립적으로 렌더링
  */
-function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect }) {
+function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, onMobileViewChange }) {
+  const { isTablet } = useIsMobile()
   const { projects, currentProjectId, createProject, renameProject, deleteProject } = useProjectContext()
   const { pages, pageTree, currentPageId, createPage, renamePage, deletePage, reorderPages, getDescendantCount, expandedPages, saveExpandedPages } = usePageContext()
   const { sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource } = useSharingContext()
@@ -24,6 +26,7 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect }) {
 
   const [sharedOpen, setSharedOpen] = useState(false)
   const [backupModalOpen, setBackupModalOpen] = useState(false)
+  const [modeOpen, setModeOpen] = useState(false)
 
   // 공유 모달 상태
   const [shareModalOpen, setShareModalOpen] = useState(false)
@@ -125,6 +128,47 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect }) {
                         </span>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* 모드 변경 (모바일/태블릿만) */}
+          {isTablet && onMobileViewChange && (
+            <>
+              <div className="sidebar-section-divider" />
+              <div className="sidebar-mode-section">
+                <button
+                  className="sidebar-mode-toggle"
+                  onClick={() => setModeOpen(!modeOpen)}
+                >
+                  <span>모드 변경</span>
+                  <span className="shared-chevron">{modeOpen ? '▴' : '▾'}</span>
+                </button>
+                {modeOpen && (
+                  <div className="sidebar-mode-list">
+                    <button
+                      className={`sidebar-mode-item ${mobileView === 'editor' ? 'active' : ''}`}
+                      onClick={() => { onMobileViewChange('editor'); onClose() }}
+                    >
+                      <PenLine size={16} />
+                      <span>에디터</span>
+                    </button>
+                    <button
+                      className={`sidebar-mode-item ${mobileView === 'column' ? 'active' : ''}`}
+                      onClick={() => { onMobileViewChange('column'); onClose() }}
+                    >
+                      <Columns3 size={16} />
+                      <span>칼럼</span>
+                    </button>
+                    <button
+                      className={`sidebar-mode-item ${mobileView === 'mindmap' ? 'active' : ''}`}
+                      onClick={() => { onMobileViewChange('mindmap'); onClose() }}
+                    >
+                      <GitBranch size={16} />
+                      <span>마인드맵</span>
+                    </button>
                   </div>
                 )}
               </div>

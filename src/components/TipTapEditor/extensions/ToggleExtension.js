@@ -638,40 +638,53 @@ export const Toggle = Node.create({
         },
       }),
       // 커서가 위치한 가장 가까운(가장 안쪽) 토글 블록에 포커스 decoration
-      new Plugin({
-        key: new PluginKey('toggleFocusHighlight'),
-        props: {
-          decorations(state) {
-            const { selection } = state
-            let pos = -1
-
-            // NodeSelection: 선택된 토글 자체
-            if (selection instanceof NodeSelection && selection.node.type.name === 'toggle') {
-              pos = selection.from
+      (() => {
+        let editorViewRef = null
+        return new Plugin({
+          key: new PluginKey('toggleFocusHighlight'),
+          view(view) {
+            editorViewRef = view
+            return {
+              update(view) { editorViewRef = view },
+              destroy() { editorViewRef = null },
             }
-            // CheckboxSelection: 해당 토글
-            else if (selection instanceof CheckboxSelection) {
-              pos = selection.togglePos
-            }
-            // TextSelection: 커서가 위치한 가장 안쪽 토글
-            else {
-              const { $from } = selection
-              const depth = findToggleDepth($from)
-              if (depth !== -1) pos = $from.before(depth)
-            }
-
-            if (pos === -1) return DecorationSet.empty
-            const node = state.doc.nodeAt(pos)
-            if (!node) return DecorationSet.empty
-
-            return DecorationSet.create(state.doc, [
-              Decoration.node(pos, pos + node.nodeSize, {
-                class: 'toggle-block-focused',
-              }),
-            ])
           },
-        },
-      }),
+          props: {
+            decorations(state) {
+              // 에디터가 포커스되지 않았으면 음영 없음
+              if (editorViewRef && !editorViewRef.hasFocus) return DecorationSet.empty
+
+              const { selection } = state
+              let pos = -1
+
+              // NodeSelection: 선택된 토글 자체
+              if (selection instanceof NodeSelection && selection.node.type.name === 'toggle') {
+                pos = selection.from
+              }
+              // CheckboxSelection: 해당 토글
+              else if (selection instanceof CheckboxSelection) {
+                pos = selection.togglePos
+              }
+              // TextSelection: 커서가 위치한 가장 안쪽 토글
+              else {
+                const { $from } = selection
+                const depth = findToggleDepth($from)
+                if (depth !== -1) pos = $from.before(depth)
+              }
+
+              if (pos === -1) return DecorationSet.empty
+              const node = state.doc.nodeAt(pos)
+              if (!node) return DecorationSet.empty
+
+              return DecorationSet.create(state.doc, [
+                Decoration.node(pos, pos + node.nodeSize, {
+                  class: 'toggle-block-focused',
+                }),
+              ])
+            },
+          },
+        })
+      })(),
       // 멀티셀렉트 플러그인: 여러 블록 동시 선택
       new Plugin({
         key: multiSelectPluginKey,
@@ -934,6 +947,41 @@ export const Toggle = Node.create({
 
     return {
       'Mod-Shift-t': () => this.editor.commands.setToggle(),
+
+      // Cmd/Ctrl+A: 현재 토글 블록 내 텍스트만 선택
+      'Mod-a': ({ editor }) => {
+        const { state } = editor
+        const { $from, $to } = state.selection
+        const toggleDepth = findToggleDepth($from)
+        if (toggleDepth === -1) return false
+
+        const togglePos = $from.before(toggleDepth)
+        const toggleNode = state.doc.nodeAt(togglePos)
+        if (!toggleNode) return false
+
+        // 첫 번째 paragraph(헤더)의 범위
+        const paragraphStart = $from.start(toggleDepth + 1)
+        const paragraphEnd = $from.end(toggleDepth + 1)
+
+        // 이미 현재 paragraph 전체가 선택되어 있으면 → 토글 전체(하위 포함) 선택
+        const isFullParagraphSelected =
+          $from.pos === paragraphStart && $to.pos === paragraphEnd
+
+        if (isFullParagraphSelected) {
+          // 토글 블록 전체 범위 선택 (첫 paragraph 시작 ~ 마지막 자식 끝)
+          const toggleEnd = togglePos + toggleNode.nodeSize - 1
+          const { tr } = state
+          tr.setSelection(TextSelection.create(state.doc, paragraphStart, toggleEnd))
+          editor.view.dispatch(tr)
+          return true
+        }
+
+        // 현재 paragraph 전체 선택
+        const { tr } = state
+        tr.setSelection(TextSelection.create(state.doc, paragraphStart, paragraphEnd))
+        editor.view.dispatch(tr)
+        return true
+      },
 
       // 엔터: 커서 위치에서 토글 분리
       'Enter': ({ editor }) => {

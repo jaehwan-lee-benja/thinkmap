@@ -348,7 +348,7 @@
   }
 
   .tiptap-page--mobile {
-    padding-bottom: calc(64px + var(--safe-area-bottom));
+    padding-bottom: calc(16px + var(--safe-area-bottom));
   }
 
   .tiptap-page-header {

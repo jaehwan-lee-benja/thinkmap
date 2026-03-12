@@ -31,7 +31,7 @@ import './TipTapPage.css'
  * TipTap 에디터 페이지
  * 메인 에디터 컴포넌트
  */
-function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename, isImpersonating = false, sidebarOpen, onToggleSidebar }) {
+function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename, isImpersonating = false, sidebarOpen, onToggleSidebar, mobileView = 'editor', onMobileViewChange }) {
   const [content, setContent] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(null)
@@ -40,8 +40,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const pageRef = useRef(null)
   const { isTablet } = useIsMobile()
 
-  // 모바일 현재 뷰 모드: 'editor' | 'column' | 'mindmap'
-  const [mobileView, setMobileView] = useState('editor')
+  // 모바일 뷰 전환: mobileView prop 변경 시 뷰 열기/닫기
+  const viewHandlersRef = useRef({})
+  const prevMobileViewRef = useRef(mobileView)
 
   // 최신 content와 pageId를 ref로 추적 (cleanup 함수에서 사용)
   const contentRef = useRef(null)
@@ -513,22 +514,26 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  // 모바일: 하단바에서 뷰 전환
-  const handleMobileViewChange = (view) => {
-    if (view === mobileView) return
+  // mobileView prop 변경 감지 → 뷰 전환 처리
+  viewHandlersRef.current = { openColumnView, closeColumnView, openMindMap, closeMindMap, showColumnView, showMindMap }
+
+  useEffect(() => {
+    const prev = prevMobileViewRef.current
+    prevMobileViewRef.current = mobileView
+    if (prev === mobileView) return
+
+    const h = viewHandlersRef.current
     // 이전 뷰 닫기
-    if (mobileView === 'column' && showColumnView) closeColumnView()
-    if (mobileView === 'mindmap' && showMindMap) closeMindMap()
+    if (prev === 'column' && h.showColumnView) h.closeColumnView()
+    if (prev === 'mindmap' && h.showMindMap) h.closeMindMap()
     // 새 뷰 열기
-    if (view === 'column') openColumnView()
-    else if (view === 'mindmap') openMindMap()
+    if (mobileView === 'column') h.openColumnView()
+    else if (mobileView === 'mindmap') h.openMindMap()
     else {
-      // editor로 돌아올 때 열려있는 뷰 닫기
-      if (showColumnView) closeColumnView()
-      if (showMindMap) closeMindMap()
+      if (h.showColumnView) h.closeColumnView()
+      if (h.showMindMap) h.closeMindMap()
     }
-    setMobileView(view)
-  }
+  }, [mobileView])
 
   // 모바일 더보기 메뉴
   // 설정 드롭다운
@@ -705,13 +710,14 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               )
             }
           } else {
-            // 여백 클릭 → 멀티셀렉트 해제
+            // 여백 클릭 → 멀티셀렉트 해제 + 에디터 blur (포커스 음영 제거)
             const pluginState = multiSelectPluginKey.getState(editor.state)
             if (pluginState?.selectedPositions.length > 0) {
               editor.view.dispatch(
                 editor.state.tr.setMeta(multiSelectPluginKey, { type: 'clear' })
               )
             }
+            editor.commands.blur()
           }
         }
       }
@@ -977,33 +983,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           onClose={closeMindMap}
           pageName={currentPageName}
         />
-      )}
-
-      {/* 모바일 하단 뷰 전환 바 */}
-      {isTablet && (
-        <div className="mobile-bottom-bar">
-          <button
-            className={`mobile-bottom-tab ${mobileView === 'editor' ? 'active' : ''}`}
-            onClick={() => handleMobileViewChange('editor')}
-          >
-            <PenLine size={18} />
-            <span>에디터</span>
-          </button>
-          <button
-            className={`mobile-bottom-tab ${mobileView === 'column' ? 'active' : ''}`}
-            onClick={() => handleMobileViewChange('column')}
-          >
-            <Columns3 size={18} />
-            <span>칼럼</span>
-          </button>
-          <button
-            className={`mobile-bottom-tab ${mobileView === 'mindmap' ? 'active' : ''}`}
-            onClick={() => handleMobileViewChange('mindmap')}
-          >
-            <GitBranch size={18} />
-            <span>마인드맵</span>
-          </button>
-        </div>
       )}
 
     </div>

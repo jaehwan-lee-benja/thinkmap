@@ -260,6 +260,14 @@ function App() {
     setDeleteToast(null)
   }, [undoDeletePage])
 
+  // 모바일 뷰 모드 (에디터/칼럼/마인드맵)
+  const [mobileView, setMobileView] = useState('editor')
+
+  // 페이지 변경 시 에디터 모드로 리셋
+  useEffect(() => {
+    setMobileView('editor')
+  }, [currentPageId])
+
   // 탭별 사이드바 상태
   const [tabSidebarOpen, setTabSidebarOpen] = useState({})
 
@@ -497,6 +505,8 @@ function App() {
         isImpersonating={isImpersonating}
         sidebarOpen={isSidebarOpen}
         onToggleSidebar={() => toggleTabSidebar(tabId)}
+        mobileView={mobileView}
+        onMobileViewChange={setMobileView}
       />
     )
   }
@@ -549,6 +559,8 @@ function App() {
               focusPane(paneIndex)
               setCurrentProjectId(projectId)
             }}
+            mobileView={mobileView}
+            onMobileViewChange={setMobileView}
           />
         </div>
       </div>

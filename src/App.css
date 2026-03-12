@@ -218,7 +218,7 @@
 /* 모바일 */
 @media (max-width: 600px) {
   .content-scrollable {
-    padding: 0.5rem 0 calc(120px + var(--safe-area-bottom)) 0;
+    padding: 0.5rem 0 calc(16px + var(--safe-area-bottom)) 0;
     scrollbar-gutter: auto;
   }
 }
