@@ -9,6 +9,95 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
   const menuRef = useRef(null)
   const imageInputRef = useRef(null)
 
+  // 들여쓰기/내어쓰기 가능 여부 계산
+  const indentInfo = (() => {
+    try {
+      if (nodePos === null || nodePos >= editor.state.doc.content.size) return { canIndent: false, canOutdent: false }
+      const node = editor.state.doc.nodeAt(nodePos)
+      if (!node || node.type.name !== 'toggle') return { canIndent: false, canOutdent: false }
+
+      const $pos = editor.state.doc.resolve(nodePos)
+      const depth = $pos.depth
+      const indexInParent = $pos.index(depth)
+
+      // 들여쓰기: 이전 형제가 토글이어야 함
+      let canIndent = false
+      if (indexInParent > 0) {
+        const prevPos = $pos.posAtIndex(indexInParent - 1, depth)
+        const prev = editor.state.doc.nodeAt(prevPos)
+        canIndent = prev?.type.name === 'toggle'
+      }
+
+      // 내어쓰기: 부모가 토글이어야 함 (최상위가 아님)
+      let canOutdent = false
+      for (let d = depth - 1; d > 0; d--) {
+        if ($pos.node(d).type.name === 'toggle') { canOutdent = true; break }
+      }
+
+      return { canIndent, canOutdent }
+    } catch {
+      return { canIndent: false, canOutdent: false }
+    }
+  })()
+
+  const handleIndent = () => {
+    try {
+      if (nodePos === null) return
+      const { state } = editor
+      const node = state.doc.nodeAt(nodePos)
+      if (!node) return
+
+      const $pos = state.doc.resolve(nodePos)
+      const depth = $pos.depth
+      const indexInParent = $pos.index(depth)
+      const prevPos = $pos.posAtIndex(indexInParent - 1, depth)
+      const prevSibling = state.doc.nodeAt(prevPos)
+      if (!prevSibling || prevSibling.type.name !== 'toggle') return
+
+      const tr = state.tr
+      if (!prevSibling.attrs.isOpen) {
+        tr.setNodeMarkup(prevPos, null, { ...prevSibling.attrs, isOpen: true })
+      }
+      const insertPos = prevPos + prevSibling.nodeSize - 1
+      tr.insert(insertPos, node)
+      const mappedPos = tr.mapping.map(nodePos)
+      tr.delete(mappedPos, mappedPos + node.nodeSize)
+      editor.view.dispatch(tr)
+    } catch (e) {
+      console.error('들여쓰기 오류:', e)
+    }
+    onClose()
+  }
+
+  const handleOutdent = () => {
+    try {
+      if (nodePos === null) return
+      const { state } = editor
+      const node = state.doc.nodeAt(nodePos)
+      if (!node) return
+
+      const $pos = state.doc.resolve(nodePos)
+      let parentToggleDepth = -1
+      for (let d = $pos.depth - 1; d > 0; d--) {
+        if ($pos.node(d).type.name === 'toggle') { parentToggleDepth = d; break }
+      }
+      if (parentToggleDepth === -1) return
+
+      const parentPos = $pos.before(parentToggleDepth)
+      const parentNode = state.doc.nodeAt(parentPos)
+      const afterParentPos = parentPos + parentNode.nodeSize
+
+      const tr = state.tr
+      tr.delete(nodePos, nodePos + node.nodeSize)
+      const adjustedInsertPos = afterParentPos - node.nodeSize
+      tr.insert(adjustedInsertPos, node)
+      editor.view.dispatch(tr)
+    } catch (e) {
+      console.error('내어쓰기 오류:', e)
+    }
+    onClose()
+  }
+
   // 외부 클릭 시 메뉴 닫기
   useClickOutside(menuRef, onClose, true, {
     event: 'mousedown',
@@ -154,6 +243,28 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
         <span>복제</span>
         <span className="context-menu-shortcut">⌘D</span>
       </button>
+
+      {/* 들여쓰기/내어쓰기 */}
+      {(indentInfo.canIndent || indentInfo.canOutdent) && (
+        <div className="context-menu-format-row">
+          <button
+            className={`format-button ${!indentInfo.canOutdent ? 'disabled' : ''}`}
+            onClick={indentInfo.canOutdent ? handleOutdent : undefined}
+            title="내어쓰기 (Shift+Tab)"
+            disabled={!indentInfo.canOutdent}
+          >
+            ←
+          </button>
+          <button
+            className={`format-button ${!indentInfo.canIndent ? 'disabled' : ''}`}
+            onClick={indentInfo.canIndent ? handleIndent : undefined}
+            title="들여쓰기 (Tab)"
+            disabled={!indentInfo.canIndent}
+          >
+            →
+          </button>
+        </div>
+      )}
 
       {/* 투두 전환 (토글 블록일 때만) */}
       {nodePos !== null && editor.state.doc.nodeAt(nodePos)?.type.name === 'toggle' && (

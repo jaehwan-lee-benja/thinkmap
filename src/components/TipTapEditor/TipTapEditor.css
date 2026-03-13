@@ -492,7 +492,7 @@ th .paragraph-drag-handle {
   display: flex;
   align-items: flex-start;
   gap: 0.25rem;
-  margin: 0.125rem 0;
+  margin: 0.375rem 0;
   padding: 0.25rem 0.25rem 0 0.25rem;
   border-radius: 0.25rem;
   background: transparent !important;
@@ -722,11 +722,16 @@ th .paragraph-drag-handle {
 /* 토글 내부 중첩 토글 */
 .toggle-content > .toggle-block {
   margin-left: -30px;
-  margin-top: 0;
-  margin-bottom: 0;
+  margin-top: 0.375rem;
+  margin-bottom: 0.375rem;
   padding-top: 0;
   padding-bottom: 0;
   background: transparent !important;
+}
+
+/* 마지막 하위 블록: 부모 margin과 중첩 방지 */
+.toggle-content > .toggle-block:last-child {
+  margin-bottom: 0;
 }
 
 /* 커서가 위치한 토글 블록 음영 표시 - 해당 블록의 첫 줄만 */
@@ -854,8 +859,14 @@ th .paragraph-drag-handle {
   transition: background-color 0.15s;
 }
 
-.format-button:hover {
+.format-button:hover:not(:disabled) {
   background: #374151;
+}
+
+.format-button:disabled,
+.format-button.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .format-button.is-active {

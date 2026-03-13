@@ -82,6 +82,9 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   // 멀티셀렉트 상태
   const [multiSelectCount, setMultiSelectCount] = useState(0)
 
+  // 래퍼 ref (이벤트 스코프 제한용)
+  const wrapperRef = useRef(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -305,17 +308,18 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     }
   }, [editor])
 
-  // 토글 내부 드래그 핸들 클릭 시 컨텍스트 메뉴 열기
+  // 토글 내부 드래그 핸들 클릭 시 컨텍스트 메뉴 열기 (래퍼 스코프 — 분할 모드에서 다른 패널 이벤트 무시)
   useEffect(() => {
-    if (!editor) return
+    if (!editor || !wrapperRef.current) return
 
+    const wrapper = wrapperRef.current
     const handleToggleContextMenu = (event) => {
       const { pos, top, left } = event.detail
       setContextMenu({ visible: true, position: { top, left }, nodePos: pos })
     }
 
-    document.addEventListener('toggle-context-menu', handleToggleContextMenu)
-    return () => document.removeEventListener('toggle-context-menu', handleToggleContextMenu)
+    wrapper.addEventListener('toggle-context-menu', handleToggleContextMenu)
+    return () => wrapper.removeEventListener('toggle-context-menu', handleToggleContextMenu)
   }, [editor])
 
   // 롱프레스로 컨텍스트 메뉴 열기 (터치 디바이스)
@@ -412,7 +416,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   }
 
   return (
-    <div className="tiptap-wrapper">
+    <div className="tiptap-wrapper" ref={wrapperRef}>
       <EditorContent editor={editor} />
 
       {/* 테이블 툴바 */}
