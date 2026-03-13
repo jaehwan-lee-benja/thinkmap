@@ -881,6 +881,150 @@ th .paragraph-drag-handle {
   margin: 4px 0;
 }
 
+/* =====================================================
+   색상 선택기
+   ===================================================== */
+
+.color-picker-grid {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  flex-wrap: wrap;
+}
+
+.color-picker-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+  padding: 0;
+}
+
+.color-picker-swatch:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.color-picker-swatch.is-active {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.color-picker-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: block;
+}
+
+/* =====================================================
+   버블 메뉴 (텍스트 선택 시 서식 도구창)
+   ===================================================== */
+
+.bubble-menu {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  position: relative;
+}
+
+.bubble-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #e5e7eb;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.bubble-btn:hover {
+  background: #374151;
+}
+
+.bubble-btn.is-active {
+  background: #3b82f6;
+  color: white;
+}
+
+.bubble-separator {
+  width: 1px;
+  height: 20px;
+  background: #374151;
+  margin: 0 2px;
+}
+
+.bubble-color-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  flex-wrap: wrap;
+  width: 180px;
+  z-index: 10;
+}
+
+/* 라이트 모드 */
+@media (prefers-color-scheme: light) {
+  .bubble-menu {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  .bubble-btn {
+    color: #374151;
+  }
+
+  .bubble-btn:hover {
+    background: #f3f4f6;
+  }
+
+  .bubble-btn.is-active {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .bubble-separator {
+    background: #e5e7eb;
+  }
+
+  .bubble-color-dropdown {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  .color-picker-swatch:hover {
+    border-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .color-picker-swatch.is-active {
+    border-color: rgba(0, 0, 0, 0.6);
+  }
+}
+
 /* 삭제 버튼 호버 시 빨간색 */
 .context-menu-item.delete-item:hover,
 .block-context-menu .context-menu-item:nth-last-child(2):hover {
@@ -1098,37 +1242,10 @@ th .paragraph-drag-handle {
     border-radius: 0.375rem;
   }
 
-  /* 컨텍스트 메뉴 전체 너비 */
+  /* 컨텍스트 메뉴 모바일: PC와 동일한 드롭다운 */
   .block-context-menu {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    border-radius: 12px 12px 0 0;
-    min-width: 100%;
-    max-height: 50vh;
+    max-height: 60vh;
     overflow-y: auto;
-    animation: slideUpMobile 0.2s ease;
-    padding-bottom: var(--safe-area-bottom);
-  }
-
-  /* slideUpMobile -> _animations.css */
-
-  .context-menu-format-row {
-    justify-content: center;
-    gap: 4px;
-  }
-
-  .format-button {
-    width: 44px;
-    height: 44px;
-    font-size: 16px;
-  }
-
-  .context-menu-item {
-    padding: 14px 16px;
-    font-size: 16px;
   }
 }
 
@@ -1197,38 +1314,7 @@ th .paragraph-drag-handle {
   }
 }
 
-/* =====================================================
-   컨텍스트 메뉴 바텀시트 핸들 (터치 전용)
-   ===================================================== */
-
-.context-menu-handle {
-  display: flex;
-  justify-content: center;
-  padding: 8px 0 4px 0;
-  cursor: grab;
-}
-
-.context-menu-handle-bar {
-  width: 36px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-}
-
-/* 터치 전용 바텀시트 오버라이드 */
-.block-context-menu--touch {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  top: auto !important;
-  border-radius: 12px 12px 0 0;
-  min-width: 100%;
-  max-height: 60vh;
-  overflow-y: auto;
-  animation: slideUpMobile 0.2s ease;
-  padding-bottom: var(--safe-area-bottom);
-}
+/* (바텀시트 제거 — 모바일도 PC와 동일한 드롭다운 사용) */
 
 /* =====================================================
    멀티셀렉트 하이라이트

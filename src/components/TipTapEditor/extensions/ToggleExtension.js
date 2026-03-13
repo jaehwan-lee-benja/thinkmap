@@ -297,6 +297,11 @@ export const Toggle = Node.create({
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.setDragImage(dom, 0, 0)
 
+        // 크로스 패널 드래그를 위해 JSON 직렬화 + 글로벌 상태 저장
+        const nodeJSON = nodeAtPos.toJSON()
+        e.dataTransfer.setData('application/x-thinkmap-block', JSON.stringify(nodeJSON))
+        window.__crossPaneDrag = { sourceEditor: editor, sourcePos: pos, nodeSize: nodeAtPos.nodeSize }
+
         editor.view.dragging = { slice, move: true }
       })
 

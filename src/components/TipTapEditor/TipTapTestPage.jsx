@@ -732,21 +732,21 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
   return (
     <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
-      {onToggleSidebar && (
-        <button
-          className="content-sidebar-toggle"
-          onMouseDown={e => e.stopPropagation()}
-          onClick={onToggleSidebar}
-          title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
-      )}
       <div className="tiptap-page-inner">
         {/* 페이지 헤더 */}
         <div className="tiptap-page-header">
+          {onToggleSidebar && (
+            <button
+              className="content-sidebar-toggle"
+              onMouseDown={e => e.stopPropagation()}
+              onClick={onToggleSidebar}
+              title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
           <h2
             className="tiptap-page-title"
             contentEditable

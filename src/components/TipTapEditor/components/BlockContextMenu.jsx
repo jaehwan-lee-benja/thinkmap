@@ -1,11 +1,13 @@
 import React, { useState, useRef, useLayoutEffect } from 'react'
 import { useClickOutside } from '../../../hooks/useClickOutside'
+import { COLORS } from './ColorPicker'
 
 export function BlockContextMenu({ editor, position, nodePos, onClose }) {
   const [showImageInput, setShowImageInput] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
+  const [showColorPicker, setShowColorPicker] = useState(false)
   const menuRef = useRef(null)
   const imageInputRef = useRef(null)
 
@@ -164,13 +166,10 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
     onClose()
   }
 
-  // 터치 디바이스 감지
-  const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
-
   // 뷰포트 밖으로 벗어나면 위치 보정
   const [adjustedPos, setAdjustedPos] = useState(position)
   useLayoutEffect(() => {
-    if (isTouch || !menuRef.current) return
+    if (!menuRef.current) return
     const rect = menuRef.current.getBoundingClientRect()
     const margin = 8
     let { top, left } = position
@@ -183,21 +182,20 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
     if (top < margin) top = margin
     if (left < margin) left = margin
     setAdjustedPos({ top, left })
-  }, [position, isTouch])
+  }, [position])
 
   return (
     <div
       ref={menuRef}
-      className={`block-context-menu ${isTouch ? 'block-context-menu--touch' : ''}`}
-      style={isTouch ? { zIndex: 1000 } : {
+      className="block-context-menu"
+      style={{
         position: 'fixed',
         top: `${adjustedPos.top}px`,
         left: `${adjustedPos.left}px`,
         zIndex: 1000,
       }}
     >
-      {/* 모바일 바텀시트 핸들 */}
-      {isTouch && <div className="context-menu-handle"><div className="context-menu-handle-bar" /></div>}
+      {/* 텍스트 서식 */}
       {/* 텍스트 서식 버튼 */}
       <div className="context-menu-format-row">
         <button
@@ -228,7 +226,51 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
         >
           {'</>'}
         </button>
+        <button
+          onClick={() => setShowColorPicker(!showColorPicker)}
+          className={`format-button ${showColorPicker ? 'is-active' : ''}`}
+          title="글씨 색상"
+        >
+          <span style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 700, fontSize: 14,
+            color: editor.getAttributes('textStyle').color || '#e5e7eb',
+            borderBottom: `2px solid ${editor.getAttributes('textStyle').color || '#e5e7eb'}`,
+            lineHeight: 1,
+          }}>A</span>
+        </button>
       </div>
+
+      {/* 색상 선택기 */}
+      {showColorPicker && (
+        <div className="color-picker-grid">
+          {COLORS.map(c => (
+            <button
+              key={c.name}
+              className={`color-picker-swatch ${editor.getAttributes('textStyle').color === c.value ? 'is-active' : ''}`}
+              title={c.name}
+              onClick={() => {
+                if (nodePos !== null) {
+                  // 블록 전체 선택 후 색상 적용
+                  const node = editor.state.doc.nodeAt(nodePos)
+                  if (node) {
+                    editor.chain().focus()
+                      .setTextSelection({ from: nodePos + 1, to: nodePos + node.nodeSize - 1 })
+                      [c.value ? 'setColor' : 'unsetColor'](c.value || undefined)
+                      .run()
+                  }
+                } else {
+                  if (c.value) editor.chain().focus().setColor(c.value).run()
+                  else editor.chain().focus().unsetColor().run()
+                }
+                setShowColorPicker(false)
+              }}
+            >
+              <span className="color-picker-dot" style={{ background: c.value || '#e5e7eb' }} />
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="context-menu-separator"></div>
 

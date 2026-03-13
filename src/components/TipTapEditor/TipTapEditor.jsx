@@ -4,6 +4,7 @@ import { BlockContextMenu } from './components/BlockContextMenu'
 import { MultiSelectToolbar } from './components/MultiSelectToolbar'
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { OrderedList } from '@tiptap/extension-ordered-list'
 import { BulletList } from '@tiptap/extension-bullet-list'
@@ -35,8 +36,11 @@ import { Link } from '@tiptap/extension-link'
 import { Image } from '@tiptap/extension-image'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
 import { Toggle, multiSelectPluginKey } from './extensions/ToggleExtension'
 import { ParagraphWithHandle } from './extensions/ParagraphWithHandle'
+import { ColorPicker, COLORS } from './components/ColorPicker'
 import './TipTapEditor.css'
 
 // lowlight 인스턴스 생성 (common 언어들: js, css, html, python 등)
@@ -72,6 +76,9 @@ function isOnlyIsOpenDiff(json1, json2) {
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
   // 키보드 높이 감지 (CSS 변수 --keyboard-height 자동 설정)
   useKeyboardHeight()
+
+  // 버블 메뉴 색상 선택기 열기/닫기
+  const [bubbleColorOpen, setBubbleColorOpen] = useState(false)
 
   // 블록 컨텍스트 메뉴 상태 (그룹)
   const [contextMenu, setContextMenu] = useState({ visible: false, position: { top: 0, left: 0 }, nodePos: null })
@@ -132,6 +139,8 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         },
       }),
       Image,
+      TextStyle,
+      Color,
       Toggle,
       ParagraphWithHandle,
     ],
@@ -215,6 +224,58 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         event.preventDefault()
         return true
       },
+      // 크로스 패널 드롭 처리
+      handleDrop: (view, event, slice, moved) => {
+        const blockData = event.dataTransfer.getData('application/x-thinkmap-block')
+        const crossDrag = window.__crossPaneDrag
+        if (!blockData || !crossDrag) return false
+
+        // 같은 에디터 내의 드래그는 TipTap 기본 처리
+        if (crossDrag.sourceEditor.view === view) return false
+
+        event.preventDefault()
+
+        try {
+          // 드롭 위치 계산
+          const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY })
+          if (!dropPos) return true
+
+          const nodeJSON = JSON.parse(blockData)
+          const node = view.state.schema.nodeFromJSON(nodeJSON)
+
+          // 드롭 위치의 블록 경계 찾기
+          const $pos = view.state.doc.resolve(dropPos.pos)
+          let insertPos = dropPos.pos
+          // 최상위 블록 경계로 조정
+          if ($pos.depth > 0) {
+            insertPos = $pos.after($pos.depth)
+          }
+          insertPos = Math.min(insertPos, view.state.doc.content.size)
+
+          // 대상 에디터에 삽입
+          const tr = view.state.tr.insert(insertPos, node)
+          view.dispatch(tr)
+
+          // 소스 에디터에서 삭제
+          const { sourceEditor, sourcePos, nodeSize } = crossDrag
+          try {
+            const srcNode = sourceEditor.state.doc.nodeAt(sourcePos)
+            if (srcNode && srcNode.nodeSize === nodeSize) {
+              sourceEditor.view.dispatch(
+                sourceEditor.state.tr.delete(sourcePos, sourcePos + nodeSize)
+              )
+            }
+          } catch (e) {
+            console.error('소스 블록 삭제 오류:', e)
+          }
+        } catch (e) {
+          console.error('크로스 패널 드롭 오류:', e)
+        } finally {
+          window.__crossPaneDrag = null
+        }
+
+        return true
+      },
       handleDOMEvents: {
         // TipTap의 기본 드래그 이벤트 비활성화 (우리의 커스텀 드래그 사용)
         dragstart: (view, event) => {
@@ -223,6 +284,19 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
             return false // TipTap이 처리하지 않음
           }
           // 다른 곳에서의 드래그는 TipTap이 처리
+          return false
+        },
+        // 크로스 패널 드래그 오버 시 드롭 허용
+        dragover: (view, event) => {
+          if (event.dataTransfer.types.includes('application/x-thinkmap-block')) {
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'move'
+          }
+          return false
+        },
+        // 드래그 종료 시 글로벌 상태 정리
+        dragend: () => {
+          window.__crossPaneDrag = null
           return false
         },
       },
@@ -418,6 +492,81 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   return (
     <div className="tiptap-wrapper" ref={wrapperRef}>
       <EditorContent editor={editor} />
+
+      {/* 텍스트 선택 시 서식 도구창 */}
+      <BubbleMenu
+        editor={editor}
+        updateDelay={150}
+        shouldShow={({ editor, state }) => {
+          const { from, to, empty } = state.selection
+          if (empty) return false
+          // NodeSelection(블록 전체 선택)일 때는 표시하지 않음
+          if (state.selection.node) return false
+          return true
+        }}
+      >
+        <div className="bubble-menu">
+          <button
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={`bubble-btn ${editor.isActive('bold') ? 'is-active' : ''}`}
+            title="Bold"
+          >
+            <strong>B</strong>
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={`bubble-btn ${editor.isActive('italic') ? 'is-active' : ''}`}
+            title="Italic"
+          >
+            <em>I</em>
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            className={`bubble-btn ${editor.isActive('strike') ? 'is-active' : ''}`}
+            title="Strikethrough"
+          >
+            <s>S</s>
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            className={`bubble-btn ${editor.isActive('code') ? 'is-active' : ''}`}
+            title="Code"
+          >
+            {'</>'}
+          </button>
+          <div className="bubble-separator" />
+          <button
+            onClick={() => setBubbleColorOpen(!bubbleColorOpen)}
+            className={`bubble-btn ${bubbleColorOpen ? 'is-active' : ''}`}
+            title="글씨 색상"
+          >
+            <span style={{
+              fontWeight: 700, fontSize: 13,
+              color: editor.getAttributes('textStyle').color || '#e5e7eb',
+              borderBottom: `2px solid ${editor.getAttributes('textStyle').color || '#e5e7eb'}`,
+              lineHeight: 1,
+            }}>A</span>
+          </button>
+          {bubbleColorOpen && (
+            <div className="bubble-color-dropdown">
+              {COLORS.map(c => (
+                <button
+                  key={c.name}
+                  className={`color-picker-swatch ${editor.getAttributes('textStyle').color === c.value ? 'is-active' : ''}`}
+                  title={c.name}
+                  onClick={() => {
+                    if (c.value) editor.chain().focus().setColor(c.value).run()
+                    else editor.chain().focus().unsetColor().run()
+                    setBubbleColorOpen(false)
+                  }}
+                >
+                  <span className="color-picker-dot" style={{ background: c.value || '#e5e7eb' }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </BubbleMenu>
 
       {/* 테이블 툴바 */}
       {tableToolbar.visible && editor && (

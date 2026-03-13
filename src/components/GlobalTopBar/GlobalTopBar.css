@@ -170,8 +170,8 @@
     padding: 0 8px;
   }
 
-  /* 모바일에서는 분할 숨김 */
-  .topbar-split {
+  /* 모바일에서는 분할 라벨만 숨김 */
+  .topbar-split span {
     display: none;
   }
 }
