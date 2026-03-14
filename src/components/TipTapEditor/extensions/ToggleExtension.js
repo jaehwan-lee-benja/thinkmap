@@ -848,16 +848,15 @@ export const Toggle = Node.create({
       },
 
       // 멀티셀렉트: 체크박스(투두) 전환
-      multiSelectConvertToTodo: () => ({ editor }) => {
-        const pluginState = multiSelectPluginKey.getState(editor.state)
+      multiSelectConvertToTodo: () => ({ tr, state, dispatch }) => {
+        const pluginState = multiSelectPluginKey.getState(state)
         if (!pluginState || pluginState.selectedPositions.length === 0) return false
 
         const allAreTodo = pluginState.selectedPositions.every(pos => {
-          const node = editor.state.doc.nodeAt(pos)
+          const node = state.doc.nodeAt(pos)
           return node && node.attrs.isTodo
         })
 
-        const { tr } = editor.state
         pluginState.selectedPositions.forEach(pos => {
           const node = tr.doc.nodeAt(pos)
           if (node && node.type.name === 'toggle') {
@@ -870,7 +869,7 @@ export const Toggle = Node.create({
         })
 
         tr.setMeta(multiSelectPluginKey, { type: 'clear' })
-        editor.view.dispatch(tr)
+        if (dispatch) dispatch(tr)
         return true
       },
 
@@ -1285,7 +1284,126 @@ export const Toggle = Node.create({
             return true
           }
 
-          // 내용이 있으면 토글 해제 방지
+          // 내용이 있으면 → 토글 해제하고 이전 블록에 병합
+          if (togglePos === 0) {
+            // 문서 첫 블록이면 토글만 해제 (일반 paragraph로 변환)
+            const { tr } = state
+            const content = toggleNode.content
+            const insertNodes = []
+            toggleNode.forEach((child) => {
+              insertNodes.push(child)
+            })
+            tr.delete(togglePos, togglePos + toggleNode.nodeSize)
+            for (let i = insertNodes.length - 1; i >= 0; i--) {
+              tr.insert(togglePos, insertNodes[i])
+            }
+            tr.setSelection(TextSelection.near(tr.doc.resolve(togglePos + 1)))
+            editor.view.dispatch(tr)
+            return true
+          }
+
+          // 이전 블록이 있으면 → 첫 paragraph 내용을 이전 블록 끝에 병합
+          const { tr } = state
+          const firstChildContent = firstChild.content
+
+          // 삭제 전에 이전 블록 정보를 먼저 찾기
+          const $toggle = state.doc.resolve(togglePos)
+          if ($toggle.depth === 0 && $toggle.index(0) === 0) {
+            // 문서 첫 블록 — 위에서 이미 처리했으므로 여기 오면 안 됨
+            return true
+          }
+
+          // 이전 형제 블록 찾기
+          let prevNodeEnd = togglePos  // 이전 블록의 끝 위치 = 현재 토글의 시작
+          const $before = state.doc.resolve(togglePos - 1)
+          // 이전 블록의 시작 위치
+          const prevNodeStart = $before.before($before.depth)
+          const prevNode = state.doc.nodeAt(prevNodeStart)
+
+          if (!prevNode) {
+            return true
+          }
+
+          // 병합 대상 찾기: 이전 블록이 토글이면 재귀적으로 가장 깊은 마지막 자식 찾기
+          let mergePos
+          const togglesToOpen = [] // 접혀있는 토글들을 열어야 함
+
+          if (prevNode.type.name === 'toggle') {
+            // 재귀적으로 가장 깊은 마지막 자식 블록 찾기
+            let currentNode = prevNode
+            let currentStart = prevNodeStart
+
+            while (currentNode.type.name === 'toggle') {
+              // 접혀있으면 열어야 함
+              if (!currentNode.attrs.isOpen) {
+                togglesToOpen.push(currentStart)
+              }
+
+              if (hasChildToggles(currentNode)) {
+                // 마지막 자식 토글 찾기
+                let lastToggleIndex = -1
+                for (let i = currentNode.childCount - 1; i >= 1; i--) {
+                  if (currentNode.child(i).type.name === 'toggle') {
+                    lastToggleIndex = i
+                    break
+                  }
+                }
+                // 마지막 토글의 위치 계산
+                let offset = currentStart + 1 // toggle 노드 시작 + 1 (안으로)
+                for (let i = 0; i < lastToggleIndex; i++) {
+                  offset += currentNode.child(i).nodeSize
+                }
+                currentStart = offset
+                currentNode = currentNode.child(lastToggleIndex)
+              } else {
+                // 하위 토글 없음 → 이 토글의 첫 paragraph 끝에 병합
+                break
+              }
+            }
+
+            // 최종 병합 대상의 첫 paragraph 끝
+            if (currentNode.type.name === 'toggle') {
+              mergePos = currentStart + 1 + currentNode.firstChild.nodeSize - 1
+            } else {
+              mergePos = currentStart + currentNode.nodeSize - 1
+            }
+          } else {
+            // 일반 paragraph 등이면 그 내용 끝에 병합
+            mergePos = prevNodeStart + prevNode.nodeSize - 1
+          }
+
+          // 접혀있는 토글들 열기 (위치가 변하지 않도록 먼저 처리)
+          for (const openPos of togglesToOpen) {
+            const node = tr.doc.nodeAt(openPos)
+            if (node) {
+              tr.setNodeMarkup(openPos, null, { ...node.attrs, isOpen: true })
+            }
+          }
+
+          // 토글 전체 삭제
+          const toggleEnd = togglePos + toggleNode.nodeSize
+          tr.delete(togglePos, toggleEnd)
+
+          // 첫 paragraph 내용 삽입
+          if (firstChildContent.size > 0) {
+            tr.insert(mergePos, firstChildContent)
+          }
+
+          // 하위 토글이 있으면 삭제된 위치에 삽입
+          if (hasChildToggles(toggleNode)) {
+            let insertPos = tr.mapping.map(togglePos)
+            for (let i = 1; i < toggleNode.childCount; i++) {
+              const child = toggleNode.child(i)
+              tr.insert(insertPos, child)
+              insertPos += child.nodeSize
+            }
+          }
+
+          // 커서를 병합 경계(이전 블록 원래 끝)에 위치 — 삽입된 내용 앞
+          const cursorPos = tr.mapping.map(mergePos, -1)
+          tr.setSelection(TextSelection.create(tr.doc, cursorPos))
+
+          editor.view.dispatch(tr)
           return true
         }
 

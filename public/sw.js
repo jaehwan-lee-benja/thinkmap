@@ -37,8 +37,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // API 요청은 캐싱하지 않음 (Supabase 등)
-  if (request.url.includes('supabase') || request.method !== 'GET') {
+  // http/https 외의 요청(chrome-extension 등)과 API 요청은 캐싱하지 않음
+  if (!request.url.startsWith('http') || request.url.includes('supabase') || request.method !== 'GET') {
     return;
   }
 

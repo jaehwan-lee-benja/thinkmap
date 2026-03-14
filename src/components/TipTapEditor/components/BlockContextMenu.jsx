@@ -199,6 +199,19 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
       {/* 텍스트 서식 버튼 */}
       <div className="context-menu-format-row">
         <button
+          onClick={() => setShowColorPicker(!showColorPicker)}
+          className={`format-button ${showColorPicker ? 'is-active' : ''}`}
+          title="글씨 색상"
+        >
+          <span style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 700, fontSize: 14,
+            color: editor.getAttributes('textStyle').color || '#e5e7eb',
+            borderBottom: `2px solid ${editor.getAttributes('textStyle').color || '#e5e7eb'}`,
+            lineHeight: 1,
+          }}>A</span>
+        </button>
+        <button
           onClick={() => editor.chain().focus().toggleBold().run()}
           className={editor.isActive('bold') ? 'format-button is-active' : 'format-button'}
           title="Bold (Cmd+B)"
@@ -225,19 +238,6 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
           title="Code"
         >
           {'</>'}
-        </button>
-        <button
-          onClick={() => setShowColorPicker(!showColorPicker)}
-          className={`format-button ${showColorPicker ? 'is-active' : ''}`}
-          title="글씨 색상"
-        >
-          <span style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 700, fontSize: 14,
-            color: editor.getAttributes('textStyle').color || '#e5e7eb',
-            borderBottom: `2px solid ${editor.getAttributes('textStyle').color || '#e5e7eb'}`,
-            lineHeight: 1,
-          }}>A</span>
         </button>
       </div>
 

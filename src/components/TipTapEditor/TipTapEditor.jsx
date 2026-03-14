@@ -31,6 +31,14 @@ const UndoInputRuleOnCtrlZ = Extension.create({
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
+
+// 테이블 셀 기본 콘텐츠를 토글 블록으로 변경
+const CustomTableCell = TableCell.extend({
+  content: '(toggle | block)+',
+})
+const CustomTableHeader = TableHeader.extend({
+  content: '(toggle | block)+',
+})
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Link } from '@tiptap/extension-link'
 import { Image } from '@tiptap/extension-image'
@@ -126,8 +134,8 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         resizable: true,
       }),
       TableRow,
-      TableCell,
-      TableHeader,
+      CustomTableCell,
+      CustomTableHeader,
       Placeholder.configure({
         placeholder,
       }),
