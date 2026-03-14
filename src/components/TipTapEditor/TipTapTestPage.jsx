@@ -834,7 +834,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             전체 토글화
           </button>
           <button
-            onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+            onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run()}
             className="tiptap-btn tiptap-btn-secondary"
             title="3x3 표 삽입"
           >

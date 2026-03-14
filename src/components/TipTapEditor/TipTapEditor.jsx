@@ -9,7 +9,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { OrderedList } from '@tiptap/extension-ordered-list'
 import { BulletList } from '@tiptap/extension-bullet-list'
 import { ListItem } from '@tiptap/extension-list-item'
-import { Table } from '@tiptap/extension-table'
+import { FoldableTable } from './extensions/FoldableTable'
 
 // Ctrl+Z/Cmd+Z로 InputRule 취소 가능하게 하는 extension
 const UndoInputRuleOnCtrlZ = Extension.create({
@@ -130,7 +130,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         lowlight,
         defaultLanguage: 'javascript',
       }),
-      Table.configure({
+      FoldableTable.configure({
         resizable: true,
       }),
       TableRow,
