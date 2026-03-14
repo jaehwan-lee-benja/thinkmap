@@ -74,7 +74,7 @@ export function PaneProvider({
   })
 
   const {
-    pages, pageTree, currentPageId, setCurrentPageId,
+    pages, pageTree, currentPageId, setCurrentPageId: rawSetCurrentPageId,
     pagesLoading, createPage, renamePage, deletePage,
     undoDeletePage, reorderPages, getDescendantCount,
   } = usePages(effectiveSession, currentProjectId, {
@@ -83,6 +83,52 @@ export function PaneProvider({
     preferencesLoaded: !prefs.preferencesLoading,
     isImpersonating,
   })
+
+  // ─── 페이지 네비게이션 히스토리 ───
+  const pageHistoryRef = useRef([])
+  const historyIndexRef = useRef(-1)
+  const isNavigatingRef = useRef(false)
+  const [, forceHistoryUpdate] = useState(0)
+
+  // 히스토리를 통한 이동이 아닌 일반 이동 시 히스토리에 추가
+  const setCurrentPageId = useCallback((pageId) => {
+    if (!pageId) return rawSetCurrentPageId(pageId)
+    if (isNavigatingRef.current) {
+      isNavigatingRef.current = false
+      rawSetCurrentPageId(pageId)
+      return
+    }
+    // 현재 위치 이후의 히스토리 잘라내기 (앞으로가기 스택 제거)
+    const history = pageHistoryRef.current
+    const idx = historyIndexRef.current
+    pageHistoryRef.current = history.slice(0, idx + 1)
+    // 같은 페이지 중복 방지
+    if (pageHistoryRef.current[pageHistoryRef.current.length - 1] !== pageId) {
+      pageHistoryRef.current.push(pageId)
+    }
+    historyIndexRef.current = pageHistoryRef.current.length - 1
+    forceHistoryUpdate(n => n + 1)
+    rawSetCurrentPageId(pageId)
+  }, [rawSetCurrentPageId])
+
+  const canGoBack = historyIndexRef.current > 0
+  const canGoForward = historyIndexRef.current < pageHistoryRef.current.length - 1
+
+  const goBack = useCallback(() => {
+    if (historyIndexRef.current <= 0) return
+    historyIndexRef.current -= 1
+    isNavigatingRef.current = true
+    forceHistoryUpdate(n => n + 1)
+    rawSetCurrentPageId(pageHistoryRef.current[historyIndexRef.current])
+  }, [rawSetCurrentPageId])
+
+  const goForward = useCallback(() => {
+    if (historyIndexRef.current >= pageHistoryRef.current.length - 1) return
+    historyIndexRef.current += 1
+    isNavigatingRef.current = true
+    forceHistoryUpdate(n => n + 1)
+    rawSetCurrentPageId(pageHistoryRef.current[historyIndexRef.current])
+  }, [rawSetCurrentPageId])
 
   const {
     sharedWithMe, sharingLoading,
@@ -285,7 +331,8 @@ export function PaneProvider({
     pages, pageTree, currentPageId, setCurrentPageId,
     createPage, renamePage, deletePage: handleDeletePage, reorderPages, getDescendantCount,
     expandedPages: prefs.expandedPages, saveExpandedPages: prefs.saveExpandedPages,
-  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, handleDeletePage, reorderPages, getDescendantCount, prefs.expandedPages, prefs.saveExpandedPages])
+    goBack, goForward, canGoBack, canGoForward,
+  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, handleDeletePage, reorderPages, getDescendantCount, prefs.expandedPages, prefs.saveExpandedPages, goBack, goForward, canGoBack, canGoForward])
 
   const sharingCtx = useMemo(() => ({
     sharedWithMe, sharingLoading,

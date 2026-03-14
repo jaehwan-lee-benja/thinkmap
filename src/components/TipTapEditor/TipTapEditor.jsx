@@ -46,7 +46,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
-import { Toggle, multiSelectPluginKey } from './extensions/ToggleExtension'
+import { Toggle, multiSelectPluginKey, focusHighlightPluginKey } from './extensions/ToggleExtension'
 import { ParagraphWithHandle } from './extensions/ParagraphWithHandle'
 import { ColorPicker, COLORS } from './components/ColorPicker'
 import './TipTapEditor.css'
@@ -109,6 +109,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         paragraph: false, // ParagraphWithHandle로 대체
         blockquote: false, // "> " 입력 시 토글로 변환하기 위해 비활성화
         codeBlock: false, // CodeBlockLowlight 사용을 위해 비활성화
+        horizontalRule: false, // 토글 블록 내에서 --- 입력 시 토글 깨짐 방지
         link: false, // 별도 Link.configure() 사용을 위해 비활성화
         // 리스트는 별도로 설정 (InputRule undo 지원)
         orderedList: false,
@@ -497,8 +498,25 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     return <div>에디터 로딩 중...</div>
   }
 
+  // 여백 더블클릭 시 토글 블록이 없으면 첫 줄에 토글 생성
+  const handleWrapperDoubleClick = (e) => {
+    if (!editor) return
+    // 토글 블록 내부 클릭이면 무시
+    if (e.target.closest('.toggle-block')) return
+    // 이미 토글이 있으면 무시
+    const hasToggle = editor.state.doc.content.content.some(n => n.type.name === 'toggle')
+    if (hasToggle) return
+
+    const toggleNode = editor.state.schema.nodes.toggle.create(
+      { isOpen: true },
+      editor.state.schema.nodes.paragraph.create()
+    )
+    editor.chain().focus().insertContentAt(0, toggleNode.toJSON()).run()
+  }
+
+
   return (
-    <div className="tiptap-wrapper" ref={wrapperRef}>
+    <div className="tiptap-wrapper" ref={wrapperRef} onDoubleClick={handleWrapperDoubleClick}>
       <EditorContent editor={editor} />
 
       {/* 텍스트 선택 시 서식 도구창 */}

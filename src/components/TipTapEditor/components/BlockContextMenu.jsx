@@ -1,6 +1,7 @@
 import React, { useState, useRef, useLayoutEffect } from 'react'
 import { useClickOutside } from '../../../hooks/useClickOutside'
-import { COLORS } from './ColorPicker'
+import { COLORS, BG_COLORS } from './ColorPicker'
+import { AttrStep } from '@tiptap/pm/transform'
 
 export function BlockContextMenu({ editor, position, nodePos, onClose }) {
   const [showImageInput, setShowImageInput] = useState(false)
@@ -8,6 +9,7 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [showColorPicker, setShowColorPicker] = useState(false)
+  const [showBgColorPicker, setShowBgColorPicker] = useState(false)
   const menuRef = useRef(null)
   const imageInputRef = useRef(null)
 
@@ -199,7 +201,7 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
       {/* 텍스트 서식 버튼 */}
       <div className="context-menu-format-row">
         <button
-          onClick={() => setShowColorPicker(!showColorPicker)}
+          onClick={() => { setShowColorPicker(!showColorPicker); setShowBgColorPicker(false) }}
           className={`format-button ${showColorPicker ? 'is-active' : ''}`}
           title="글씨 색상"
         >
@@ -209,6 +211,20 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
             color: editor.getAttributes('textStyle').color || '#e5e7eb',
             borderBottom: `2px solid ${editor.getAttributes('textStyle').color || '#e5e7eb'}`,
             lineHeight: 1,
+          }}>A</span>
+        </button>
+        <button
+          onClick={() => { setShowBgColorPicker(!showBgColorPicker); setShowColorPicker(false) }}
+          className={`format-button ${showBgColorPicker ? 'is-active' : ''}`}
+          title="블록 배경색"
+        >
+          <span style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 700, fontSize: 13,
+            lineHeight: 1,
+            background: (nodePos !== null && editor.state.doc.nodeAt(nodePos)?.attrs.backgroundColor) || '#e5e7eb',
+            borderRadius: 3,
+            padding: '1px 4px',
           }}>A</span>
         </button>
         <button
@@ -241,34 +257,82 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
         </button>
       </div>
 
-      {/* 색상 선택기 */}
+      {/* 글씨 색상 선택기 */}
       {showColorPicker && (
-        <div className="color-picker-grid">
-          {COLORS.map(c => (
-            <button
-              key={c.name}
-              className={`color-picker-swatch ${editor.getAttributes('textStyle').color === c.value ? 'is-active' : ''}`}
-              title={c.name}
-              onClick={() => {
-                if (nodePos !== null) {
-                  // 블록 전체 선택 후 색상 적용
-                  const node = editor.state.doc.nodeAt(nodePos)
-                  if (node) {
-                    editor.chain().focus()
-                      .setTextSelection({ from: nodePos + 1, to: nodePos + node.nodeSize - 1 })
-                      [c.value ? 'setColor' : 'unsetColor'](c.value || undefined)
-                      .run()
+        <div className="color-picker-section">
+          <div className="color-picker-label">글씨 색상</div>
+          <div className="color-picker-grid">
+            {COLORS.map(c => (
+              <button
+                key={c.name}
+                className={`color-picker-swatch ${editor.getAttributes('textStyle').color === c.value ? 'is-active' : ''}`}
+                title={c.name}
+                onClick={() => {
+                  if (nodePos !== null) {
+                    const node = editor.state.doc.nodeAt(nodePos)
+                    if (node) {
+                      editor.chain().focus()
+                        .setTextSelection({ from: nodePos + 1, to: nodePos + node.nodeSize - 1 })
+                        [c.value ? 'setColor' : 'unsetColor'](c.value || undefined)
+                        .run()
+                    }
+                  } else {
+                    if (c.value) editor.chain().focus().setColor(c.value).run()
+                    else editor.chain().focus().unsetColor().run()
                   }
-                } else {
-                  if (c.value) editor.chain().focus().setColor(c.value).run()
-                  else editor.chain().focus().unsetColor().run()
-                }
-                setShowColorPicker(false)
-              }}
-            >
-              <span className="color-picker-dot" style={{ background: c.value || '#e5e7eb' }} />
-            </button>
-          ))}
+                  setShowColorPicker(false)
+                }}
+              >
+                <span className="color-picker-dot" style={{ background: c.value || '#e5e7eb' }} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 블록 배경색 선택기 */}
+      {showBgColorPicker && nodePos !== null && (
+        <div className="color-picker-section">
+          <div className="color-picker-label">배경 색상</div>
+          <div className="color-picker-grid">
+            {BG_COLORS.map(c => {
+              const currentBg = editor.state.doc.nodeAt(nodePos)?.attrs.backgroundColor || null
+              return (
+                <button
+                  key={c.name}
+                  className={`color-picker-swatch ${currentBg === c.value ? 'is-active' : ''}`}
+                  title={c.name}
+                  onClick={() => {
+                    const node = editor.state.doc.nodeAt(nodePos)
+                    if (node) {
+                      try {
+                        const { tr } = editor.state
+                        tr.step(new AttrStep(nodePos, 'backgroundColor', c.value))
+                        editor.view.dispatch(tr)
+                      } catch (e) {
+                        try {
+                          const json = node.toJSON()
+                          json.attrs = { ...json.attrs, backgroundColor: c.value }
+                          const newNode = editor.state.schema.nodeFromJSON(json)
+                          const { tr: tr2 } = editor.state
+                          tr2.replaceWith(nodePos, nodePos + node.nodeSize, newNode)
+                          editor.view.dispatch(tr2)
+                        } catch (e2) {
+                          console.error('[BG] 배경색 설정 실패:', e2.message)
+                        }
+                      }
+                    }
+                    setShowBgColorPicker(false)
+                  }}
+                >
+                  <span className="color-picker-dot" style={{
+                    background: c.value || '#e5e7eb',
+                    border: c.value ? 'none' : '1px dashed #9ca3af',
+                  }} />
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 

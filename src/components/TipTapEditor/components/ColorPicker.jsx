@@ -13,6 +13,18 @@ export const COLORS = [
   { name: '회색', value: '#9ca3af' },
 ]
 
+export const BG_COLORS = [
+  { name: '기본', value: null },
+  { name: '빨강 배경', value: 'rgba(239, 68, 68, 0.15)' },
+  { name: '주황 배경', value: 'rgba(249, 115, 22, 0.15)' },
+  { name: '노랑 배경', value: 'rgba(234, 179, 8, 0.15)' },
+  { name: '초록 배경', value: 'rgba(34, 197, 94, 0.15)' },
+  { name: '파랑 배경', value: 'rgba(59, 130, 246, 0.15)' },
+  { name: '보라 배경', value: 'rgba(168, 85, 247, 0.15)' },
+  { name: '분홍 배경', value: 'rgba(236, 72, 153, 0.15)' },
+  { name: '회색 배경', value: 'rgba(156, 163, 175, 0.15)' },
+]
+
 export function ColorPicker({ editor, onClose }) {
   const ref = useRef(null)
   useClickOutside(ref, onClose)

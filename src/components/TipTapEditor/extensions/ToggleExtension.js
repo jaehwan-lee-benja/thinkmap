@@ -3,6 +3,7 @@ import { NodeSelection, TextSelection, Selection, Plugin, PluginKey } from '@tip
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 export const multiSelectPluginKey = new PluginKey('multiSelect')
+export const focusHighlightPluginKey = new PluginKey('toggleFocusHighlight')
 
 // --- 멀티셀렉트 삭제 헬퍼 ---
 function deleteMultiSelected(state, dispatch) {
@@ -214,6 +215,11 @@ export const Toggle = Node.create({
         parseHTML: element => element.getAttribute('data-todo-checked') === 'true',
         renderHTML: attributes => attributes.todoChecked ? { 'data-todo-checked': 'true' } : {},
       },
+      backgroundColor: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-bg-color') || null,
+        renderHTML: attributes => attributes.backgroundColor ? { 'data-bg-color': attributes.backgroundColor } : {},
+      },
     }
   },
 
@@ -262,6 +268,12 @@ export const Toggle = Node.create({
       const dom = document.createElement('div')
       dom.classList.add('toggle-block')
       dom.setAttribute('data-is-open', node.attrs.isOpen)
+
+      // 배경색 적용
+      if (node.attrs.backgroundColor) {
+        dom.setAttribute('data-bg-color', node.attrs.backgroundColor)
+        dom.style.setProperty('background-color', node.attrs.backgroundColor, 'important')
+      }
 
       // 초기 decoration 적용
       const hasFocusClass = (decos) =>
@@ -519,6 +531,15 @@ export const Toggle = Node.create({
             : 'toggle-content closed'
           dom.setAttribute('data-is-open', updatedNode.attrs.isOpen)
 
+          // 배경색 업데이트
+          if (updatedNode.attrs.backgroundColor) {
+            dom.setAttribute('data-bg-color', updatedNode.attrs.backgroundColor)
+            dom.style.setProperty('background-color', updatedNode.attrs.backgroundColor, 'important')
+          } else {
+            dom.removeAttribute('data-bg-color')
+            dom.style.removeProperty('background-color')
+          }
+
           // Decoration 반영 (Plugin이 전달한 포커스 상태)
           dom.classList.toggle('toggle-block-focused', hasFocusClass(outerDecorations))
           dom.classList.toggle('toggle-checkbox-focused', hasCheckboxFocusClass(outerDecorations))
@@ -643,53 +664,68 @@ export const Toggle = Node.create({
         },
       }),
       // 커서가 위치한 가장 가까운(가장 안쪽) 토글 블록에 포커스 decoration
-      (() => {
-        let editorViewRef = null
-        return new Plugin({
-          key: new PluginKey('toggleFocusHighlight'),
-          view(view) {
-            editorViewRef = view
-            return {
-              update(view) { editorViewRef = view },
-              destroy() { editorViewRef = null },
+      new Plugin({
+        key: focusHighlightPluginKey,
+        state: {
+          init() { return { active: true } },
+          apply(tr, value) {
+            const meta = tr.getMeta(focusHighlightPluginKey)
+            if (meta?.type === 'deactivate') return { active: false }
+            if (meta?.type === 'activate') return { active: true }
+            return value
+          },
+        },
+        props: {
+          handleClick(view, pos, event) {
+            // 클릭한 곳이 토글 내부인지 확인
+            const $pos = view.state.doc.resolve(pos)
+            const insideToggle = findToggleDepth($pos) !== -1
+            if (insideToggle) {
+              // 토글 내부 클릭 → 활성화
+              const pluginState = focusHighlightPluginKey.getState(view.state)
+              if (!pluginState?.active) {
+                view.dispatch(view.state.tr.setMeta(focusHighlightPluginKey, { type: 'activate' }))
+              }
+            } else {
+              // 토글 바깥 클릭 → 비활성화
+              view.dispatch(view.state.tr.setMeta(focusHighlightPluginKey, { type: 'deactivate' }))
             }
+            return false // 이벤트는 계속 전파
           },
-          props: {
-            decorations(state) {
-              // 에디터가 포커스되지 않았으면 음영 없음
-              if (editorViewRef && !editorViewRef.hasFocus) return DecorationSet.empty
+          decorations(state) {
+            const pluginState = focusHighlightPluginKey.getState(state)
+            if (!pluginState?.active) return DecorationSet.empty
 
-              const { selection } = state
-              let pos = -1
+            const { selection } = state
+            let pos = -1
 
-              // NodeSelection: 선택된 토글 자체
-              if (selection instanceof NodeSelection && selection.node.type.name === 'toggle') {
-                pos = selection.from
-              }
-              // CheckboxSelection: 해당 토글
-              else if (selection instanceof CheckboxSelection) {
-                pos = selection.togglePos
-              }
-              // TextSelection: 커서가 위치한 가장 안쪽 토글
-              else {
-                const { $from } = selection
-                const depth = findToggleDepth($from)
-                if (depth !== -1) pos = $from.before(depth)
-              }
+            // NodeSelection: 선택된 토글 자체
+            if (selection instanceof NodeSelection && selection.node.type.name === 'toggle') {
+              pos = selection.from
+            }
+            // CheckboxSelection: 해당 토글
+            else if (selection instanceof CheckboxSelection) {
+              pos = selection.togglePos
+            }
+            // TextSelection: 커서가 위치한 가장 안쪽 토글
+            else {
+              const { $from } = selection
+              const depth = findToggleDepth($from)
+              if (depth !== -1) pos = $from.before(depth)
+            }
 
-              if (pos === -1) return DecorationSet.empty
-              const node = state.doc.nodeAt(pos)
-              if (!node) return DecorationSet.empty
+            if (pos === -1) return DecorationSet.empty
+            const node = state.doc.nodeAt(pos)
+            if (!node) return DecorationSet.empty
 
-              return DecorationSet.create(state.doc, [
-                Decoration.node(pos, pos + node.nodeSize, {
-                  class: 'toggle-block-focused',
-                }),
-              ])
-            },
+            return DecorationSet.create(state.doc, [
+              Decoration.node(pos, pos + node.nodeSize, {
+                class: 'toggle-block-focused',
+              }),
+            ])
           },
-        })
-      })(),
+        },
+      }),
       // 멀티셀렉트 플러그인: 여러 블록 동시 선택
       new Plugin({
         key: multiSelectPluginKey,
@@ -874,8 +910,8 @@ export const Toggle = Node.create({
       },
 
       // 멀티셀렉트: 선택된 블록 삭제
-      multiSelectDelete: () => ({ editor }) => {
-        return deleteMultiSelected(editor.state, (tr) => editor.view.dispatch(tr))
+      multiSelectDelete: () => ({ state, dispatch }) => {
+        return deleteMultiSelected(state, dispatch)
       },
 
       // 멀티셀렉트: 선택 해제
@@ -1488,12 +1524,17 @@ export const Toggle = Node.create({
           tr.setNodeMarkup(togglePos, null, { ...toggleNode.attrs, isTodo: true, todoChecked: false })
         },
       }),
-      // "> " 입력 시 토글 블록으로 변환
+      // "> " 입력 시 토글 블록으로 변환 (토글 안에서는 차단)
       new InputRule({
         find: /^>\s$/,
         handler: ({ state, range, chain }) => {
           const { tr, doc } = state
           const $from = doc.resolve(range.from)
+
+          // 부모가 토글이면 중첩 토글 생성 차단
+          for (let d = $from.depth; d > 0; d--) {
+            if ($from.node(d).type.name === 'toggle') return null
+          }
 
           // 현재 블록(paragraph)의 시작과 끝 위치
           const blockStart = $from.start()

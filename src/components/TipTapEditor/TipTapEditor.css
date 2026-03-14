@@ -710,6 +710,9 @@ th .paragraph-drag-handle {
   margin: 0.375rem 0;
   padding: 0.25rem 0.25rem 0 0.25rem;
   border-radius: 0.25rem;
+}
+
+.toggle-block:not([data-bg-color]) {
   background: transparent !important;
 }
 
@@ -967,12 +970,18 @@ th .paragraph-drag-handle {
 
 
 /* 모든 토글 관련 요소 배경 제거 (App.css 오버라이드) */
-.tiptap-editor .toggle-block,
+.tiptap-editor .toggle-block:not([data-bg-color]),
 .tiptap-editor .toggle-content,
 .tiptap-editor .toggle-content:hover,
-.tiptap-editor .toggle-block:hover {
+.tiptap-editor .toggle-block:not([data-bg-color]):hover {
   background-color: transparent;
   background: transparent;
+}
+
+/* 배경색이 설정된 토글 블록 */
+.tiptap-editor .toggle-block[data-bg-color] {
+  border-radius: 4px;
+  padding: 2px 4px;
 }
 
 /* 토글 닫힘 상태 - 첫번째 자식만 보임 */
@@ -1097,6 +1106,16 @@ th .paragraph-drag-handle {
 /* =====================================================
    색상 선택기
    ===================================================== */
+
+.color-picker-section {
+  padding: 2px 4px;
+}
+
+.color-picker-label {
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 2px 4px 0;
+}
 
 .color-picker-grid {
   display: flex;

@@ -25,6 +25,8 @@ import {
   Settings
 } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { usePageContext } from '../../contexts/PageContext'
+import { FileText } from 'lucide-react'
 import './TipTapPage.css'
 
 /**
@@ -39,6 +41,12 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const imageInputRef = useRef(null)
   const pageRef = useRef(null)
   const { isTablet } = useIsMobile()
+  const { pages, setCurrentPageId, createPage, goBack, goForward, canGoBack, canGoForward } = usePageContext()
+
+  // 현재 페이지의 하위 페이지 목록
+  const childPages = pages
+    .filter(p => p.parent_id === currentPageId)
+    .sort((a, b) => a.position - b.position)
 
   // 모바일 뷰 전환: mobileView prop 변경 시 뷰 열기/닫기
   const viewHandlersRef = useRef({})
@@ -735,18 +743,38 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       <div className="tiptap-page-inner">
         {/* 페이지 헤더 */}
         <div className="tiptap-page-header">
-          {onToggleSidebar && (
-            <button
-              className="content-sidebar-toggle"
-              onMouseDown={e => e.stopPropagation()}
-              onClick={onToggleSidebar}
-              title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
-          )}
+          <div className="tiptap-page-header-left">
+            {onToggleSidebar && (
+              <button
+                className="content-sidebar-toggle"
+                onMouseDown={e => e.stopPropagation()}
+                onClick={onToggleSidebar}
+                title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+            <div className="page-nav-buttons">
+              <button
+                className="page-nav-btn"
+                onClick={goBack}
+                disabled={!canGoBack}
+                title="뒤로 가기"
+              >
+                <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
+              </button>
+              <button
+                className="page-nav-btn"
+                onClick={goForward}
+                disabled={!canGoForward}
+                title="앞으로 가기"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
           <h2
             className="tiptap-page-title"
             contentEditable
@@ -902,6 +930,30 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             <Code />
           </button>
         </div>}
+
+        {/* 하위 페이지 목록 */}
+        <div className="child-pages-section">
+          {childPages.map(page => (
+            <button
+              key={page.id}
+              className="child-page-card"
+              onClick={() => setCurrentPageId(page.id)}
+            >
+              <FileText size={16} />
+              <span className="child-page-name">{page.name}</span>
+            </button>
+          ))}
+          <button
+            className="child-page-card child-page-add"
+            onClick={async () => {
+              const newPage = await createPage(currentPageId, '새 페이지')
+              if (newPage) setCurrentPageId(newPage.id)
+            }}
+          >
+            <span className="child-page-add-icon">+</span>
+            <span className="child-page-name">페이지 추가</span>
+          </button>
+        </div>
 
         {/* 에디터 */}
         <div className="tiptap-editor-wrapper">
