@@ -507,6 +507,49 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     return () => editor.off('transaction', updateMultiSelect)
   }, [editor])
 
+  // 페이지 블록 제목 동기화: pages 목록의 name이 변경되면 블록 텍스트 업데이트
+  useEffect(() => {
+    if (!editor || !pageContext?.pages?.length) return
+
+    const { doc } = editor.state
+    const updates = []
+
+    doc.descendants((node, pos) => {
+      if (node.type.name === 'toggle' && node.attrs.blockType === 'page' && node.attrs.pageId) {
+        const page = pageContext.pages.find(p => p.id === node.attrs.pageId)
+        if (!page) return
+        const firstChild = node.content.firstChild
+        const currentText = firstChild?.textContent || ''
+        if (currentText !== page.name) {
+          updates.push({ pos, node, newName: page.name })
+        }
+      }
+    })
+
+    if (updates.length === 0) return
+
+    const { tr } = editor.state
+    // 뒤에서부터 처리 (pos 매핑 충돌 방지)
+    for (let i = updates.length - 1; i >= 0; i--) {
+      const { pos, node, newName } = updates[i]
+      const paragraphPos = pos + 1 // 첫 번째 paragraph 시작
+      const paragraph = node.content.firstChild
+      if (paragraph) {
+        const from = paragraphPos
+        const to = paragraphPos + paragraph.nodeSize
+        const newParagraph = editor.state.schema.nodes.paragraph.create(
+          null,
+          newName ? [editor.state.schema.text(newName)] : []
+        )
+        tr.replaceWith(from, to, newParagraph)
+      }
+    }
+
+    if (tr.docChanged) {
+      editor.view.dispatch(tr)
+    }
+  }, [editor, pageContext?.pages])
+
   if (!editor) {
     return <div>에디터 로딩 중...</div>
   }

@@ -84,11 +84,12 @@ export function PaneProvider({
     isImpersonating,
   })
 
-  // ─── 페이지 네비게이션 히스토리 ───
-  const pageHistoryRef = useRef([])
-  const historyIndexRef = useRef(-1)
+  // ─── 페이지 네비게이션 히스토리 (state 기반) ───
+  const [navHistory, setNavHistory] = useState({ stack: [], index: -1 })
   const isNavigatingRef = useRef(false)
-  const [, forceHistoryUpdate] = useState(0)
+
+  const canGoBack = navHistory.index > 0
+  const canGoForward = navHistory.index < navHistory.stack.length - 1
 
   // 히스토리를 통한 이동이 아닌 일반 이동 시 히스토리에 추가
   const setCurrentPageId = useCallback((pageId) => {
@@ -98,46 +99,55 @@ export function PaneProvider({
       rawSetCurrentPageId(pageId)
       return
     }
-    // 현재 위치 이후의 히스토리 잘라내기 (앞으로가기 스택 제거)
-    const history = pageHistoryRef.current
-    const idx = historyIndexRef.current
-    pageHistoryRef.current = history.slice(0, idx + 1)
-    // 같은 페이지 중복 방지
-    if (pageHistoryRef.current[pageHistoryRef.current.length - 1] !== pageId) {
-      pageHistoryRef.current.push(pageId)
-    }
-    historyIndexRef.current = pageHistoryRef.current.length - 1
-    forceHistoryUpdate(n => n + 1)
+    setNavHistory(prev => {
+      const sliced = prev.stack.slice(0, prev.index + 1)
+      if (sliced[sliced.length - 1] !== pageId) {
+        sliced.push(pageId)
+      }
+      return { stack: sliced, index: sliced.length - 1 }
+    })
     rawSetCurrentPageId(pageId)
   }, [rawSetCurrentPageId])
 
-  // 초기 페이지 로드 시 히스토리에 시작 페이지 등록 (첫 페이지가 없으면 뒤로가기 불가)
+  // 초기 페이지 로드 시 히스토리에 시작 페이지 등록
   useEffect(() => {
-    if (currentPageId && pageHistoryRef.current.length === 0) {
-      pageHistoryRef.current = [currentPageId]
-      historyIndexRef.current = 0
-      forceHistoryUpdate(n => n + 1)
+    if (currentPageId) {
+      setNavHistory(prev => {
+        if (prev.stack.length === 0) {
+          return { stack: [currentPageId], index: 0 }
+        }
+        return prev
+      })
     }
   }, [currentPageId])
 
-  const canGoBack = historyIndexRef.current > 0
-  const canGoForward = historyIndexRef.current < pageHistoryRef.current.length - 1
-
   const goBack = useCallback(() => {
-    if (historyIndexRef.current <= 0) return
-    historyIndexRef.current -= 1
-    isNavigatingRef.current = true
-    forceHistoryUpdate(n => n + 1)
-    rawSetCurrentPageId(pageHistoryRef.current[historyIndexRef.current])
-  }, [rawSetCurrentPageId])
+    setNavHistory(prev => {
+      if (prev.index <= 0) return prev
+      return { ...prev, index: prev.index - 1 }
+    })
+  }, [])
 
   const goForward = useCallback(() => {
-    if (historyIndexRef.current >= pageHistoryRef.current.length - 1) return
-    historyIndexRef.current += 1
-    isNavigatingRef.current = true
-    forceHistoryUpdate(n => n + 1)
-    rawSetCurrentPageId(pageHistoryRef.current[historyIndexRef.current])
-  }, [rawSetCurrentPageId])
+    setNavHistory(prev => {
+      if (prev.index >= prev.stack.length - 1) return prev
+      return { ...prev, index: prev.index + 1 }
+    })
+  }, [])
+
+  // navHistory.index 변경 시 실제 페이지 이동 (goBack/goForward에 의한)
+  const prevNavIndexRef = useRef(-1)
+  useEffect(() => {
+    const { stack, index } = navHistory
+    if (index < 0 || stack.length === 0) return
+    if (index === prevNavIndexRef.current) return
+    const isNavAction = prevNavIndexRef.current !== -1
+    prevNavIndexRef.current = index
+    if (isNavAction) {
+      isNavigatingRef.current = true
+      rawSetCurrentPageId(stack[index])
+    }
+  }, [navHistory, rawSetCurrentPageId])
 
   const {
     sharedWithMe, sharingLoading,

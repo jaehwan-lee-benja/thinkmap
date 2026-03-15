@@ -805,7 +805,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               title="현재 상태를 버전으로 저장"
             >
               <Archive />
-              <span className="tiptap-btn-label">버전 저장</span>
+              <span className="tiptap-btn-label">저장</span>
             </button>
             <button
               onClick={openHistory}
