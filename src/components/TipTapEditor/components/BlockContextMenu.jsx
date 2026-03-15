@@ -1,9 +1,12 @@
 import React, { useState, useRef, useLayoutEffect } from 'react'
 import { useClickOutside } from '../../../hooks/useClickOutside'
+import { usePageContext } from '../../../contexts/PageContext'
+import { supabase } from '../../../supabaseClient'
 import { COLORS, BG_COLORS } from './ColorPicker'
 import { AttrStep } from '@tiptap/pm/transform'
 
 export function BlockContextMenu({ editor, position, nodePos, onClose }) {
+  const pageContext = usePageContext()
   const [showImageInput, setShowImageInput] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showLinkInput, setShowLinkInput] = useState(false)
@@ -477,6 +480,157 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
         <span className="context-menu-icon">{'</>'}</span>
         <span>{editor.isActive('codeBlock') ? '코드 블록 해제' : '코드 블록'}</span>
       </button>
+
+      {/* 페이지 전환 (토글 블록일 때만) */}
+      {nodePos !== null && editor.state.doc.nodeAt(nodePos)?.type.name === 'toggle' && pageContext && (() => {
+        const targetNode = editor.state.doc.nodeAt(nodePos)
+        const isPageBlock = targetNode?.attrs.blockType === 'page' && targetNode?.attrs.pageId
+        return (
+          <>
+            <div className="context-menu-separator"></div>
+            {isPageBlock ? (
+              <button className="context-menu-item" onClick={async () => {
+                const node = editor.state.doc.nodeAt(nodePos)
+                if (!node) { onClose(); return }
+
+                const linkedPageId = node.attrs.pageId
+
+                // 1) attrs를 먼저 동기적으로 텍스트로 전환 + 열기
+                {
+                  const { tr } = editor.state
+                  tr.setNodeMarkup(nodePos, null, {
+                    ...node.attrs,
+                    blockType: 'paragraph',
+                    pageId: null,
+                    isOpen: true,
+                  })
+                  editor.view.dispatch(tr)
+                }
+
+                // 2) 연결된 페이지의 콘텐츠를 가져와서 하위 토글로 삽입
+                if (linkedPageId) {
+                  try {
+                    const { data } = await supabase
+                      .from('pages')
+                      .select('content_tiptap')
+                      .eq('id', linkedPageId)
+                      .single()
+
+                    const pageContent = data?.content_tiptap
+                    if (pageContent?.content?.length > 0) {
+                      // 현재 블록 위치를 다시 찾기 (async 후 state 변경 가능)
+                      const currentNode = editor.state.doc.nodeAt(nodePos)
+                      if (currentNode && currentNode.type.name === 'toggle') {
+                        const { tr } = editor.state
+                        const insertPos = nodePos + currentNode.nodeSize - 1
+                        const toggles = pageContent.content
+                          .filter(n => n.type === 'toggle')
+                          .map(n => editor.state.schema.nodeFromJSON(n))
+                        if (toggles.length > 0) {
+                          for (let i = toggles.length - 1; i >= 0; i--) {
+                            tr.insert(insertPos, toggles[i])
+                          }
+                          editor.view.dispatch(tr)
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    console.error('페이지 콘텐츠 불러오기 오류:', e)
+                  }
+                }
+
+                onClose()
+              }}>
+                <span className="context-menu-icon">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="2" y1="5" x2="14" y2="5" /><line x1="2" y1="8" x2="14" y2="8" /><line x1="2" y1="11" x2="10" y2="11" />
+                  </svg>
+                </span>
+                <span>텍스트로 전환</span>
+              </button>
+            ) : (
+              <button className="context-menu-item" onClick={async () => {
+                const node = editor.state.doc.nodeAt(nodePos)
+                if (!node) { onClose(); return }
+
+                // 1) 동기적으로 블록 정보 수집
+                const firstChild = node.content.firstChild
+                const pageTitle = firstChild?.textContent?.trim() || '새 페이지'
+                const childToggles = []
+                for (let i = 1; i < node.content.childCount; i++) {
+                  const child = node.content.child(i)
+                  if (child.type.name === 'toggle') {
+                    childToggles.push(child.toJSON())
+                  }
+                }
+
+                // 2) 에디터 변경을 동기적으로 먼저 수행 (async 전에 nodePos가 유효한 시점)
+                {
+                  const { tr } = editor.state
+                  if (childToggles.length > 0) {
+                    const firstChildSize = node.content.firstChild.nodeSize
+                    const contentStart = nodePos + 1
+                    const keepEnd = contentStart + firstChildSize
+                    const contentEnd = nodePos + node.nodeSize - 1
+                    if (keepEnd < contentEnd) {
+                      tr.delete(keepEnd, contentEnd)
+                    }
+                  }
+                  const mappedPos = tr.mapping.map(nodePos)
+                  tr.setNodeMarkup(mappedPos, null, {
+                    ...node.attrs,
+                    blockType: 'page',
+                    pageId: '__pending__',
+                    isOpen: false,
+                    isTodo: false,
+                    todoChecked: false,
+                  })
+                  editor.view.dispatch(tr)
+                }
+
+                // 3) 비동기: 페이지 생성
+                const newPage = await pageContext.createPage(pageTitle, pageContext.currentPageId)
+
+                // 4) 생성 후 __pending__ → 실제 pageId 업데이트
+                if (newPage) {
+                  let pendingPos = null
+                  editor.state.doc.descendants((n, pos) => {
+                    if (pendingPos !== null) return false
+                    if (n.type.name === 'toggle' && n.attrs.pageId === '__pending__') {
+                      pendingPos = pos
+                      return false
+                    }
+                  })
+                  if (pendingPos !== null) {
+                    const pendingNode = editor.state.doc.nodeAt(pendingPos)
+                    if (pendingNode) {
+                      const { tr } = editor.state
+                      tr.setNodeMarkup(pendingPos, null, { ...pendingNode.attrs, pageId: newPage.id })
+                      editor.view.dispatch(tr)
+                    }
+                  }
+                  if (childToggles.length > 0) {
+                    supabase
+                      .from('pages')
+                      .update({ content_tiptap: { type: 'doc', content: childToggles } })
+                      .eq('id', newPage.id)
+                  }
+                }
+
+                onClose()
+              }}>
+                <span className="context-menu-icon">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 1.5H4a1.5 1.5 0 00-1.5 1.5v10A1.5 1.5 0 004 14.5h8a1.5 1.5 0 001.5-1.5V6L9 1.5z" />
+                    <polyline points="9 1.5 9 6 13.5 6" />
+                  </svg>
+                </span>
+                <span>페이지로 전환</span>
+              </button>
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }

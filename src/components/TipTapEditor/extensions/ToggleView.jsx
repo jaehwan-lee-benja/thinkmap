@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react'
+import { usePageContext } from '../../../contexts/PageContext'
 
 /**
  * 순서 번호 계산 - 같은 레벨에서 연속된 ordered 블록 수를 셈
@@ -27,7 +28,9 @@ function computeOrderedNumber(editor, getPos) {
 }
 
 function ToggleView({ node, updateAttributes, editor, getPos }) {
-  const { isOpen: isOpenAttr, blockType } = node.attrs
+  const { isOpen: isOpenAttr, blockType, pageId } = node.attrs
+  const pageContext = usePageContext()
+  const isPageBlock = blockType === 'page' && pageId
 
   // Local state for immediate visual feedback — decoupled from ProseMirror's flushSync path
   const [isOpen, setIsOpen] = useState(isOpenAttr)
@@ -67,6 +70,39 @@ function ToggleView({ node, updateAttributes, editor, getPos }) {
     const newIsOpen = !isOpen
     setIsOpen(newIsOpen)
     updateAttributes({ isOpen: newIsOpen })
+  }
+
+  // 페이지 블록 클릭 → 해당 페이지로 이동
+  const handlePageClick = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (pageContext?.setCurrentPageId && pageId) {
+      pageContext.setCurrentPageId(pageId)
+    }
+  }
+
+  // 페이지 블록 렌더링
+  if (isPageBlock) {
+    return (
+      <NodeViewWrapper
+        className="toggle-block toggle-page-block"
+        data-block-type="page"
+        data-page-id={pageId}
+        data-is-open={false}
+      >
+        <button
+          className="toggle-page-link"
+          contentEditable={false}
+          onMouseDown={handlePageClick}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 1.5H4a1.5 1.5 0 00-1.5 1.5v10A1.5 1.5 0 004 14.5h8a1.5 1.5 0 001.5-1.5V6L9 1.5z" />
+            <polyline points="9 1.5 9 6 13.5 6" />
+          </svg>
+        </button>
+        <NodeViewContent className="toggle-content toggle-page-content closed" />
+      </NodeViewWrapper>
+    )
   }
 
   return (

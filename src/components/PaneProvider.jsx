@@ -111,6 +111,15 @@ export function PaneProvider({
     rawSetCurrentPageId(pageId)
   }, [rawSetCurrentPageId])
 
+  // 초기 페이지 로드 시 히스토리에 시작 페이지 등록 (첫 페이지가 없으면 뒤로가기 불가)
+  useEffect(() => {
+    if (currentPageId && pageHistoryRef.current.length === 0) {
+      pageHistoryRef.current = [currentPageId]
+      historyIndexRef.current = 0
+      forceHistoryUpdate(n => n + 1)
+    }
+  }, [currentPageId])
+
   const canGoBack = historyIndexRef.current > 0
   const canGoForward = historyIndexRef.current < pageHistoryRef.current.length - 1
 

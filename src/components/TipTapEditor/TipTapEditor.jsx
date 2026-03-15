@@ -3,6 +3,7 @@ import { TableToolbar } from './components/TableToolbar'
 import { BlockContextMenu } from './components/BlockContextMenu'
 import { MultiSelectToolbar } from './components/MultiSelectToolbar'
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight'
+import { usePageContext } from '../../contexts/PageContext'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -84,6 +85,7 @@ function isOnlyIsOpenDiff(json1, json2) {
 function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
   // 키보드 높이 감지 (CSS 변수 --keyboard-height 자동 설정)
   useKeyboardHeight()
+  const pageContext = usePageContext()
 
   // 버블 메뉴 색상 선택기 열기/닫기
   const [bubbleColorOpen, setBubbleColorOpen] = useState(false)
@@ -401,9 +403,20 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       setContextMenu({ visible: true, position: { top, left }, nodePos: pos })
     }
 
+    const handlePageNavigate = (event) => {
+      const { pageId } = event.detail
+      if (pageId && pageContext?.setCurrentPageId) {
+        pageContext.setCurrentPageId(pageId)
+      }
+    }
+
     wrapper.addEventListener('toggle-context-menu', handleToggleContextMenu)
-    return () => wrapper.removeEventListener('toggle-context-menu', handleToggleContextMenu)
-  }, [editor])
+    wrapper.addEventListener('toggle-page-navigate', handlePageNavigate)
+    return () => {
+      wrapper.removeEventListener('toggle-context-menu', handleToggleContextMenu)
+      wrapper.removeEventListener('toggle-page-navigate', handlePageNavigate)
+    }
+  }, [editor, pageContext])
 
   // 롱프레스로 컨텍스트 메뉴 열기 (터치 디바이스)
   useEffect(() => {

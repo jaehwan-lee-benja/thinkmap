@@ -220,6 +220,16 @@ export const Toggle = Node.create({
         parseHTML: element => element.getAttribute('data-bg-color') || null,
         renderHTML: attributes => attributes.backgroundColor ? { 'data-bg-color': attributes.backgroundColor } : {},
       },
+      blockType: {
+        default: 'paragraph',
+        parseHTML: element => element.getAttribute('data-block-type') || 'paragraph',
+        renderHTML: attributes => attributes.blockType && attributes.blockType !== 'paragraph' ? { 'data-block-type': attributes.blockType } : {},
+      },
+      pageId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-page-id') || null,
+        renderHTML: attributes => attributes.pageId ? { 'data-page-id': attributes.pageId } : {},
+      },
     }
   },
 
@@ -512,10 +522,66 @@ export const Toggle = Node.create({
         editor.view.dispatch(tr)
       })
 
+      // 페이지 블록 아이콘 버튼
+      const pageLink = document.createElement('button')
+      pageLink.classList.add('toggle-page-link')
+      pageLink.contentEditable = 'false'
+      pageLink.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5H4a1.5 1.5 0 00-1.5 1.5v10A1.5 1.5 0 004 14.5h8a1.5 1.5 0 001.5-1.5V6L9 1.5z"/><polyline points="9 1.5 9 6 13.5 6"/></svg>'
+      pageLink.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (typeof getPos !== 'function') return
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        const pid = currentNode?.attrs.pageId
+        if (pid && pid !== '__pending__') {
+          // PageContext 접근: 커스텀 이벤트로 페이지 이동 요청
+          dom.dispatchEvent(new CustomEvent('toggle-page-navigate', {
+            bubbles: true,
+            detail: { pageId: pid }
+          }))
+        }
+      })
+
+      // 페이지 블록 제목 클릭 → 페이지 이동 (contentWrapper 위에 투명 오버레이)
+      const pageOverlay = document.createElement('div')
+      pageOverlay.classList.add('toggle-page-overlay')
+      pageOverlay.contentEditable = 'false'
+      pageOverlay.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (typeof getPos !== 'function') return
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        const pid = currentNode?.attrs.pageId
+        if (pid && pid !== '__pending__') {
+          dom.dispatchEvent(new CustomEvent('toggle-page-navigate', {
+            bubbles: true,
+            detail: { pageId: pid }
+          }))
+        }
+      })
+
+      // 초기 페이지 블록 여부에 따라 요소 표시/숨김
+      const isPageBlock = node.attrs.blockType === 'page' && node.attrs.pageId
+      if (isPageBlock) {
+        dom.classList.add('toggle-page-block')
+        button.style.display = 'none'
+        checkbox.style.display = 'none'
+        pageLink.style.display = ''
+        pageOverlay.style.display = ''
+        contentWrapper.className = 'toggle-content toggle-page-content closed'
+      } else {
+        pageLink.style.display = 'none'
+        pageOverlay.style.display = 'none'
+      }
+
       dom.appendChild(dragHandle)
+      dom.appendChild(pageLink)
       dom.appendChild(button)
       dom.appendChild(checkbox)
       dom.appendChild(contentWrapper)
+      dom.appendChild(pageOverlay)
 
       return {
         dom,
@@ -523,13 +589,44 @@ export const Toggle = Node.create({
         update: (updatedNode, outerDecorations) => {
           if (updatedNode.type.name !== 'toggle') return false
 
-          button.dataset.arrow = hasChildToggles(updatedNode)
-            ? (updatedNode.attrs.isOpen ? '▼' : '▶')
-            : (updatedNode.attrs.isOpen ? '▽' : '▷')
-          contentWrapper.className = updatedNode.attrs.isOpen
-            ? 'toggle-content open'
-            : 'toggle-content closed'
-          dom.setAttribute('data-is-open', updatedNode.attrs.isOpen)
+          // 페이지 블록 전환 처리
+          const isPage = updatedNode.attrs.blockType === 'page' && updatedNode.attrs.pageId
+          dom.classList.toggle('toggle-page-block', isPage)
+          if (isPage) {
+            button.style.display = 'none'
+            checkbox.style.display = 'none'
+            pageLink.style.display = ''
+            pageOverlay.style.display = ''
+            contentWrapper.className = 'toggle-content toggle-page-content closed'
+            dom.setAttribute('data-is-open', 'false')
+            dom.setAttribute('data-block-type', 'page')
+            dom.setAttribute('data-page-id', updatedNode.attrs.pageId)
+          } else {
+            pageLink.style.display = 'none'
+            pageOverlay.style.display = 'none'
+            button.style.display = ''
+            dom.removeAttribute('data-page-id')
+            dom.setAttribute('data-block-type', updatedNode.attrs.blockType || 'paragraph')
+
+            button.dataset.arrow = hasChildToggles(updatedNode)
+              ? (updatedNode.attrs.isOpen ? '▼' : '▶')
+              : (updatedNode.attrs.isOpen ? '▽' : '▷')
+            contentWrapper.className = updatedNode.attrs.isOpen
+              ? 'toggle-content open'
+              : 'toggle-content closed'
+            dom.setAttribute('data-is-open', updatedNode.attrs.isOpen)
+
+            // Todo checkbox update
+            if (updatedNode.attrs.isTodo) {
+              checkbox.style.display = ''
+              checkbox.classList.toggle('checked', updatedNode.attrs.todoChecked)
+              dom.classList.toggle('toggle-todo-checked', updatedNode.attrs.todoChecked)
+            } else {
+              checkbox.style.display = 'none'
+              checkbox.classList.remove('checked')
+              dom.classList.remove('toggle-todo-checked')
+            }
+          }
 
           // 배경색 업데이트
           if (updatedNode.attrs.backgroundColor) {
@@ -544,17 +641,6 @@ export const Toggle = Node.create({
           dom.classList.toggle('toggle-block-focused', hasFocusClass(outerDecorations))
           dom.classList.toggle('toggle-checkbox-focused', hasCheckboxFocusClass(outerDecorations))
           dom.classList.toggle('toggle-block-multiselected', hasMultiSelectClass(outerDecorations))
-
-          // Todo checkbox update
-          if (updatedNode.attrs.isTodo) {
-            checkbox.style.display = ''
-            checkbox.classList.toggle('checked', updatedNode.attrs.todoChecked)
-            dom.classList.toggle('toggle-todo-checked', updatedNode.attrs.todoChecked)
-          } else {
-            checkbox.style.display = 'none'
-            checkbox.classList.remove('checked')
-            dom.classList.remove('toggle-todo-checked')
-          }
 
           return true
         },

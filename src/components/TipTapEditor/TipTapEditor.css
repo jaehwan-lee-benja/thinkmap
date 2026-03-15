@@ -998,6 +998,74 @@ th .paragraph-drag-handle {
   display: flex;
 }
 
+/* =====================================================
+   페이지 블록 스타일 (인라인 서브페이지)
+   ===================================================== */
+
+.toggle-page-block {
+  position: relative;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+}
+
+.toggle-page-block:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* 페이지 아이콘 버튼 */
+.toggle-page-link {
+  flex-shrink: 0;
+  width: 20px;
+  height: calc(1rem * 1.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.toggle-page-block:hover .toggle-page-link {
+  color: #3b82f6;
+}
+
+/* 페이지 블록 콘텐츠: 클릭 가능하게 보이도록 */
+.toggle-page-content p {
+  color: #e5e7eb !important;
+  margin: 0 !important;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.15s, color 0.15s;
+}
+
+.toggle-page-block:hover .toggle-page-content p {
+  text-decoration-color: rgba(59, 130, 246, 0.5);
+  color: #93c5fd !important;
+}
+
+/* 페이지 블록은 토글 화살표/드래그 핸들 숨김 */
+.toggle-page-block > .toggle-button,
+.toggle-page-block > .toggle-marker {
+  display: none;
+}
+
+/* 페이지 블록 클릭 오버레이: 텍스트 위에 겹쳐서 커서 차단 + 클릭 이동 */
+/* 드래그 핸들(왼쪽 ~16px)은 덮지 않도록 left 오프셋 */
+.toggle-page-overlay {
+  position: absolute;
+  top: 0;
+  left: 36px;
+  right: 0;
+  bottom: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
 /* 모든 헤딩 색상 명확히 */
 .tiptap-editor h1,
 .tiptap-editor h2,
