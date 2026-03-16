@@ -1,6 +1,41 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import TipTapEditor from './TipTapEditor'
 import { multiSelectPluginKey } from './extensions/ToggleExtension'
+
+// 뷰어 모드: 문서 JSON에서 토글 isOpen 오버라이드 적용/추출
+function applyToggleOverrides(docJSON, overrides) {
+  if (!docJSON?.content || !overrides || Object.keys(overrides).length === 0) return docJSON
+  let idx = 0
+  const walk = (node) => {
+    if (node.type === 'toggle') {
+      const myIdx = idx++
+      const children = node.content ? node.content.map(walk) : []
+      if (myIdx.toString() in overrides) {
+        return { ...node, attrs: { ...node.attrs, isOpen: overrides[myIdx] }, content: children }
+      }
+      return { ...node, content: children }
+    }
+    if (node.content) return { ...node, content: node.content.map(walk) }
+    return node
+  }
+  return { ...docJSON, content: docJSON.content.map(walk) }
+}
+
+function extractToggleStates(docJSON) {
+  if (!docJSON?.content) return {}
+  const states = {}
+  let idx = 0
+  const walk = (node) => {
+    if (node.type === 'toggle') {
+      states[idx++] = node.attrs?.isOpen ?? true
+      if (node.content) node.content.forEach(walk)
+    } else if (node.content) {
+      node.content.forEach(walk)
+    }
+  }
+  docJSON.content.forEach(walk)
+  return states
+}
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
 import { supabase } from '../../supabaseClient'
@@ -33,10 +68,19 @@ import './TipTapPage.css'
  * TipTap 에디터 페이지
  * 메인 에디터 컴포넌트
  */
-function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename, isImpersonating = false, sidebarOpen, onToggleSidebar, mobileView = 'editor', onMobileViewChange }) {
+function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename, isImpersonating = false, sidebarOpen, onToggleSidebar, mobileView = 'editor', onMobileViewChange, viewerToggleOverrides = {}, saveViewerToggleOverrides }) {
   const [content, setContent] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(null)
+
+  // 뷰어 모드 토스트
+  const [viewerToast, setViewerToast] = useState(false)
+  const viewerToastTimer = useRef(null)
+  const showViewerToast = useCallback(() => {
+    setViewerToast(true)
+    if (viewerToastTimer.current) clearTimeout(viewerToastTimer.current)
+    viewerToastTimer.current = setTimeout(() => setViewerToast(false), 2000)
+  }, [])
   const editorRef = useRef(null)
   const imageInputRef = useRef(null)
   const pageRef = useRef(null)
@@ -284,7 +328,11 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
         // 2. content_tiptap이 있으면 사용
         if (data?.content_tiptap) {
-          setContent(data.content_tiptap)
+          // 뷰어 모드: 토글 오버라이드 적용
+          const finalContent = isImpersonating
+            ? applyToggleOverrides(data.content_tiptap, viewerToggleOverrides[currentPageId])
+            : data.content_tiptap
+          setContent(finalContent)
           lastHistoryContentRef.current = data.content_tiptap
           // 로드 완료 후 prevPageRef를 올바른 페이지+콘텐츠로 설정
           prevPageRef.current = { pageId: currentPageId, content: data.content_tiptap }
@@ -335,6 +383,15 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
   // 에디터 내용 변경 시 (사용자 편집)
   const handleUpdate = (newContent) => {
+    if (isImpersonating) {
+      // 뷰어 모드: 토글 isOpen 변경만 로컬 반영 + 오버라이드 저장
+      setContent(newContent)
+      if (saveViewerToggleOverrides && currentPageId) {
+        const states = extractToggleStates(newContent)
+        saveViewerToggleOverrides(currentPageId, states)
+      }
+      return
+    }
     isInitialLoadRef.current = false  // 사용자가 편집 시작
     setContent(newContent)
   }
@@ -432,6 +489,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   // 자동 저장 (500ms debounce) - 사용자 편집 시에만
   useEffect(() => {
     if (!content || !session || !currentPageId) return
+    // 뷰어 모드: 문서 저장 완전 차단
+    if (isImpersonating) return
 
     // 초기 로드 시에는 저장하지 않음
     if (isInitialLoadRef.current) {
@@ -777,7 +836,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           </div>
           <h2
             className="tiptap-page-title"
-            contentEditable
+            contentEditable={!isImpersonating}
             suppressContentEditableWarning
             spellCheck={false}
             onBlur={(e) => {
@@ -794,7 +853,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             }}
           >{currentPageName || '페이지'}</h2>
           <div className="tiptap-header-actions">
-            <button
+            {!isImpersonating && <button
               onClick={async () => {
                 if (!confirm('현재 버전을 저장하시겠습니까?\n\n저장된 내용은 히스토리에서 확인할 수 있습니다.')) return
                 const success = await saveHistory('수동 버전 저장')
@@ -806,7 +865,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             >
               <Archive />
               <span className="tiptap-btn-label">저장</span>
-            </button>
+            </button>}
             <button
               onClick={openHistory}
               className="tiptap-btn tiptap-btn-purple"
@@ -843,8 +902,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           </div>
         </div>
 
-        {/* 툴바 */}
-        {showToolbar && <div className="tiptap-toolbar">
+        {/* 툴바 (뷰어 모드에서 숨김) */}
+        {!isImpersonating && showToolbar && <div className="tiptap-toolbar">
           <button
             onClick={() => editorRef.current?.commands.setToggle()}
             className="tiptap-btn tiptap-btn-secondary"
@@ -943,7 +1002,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               <span className="child-page-name">{page.name}</span>
             </button>
           ))}
-          <button
+          {!isImpersonating && <button
             className="child-page-card child-page-add"
             onClick={async () => {
               const newPage = await createPage(currentPageId, '새 페이지')
@@ -952,7 +1011,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           >
             <span className="child-page-add-icon">+</span>
             <span className="child-page-name">페이지 추가</span>
-          </button>
+          </button>}
+
         </div>
 
         {/* 에디터 */}
@@ -963,11 +1023,18 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               onUpdate={handleUpdate}
               placeholder="내용을 입력하세요..."
               editorRef={editorRef}
+              isViewerMode={isImpersonating}
+              onViewerEditAttempt={showViewerToast}
             />
           ) : (
             <div className="tiptap-loading">로딩 중...</div>
           )}
         </div>
+
+        {/* 뷰어 모드 토스트 */}
+        {viewerToast && (
+          <div className="viewer-toast">뷰어모드입니다</div>
+        )}
       </div>
 
       {/* 히스토리 모달 */}

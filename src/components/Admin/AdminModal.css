@@ -1,5 +1,14 @@
 /* 관리자 모달 (기본 스타일은 Modal.css에서 상속) */
 
+/* 관리자 모달 — 더 넓은 폭 + 내부 여백 */
+.admin-modal {
+  max-width: 620px;
+}
+
+.admin-modal-content {
+  padding: 20px 24px;
+}
+
 /* 관리자 모달 헤더 커스텀 */
 .admin-modal-header {
   background: var(--color-master-gradient);
@@ -292,6 +301,10 @@
 
 /* 반응형 - 모바일 */
 @media (max-width: 768px) {
+  .admin-modal-content {
+    padding: 16px;
+  }
+
   .add-user-form {
     flex-direction: column;
   }

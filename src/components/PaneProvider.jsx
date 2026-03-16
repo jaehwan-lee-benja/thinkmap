@@ -92,19 +92,14 @@ export function PaneProvider({
 
   // ─── 페이지 네비게이션 히스토리 (state 기반) ───
   const [navHistory, setNavHistory] = useState({ stack: [], index: -1 })
-  const isNavigatingRef = useRef(false)
+  const isBackForwardRef = useRef(false)
 
   const canGoBack = navHistory.index > 0
   const canGoForward = navHistory.index < navHistory.stack.length - 1
 
-  // 히스토리를 통한 이동이 아닌 일반 이동 시 히스토리에 추가
+  // 일반 이동 시 히스토리에 추가 (goBack/goForward가 아닌 경우)
   const setCurrentPageId = useCallback((pageId) => {
     if (!pageId) return rawSetCurrentPageId(pageId)
-    if (isNavigatingRef.current) {
-      isNavigatingRef.current = false
-      rawSetCurrentPageId(pageId)
-      return
-    }
     setNavHistory(prev => {
       const sliced = prev.stack.slice(0, prev.index + 1)
       if (sliced[sliced.length - 1] !== pageId) {
@@ -127,7 +122,32 @@ export function PaneProvider({
     }
   }, [currentPageId])
 
+  // 프로젝트 변경 시 네비게이션 히스토리 초기화
+  const prevProjectIdForNavRef = useRef(currentProjectId)
+  useEffect(() => {
+    if (currentProjectId !== prevProjectIdForNavRef.current) {
+      prevProjectIdForNavRef.current = currentProjectId
+      setNavHistory({ stack: [], index: -1 })
+    }
+  }, [currentProjectId])
+
+  // 페이지 목록 변경 시 히스토리에서 삭제된 페이지 제거
+  useEffect(() => {
+    if (pages.length === 0) return
+    const pageIds = new Set(pages.map(p => p.id))
+    setNavHistory(prev => {
+      const filtered = prev.stack.filter(id => pageIds.has(id))
+      if (filtered.length === prev.stack.length) return prev
+      if (filtered.length === 0) return { stack: [], index: -1 }
+      return {
+        stack: filtered,
+        index: Math.min(prev.index, filtered.length - 1)
+      }
+    })
+  }, [pages])
+
   const goBack = useCallback(() => {
+    isBackForwardRef.current = true
     setNavHistory(prev => {
       if (prev.index <= 0) return prev
       return { ...prev, index: prev.index - 1 }
@@ -135,24 +155,20 @@ export function PaneProvider({
   }, [])
 
   const goForward = useCallback(() => {
+    isBackForwardRef.current = true
     setNavHistory(prev => {
       if (prev.index >= prev.stack.length - 1) return prev
       return { ...prev, index: prev.index + 1 }
     })
   }, [])
 
-  // navHistory.index 변경 시 실제 페이지 이동 (goBack/goForward에 의한)
-  const prevNavIndexRef = useRef(-1)
+  // goBack/goForward에 의한 navHistory 변경 시에만 실제 페이지 이동
   useEffect(() => {
     const { stack, index } = navHistory
     if (index < 0 || stack.length === 0) return
-    if (index === prevNavIndexRef.current) return
-    const isNavAction = prevNavIndexRef.current !== -1
-    prevNavIndexRef.current = index
-    if (isNavAction) {
-      isNavigatingRef.current = true
-      rawSetCurrentPageId(stack[index])
-    }
+    if (!isBackForwardRef.current) return
+    isBackForwardRef.current = false
+    rawSetCurrentPageId(stack[index])
   }, [navHistory, rawSetCurrentPageId])
 
   const {
@@ -394,7 +410,9 @@ export function PaneProvider({
     getBreadcrumbSiblings,
     handleBreadcrumbNavigate,
     activeTab,
-  }), [effectiveSession, isImpersonating, isLinkedAccountSwitch, projectsLoading, pagesLoading, projects, buildBreadcrumb, getBreadcrumbSiblings, handleBreadcrumbNavigate, activeTab])
+    viewerToggleOverrides: prefs.viewerToggleOverrides,
+    saveViewerToggleOverrides: prefs.saveViewerToggleOverrides,
+  }), [effectiveSession, isImpersonating, isLinkedAccountSwitch, projectsLoading, pagesLoading, projects, buildBreadcrumb, getBreadcrumbSiblings, handleBreadcrumbNavigate, activeTab, prefs.viewerToggleOverrides, prefs.saveViewerToggleOverrides])
 
   return (
     <PaneDataContext.Provider value={paneData}>

@@ -710,4 +710,27 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
+/* 뷰어 모드 토스트 */
+.viewer-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: rgba(245, 158, 11, 0.95);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  pointer-events: none;
+  animation: viewerToastIn 0.2s ease;
+}
+
+@keyframes viewerToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 /* dropdown-appear -> _animations.css (dropdownAppear) */

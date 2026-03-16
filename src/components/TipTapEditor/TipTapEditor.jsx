@@ -5,6 +5,7 @@ import { MultiSelectToolbar } from './components/MultiSelectToolbar'
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight'
 import { usePageContext } from '../../contexts/PageContext'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
+import { Plugin } from '@tiptap/pm/state'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { OrderedList } from '@tiptap/extension-ordered-list'
@@ -82,7 +83,36 @@ function isOnlyIsOpenDiff(json1, json2) {
   return strip(json1) === strip(json2)
 }
 
-function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef }) {
+// 뷰어 모드 플러그인: 토글 isOpen 변경만 허용, 나머지 편집 차단
+function createViewerModePlugin(onEditAttempt) {
+  return new Plugin({
+    filterTransaction: (tr, state) => {
+      // 문서 변경이 없으면 허용 (선택, 스크롤 등)
+      if (!tr.docChanged) return true
+
+      // toggleButtonClick 메타가 있으면 허용 (토글 열기/닫기)
+      if (tr.getMeta('toggleButtonClick')) return true
+
+      // 그 외 편집 시도 → 차단 + 토스트
+      if (onEditAttempt) onEditAttempt()
+      return false
+    },
+  })
+}
+
+const ViewerModeExtension = Extension.create({
+  name: 'viewerMode',
+
+  addOptions() {
+    return { onEditAttempt: null }
+  },
+
+  addProseMirrorPlugins() {
+    return [createViewerModePlugin(this.options.onEditAttempt)]
+  },
+})
+
+function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef, isViewerMode = false, onViewerEditAttempt }) {
   // 키보드 높이 감지 (CSS 변수 --keyboard-height 자동 설정)
   useKeyboardHeight()
   const pageContext = usePageContext()
@@ -154,6 +184,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       Color,
       Toggle,
       ParagraphWithHandle,
+      ...(isViewerMode ? [ViewerModeExtension.configure({ onEditAttempt: onViewerEditAttempt })] : []),
     ],
     content: content || {
       type: 'doc',
@@ -554,9 +585,16 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     return <div>에디터 로딩 중...</div>
   }
 
+  // 뷰어 모드 스토리지 설정
+  useEffect(() => {
+    if (editor && editor.storage.toggle) {
+      editor.storage.toggle.viewerMode = isViewerMode
+    }
+  }, [editor, isViewerMode])
+
   // 여백 더블클릭 시 토글 블록이 없으면 첫 줄에 토글 생성
   const handleWrapperDoubleClick = (e) => {
-    if (!editor) return
+    if (!editor || isViewerMode) return
     // 토글 블록 내부 클릭이면 무시
     if (e.target.closest('.toggle-block')) return
     // 이미 토글이 있으면 무시
@@ -575,8 +613,8 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     <div className="tiptap-wrapper" ref={wrapperRef} onDoubleClick={handleWrapperDoubleClick}>
       <EditorContent editor={editor} />
 
-      {/* 텍스트 선택 시 서식 도구창 */}
-      <BubbleMenu
+      {/* 텍스트 선택 시 서식 도구창 (뷰어 모드에서 숨김) */}
+      {!isViewerMode && <BubbleMenu
         editor={editor}
         updateDelay={150}
         shouldShow={({ editor, state }) => {
@@ -648,10 +686,10 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
             </div>
           )}
         </div>
-      </BubbleMenu>
+      </BubbleMenu>}
 
-      {/* 테이블 툴바 */}
-      {tableToolbar.visible && editor && (
+      {/* 테이블 툴바 (뷰어 모드에서 숨김) */}
+      {!isViewerMode && tableToolbar.visible && editor && (
         <TableToolbar
           editor={editor}
           position={tableToolbar.position}
@@ -659,8 +697,8 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         />
       )}
 
-      {/* 블록 컨텍스트 메뉴 */}
-      {contextMenu.visible && editor && (
+      {/* 블록 컨텍스트 메뉴 (뷰어 모드에서 숨김) */}
+      {!isViewerMode && contextMenu.visible && editor && (
         <BlockContextMenu
           editor={editor}
           position={contextMenu.position}

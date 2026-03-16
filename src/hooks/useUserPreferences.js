@@ -82,6 +82,20 @@ export const useUserPreferences = (session) => {
     last_impersonated_page_id: null,
   }), [save])
 
+  // 뷰어 모드 토글 오버라이드
+  const saveViewerToggleOverrides = useCallback(async (pageId, overrides) => {
+    const current = prefs?.viewer_toggle_overrides || {}
+    const updated = { ...current, [pageId]: overrides }
+    await save({ viewer_toggle_overrides: updated })
+  }, [save, prefs?.viewer_toggle_overrides])
+
+  const clearViewerToggleOverrides = useCallback(async (pageId) => {
+    if (!pageId) return save({ viewer_toggle_overrides: {} })
+    const current = prefs?.viewer_toggle_overrides || {}
+    const { [pageId]: _, ...rest } = current
+    await save({ viewer_toggle_overrides: rest })
+  }, [save, prefs?.viewer_toggle_overrides])
+
   // 탭
   const saveTabs = useCallback((tabs, activeTabId) => save({ tabs, active_tab_id: activeTabId }), [save])
 
@@ -106,6 +120,10 @@ export const useUserPreferences = (session) => {
     saveLastImpersonatedProject,
     saveLastImpersonatedPage,
     clearLastImpersonation,
+    // 뷰어 모드
+    viewerToggleOverrides: prefs?.viewer_toggle_overrides ?? {},
+    saveViewerToggleOverrides,
+    clearViewerToggleOverrides,
     // 탭
     tabs: prefs?.tabs ?? null,
     activeTabId: prefs?.active_tab_id ?? null,

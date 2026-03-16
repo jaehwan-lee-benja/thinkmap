@@ -53,7 +53,7 @@ function PaneInner({
   const {
     effectiveSession, isImpersonating, projectsLoading, pagesLoading,
     projects, buildBreadcrumb, getBreadcrumbSiblings, handleBreadcrumbNavigate,
-    activeTab,
+    activeTab, viewerToggleOverrides, saveViewerToggleOverrides,
   } = usePaneData()
 
   const { pages, currentPageId, setCurrentPageId, renamePage } = usePageContext()
@@ -118,6 +118,8 @@ function PaneInner({
               onToggleSidebar={() => toggleTabSidebar(tabId, paneIndex)}
               mobileView={mobileView}
               onMobileViewChange={setMobileView}
+              viewerToggleOverrides={viewerToggleOverrides}
+              saveViewerToggleOverrides={saveViewerToggleOverrides}
             />
           )}
         </div>
