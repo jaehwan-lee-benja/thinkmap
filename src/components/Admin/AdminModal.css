@@ -241,6 +241,55 @@
   border-color: var(--color-amber-border-hover);
 }
 
+/* 섹션 설명 */
+.admin-section-desc {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin: -4px 0 12px;
+  line-height: 1.4;
+}
+
+/* 연결 계정 추가 폼 */
+.linked-add-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.linked-arrow {
+  font-size: 16px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+/* 연결 계정 목록 아이템 */
+.linked-item {
+  padding: 10px 16px;
+}
+
+.linked-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.linked-email {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.linked-arrow-display {
+  font-size: 14px;
+  color: rgba(96, 165, 250, 0.7);
+  flex-shrink: 0;
+}
+
 /* 반응형 - 모바일 */
 @media (max-width: 768px) {
   .add-user-form {
@@ -281,6 +330,18 @@
 
   .refresh-button {
     min-height: 36px;
+  }
+
+  .linked-add-form {
+    flex-direction: column;
+  }
+
+  .linked-arrow {
+    display: none;
+  }
+
+  .linked-info {
+    flex-wrap: wrap;
   }
 }
 

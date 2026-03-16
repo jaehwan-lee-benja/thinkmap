@@ -8,6 +8,7 @@ import { useAuth } from './hooks/useAuth'
 import { useUserPreferences } from './hooks/useUserPreferences'
 import { useTabs } from './hooks/useTabs'
 import { useUsers } from './hooks/useUsers'
+import { useLinkedAccounts, useLinkedAccountsAdmin } from './hooks/useLinkedAccounts'
 import { PaneProvider, usePaneData } from './components/PaneProvider'
 import { usePageContext } from './contexts/PageContext'
 import { useProjectContext } from './contexts/ProjectContext'
@@ -169,6 +170,10 @@ function App() {
   const { users, usersLoading, fetchUsers, addUser, updateUserRole, updateUserStatus, deleteUser } =
     useUsers(session, isMaster)
 
+  // 연결 계정
+  const { linkedAccounts } = useLinkedAccounts(session)
+  const linkedAdmin = useLinkedAccountsAdmin(session, isMaster)
+
   // 삭제 토스트 상태
   const [deleteToast, setDeleteToast] = useState(null)
 
@@ -231,6 +236,10 @@ function App() {
 
   const isImpersonating = !!activeTabForAuth?.impersonatedUserId
   const impersonatedEmail = activeTabForAuth?.impersonatedUserEmail || null
+  // 연결 계정으로 전환한 경우인지 확인 (쓰기 허용)
+  const isLinkedAccountSwitch = isImpersonating && linkedAccounts.some(
+    la => la.linked_email === impersonatedEmail
+  )
   const userEmail = impersonatedEmail || session?.user?.email
   const userAvatarUrl = isImpersonating
     ? null
@@ -256,14 +265,17 @@ function App() {
     prefs.clearLastImpersonation()
   }, [updateTabInPane, activePaneIndex, prefs.clearLastImpersonation])
 
+  const ownEmail = session?.user?.email
   const authCtx = useMemo(() => ({
-    userEmail, userAvatarUrl,
+    userEmail, ownEmail, userAvatarUrl,
     handleLogout, isMaster,
     isImpersonating, impersonatedEmail,
+    isLinkedAccountSwitch,
+    linkedAccounts, linkedAdmin,
     startImpersonation: handleStartImpersonation,
     stopImpersonation: handleStopImpersonation,
     users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers,
-  }), [userEmail, userAvatarUrl, handleLogout, isMaster, isImpersonating, impersonatedEmail, handleStartImpersonation, handleStopImpersonation, users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers])
+  }), [userEmail, ownEmail, userAvatarUrl, handleLogout, isMaster, isImpersonating, impersonatedEmail, isLinkedAccountSwitch, linkedAccounts, linkedAdmin, handleStartImpersonation, handleStopImpersonation, users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers])
 
   // 인증 화면
   const authScreen = GoogleAuthButton({ authLoading, session, handleGoogleLogin })
@@ -293,6 +305,7 @@ function App() {
         prefs={prefs}
         updateTab={(fields) => updateTabInPane(paneIndex, fields)}
         users={users}
+        linkedAccounts={linkedAccounts}
         ownEmail={session?.user?.email}
         onDeletePage={(pageName, undoFn) => setDeleteToast({ key: Date.now(), pageName, undoFn })}
       >

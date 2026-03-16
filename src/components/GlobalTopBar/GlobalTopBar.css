@@ -157,6 +157,77 @@
   background: rgba(239, 68, 68, 0.08);
 }
 
+/* 계정 전환 드롭다운 */
+.topbar-account-switcher {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.topbar-account-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.topbar-account-btn .topbar-email {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.topbar-account-linked {
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 4px;
+}
+
+.topbar-account-linked .topbar-email {
+  color: rgba(96, 165, 250, 0.9);
+}
+
+.topbar-account-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--color-bg-secondary, #1a1a1a);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px;
+  min-width: 220px;
+  z-index: 300;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.topbar-account-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.1s ease;
+}
+
+.topbar-account-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.account-option-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.account-option-email {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* =====================================================
    모바일
    ===================================================== */

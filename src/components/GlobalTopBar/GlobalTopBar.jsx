@@ -1,18 +1,47 @@
-import React, { useState } from 'react'
-import { Shield } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { Shield, ChevronDown } from 'lucide-react'
 import AdminModal from '../Admin/AdminModal'
 import { useAuthContext } from '../../contexts/AuthContext'
 import './GlobalTopBar.css'
 
 export function GlobalTopBar({ splitMode, onSplitToggle }) {
   const {
-    userEmail, userAvatarUrl, handleLogout, isMaster,
+    userEmail, ownEmail, userAvatarUrl, handleLogout, isMaster,
     isImpersonating, impersonatedEmail, stopImpersonation,
+    isLinkedAccountSwitch, linkedAccounts,
     users, usersLoading, addUser, updateUserRole, updateUserStatus, deleteUser, fetchUsers,
     startImpersonation,
   } = useAuthContext()
 
   const [adminModalOpen, setAdminModalOpen] = useState(false)
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!accountDropdownOpen) return
+    const handleClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setAccountDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [accountDropdownOpen])
+
+  const hasLinkedAccounts = linkedAccounts && linkedAccounts.length > 0
+  // 현재 표시할 이메일: 연결 계정 사용 중이면 해당 이메일, 아니면 원래 이메일
+  const displayEmail = userEmail || 'User'
+
+  const handleSwitchAccount = (la) => {
+    startImpersonation(la.linked_auth_uid, la.linked_email)
+    setAccountDropdownOpen(false)
+  }
+
+  const handleBackToOwnAccount = () => {
+    stopImpersonation()
+    setAccountDropdownOpen(false)
+  }
 
   return (
     <>
@@ -47,9 +76,59 @@ export function GlobalTopBar({ splitMode, onSplitToggle }) {
             </button>
           )}
 
-          <div className="topbar-user">
-            <span className="topbar-email">{userEmail || 'User'}</span>
-          </div>
+          {/* 계정 전환 드롭다운 (연결 계정이 있을 때) */}
+          {hasLinkedAccounts ? (
+            <div className="topbar-account-switcher" ref={dropdownRef}>
+              <button
+                className={`topbar-button topbar-account-btn ${isLinkedAccountSwitch ? 'topbar-account-linked' : ''}`}
+                onClick={() => setAccountDropdownOpen(prev => !prev)}
+                title="계정 전환"
+              >
+                <span className="topbar-email">{displayEmail}</span>
+                <ChevronDown size={12} />
+              </button>
+              {accountDropdownOpen && (
+                <div className="topbar-account-dropdown">
+                  {isLinkedAccountSwitch && (
+                    <button
+                      className="topbar-account-option"
+                      onClick={handleBackToOwnAccount}
+                    >
+                      <span className="account-option-label">내 계정</span>
+                      <span className="account-option-email">{ownEmail}</span>
+                    </button>
+                  )}
+                  {!isLinkedAccountSwitch && linkedAccounts.map(la => (
+                    <button
+                      key={la.linked_email}
+                      className="topbar-account-option"
+                      onClick={() => handleSwitchAccount(la)}
+                    >
+                      <span className="account-option-label">공용 계정</span>
+                      <span className="account-option-email">{la.linked_email}</span>
+                    </button>
+                  ))}
+                  {isLinkedAccountSwitch && linkedAccounts
+                    .filter(la => la.linked_email !== impersonatedEmail)
+                    .map(la => (
+                      <button
+                        key={la.linked_email}
+                        className="topbar-account-option"
+                        onClick={() => handleSwitchAccount(la)}
+                      >
+                        <span className="account-option-label">공용 계정</span>
+                        <span className="account-option-email">{la.linked_email}</span>
+                      </button>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="topbar-user">
+              <span className="topbar-email">{displayEmail}</span>
+            </div>
+          )}
 
           <button
             className="topbar-button topbar-logout"

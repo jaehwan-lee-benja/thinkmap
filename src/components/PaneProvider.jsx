@@ -27,6 +27,7 @@ export function PaneProvider({
   prefs,
   updateTab,
   users,
+  linkedAccounts = [],
   ownEmail,
   onDeletePage,
   children,
@@ -43,7 +44,12 @@ export function PaneProvider({
     }
   }, [session, activeTab?.impersonatedUserId, activeTab?.impersonatedUserEmail])
 
-  const isImpersonating = !!activeTab?.impersonatedUserId
+  const isActingAsOther = !!activeTab?.impersonatedUserId
+  // 연결 계정 전환인 경우 쓰기 허용 (isImpersonating = false로 처리)
+  const isLinkedAccountSwitch = isActingAsOther && linkedAccounts.some(
+    la => la.linked_email === activeTab?.impersonatedUserEmail
+  )
+  const isImpersonating = isActingAsOther && !isLinkedAccountSwitch
 
   // Stable ref for isImpersonating (callbacks에서 stale closure 방지)
   const isImpersonatingRef = useRef(false)
@@ -259,9 +265,10 @@ export function PaneProvider({
   }, [projects, pages, activeTab?.projectId, activeTab?.pageId])
 
   // ─── Breadcrumb functions ───
+  const hasLinkedAccounts = linkedAccounts.length > 0
   const buildBreadcrumb = useCallback((tab) => {
     const parts = []
-    if (isMaster) {
+    if (isMaster || hasLinkedAccounts) {
       const email = tab.impersonatedUserEmail || ownEmail || 'User'
       const label = email.split('@')[0]
       parts.push({ type: 'user', id: tab.impersonatedUserId || null, name: label })
@@ -291,15 +298,21 @@ export function PaneProvider({
       parts.push({ type: 'page', id: null, name: '페이지 선택', parentId: null })
     }
     return parts
-  }, [projects, pages, isMaster, ownEmail])
+  }, [projects, pages, isMaster, hasLinkedAccounts, ownEmail])
 
   const getBreadcrumbSiblings = useCallback((part) => {
     if (part.type === 'user') {
       const list = []
       if (ownEmail) list.push({ id: null, name: ownEmail.split('@')[0], email: ownEmail })
-      if (users) {
+      if (isMaster && users) {
+        // 마스터: 모든 사용자 표시
         users.forEach(u => {
           if (u.email !== ownEmail) list.push({ id: u.id, name: u.email.split('@')[0], email: u.email })
+        })
+      } else if (linkedAccounts.length > 0) {
+        // 일반 사용자: 연결 계정만 표시
+        linkedAccounts.forEach(la => {
+          list.push({ id: la.linked_auth_uid, name: la.linked_email.split('@')[0], email: la.linked_email })
         })
       }
       return list
@@ -314,7 +327,7 @@ export function PaneProvider({
         .map(p => ({ id: p.id, name: p.name }))
     }
     return []
-  }, [projects, pages, users, ownEmail])
+  }, [projects, pages, users, linkedAccounts, isMaster, ownEmail])
 
   const handleBreadcrumbNavigate = useCallback((type, id) => {
     if (type === 'user') {
@@ -322,15 +335,20 @@ export function PaneProvider({
         updateTab({ impersonatedUserId: null, impersonatedUserEmail: null, projectId: null, pageId: null })
         prefs.clearLastImpersonation()
       } else {
-        const user = users?.find(u => u.id === id)
-        if (user) {
+        // 마스터: app_users에서 찾기
+        const user = users?.find(u => (u.auth_uid || u.id) === id || u.id === id)
+        // 연결 계정에서 찾기
+        const linked = linkedAccounts.find(la => la.linked_auth_uid === id)
+        const targetUid = user ? (user.auth_uid || user.id) : linked?.linked_auth_uid
+        const targetEmail = user?.email || linked?.linked_email
+        if (targetUid && targetEmail) {
           updateTab({
-            impersonatedUserId: user.auth_uid || user.id,
-            impersonatedUserEmail: user.email,
+            impersonatedUserId: targetUid,
+            impersonatedUserEmail: targetEmail,
             projectId: null,
             pageId: null,
           })
-          prefs.saveLastImpersonation(user.auth_uid || user.id, user.email)
+          prefs.saveLastImpersonation(targetUid, targetEmail)
         }
       }
     } else if (type === 'project') {
@@ -338,7 +356,7 @@ export function PaneProvider({
     } else if (type === 'page') {
       setCurrentPageId(id)
     }
-  }, [setCurrentProjectId, setCurrentPageId, updateTab, users, prefs])
+  }, [setCurrentProjectId, setCurrentPageId, updateTab, users, linkedAccounts, prefs])
 
   // ─── Context values ───
   const projectCtx = useMemo(() => ({
@@ -368,6 +386,7 @@ export function PaneProvider({
   const paneData = useMemo(() => ({
     effectiveSession,
     isImpersonating,
+    isLinkedAccountSwitch,
     projectsLoading,
     pagesLoading,
     projects,
@@ -375,7 +394,7 @@ export function PaneProvider({
     getBreadcrumbSiblings,
     handleBreadcrumbNavigate,
     activeTab,
-  }), [effectiveSession, isImpersonating, projectsLoading, pagesLoading, projects, buildBreadcrumb, getBreadcrumbSiblings, handleBreadcrumbNavigate, activeTab])
+  }), [effectiveSession, isImpersonating, isLinkedAccountSwitch, projectsLoading, pagesLoading, projects, buildBreadcrumb, getBreadcrumbSiblings, handleBreadcrumbNavigate, activeTab])
 
   return (
     <PaneDataContext.Provider value={paneData}>

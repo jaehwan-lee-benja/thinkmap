@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { Users, UserPlus, Shield } from 'lucide-react'
+import { Users, UserPlus, Shield, Link2, Trash2 } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
+import { useAuthContext } from '../../contexts/AuthContext'
 import { Modal, ModalHeader, ModalBody } from '../Common/Modal/Modal'
 import './AdminModal.css'
 
@@ -16,8 +17,20 @@ function AdminModal({
   onRefresh,
   onStartImpersonation,
 }) {
+  const { linkedAdmin } = useAuthContext()
+  const {
+    allLinkedAccounts, loading: linkedLoading,
+    fetchAll: refreshLinked,
+    addLinkedAccount, updatePermission, deleteLinkedAccount,
+  } = linkedAdmin
+
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState('user')
+
+  // 연결 계정 추가 폼
+  const [linkPrimary, setLinkPrimary] = useState('')
+  const [linkLinked, setLinkLinked] = useState('')
+  const [linkPermission, setLinkPermission] = useState('editor')
 
   const handleAddUser = async (e) => {
     e.preventDefault()
@@ -49,6 +62,28 @@ function AdminModal({
     onClose()
   }
 
+  const handleAddLinkedAccount = async (e) => {
+    e.preventDefault()
+    if (!linkPrimary.trim() || !linkLinked.trim()) return
+    if (linkPrimary.trim().toLowerCase() === linkLinked.trim().toLowerCase()) {
+      alert('같은 이메일끼리는 연결할 수 없습니다.')
+      return
+    }
+
+    const result = await addLinkedAccount(linkPrimary.trim(), linkLinked.trim(), linkPermission)
+    if (result) {
+      setLinkPrimary('')
+      setLinkLinked('')
+      setLinkPermission('editor')
+    }
+  }
+
+  const handleDeleteLinked = async (la) => {
+    if (window.confirm(`${la.primary_email} → ${la.linked_email} 연결을 삭제하시겠습니까?`)) {
+      await deleteLinkedAccount(la.id)
+    }
+  }
+
   const getRoleLabel = (role) => {
     switch (role) {
       case 'master': return '마스터'
@@ -64,6 +99,14 @@ function AdminModal({
       case 'invited': return '초대됨'
       case 'inactive': return '비활성'
       default: return status
+    }
+  }
+
+  const getPermissionLabel = (perm) => {
+    switch (perm) {
+      case 'editor': return '편집'
+      case 'viewer': return '보기'
+      default: return perm
     }
   }
 
@@ -149,6 +192,81 @@ function AdminModal({
                         </button>
                       </>
                     )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 연결 계정 관리 */}
+        <div className="admin-section">
+          <div className="admin-section-header">
+            <Link2 size={16} />
+            <span>연결 계정</span>
+            <button className="refresh-button" onClick={refreshLinked}>새로고침</button>
+          </div>
+
+          <p className="admin-section-desc">
+            사용자가 다른 계정의 데이터에 접근할 수 있도록 연결합니다.
+          </p>
+
+          <form className="linked-add-form" onSubmit={handleAddLinkedAccount}>
+            <input
+              type="email"
+              placeholder="로그인 이메일 (사용자)"
+              value={linkPrimary}
+              onChange={(e) => setLinkPrimary(e.target.value)}
+              className="add-user-input"
+            />
+            <span className="linked-arrow">→</span>
+            <input
+              type="email"
+              placeholder="대상 이메일 (접근할 계정)"
+              value={linkLinked}
+              onChange={(e) => setLinkLinked(e.target.value)}
+              className="add-user-input"
+            />
+            <select
+              value={linkPermission}
+              onChange={(e) => setLinkPermission(e.target.value)}
+              className="add-user-role"
+            >
+              <option value="editor">편집</option>
+              <option value="viewer">보기</option>
+            </select>
+            <button type="submit" className="add-user-button">연결</button>
+          </form>
+
+          {linkedLoading ? (
+            <div className="users-loading">로딩 중...</div>
+          ) : allLinkedAccounts.length === 0 ? (
+            <div className="users-empty">등록된 연결 계정이 없습니다.</div>
+          ) : (
+            <div className="users-list linked-list">
+              {allLinkedAccounts.map((la) => (
+                <div key={la.id} className="user-item linked-item">
+                  <div className="linked-info">
+                    <span className="linked-email">{la.primary_email}</span>
+                    <span className="linked-arrow-display">→</span>
+                    <span className="linked-email">{la.linked_email}</span>
+                  </div>
+                  <div className="user-actions">
+                    <select
+                      value={la.permission}
+                      onChange={(e) => updatePermission(la.id, e.target.value)}
+                      className="user-role-select"
+                    >
+                      <option value="editor">편집</option>
+                      <option value="viewer">보기</option>
+                    </select>
+                    <button
+                      className="user-delete-button"
+                      onClick={() => handleDeleteLinked(la)}
+                      title="연결 삭제"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               ))}
