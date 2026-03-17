@@ -148,6 +148,7 @@ export const useTabs = (prefs) => {
         pageId: 'pageId' in opts ? opts.pageId : (current?.pageId ?? null),
         impersonatedUserId: 'impersonatedUserId' in opts ? opts.impersonatedUserId : (current?.impersonatedUserId ?? null),
         impersonatedUserEmail: 'impersonatedUserEmail' in opts ? opts.impersonatedUserEmail : (current?.impersonatedUserEmail ?? null),
+        viewerMode: 'viewerMode' in opts ? opts.viewerMode : (current?.viewerMode ?? false),
       }
       const newPanes = prev.map((p, i) =>
         i === pi
@@ -172,7 +173,7 @@ export const useTabs = (prefs) => {
           newActiveId = (idx > 0 ? pane.tabs[idx - 1] : pane.tabs[idx + 1])?.id || newTabs[0]?.id
         } else {
           // 마지막 탭 닫으면 빈 탭 생성
-          const emptyTab = { id: generateTabId(), projectId: null, pageId: null, impersonatedUserId: null, impersonatedUserEmail: null }
+          const emptyTab = { id: generateTabId(), projectId: null, pageId: null, impersonatedUserId: null, impersonatedUserEmail: null, viewerMode: false }
           newTabs.push(emptyTab)
           newActiveId = emptyTab.id
         }
@@ -257,6 +258,7 @@ export const useTabs = (prefs) => {
           pageId: current?.pageId ?? null,
           impersonatedUserId: current?.impersonatedUserId ?? null,
           impersonatedUserEmail: current?.impersonatedUserEmail ?? null,
+          viewerMode: current?.viewerMode ?? false,
         }
         const newPanes = [prev[0], { tabs: [newTab], activeTabId: newTab.id }]
         setSplitMode(true)
@@ -308,7 +310,7 @@ export const useTabs = (prefs) => {
           srcActiveId = srcTabs[Math.min(tabIndex, srcTabs.length - 1)]?.id
         } else {
           // 원본 패널이 비면 빈 탭 생성
-          const emptyTab = { id: generateTabId(), projectId: null, pageId: null, impersonatedUserId: null, impersonatedUserEmail: null }
+          const emptyTab = { id: generateTabId(), projectId: null, pageId: null, impersonatedUserId: null, impersonatedUserEmail: null, viewerMode: false }
           srcTabs.push(emptyTab)
           srcActiveId = emptyTab.id
         }

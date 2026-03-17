@@ -48,11 +48,11 @@ export function GlobalTopBar({ splitMode, onSplitToggle }) {
       <div className="global-topbar">
         <div className="topbar-left">
           <span className="topbar-app-name">ThinkMap</span>
-          {isImpersonating && !isLinkedAccountSwitch && (
+          {isImpersonating && (
             <div className="topbar-impersonation">
               <span className="topbar-viewer-badge">뷰어 모드</span>
               <span>{impersonatedEmail}</span>
-              <button onClick={stopImpersonation}>돌아가기</button>
+              <button onClick={stopImpersonation}>뷰어 종료하기</button>
             </div>
           )}
         </div>

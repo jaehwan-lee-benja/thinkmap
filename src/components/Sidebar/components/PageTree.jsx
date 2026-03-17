@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useEditableField } from '../../../hooks/useEditableField'
+import { TemplateSelectModal } from './TemplateSelectModal'
 
 export function PageTree({
   pages,
@@ -17,6 +18,10 @@ export function PageTree({
 }) {
   const editing = useEditableField(onPageRename)
   const [expandedPages, setExpandedPages] = useState(savedExpandedPages)
+
+  // 양식 선택 모달 상태
+  const [templateModalOpen, setTemplateModalOpen] = useState(false)
+  const [pendingParentId, setPendingParentId] = useState(null)
 
   // 드래그 상태
   const [dragId, setDragId] = useState(null)
@@ -60,27 +65,28 @@ export function PageTree({
     }
   }
 
-  const handleCreateSubPage = async (parentId, e) => {
+  const handleCreateSubPage = (parentId, e) => {
     e.stopPropagation()
-    const name = prompt('하위 페이지 이름을 입력하세요:', 'Untitled')
-    if (name) {
-      const newPage = await onPageCreate(name, parentId)
-      if (newPage) {
-        const updated = { ...expandedPages, [parentId]: true }
-        setExpandedPages(updated)
-        onExpandedPagesChange?.(updated)
-        onPageSelect(newPage.id)
-      }
-    }
+    setPendingParentId(parentId)
+    setTemplateModalOpen(true)
   }
 
-  const handleCreatePage = async () => {
-    const name = prompt('새 페이지 이름을 입력하세요:', 'Untitled')
-    if (name) {
-      const newPage = await onPageCreate(name)
-      if (newPage) {
-        onPageSelect(newPage.id)
+  const handleCreatePage = () => {
+    setPendingParentId(null)
+    setTemplateModalOpen(true)
+  }
+
+  const handleTemplateConfirm = async (name, template) => {
+    setTemplateModalOpen(false)
+    const content = template?.getContent?.() || null
+    const newPage = await onPageCreate(name, pendingParentId, content)
+    if (newPage) {
+      if (pendingParentId) {
+        const updated = { ...expandedPages, [pendingParentId]: true }
+        setExpandedPages(updated)
+        onExpandedPagesChange?.(updated)
       }
+      onPageSelect(newPage.id)
     }
   }
 
@@ -315,6 +321,12 @@ export function PageTree({
       <button className="add-page-button" onClick={handleCreatePage}>
         + 새 페이지
       </button>
+
+      <TemplateSelectModal
+        isOpen={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        onConfirm={handleTemplateConfirm}
+      />
     </>
   )
 }

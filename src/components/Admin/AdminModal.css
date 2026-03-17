@@ -232,6 +232,46 @@
   color: var(--color-danger);
 }
 
+/* 활동 중 표시 */
+.user-item-acting {
+  background: var(--color-amber-bg);
+  flex-wrap: wrap;
+}
+
+.acting-banner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--color-amber-border);
+  margin-bottom: 4px;
+}
+
+.acting-banner-indicator {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-amber-text);
+}
+
+.acting-stop-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border: 1px solid var(--color-danger-text);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.acting-stop-btn:hover {
+  background: var(--color-danger-bg-hover);
+  color: var(--color-danger);
+}
+
 .user-impersonate-button {
   padding: 6px 10px;
   background: var(--color-amber-bg);
@@ -244,10 +284,15 @@
   white-space: nowrap;
 }
 
-.user-impersonate-button:hover {
+.user-impersonate-button:hover:not(:disabled) {
   background: var(--color-amber-bg-hover);
   color: var(--color-amber);
   border-color: var(--color-amber-border-hover);
+}
+
+.user-impersonate-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* 섹션 설명 */

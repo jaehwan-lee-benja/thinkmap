@@ -17,7 +17,7 @@ function AdminModal({
   onRefresh,
   onStartImpersonation,
 }) {
-  const { linkedAdmin } = useAuthContext()
+  const { linkedAdmin, isImpersonating, impersonatedEmail, stopImpersonation } = useAuthContext()
   const {
     allLinkedAccounts, loading: linkedLoading,
     fetchAll: refreshLinked,
@@ -58,7 +58,7 @@ function AdminModal({
       return
     }
 
-    onStartImpersonation(authUid, user.email)
+    onStartImpersonation(authUid, user.email, true)
     onClose()
   }
 
@@ -155,8 +155,18 @@ function AdminModal({
             <div className="users-empty">등록된 사용자가 없습니다.</div>
           ) : (
             <div className="users-list">
-              {users.map((user) => (
-                <div key={user.id} className="user-item">
+              {users.map((user) => {
+                const isActing = isImpersonating && impersonatedEmail === user.email
+                return (
+                <div key={user.id} className={`user-item ${isActing ? 'user-item-acting' : ''}`}>
+                  {isActing && (
+                    <div className="acting-banner">
+                      <span className="acting-banner-indicator">⬇ 이 계정으로 활동하기 중</span>
+                      <button className="acting-stop-btn" onClick={() => { stopImpersonation(); onClose() }}>
+                        뷰어 종료하기
+                      </button>
+                    </div>
+                  )}
                   <div className="user-info">
                     <div className="user-email">{user.email}</div>
                     <div className="user-meta">
@@ -184,7 +194,11 @@ function AdminModal({
                     </select>
                     {user.role !== 'master' && (
                       <>
-                        <button className="user-impersonate-button" onClick={() => handleActAsUser(user)}>
+                        <button
+                          className="user-impersonate-button"
+                          onClick={() => handleActAsUser(user)}
+                          disabled={isActing}
+                        >
                           활동하기
                         </button>
                         <button className="user-delete-button" onClick={() => handleDeleteUser(user)}>
@@ -194,7 +208,8 @@ function AdminModal({
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

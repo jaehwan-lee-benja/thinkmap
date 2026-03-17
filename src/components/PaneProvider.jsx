@@ -45,11 +45,10 @@ export function PaneProvider({
   }, [session, activeTab?.impersonatedUserId, activeTab?.impersonatedUserEmail])
 
   const isActingAsOther = !!activeTab?.impersonatedUserId
-  // 연결 계정 전환인 경우 쓰기 허용 (isImpersonating = false로 처리)
-  const isLinkedAccountSwitch = isActingAsOther && linkedAccounts.some(
-    la => la.linked_email === activeTab?.impersonatedUserEmail
-  )
-  const isImpersonating = isActingAsOther && !isLinkedAccountSwitch
+  // 뷰어 모드 = 관리자 패널 "활동하기"로 진입한 경우만 (탭의 viewerMode 플래그)
+  const isImpersonating = !!activeTab?.viewerMode
+  // 연결 계정 전환 (편집 모드로 다른 계정 사용 중)
+  const isLinkedAccountSwitch = isActingAsOther && !isImpersonating
 
   // Stable ref for isImpersonating (callbacks에서 stale closure 방지)
   const isImpersonatingRef = useRef(false)
@@ -348,15 +347,34 @@ export function PaneProvider({
   const handleBreadcrumbNavigate = useCallback((type, id) => {
     if (type === 'user') {
       if (id === null) {
-        updateTab({ impersonatedUserId: null, impersonatedUserEmail: null, projectId: null, pageId: null })
+        updateTab({ impersonatedUserId: null, impersonatedUserEmail: null, viewerMode: false, projectId: null, pageId: null })
         prefs.clearLastImpersonation()
       } else {
+        // 연결 계정에서 찾기 (우선)
+        const linked = linkedAccounts.find(la => la.linked_auth_uid === id)
         // 마스터: app_users에서 찾기
         const user = users?.find(u => (u.auth_uid || u.id) === id || u.id === id)
-        // 연결 계정에서 찾기
-        const linked = linkedAccounts.find(la => la.linked_auth_uid === id)
-        const targetUid = user ? (user.auth_uid || user.id) : linked?.linked_auth_uid
-        const targetEmail = user?.email || linked?.linked_email
+
+        let targetUid, targetEmail
+        if (linked) {
+          // 연결 계정 직접 매칭 → 편집 모드 보장
+          targetUid = linked.linked_auth_uid
+          targetEmail = linked.linked_email
+        } else if (user) {
+          // app_users에서 찾은 경우, 연결 계정과 이메일 매칭 확인
+          const linkedByEmail = linkedAccounts.find(
+            la => la.linked_email === (user.email || '').toLowerCase()
+          )
+          if (linkedByEmail) {
+            // 연결 계정의 데이터 사용 → 편집 모드 보장
+            targetUid = linkedByEmail.linked_auth_uid
+            targetEmail = linkedByEmail.linked_email
+          } else {
+            targetUid = user.auth_uid || user.id
+            targetEmail = user.email
+          }
+        }
+
         if (targetUid && targetEmail) {
           updateTab({
             impersonatedUserId: targetUid,

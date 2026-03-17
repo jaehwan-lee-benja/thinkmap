@@ -236,21 +236,22 @@ function App() {
     t => t.id === panes[activePaneIndex]?.activeTabId
   ) || panes[activePaneIndex]?.tabs?.[0]
 
-  const isImpersonating = !!activeTabForAuth?.impersonatedUserId
+  // 뷰어 모드 = 관리자 패널 "활동하기"로 진입한 경우만 (탭의 viewerMode 플래그)
+  const isImpersonating = !!activeTabForAuth?.viewerMode
   const impersonatedEmail = activeTabForAuth?.impersonatedUserEmail || null
-  // 연결 계정으로 전환한 경우인지 확인 (쓰기 허용)
-  const isLinkedAccountSwitch = isImpersonating && linkedAccounts.some(
-    la => la.linked_email === impersonatedEmail
-  )
+  const isActingAsOther = !!activeTabForAuth?.impersonatedUserId
+  // 연결 계정 전환 (편집 모드로 다른 계정 사용 중)
+  const isLinkedAccountSwitch = isActingAsOther && !isImpersonating
   const userEmail = impersonatedEmail || session?.user?.email
-  const userAvatarUrl = isImpersonating
+  const userAvatarUrl = isActingAsOther
     ? null
     : session?.user?.user_metadata?.avatar_url || session?.user?.user_metadata?.picture
 
-  const handleStartImpersonation = useCallback((userId, userEmail) => {
+  const handleStartImpersonation = useCallback((userId, userEmail, viewerMode = false) => {
     updateTabInPane(activePaneIndex, {
       impersonatedUserId: userId,
       impersonatedUserEmail: userEmail,
+      viewerMode,
       projectId: null,
       pageId: null,
     })
@@ -261,6 +262,7 @@ function App() {
     updateTabInPane(activePaneIndex, {
       impersonatedUserId: null,
       impersonatedUserEmail: null,
+      viewerMode: false,
       projectId: null,
       pageId: null,
     })

@@ -180,8 +180,8 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }
 
-  // 새 페이지 생성 (parentId 지원)
-  const createPage = async (name = 'Untitled', parentId = null) => {
+  // 새 페이지 생성 (parentId 지원, 양식 content 지원)
+  const createPage = async (name = 'Untitled', parentId = null, contentTiptap = null) => {
     if (!session?.user?.id || !currentProjectId) return null
 
     try {
@@ -194,6 +194,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
         name,
         position: siblings.length,
         parent_id: parentId,
+        ...(contentTiptap ? { content_tiptap: contentTiptap } : {}),
       }
 
       const { error } = await supabase
