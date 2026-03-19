@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useEditableField } from '../../../hooks/useEditableField'
 import { TemplateSelectModal } from './TemplateSelectModal'
+import { useFavoritesContext } from '../../../contexts/FavoritesContext'
+import { useProjectContext } from '../../../contexts/ProjectContext'
 
 export function PageTree({
   pages,
@@ -18,6 +20,25 @@ export function PageTree({
 }) {
   const editing = useEditableField(onPageRename)
   const [expandedPages, setExpandedPages] = useState(savedExpandedPages)
+  const { isFavorite, toggleFavorite } = useFavoritesContext()
+  const { currentProjectId, projects } = useProjectContext()
+  const currentProjectName = projects.find(p => p.id === currentProjectId)?.name || ''
+
+  // ⋯ 더보기 메뉴 상태
+  const [openMenuId, setOpenMenuId] = useState(null)
+  const menuRef = useRef(null)
+
+  // 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!openMenuId) return
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [openMenuId])
 
   // 양식 선택 모달 상태
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
@@ -267,28 +288,71 @@ export function PageTree({
             <>
               <span className="page-icon">📄</span>
               <span className="page-name">{page.name}</span>
-              <div className="page-item-actions">
+              {/* 즐겨찾기 별 (항상 표시 - favorited일 때) */}
+              {isFavorite(page.id) && (
+                <span className="page-fav-indicator">★</span>
+              )}
+              {/* ⋯ 더보기 버튼 */}
+              <div className="page-more-wrap" ref={openMenuId === page.id ? menuRef : null}>
                 <button
-                  className="page-subpage-button"
-                  onClick={(e) => handleCreateSubPage(page.id, e)}
-                  title="하위 페이지 추가"
+                  className={`page-more-button ${openMenuId === page.id ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenMenuId(prev => prev === page.id ? null : page.id)
+                  }}
+                  title="더보기"
                 >
-                  +
+                  ⋯
                 </button>
-                <button
-                  className="page-share-button"
-                  onClick={(e) => onOpenShare('page', page.id, page.name, e)}
-                  title="페이지 공유"
-                >
-                  공유
-                </button>
-                <button
-                  className="page-delete-button"
-                  onClick={(e) => handleDeletePage(page.id, e)}
-                  title="페이지 삭제"
-                >
-                  🗑️
-                </button>
+                {openMenuId === page.id && (
+                  <div className="page-more-menu">
+                    <button
+                      className="page-more-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleFavorite(page.id, currentProjectId, page.name, currentProjectName)
+                        setOpenMenuId(null)
+                      }}
+                    >
+                      <span className="page-more-menu-icon">{isFavorite(page.id) ? '★' : '☆'}</span>
+                      <span>{isFavorite(page.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}</span>
+                    </button>
+                    <button
+                      className="page-more-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenMenuId(null)
+                        handleCreateSubPage(page.id, e)
+                      }}
+                    >
+                      <span className="page-more-menu-icon">+</span>
+                      <span>하위 페이지 추가</span>
+                    </button>
+                    <button
+                      className="page-more-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenMenuId(null)
+                        onOpenShare('page', page.id, page.name, e)
+                      }}
+                    >
+                      <span className="page-more-menu-icon">🔗</span>
+                      <span>공유</span>
+                    </button>
+                    <div className="page-more-menu-divider" />
+                    <button
+                      className="page-more-menu-item page-more-menu-danger"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenMenuId(null)
+                        handleDeletePage(page.id, e)
+                      }}
+                    >
+                      <span className="page-more-menu-icon">🗑️</span>
+                      <span>삭제</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}

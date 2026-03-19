@@ -1,11 +1,13 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import GoogleAuthButton from './components/Auth/GoogleAuthButton'
 import { GlobalTopBar } from './components/GlobalTopBar/GlobalTopBar'
 import Sidebar from './components/Sidebar/Sidebar'
 import { TabBar } from './components/TabBar/TabBar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
+import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
 import { useAuth } from './hooks/useAuth'
 import { useUserPreferences } from './hooks/useUserPreferences'
+import { useFavorites } from './hooks/useFavorites'
 import { useTabs } from './hooks/useTabs'
 import { useUsers } from './hooks/useUsers'
 import { useLinkedAccounts, useLinkedAccountsAdmin } from './hooks/useLinkedAccounts'
@@ -14,6 +16,7 @@ import { usePageContext } from './contexts/PageContext'
 import { useProjectContext } from './contexts/ProjectContext'
 import DeleteToast from './components/Common/DeleteToast'
 import AuthContext from './contexts/AuthContext'
+import FavoritesContext from './contexts/FavoritesContext'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -49,6 +52,7 @@ function PaneInner({
   reorderTab,
   moveTabToPane,
   tabsInitialized,
+  paneNavRef,
 }) {
   const {
     effectiveSession, isImpersonating, projectsLoading, pagesLoading,
@@ -58,6 +62,16 @@ function PaneInner({
 
   const { pages, currentPageId, setCurrentPageId, renamePage } = usePageContext()
   const { setCurrentProjectId } = useProjectContext()
+
+  // 즐겨찾기에서 네비게이션할 때 사용할 함수 등록
+  useEffect(() => {
+    if (paneNavRef) {
+      paneNavRef.current[paneIndex] = { setCurrentProjectId, setCurrentPageId }
+    }
+    return () => {
+      if (paneNavRef) delete paneNavRef.current[paneIndex]
+    }
+  }, [paneIndex, setCurrentProjectId, setCurrentPageId, paneNavRef])
 
   const tab = activeTab
   if (!tab) return null
@@ -175,6 +189,21 @@ function App() {
   // 연결 계정
   const { linkedAccounts } = useLinkedAccounts(session)
   const linkedAdmin = useLinkedAccountsAdmin(session, isMaster)
+
+  // 즐겨찾기
+  const favoritesHook = useFavorites(session)
+  const [favoritesOpen, setFavoritesOpen] = useState(false)
+  const paneNavRef = useRef({})
+
+  const handleFavoriteNavigate = useCallback((fav) => {
+    // 탭의 pageId를 먼저 업데이트 (프로젝트 전환 시 usePages의 initialPageId로 사용됨)
+    updateTabInPane(activePaneIndex, { projectId: fav.projectId, pageId: fav.pageId })
+    const nav = paneNavRef.current[activePaneIndex]
+    if (nav) {
+      nav.setCurrentProjectId(fav.projectId)
+      nav.setCurrentPageId(fav.pageId)
+    }
+  }, [updateTabInPane, activePaneIndex])
 
   // 삭제 토스트 상태
   const [deleteToast, setDeleteToast] = useState(null)
@@ -332,6 +361,7 @@ function App() {
             reorderTab={reorderTab}
             moveTabToPane={moveTabToPane}
             tabsInitialized={tabsInitialized}
+            paneNavRef={paneNavRef}
           />
         </div>
       </PaneProvider>
@@ -340,23 +370,34 @@ function App() {
 
   return (
     <AuthContext.Provider value={authCtx}>
+    <FavoritesContext.Provider value={favoritesHook}>
       <div className="app app-main">
         <GlobalTopBar splitMode={splitMode} onSplitToggle={toggleSplit} />
 
-        <div className={`container ${splitMode ? 'split-active' : ''}`}>
-          {splitMode ? (
-            <div className="split-container" ref={splitContainerRef}>
-              <div style={{ flex: `0 0 ${splitRatio * 100}%`, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-                {renderPane(0)}
+        <div className="app-body">
+          <FavoritesRail
+            isOpen={favoritesOpen}
+            onToggle={() => setFavoritesOpen(prev => !prev)}
+            favorites={favoritesHook.favorites}
+            onNavigate={handleFavoriteNavigate}
+            onRemoveFavorite={favoritesHook.removeFavorite}
+          />
+
+          <div className={`container ${splitMode ? 'split-active' : ''}`}>
+            {splitMode ? (
+              <div className="split-container" ref={splitContainerRef}>
+                <div style={{ flex: `0 0 ${splitRatio * 100}%`, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                  {renderPane(0)}
+                </div>
+                <div className="split-divider" onMouseDown={handleDividerMouseDown} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                  {renderPane(1)}
+                </div>
               </div>
-              <div className="split-divider" onMouseDown={handleDividerMouseDown} />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-                {renderPane(1)}
-              </div>
-            </div>
-          ) : (
-            renderPane(0)
-          )}
+            ) : (
+              renderPane(0)
+            )}
+          </div>
         </div>
 
         {/* 삭제 취소 토스트 */}
@@ -370,6 +411,7 @@ function App() {
           />
         )}
       </div>
+    </FavoritesContext.Provider>
     </AuthContext.Provider>
   )
 }

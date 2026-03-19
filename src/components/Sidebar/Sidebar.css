@@ -455,7 +455,7 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
-/* 하위 페이지 추가 버튼 */
+/* 하위 페이지 추가 버튼 (트리 인라인용 — 현재 더보기 메뉴로 이동됨, 프로젝트 모달 등에서 재사용 가능) */
 .page-subpage-button {
   display: flex;
   align-items: center;
@@ -557,9 +557,8 @@
   background-color: rgba(255, 255, 255, 0.12);
 }
 
-/* 프로젝트/페이지 액션 버튼 그룹 */
-.project-item-actions,
-.page-item-actions {
+/* 프로젝트 액션 버튼 그룹 */
+.project-item-actions {
   display: none;
   align-items: center;
   gap: 4px;
@@ -568,17 +567,121 @@
   padding-left: 12px;
 }
 
-.page-item:hover .page-item-actions {
+/* 즐겨찾기 인디케이터 (별) */
+.page-fav-indicator {
+  color: #f5c518;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+  line-height: 1;
+}
+
+/* ⋯ 더보기 래퍼 */
+.page-more-wrap {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* 즐겨찾기 인디케이터가 있으면 더보기 버튼은 auto 해제 */
+.page-fav-indicator + .page-more-wrap {
+  margin-left: 0;
+}
+
+/* ⋯ 더보기 버튼 */
+.page-more-button {
   display: flex;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05) 12px);
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 0;
+  line-height: 1;
+  transition: all 0.15s ease;
+  opacity: 0;
 }
 
-.page-item.active .page-item-actions {
-  background: linear-gradient(90deg, transparent, var(--color-primary-active) 12px);
+.page-item:hover .page-more-button,
+.page-more-button.active {
+  opacity: 1;
 }
 
-.page-item.active:hover .page-item-actions {
-  background: linear-gradient(90deg, transparent, var(--color-primary-active-hover) 12px);
+.page-more-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.page-more-button.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 드롭다운 메뉴 */
+.page-more-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 160px;
+  background: var(--color-bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  animation: dropdownAppear 0.12s ease-out;
+}
+
+.page-more-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 5px;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.page-more-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.page-more-menu-icon {
+  width: 18px;
+  text-align: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.page-more-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+
+.page-more-menu-danger {
+  color: rgba(239, 68, 68, 0.75);
+}
+
+.page-more-menu-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(239, 68, 68, 0.95);
 }
 
 /* 공유 버튼 */

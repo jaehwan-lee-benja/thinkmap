@@ -39,6 +39,14 @@
   flex-direction: column;
 }
 
+/* 메인 본문 (즐겨찾기 레일 + 컨테이너) */
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .container {
   width: 100%;
   margin: 0 auto;
@@ -50,6 +58,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  min-width: 0;
 }
 
 
