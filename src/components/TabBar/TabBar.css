@@ -302,18 +302,9 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* 액션 버튼 영역 */
-.tab-bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-  margin-left: 4px;
-  padding-bottom: 4px;
-}
-
-/* 추가 버튼 */
+/* 추가 버튼 — 마지막 탭 옆 구분선 */
 .tab-bar-add {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -328,6 +319,18 @@
   flex-shrink: 0;
   transition: all 0.15s ease;
   padding: 0;
+  margin-left: 2px;
+  align-self: center;
+}
+
+.tab-bar-add::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 25%;
+  height: 50%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .tab-bar-add:hover {

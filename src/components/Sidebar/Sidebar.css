@@ -304,6 +304,39 @@
 }
 
 /* 페이지 헤더 */
+/* 업무일지 고정 항목 */
+.sidebar-worklog-fixed {
+  padding: 8px 8px 0;
+}
+
+.sidebar-worklog-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.sidebar-worklog-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sidebar-worklog-btn.active {
+  background: rgba(100, 108, 255, 0.12);
+  color: var(--color-primary, #646cff);
+}
+
 .sidebar-pages-header {
   font-size: 11px;
   font-weight: 600;

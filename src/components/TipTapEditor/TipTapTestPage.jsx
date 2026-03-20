@@ -39,6 +39,7 @@ function extractToggleStates(docJSON) {
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
 import { supabase } from '../../supabaseClient'
+import { generateUUID } from '../../utils/uuid'
 import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
 import { tiptapToColumnBlocks, columnBlocksToTiptap } from './utils/columnViewUtils'
 import {
@@ -61,7 +62,13 @@ import {
 } from 'lucide-react'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePageContext } from '../../contexts/PageContext'
-import { FileText } from 'lucide-react'
+import { useProjectContext } from '../../contexts/ProjectContext'
+import { useFavoritesContext } from '../../contexts/FavoritesContext'
+import { useTemplateContext } from '../../contexts/TemplateContext'
+import { TemplateEditor } from '../TemplateEditor/TemplateEditor'
+import { TemplatePicker } from '../TemplateEditor/TemplatePicker'
+import { FileText, Star, ChevronDown, LayoutTemplate, X } from 'lucide-react'
+import { CalendarView } from '../CalendarView/CalendarView'
 import './TipTapPage.css'
 
 /**
@@ -86,6 +93,326 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const pageRef = useRef(null)
   const { isTablet } = useIsMobile()
   const { pages, setCurrentPageId, createPage, goBack, goForward, canGoBack, canGoForward } = usePageContext()
+  const { projects, currentProjectId } = useProjectContext()
+  const { toggleFavorite, isFavorite } = useFavoritesContext()
+  const templateCtx = useTemplateContext()
+
+  const currentPage = pages.find(p => p.id === currentPageId)
+
+  // ─── 양식 모드 상태 ───
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false)
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [sectionsContent, setSectionsContent] = useState({})
+  const [templateSections, setTemplateSections] = useState(null)
+  const sectionEditorRefs = useRef({})
+
+  // 현재 페이지의 양식 정보
+  const hasTemplate = !!currentPage?.template_id
+  const isForked = !!currentPage?.template_forked
+  const currentTemplateName = templateCtx?.templates?.find(t => t.id === currentPage?.template_id)?.name
+  const isTodoTemplate = currentTemplateName === '투두관리'
+
+  // 양식 섹션 구조 로드
+  useEffect(() => {
+    if (!currentPage?.template_id) {
+      setTemplateSections(null)
+      setSectionsContent({})
+      return
+    }
+
+    const loadSections = async () => {
+      if (currentPage.template_forked && currentPage.sections_content?._sections) {
+        // fork된 페이지: sections_content 안에 구조 포함
+        setTemplateSections(currentPage.sections_content._sections)
+      } else if (templateCtx) {
+        // 템플릿에서 구조 가져오기
+        const sections = await templateCtx.getTemplateSections(
+          currentPage.template_id,
+          currentPage.template_version
+        )
+        setTemplateSections(sections)
+      }
+
+      // 섹션별 콘텐츠 로드
+      if (currentPage.sections_content) {
+        const { _sections, ...contents } = currentPage.sections_content
+        setSectionsContent(contents)
+      }
+    }
+
+    loadSections()
+  }, [currentPage?.template_id, currentPage?.template_version, currentPage?.template_forked, currentPage?.sections_content])
+
+  // ─── 투두관리 Daily 페이지 ───
+  const today = new Date().toISOString().slice(0, 10)
+
+  // 현재 페이지가 투두 컨테이너인지, 데일리 페이지인지 판별
+  const parentPage = pages.find(p => p.id === currentPage?.parent_id)
+  const parentTemplateName = templateCtx?.templates?.find(t => t.id === parentPage?.template_id)?.name
+  const isTodoContainer = isTodoTemplate && !parentTemplateName?.includes('투두관리')
+  const isTodoDailyPage = parentTemplateName === '투두관리'
+
+  // 데일리 페이지면 페이지 이름에서 날짜 추출, 컨테이너면 오늘
+  const todoDate = isTodoDailyPage ? (currentPage?.name || today) : today
+
+  // 투두 컨테이너 → 오늘 날짜 페이지로 자동 이동
+  const todoAutoNavDone = useRef(false)
+  useEffect(() => {
+    if (!isTodoContainer || !currentPageId || !session || todoAutoNavDone.current) return
+    todoAutoNavDone.current = true
+
+    const navigateToDaily = async () => {
+      // 오늘 날짜의 하위 페이지 찾기
+      const dailyPage = pages.find(p => p.parent_id === currentPageId && p.name === today)
+      if (dailyPage) {
+        setCurrentPageId(dailyPage.id)
+        return
+      }
+
+      // 없으면 생성
+      const newPage = await createPage(today, currentPageId)
+      if (newPage) {
+        // 같은 템플릿 적용
+        if (currentPage?.template_id && templateCtx) {
+          await templateCtx.applyTemplateToPage(newPage.id, currentPage.template_id)
+        }
+        setCurrentPageId(newPage.id)
+      }
+    }
+
+    navigateToDaily()
+  }, [isTodoContainer, currentPageId, session, pages, today])
+
+  // 컨테이너 페이지 전환 시 autoNav 리셋
+  useEffect(() => {
+    todoAutoNavDone.current = false
+  }, [currentPageId])
+
+  // 날짜 변경 → 해당 날짜 데일리 페이지로 이동 (없으면 생성)
+  const handleTodoDateChange = useCallback(async (newDate) => {
+    if (!session || !currentPage) return
+
+    // 컨테이너 페이지 ID 결정
+    const containerId = isTodoContainer ? currentPageId : currentPage.parent_id
+    if (!containerId) return
+
+    // 해당 날짜 하위 페이지 찾기
+    const existing = pages.find(p => p.parent_id === containerId && p.name === newDate)
+    if (existing) {
+      setCurrentPageId(existing.id)
+      return
+    }
+
+    // 없으면 생성
+    const newPage = await createPage(newDate, containerId)
+    if (newPage) {
+      // 컨테이너의 템플릿 가져와서 적용
+      const container = pages.find(p => p.id === containerId) || currentPage
+      if (container?.template_id && templateCtx) {
+        await templateCtx.applyTemplateToPage(newPage.id, container.template_id)
+      }
+      setCurrentPageId(newPage.id)
+    }
+  }, [session, currentPage, currentPageId, isTodoContainer, pages, createPage, setCurrentPageId, templateCtx])
+
+  // 섹션 콘텐츠 저장 (debounced)
+  const saveSectionContent = useCallback(async (sectionId, newContent) => {
+    if (!currentPageId || !session || isImpersonating) return
+
+    setSectionsContent(prev => {
+      const updated = { ...prev, [sectionId]: newContent }
+
+      // DB 저장 (debounce는 개별 섹션에서 처리)
+      const toSave = currentPage?.template_forked
+        ? { ...updated, _sections: templateSections }
+        : updated
+
+      supabase
+        .from('pages')
+        .update({ sections_content: toSave, updated_at: new Date().toISOString() })
+        .eq('id', currentPageId)
+        .then(({ error }) => {
+          if (error) console.error('섹션 저장 오류:', error)
+        })
+
+      return updated
+    })
+  }, [currentPageId, session, isImpersonating, currentPage?.template_forked, templateSections])
+
+  // 인라인 섹션 추가
+  const addSectionInline = useCallback(async () => {
+    if (!templateSections || !currentPageId || !templateCtx) return
+
+    const newId = generateUUID()
+    const newSection = { id: newId, title: '일반 섹션', order: templateSections.length }
+    const newSections = [...templateSections, newSection]
+
+    // 로컬 즉시 반영
+    setTemplateSections(newSections)
+    setSectionsContent(prev => ({
+      ...prev,
+      [newId]: { type: 'doc', content: [{ type: 'paragraph', content: [] }] },
+    }))
+
+    // DB 저장 (fork 여부에 따라 분기)
+    if (currentPage?.template_forked) {
+      const toSave = { ...sectionsContent, [newId]: { type: 'doc', content: [{ type: 'paragraph', content: [] }] }, _sections: newSections }
+      await supabase.from('pages').update({ sections_content: toSave }).eq('id', currentPageId)
+    } else if (currentPage?.template_id) {
+      await templateCtx.applyToAll(currentPage.template_id, newSections)
+    }
+
+    // 새 섹션 제목에 포커스 (약간의 딜레이)
+    setTimeout(() => {
+      const el = document.querySelector(`[data-section-id="${newId}"] .template-section-title-input`)
+      if (el) { el.focus(); el.select() }
+    }, 100)
+  }, [templateSections, currentPageId, templateCtx, currentPage, sectionsContent])
+
+  // 인라인 섹션 삭제
+  const removeSectionInline = useCallback(async (sectionId) => {
+    if (!templateSections || templateSections.length <= 1 || !currentPageId || !templateCtx) return
+
+    const newSections = templateSections.filter(s => s.id !== sectionId).map((s, i) => ({ ...s, order: i }))
+
+    // 로컬 즉시 반영
+    setTemplateSections(newSections)
+    setSectionsContent(prev => {
+      const { [sectionId]: _, ...rest } = prev
+      return rest
+    })
+
+    // DB 저장
+    if (currentPage?.template_forked) {
+      const { [sectionId]: _, ...restContent } = sectionsContent
+      const toSave = { ...restContent, _sections: newSections }
+      await supabase.from('pages').update({ sections_content: toSave }).eq('id', currentPageId)
+    } else if (currentPage?.template_id) {
+      await templateCtx.applyToAll(currentPage.template_id, newSections)
+    }
+  }, [templateSections, currentPageId, templateCtx, currentPage, sectionsContent])
+
+  // 인라인 섹션 제목 변경
+  const renameSectionInline = useCallback(async (sectionId, newTitle) => {
+    if (!templateSections || !currentPageId || !templateCtx) return
+
+    const newSections = templateSections.map(s =>
+      s.id === sectionId ? { ...s, title: newTitle } : s
+    )
+
+    setTemplateSections(newSections)
+
+    // DB 저장
+    if (currentPage?.template_forked) {
+      const toSave = { ...sectionsContent, _sections: newSections }
+      await supabase.from('pages').update({ sections_content: toSave }).eq('id', currentPageId)
+    } else if (currentPage?.template_id) {
+      await templateCtx.applyToAll(currentPage.template_id, newSections)
+    }
+  }, [templateSections, currentPageId, templateCtx, currentPage, sectionsContent])
+
+  // 양식 편집 저장 핸들러
+  const handleTemplateSave = useCallback(async ({ name, sections, mode }) => {
+    if (!templateCtx) return
+    let success = false
+
+    if (mode === 'create') {
+      console.log('양식 생성 시작:', { name, sections })
+      const template = await templateCtx.createTemplate(name, sections)
+      console.log('양식 생성 결과:', template)
+      if (template) {
+        success = await templateCtx.applyTemplateToPage(currentPageId, template.id)
+        console.log('양식 적용 결과:', success)
+      }
+    } else if (mode === 'applyToAll') {
+      success = await templateCtx.applyToAll(currentPage?.template_id, sections)
+    } else if (mode === 'applyToThisOnly') {
+      success = await templateCtx.applyToThisOnly(currentPageId, sections, sectionsContent)
+    } else if (mode === 'applyFromNowOn') {
+      success = await templateCtx.applyFromNowOn(currentPage?.template_id, currentPageId, sections)
+    }
+
+    if (success) {
+      setShowTemplateEditor(false)
+      // 페이지 데이터 새로고침을 위해 강제 리로드
+      window.location.reload()
+    }
+  }, [templateCtx, currentPageId, currentPage?.template_id, sectionsContent])
+
+  // 양식 적용 핸들러 (picker에서 선택)
+  const handleTemplateSelect = useCallback(async (templateId) => {
+    if (!templateCtx) return
+    const success = await templateCtx.applyTemplateToPage(currentPageId, templateId)
+    if (success) {
+      setShowTemplatePicker(false)
+      window.location.reload()
+    }
+  }, [templateCtx, currentPageId])
+
+  // 기본 양식(프리셋) 선택 핸들러
+  const handlePresetSelect = useCallback(async (preset) => {
+    if (!templateCtx) return
+    // 프리셋의 섹션에 실제 UUID 부여 (fixed 섹션은 id 유지)
+    const sections = preset.sections.map((s, i) => ({
+      id: s.id || generateUUID(),
+      title: s.title,
+      order: i,
+      ...(s.fixed ? { fixed: true } : {}),
+    }))
+    const template = await templateCtx.createTemplate(preset.name, sections)
+    if (template) {
+      const success = await templateCtx.applyTemplateToPage(currentPageId, template.id)
+      if (success) {
+        setShowTemplatePicker(false)
+        window.location.reload()
+      }
+    }
+  }, [templateCtx, currentPageId])
+
+  // 양식 해제 핸들러
+  const handleRemoveTemplate = useCallback(async () => {
+    if (!templateCtx) return
+    if (!confirm('양식을 해제하시겠습니까?\n\n섹션 내용은 단일 에디터로 합쳐집니다.')) return
+
+    // 섹션 내용을 하나의 tiptap doc으로 병합
+    const mergedContent = { type: 'doc', content: [] }
+    if (templateSections && sectionsContent) {
+      templateSections.forEach(s => {
+        const sectionDoc = sectionsContent[s.id]
+        if (sectionDoc?.content) {
+          mergedContent.content.push(...sectionDoc.content)
+        }
+      })
+    }
+    if (mergedContent.content.length === 0) {
+      mergedContent.content.push({ type: 'paragraph', content: [] })
+    }
+
+    const success = await templateCtx.removeTemplateFromPage(currentPageId, mergedContent)
+    if (success) window.location.reload()
+  }, [templateCtx, currentPageId, templateSections, sectionsContent])
+
+  // 형제 페이지 드롭다운
+  const [showPageNav, setShowPageNav] = useState(false)
+  const pageNavRef = useRef(null)
+
+  const siblingPages = pages
+    .filter(p => p.parent_id === (currentPage?.parent_id ?? null) && p.id !== currentPageId)
+    .sort((a, b) => a.position - b.position)
+
+  useEffect(() => {
+    if (!showPageNav) return
+    const handleClick = (e) => {
+      if (pageNavRef.current && !pageNavRef.current.contains(e.target)) {
+        setShowPageNav(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showPageNav])
+
+  // 페이지 전환 시 드롭다운 닫기
+  useEffect(() => { setShowPageNav(false) }, [currentPageId])
 
   // 현재 페이지의 하위 페이지 목록
   const childPages = pages
@@ -180,8 +507,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
   // 버전 복구
   const restoreVersion = async (versionId) => {
-    if (!editorRef.current) return
-
     try {
       const { data, error } = await supabase
         .from('block_history')
@@ -198,7 +523,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         `이 버전으로 복구하시겠습니까?\n\n` +
         `저장 시각: ${new Date(data.created_at).toLocaleString('ko-KR')}\n` +
         `설명: ${data.description || '(설명 없음)'}\n\n` +
-        `현재 내용이 대체됩니다. 복구 전 현재 버전이 자동 저장됩니다.`
+        `현재 내용이 대체됩니다.${hasTemplate ? ' 양식도 해제됩니다.' : ''} 복구 전 현재 버전이 자동 저장됩니다.`
       )
 
       if (!confirmRestore) return
@@ -212,8 +537,34 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         restoredContent = JSON.parse(restoredContent)
       }
 
-      // 에디터에 적용
-      editorRef.current.commands.setContent(restoredContent)
+      // 양식이 적용된 페이지면 양식 해제 + content_tiptap 복구
+      if (hasTemplate) {
+        const { error: updateErr } = await supabase
+          .from('pages')
+          .update({
+            template_id: null,
+            template_version: null,
+            sections_content: null,
+            template_forked: false,
+            content_tiptap: restoredContent,
+          })
+          .eq('id', currentPageId)
+
+        if (updateErr) {
+          console.error('복구 오류:', updateErr)
+          alert('버전 복구 중 오류가 발생했습니다.')
+          return
+        }
+
+        setShowHistory(false)
+        window.location.reload()
+        return
+      }
+
+      // 일반 페이지: 에디터에 직접 적용
+      if (editorRef.current) {
+        editorRef.current.commands.setContent(restoredContent)
+      }
       setContent(restoredContent)
       setShowHistory(false)
 
@@ -797,6 +1148,67 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     return () => page.removeEventListener('mousedown', handleMouseDown, { capture: true })
   }, [])
 
+  /*
+   * 달력 뷰 분기: page_type === 'calendar'이면 CalendarView 렌더링
+   * [향후] 계정별 개인 업무일지 분리 시, dailyPages를 owner_id로 필터링
+   */
+  if (currentPage?.page_type === 'calendar') {
+    // 이 달력 페이지의 하위 페이지(daily) 목록
+    const dailyPages = pages.filter(p => p.parent_id === currentPageId)
+
+    const handleCreateDailyPage = async (dateKey) => {
+      const newPage = await createPage(dateKey, currentPageId)
+      if (newPage) {
+        // page_date와 page_type 설정
+        await supabase
+          .from('pages')
+          .update({ page_date: dateKey, page_type: 'daily' })
+          .eq('id', newPage.id)
+
+        // 투두관리 양식 적용
+        if (templateCtx) {
+          const todoTemplate = templateCtx.templates.find(t => t.name === '투두관리')
+          if (todoTemplate) {
+            await templateCtx.applyTemplateToPage(newPage.id, todoTemplate.id)
+          }
+        }
+
+        setCurrentPageId(newPage.id)
+      }
+    }
+
+    return (
+      <div className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
+        <div className="tiptap-page-inner">
+          <div className="tiptap-page-header">
+            <div className="tiptap-page-header-left">
+              {onToggleSidebar && (
+                <button
+                  className="content-sidebar-toggle"
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={onToggleSidebar}
+                  title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <h2 className="tiptap-page-title">{currentPageName || '업무일지'}</h2>
+            <div className="tiptap-header-actions" />
+          </div>
+
+          <CalendarView
+            dailyPages={dailyPages}
+            onPageSelect={(pageId) => setCurrentPageId(pageId)}
+            onCreateDailyPage={handleCreateDailyPage}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
       <div className="tiptap-page-inner">
@@ -853,6 +1265,53 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             }}
           >{currentPageName || '페이지'}</h2>
           <div className="tiptap-header-actions">
+            <div className="page-nav-dropdown-wrapper" ref={pageNavRef}>
+              <button
+                className={`tiptap-btn tiptap-btn-icon page-nav-chevron ${showPageNav ? 'open' : ''}`}
+                onClick={() => setShowPageNav(prev => !prev)}
+                title="다른 페이지로 이동"
+              >
+                <ChevronDown size={16} />
+              </button>
+              {showPageNav && (
+                <div className="page-nav-dropdown">
+                  <div className="page-nav-dropdown-header">페이지</div>
+                  <div className="page-nav-dropdown-list">
+                    {/* 현재 페이지 (강조) */}
+                    <button className="page-nav-dropdown-item current">
+                      <FileText size={14} />
+                      <span>{currentPageName || '페이지'}</span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" className="page-nav-dropdown-check">
+                        <path d="M2.5 6l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    {siblingPages.map(page => (
+                      <button
+                        key={page.id}
+                        className="page-nav-dropdown-item"
+                        onClick={() => setCurrentPageId(page.id)}
+                      >
+                        <FileText size={14} />
+                        <span>{page.name}</span>
+                      </button>
+                    ))}
+                    {siblingPages.length === 0 && (
+                      <div className="page-nav-dropdown-empty">다른 페이지가 없습니다</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                const projectName = projects?.find(p => p.id === currentProjectId)?.name || ''
+                toggleFavorite(currentPageId, currentProjectId, currentPageName, projectName)
+              }}
+              className={`tiptap-btn tiptap-btn-icon favorite-btn ${isFavorite(currentPageId) ? 'is-favorite' : ''}`}
+              title={isFavorite(currentPageId) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            >
+              <Star size={18} fill={isFavorite(currentPageId) ? 'currentColor' : 'none'} />
+            </button>
             {!isImpersonating && <button
               onClick={async () => {
                 if (!confirm('현재 버전을 저장하시겠습니까?\n\n저장된 내용은 히스토리에서 확인할 수 있습니다.')) return
@@ -895,6 +1354,21 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
                     <button onClick={() => { setShowToolbar(prev => !prev); setShowSettings(false) }}>
                       <PenLine size={16} /> {showToolbar ? '툴바 숨기기' : '툴바 보기'}
                     </button>
+                    <div className="settings-menu-divider" />
+                    {hasTemplate ? (
+                      <>
+                        <button onClick={() => { setShowTemplateEditor(true); setShowSettings(false) }}>
+                          <LayoutTemplate size={16} /> 양식 편집
+                        </button>
+                        <button onClick={() => { handleRemoveTemplate(); setShowSettings(false) }}>
+                          <X size={16} /> 양식 해제
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => { setShowTemplatePicker(true); setShowSettings(false) }}>
+                        <LayoutTemplate size={16} /> 양식 적용
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -1005,7 +1479,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           {!isImpersonating && <button
             className="child-page-card child-page-add"
             onClick={async () => {
-              const newPage = await createPage(currentPageId, '새 페이지')
+              const newPage = await createPage('새 페이지', currentPageId)
               if (newPage) setCurrentPageId(newPage.id)
             }}
           >
@@ -1015,21 +1489,116 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
         </div>
 
-        {/* 에디터 */}
-        <div className="tiptap-editor-wrapper">
-          {content ? (
-            <TipTapEditor
-              content={content}
-              onUpdate={handleUpdate}
-              placeholder="내용을 입력하세요..."
-              editorRef={editorRef}
-              isViewerMode={isImpersonating}
-              onViewerEditAttempt={showViewerToast}
-            />
-          ) : (
-            <div className="tiptap-loading">로딩 중...</div>
-          )}
-        </div>
+        {/* 투두 컨테이너 → 오늘 데일리 페이지로 자동 이동 중 */}
+        {isTodoContainer && (
+          <div className="tiptap-loading">오늘 페이지로 이동 중...</div>
+        )}
+
+        {/* 에디터 — 양식 모드 vs 일반 모드 */}
+        {!isTodoContainer && hasTemplate && templateSections ? (
+          <div className="template-sections">
+            {(isTodoTemplate || isTodoDailyPage) && (
+              <div className="todo-date-picker">
+                <label className="todo-date-label">날짜</label>
+                <input
+                  type="date"
+                  className="todo-date-input"
+                  value={todoDate}
+                  onChange={(e) => handleTodoDateChange(e.target.value)}
+                />
+                <button
+                  className="todo-date-today-btn"
+                  onClick={() => handleTodoDateChange(today)}
+                  disabled={todoDate === today}
+                >
+                  오늘
+                </button>
+              </div>
+            )}
+            {templateSections.map((section) => (
+              <div key={section.id} className="template-section" data-section-id={section.id}>
+                <div className="template-section-header">
+                  {!isImpersonating ? (
+                    <input
+                      className="template-section-title-input"
+                      value={section.title}
+                      onChange={(e) => {
+                        // 로컬 즉시 반영
+                        setTemplateSections(prev => prev.map(s =>
+                          s.id === section.id ? { ...s, title: e.target.value } : s
+                        ))
+                      }}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim()
+                        if (val && val !== section.title) {
+                          renameSectionInline(section.id, val)
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.target.blur()
+                      }}
+                      onCompositionEnd={(e) => {
+                        // 한글 조합 완료 후 값 동기화
+                        setTemplateSections(prev => prev.map(s =>
+                          s.id === section.id ? { ...s, title: e.target.value } : s
+                        ))
+                      }}
+                      placeholder="섹션 이름"
+                    />
+                  ) : (
+                    <span className="template-section-label">{section.title}</span>
+                  )}
+                  {!isImpersonating && templateSections.length > 1 && !section.fixed && (
+                    <button
+                      className="template-section-inline-delete"
+                      onClick={() => {
+                        if (confirm(`"${section.title}" 섹션을 삭제하시겠습니까?\n\n섹션 내용도 함께 삭제됩니다.`)) {
+                          removeSectionInline(section.id)
+                        }
+                      }}
+                      title="섹션 삭제"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                <div className="tiptap-editor-wrapper">
+                  <SectionEditor
+                    sectionId={section.id}
+                    content={sectionsContent[section.id] || null}
+                    onUpdate={(newContent) => saveSectionContent(section.id, newContent)}
+                    isViewerMode={isImpersonating}
+                    onViewerEditAttempt={showViewerToast}
+                    editorRefs={sectionEditorRefs}
+                  />
+                </div>
+              </div>
+            ))}
+            {!isImpersonating && (
+              <button
+                className="template-add-section-btn"
+                onClick={addSectionInline}
+              >
+                + 섹션 추가
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="tiptap-editor-wrapper">
+            {content ? (
+              <TipTapEditor
+                content={content}
+                onUpdate={handleUpdate}
+                placeholder="내용을 입력하세요..."
+                editorRef={editorRef}
+                isViewerMode={isImpersonating}
+                onViewerEditAttempt={showViewerToast}
+              />
+            ) : (
+              <div className="tiptap-loading">로딩 중...</div>
+            )}
+          </div>
+        )}
 
         {/* 뷰어 모드 토스트 */}
         {viewerToast && (
@@ -1105,7 +1674,97 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         />
       )}
 
+      {/* 양식 편집 모달 */}
+      {showTemplateEditor && (
+        <TemplateEditor
+          templateName={
+            hasTemplate
+              ? templateCtx?.templates?.find(t => t.id === currentPage?.template_id)?.name || ''
+              : ''
+          }
+          sections={templateSections || []}
+          isNew={!hasTemplate}
+          pageId={currentPageId}
+          templateId={currentPage?.template_id}
+          onSave={handleTemplateSave}
+          onCancel={() => setShowTemplateEditor(false)}
+        />
+      )}
+
+      {/* 양식 선택 다이얼로그 */}
+      {showTemplatePicker && (
+        <TemplatePicker
+          templates={templateCtx?.templates || []}
+          onSelect={handleTemplateSelect}
+          onSelectPreset={handlePresetSelect}
+          onDelete={(id) => templateCtx?.deleteTemplate(id)}
+          onCreateNew={() => {
+            setShowTemplatePicker(false)
+            setShowTemplateEditor(true)
+          }}
+          onClose={() => setShowTemplatePicker(false)}
+        />
+      )}
+
     </div>
+  )
+}
+
+/**
+ * SectionEditor — 양식 모드에서 개별 섹션의 TipTap 에디터
+ * 각 섹션이 독립적인 에디터 인스턴스를 가짐
+ */
+function SectionEditor({ sectionId, content, onUpdate, isViewerMode, onViewerEditAttempt, editorRefs }) {
+  const editorRef = useRef(null)
+  const [sectionContent, setSectionContent] = useState(content)
+  const debounceRef = useRef(null)
+
+  // 외부 content 변경 시 동기화
+  useEffect(() => {
+    if (content && !sectionContent) {
+      setSectionContent(content)
+    }
+  }, [content])
+
+  // ref 등록
+  useEffect(() => {
+    if (editorRefs) {
+      editorRefs.current[sectionId] = editorRef.current
+    }
+    return () => {
+      if (editorRefs) delete editorRefs.current[sectionId]
+    }
+  }, [sectionId, editorRefs])
+
+  const handleUpdate = useCallback((newContent) => {
+    if (isViewerMode) return
+    setSectionContent(newContent)
+
+    // debounce 저장 (500ms)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      onUpdate(newContent)
+    }, 500)
+  }, [isViewerMode, onUpdate])
+
+  // cleanup
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
+  const initialContent = sectionContent || { type: 'doc', content: [{ type: 'paragraph', content: [] }] }
+
+  return (
+    <TipTapEditor
+      content={initialContent}
+      onUpdate={handleUpdate}
+      placeholder="내용을 입력하세요..."
+      editorRef={editorRef}
+      isViewerMode={isViewerMode}
+      onViewerEditAttempt={onViewerEditAttempt}
+    />
   )
 }
 

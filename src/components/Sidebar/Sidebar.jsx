@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays } from 'lucide-react'
+import { supabase } from '../../supabaseClient'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
@@ -69,6 +70,67 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
 
         {/* 페이지 리스트 */}
         <div className="sidebar-content">
+          {/*
+            업무일지 고정 항목 — 모든 계정의 사이드바 최상단에 표시
+            [향후] 계정별 개인 업무일지 분리 시, 여기서 owner_id 기반 필터링 추가
+          */}
+          <div className="sidebar-worklog-fixed">
+            <button
+              className={`sidebar-worklog-btn ${currentPageId && pages.find(p => p.id === currentPageId)?.page_type === 'calendar' ? 'active' : ''}`}
+              onClick={async () => {
+                // page_type='calendar'인 페이지 찾기
+                let calendarPage = pages.find(p => p.page_type === 'calendar')
+
+                if (!calendarPage) {
+                  // DB에서 page_type='calendar' 확인
+                  const { data } = await supabase
+                    .from('pages')
+                    .select('id')
+                    .eq('project_id', currentProjectId)
+                    .eq('page_type', 'calendar')
+                    .limit(1)
+                    .single()
+
+                  if (data) {
+                    handlePageSelect(data.id)
+                    window.location.reload()
+                    return
+                  }
+
+                  // 이름이 "업무일지"인 기존 페이지를 calendar로 전환
+                  const existingByName = pages.find(p => p.name === '업무일지' && !p.parent_id)
+                  if (existingByName) {
+                    await supabase
+                      .from('pages')
+                      .update({ page_type: 'calendar' })
+                      .eq('id', existingByName.id)
+                    handlePageSelect(existingByName.id)
+                    window.location.reload()
+                    return
+                  }
+
+                  // 완전히 없으면 자동 생성
+                  const newPage = await createPage('업무일지', null, null)
+                  if (newPage) {
+                    await supabase
+                      .from('pages')
+                      .update({ page_type: 'calendar' })
+                      .eq('id', newPage.id)
+                    // 로컬 상태에 page_type 반영을 위해 리로드
+                    handlePageSelect(newPage.id)
+                    window.location.reload()
+                    return
+                  }
+                } else {
+                  handlePageSelect(calendarPage.id)
+                }
+              }}
+            >
+              <CalendarDays size={16} />
+              <span>업무일지</span>
+            </button>
+          </div>
+
           <div className="sidebar-pages-header">Pages</div>
 
           <PageTree

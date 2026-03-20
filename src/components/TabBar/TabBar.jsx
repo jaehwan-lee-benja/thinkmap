@@ -171,9 +171,6 @@ export function TabBar({
           </div>
           )
         })}
-      </div>
-
-      <div className="tab-bar-actions">
         <button className="tab-bar-add" onClick={onAdd} title="새 탭 추가">
           +
         </button>
