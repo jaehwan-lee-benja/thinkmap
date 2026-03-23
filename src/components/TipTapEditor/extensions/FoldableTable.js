@@ -1,5 +1,5 @@
 import { Table } from '@tiptap/extension-table'
-import { columnResizing, tableEditing, addColumnBefore, addColumnAfter, deleteColumn } from '@tiptap/pm/tables'
+import { columnResizing, tableEditing, addColumnBefore, addColumnAfter, deleteColumn, addRowBefore, addRowAfter, deleteRow } from '@tiptap/pm/tables'
 import { TextSelection } from '@tiptap/pm/state'
 
 /**
@@ -67,8 +67,10 @@ class FoldableTableView {
     this.cellMinWidth = cellMinWidth
     this.editorView = editorView
 
+    this._printPreview = true
+
     this.dom = document.createElement('div')
-    this.dom.className = 'tableWrapper'
+    this.dom.className = 'tableWrapper table-print-preview'
 
     // 체크박스 바 (테이블 위)
     this.foldBar = document.createElement('div')
@@ -76,13 +78,56 @@ class FoldableTableView {
     this.foldBar.contentEditable = 'false'
     this.dom.appendChild(this.foldBar)
 
-    this.table = this.dom.appendChild(document.createElement('table'))
+    // 테이블 영역 (상대 위치 — 행/열 추가 핸들의 기준)
+    this.tableArea = document.createElement('div')
+    this.tableArea.className = 'table-area'
+    this.dom.appendChild(this.tableArea)
+
+    // 열 문자 바 (A, B, C...)
+    this.colLetterBar = document.createElement('div')
+    this.colLetterBar.className = 'table-col-letters'
+    this.colLetterBar.contentEditable = 'false'
+    this.tableArea.appendChild(this.colLetterBar)
+
+    // 행 번호 컨테이너 (1, 2, 3...)
+    this.rowNumberGutter = document.createElement('div')
+    this.rowNumberGutter.className = 'table-row-numbers'
+    this.rowNumberGutter.contentEditable = 'false'
+    this.tableArea.appendChild(this.rowNumberGutter)
+
+    this.table = this.tableArea.appendChild(document.createElement('table'))
     if (node.attrs.style) {
       this.table.style.cssText = node.attrs.style
     }
     this.colgroup = this.table.appendChild(document.createElement('colgroup'))
     updateColumns(node, this.colgroup, this.table, cellMinWidth)
     this.contentDOM = this.table.appendChild(document.createElement('tbody'))
+
+    // 열 추가 핸들 (테이블 오른쪽 바깥)
+    this.colAddHandle = document.createElement('div')
+    this.colAddHandle.className = 'table-add-col-handle'
+    this.colAddHandle.contentEditable = 'false'
+    this.colAddHandle.innerHTML = '<span class="table-add-icon">+</span>'
+    this.colAddHandle.title = '열 추가'
+    this.colAddHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      this.addColumnAtEnd()
+    })
+    this.tableArea.appendChild(this.colAddHandle)
+
+    // 행 추가 핸들 (테이블 아래)
+    this.rowAddHandle = document.createElement('div')
+    this.rowAddHandle.className = 'table-add-row-handle'
+    this.rowAddHandle.contentEditable = 'false'
+    this.rowAddHandle.innerHTML = '<span class="table-add-icon">+</span>'
+    this.rowAddHandle.title = '행 추가'
+    this.rowAddHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      this.addRowAtEnd()
+    })
+    this.tableArea.appendChild(this.rowAddHandle)
 
     // 초기 fold 적용 (DOM 마운트 전이라 offsetWidth가 0 → 마운트 후 재계산)
     this.applyFold()
@@ -185,6 +230,90 @@ class FoldableTableView {
 
     // 체크박스 바 업데이트
     this.updateFoldBar(hidden, colCount)
+
+    // 열/행 헤더 업데이트
+    requestAnimationFrame(() => this.updateExcelHeaders(hidden, colCount))
+
+    // 쪽 나눠보기 활성 시 재렌더링
+    if (this._printPreview) {
+      requestAnimationFrame(() => this.renderPageBreaks())
+    }
+  }
+
+  // 엑셀 스타일 열 문자 + 행 번호
+  updateExcelHeaders(hidden, colCount) {
+    // 열 문자 (A, B, C...) — 셀의 실제 위치 기준 + 클릭 메뉴
+    this.colLetterBar.innerHTML = ''
+    const firstRow = this.contentDOM.querySelector('tr')
+    if (!firstRow) return
+
+    const cells = firstRow.querySelectorAll('th, td')
+    const tableLeft = this.table.offsetLeft
+
+    let i = 0
+    while (i < colCount) {
+      if (hidden.includes(i)) {
+        // 숨긴 열 구간 → 구분선
+        const hiddenGroup = []
+        const prevCell = i > 0 && cells[i - 1] ? cells[i - 1] : null
+        while (i < colCount && hidden.includes(i)) {
+          hiddenGroup.push(i)
+          i++
+        }
+        if (prevCell) {
+          const divider = document.createElement('span')
+          divider.className = 'col-letter-divider'
+          divider.style.left = `${tableLeft + prevCell.offsetLeft + prevCell.offsetWidth}px`
+          divider.title = `${hiddenGroup.length}개 열 숨김 중`
+          divider.addEventListener('mousedown', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            this.showHiddenColsMenu(hiddenGroup, e)
+          })
+          this.colLetterBar.appendChild(divider)
+        }
+        continue
+      }
+
+      if (!cells[i]) { i++; continue }
+      const colIdx = i
+      const letter = document.createElement('span')
+      letter.className = 'col-letter'
+      letter.textContent = this.colIndexToLetter(colIdx)
+      letter.style.left = `${tableLeft + cells[i].offsetLeft}px`
+      letter.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        this.showColMenu(colIdx, e)
+      })
+      this.colLetterBar.appendChild(letter)
+      i++
+    }
+
+    // 행 번호 (1, 2, 3...)
+    this.rowNumberGutter.innerHTML = ''
+    const rows = this.contentDOM.querySelectorAll('tr')
+    const tableTop = this.table.offsetTop
+
+    rows.forEach((row, idx) => {
+      const num = document.createElement('span')
+      num.className = 'row-number'
+      num.textContent = idx + 1
+      num.style.top = `${tableTop + row.offsetTop}px`
+      num.style.height = `${row.offsetHeight}px`
+      this.rowNumberGutter.appendChild(num)
+    })
+  }
+
+  colIndexToLetter(idx) {
+    let s = ''
+    idx++
+    while (idx > 0) {
+      idx--
+      s = String.fromCharCode(65 + (idx % 26)) + s
+      idx = Math.floor(idx / 26)
+    }
+    return s
   }
 
   updateFoldBar(hidden, colCount) {
@@ -202,97 +331,50 @@ class FoldableTableView {
 
     for (let i = 0; i < colCount; i++) {
       const isVisible = !hidden.includes(i)
-      const box = document.createElement('div')
-      box.className = `fold-col-box ${isVisible ? 'fold-col-visible' : 'fold-col-hidden'}`
-      box.title = `${i + 1}번째 열 ${isVisible ? '숨기기' : '보이기'}`
-
       const colIdx = i
-      box.addEventListener('mousedown', (e) => {
+      const btn = document.createElement('button')
+      btn.className = `fold-bar-tool-btn ${isVisible ? '' : 'inactive'}`
+      btn.textContent = this.colIndexToLetter(i)
+      btn.title = `${this.colIndexToLetter(i)}열 ${isVisible ? '숨기기' : '보이기'}`
+      btn.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
         this.toggleCol(colIdx)
       })
-
-      const num = document.createElement('span')
-      num.className = 'fold-col-num'
-      num.textContent = i + 1
-      box.appendChild(num)
-
-      checkRow.appendChild(box)
+      checkRow.appendChild(btn)
     }
 
+    // 도구 버튼 그룹 (오른쪽 정렬)
+    const toolGroup = document.createElement('div')
+    toolGroup.className = 'fold-bar-tools'
+
+    // 인쇄 보기 토글
+    const previewBtn = document.createElement('button')
+    previewBtn.className = `fold-bar-tool-btn ${this._printPreview ? 'active' : ''}`
+    previewBtn.innerHTML = this._printPreview
+      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>쪽 없이 보기</span>'
+      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>쪽 나눠보기</span>'
+    previewBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      this.togglePrintPreview()
+    })
+    toolGroup.appendChild(previewBtn)
+
     // 인쇄 버튼
-    const printBtn = document.createElement('div')
-    printBtn.className = 'fold-bar-print-btn'
-    printBtn.title = '표 인쇄 (숨긴 열 제외)'
-    printBtn.textContent = '🖨'
+    const printBtn = document.createElement('button')
+    printBtn.className = 'fold-bar-tool-btn'
+    printBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span>인쇄하기</span>'
     printBtn.addEventListener('mousedown', (e) => {
       e.preventDefault()
       e.stopPropagation()
       this.printTable()
     })
-    checkRow.appendChild(printBtn)
+    toolGroup.appendChild(printBtn)
+
+    checkRow.appendChild(toolGroup)
 
     this.foldBar.appendChild(checkRow)
-
-    // 2줄: 번호 헤더 (flex 기반, 보이는 열은 실제 테이블 열 너비에 맞춤, 숨긴 구간은 divider)
-    const headerRow = document.createElement('div')
-    headerRow.className = 'fold-bar-header'
-
-    // 보이는 열의 실제 DOM 너비 가져오기
-    const colWidths = []
-    const srcCols = this.colgroup.children
-    for (let i = 0; i < colCount; i++) {
-      if (hidden.includes(i)) {
-        colWidths.push(0)
-      } else {
-        // 실제 테이블 첫 행의 셀 너비 사용
-        const firstRow = this.contentDOM.querySelector('tr')
-        const cells = firstRow ? firstRow.querySelectorAll('th, td') : []
-        colWidths.push(cells[i] ? cells[i].offsetWidth : 100)
-      }
-    }
-
-    // 연속 구간 분석: visible 열 또는 hidden 열 그룹으로 분할
-    let i = 0
-    while (i < colCount) {
-      if (hidden.includes(i)) {
-        // 연속 숨긴 열 그룹
-        const hiddenGroup = []
-        while (i < colCount && hidden.includes(i)) {
-          hiddenGroup.push(i)
-          i++
-        }
-        const divider = document.createElement('div')
-        divider.className = 'fold-col-divider'
-        divider.title = `${hiddenGroup.length}개 열 숨김 중 (클릭하여 펼치기)`
-        divider.addEventListener('mousedown', (e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          this.showHiddenColsMenu(hiddenGroup, e)
-        })
-        headerRow.appendChild(divider)
-      } else {
-        // 보이는 열
-        const cell = document.createElement('div')
-        cell.className = 'fold-col-cell fold-col-visible'
-        cell.textContent = i + 1
-        cell.style.width = `${colWidths[i]}px`
-        cell.style.boxSizing = 'border-box'
-
-        const colIdx = i
-        cell.addEventListener('mousedown', (e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          this.showColMenu(colIdx, e)
-        })
-
-        headerRow.appendChild(cell)
-        i++
-      }
-    }
-
-    this.foldBar.appendChild(headerRow)
   }
 
   // 열 편집 메뉴 표시
@@ -570,6 +652,260 @@ class FoldableTableView {
       console.error('selectCellAt error:', e)
     }
   }
+
+  // 특정 행/열의 셀로 커서 이동
+  selectCellAtRowCol(rowIdx, colIdx) {
+    try {
+      const pos = this.getTablePos()
+      if (pos === null) return
+      const table = this.editorView.state.doc.nodeAt(pos)
+      if (!table) return
+
+      let cellPos = pos + 1 // table 시작
+      for (let r = 0; r <= rowIdx && r < table.childCount; r++) {
+        const row = table.child(r)
+        if (r === rowIdx) {
+          cellPos += 1 // row 시작
+          for (let c = 0; c < colIdx && c < row.childCount; c++) {
+            cellPos += row.child(c).nodeSize
+          }
+          break
+        }
+        cellPos += row.nodeSize
+      }
+      const { tr } = this.editorView.state
+      tr.setSelection(TextSelection.near(tr.doc.resolve(cellPos + 1)))
+      this.editorView.dispatch(tr)
+    } catch (e) {
+      console.error('selectCellAtRowCol error:', e)
+    }
+  }
+
+  // 테이블 끝에 열 추가
+  addColumnAtEnd() {
+    const colCount = this.getColCount()
+    this.selectCellAt(colCount - 1)
+    setTimeout(() => {
+      addColumnAfter(this.editorView.state, this.editorView.dispatch)
+    }, 0)
+  }
+
+  // 테이블 끝에 행 추가
+  addRowAtEnd() {
+    const pos = this.getTablePos()
+    if (pos === null) return
+    const table = this.editorView.state.doc.nodeAt(pos)
+    if (!table) return
+    const lastRowIdx = table.childCount - 1
+    this.selectCellAtRowCol(lastRowIdx, 0)
+    setTimeout(() => {
+      addRowAfter(this.editorView.state, this.editorView.dispatch)
+    }, 0)
+  }
+
+  togglePrintPreview() {
+    this._printPreview = !this._printPreview
+    this.dom.classList.toggle('table-print-preview', this._printPreview)
+
+    if (!this._printPreview) {
+      this.clearPageBreaks()
+      if (this._pageBreakUpdate) {
+        this.editorView.dom.removeEventListener('input', this._pageBreakUpdate)
+        this._pageBreakUpdate = null
+      }
+    } else {
+      // 에디터 변경 시 쪽 나누기 재계산
+      this._pageBreakUpdate = () => {
+        if (this._printPreview) requestAnimationFrame(() => this.renderPageBreaks())
+      }
+      this.editorView.dom.addEventListener('input', this._pageBreakUpdate)
+    }
+
+    // fold bar 버튼 상태 갱신 + 쪽 나눠보기 렌더링 (applyFold 내부에서 처리)
+    this.applyFold()
+  }
+
+  renderPageBreaks() {
+    // 기존 페이지 컨테이너 제거 + 원본 테이블 복원 (높이 측정용)
+    if (this._pageContainer) {
+      this._pageContainer.remove()
+      this._pageContainer = null
+    }
+    this.tableArea.style.display = ''
+
+    const MARGIN_V = 10 // 상하 여백 mm
+    const MARGIN_H = 12 // 좌우 여백 mm
+    const MM = 3.7795275591
+    const marginVPx = MARGIN_V * MM
+    const marginHPx = MARGIN_H * MM
+    const printableHeight = (297 - MARGIN_V * 2) * MM
+
+    const hidden = this.getHiddenCols()
+    const rows = Array.from(this.contentDOM.querySelectorAll('tr'))
+    if (rows.length === 0) return
+
+    // 행별 높이 측정
+    const rowHeights = rows.map(r => r.offsetHeight)
+    const headerHeight = rowHeights[0] || 0
+
+    // 쪽별 행 인덱스 분배
+    const pages = [] // [[startIdx, endIdx], ...]
+    let accHeight = 0
+    let pageStart = 0
+
+    for (let i = 0; i < rows.length; i++) {
+      const needed = accHeight === 0 && pageStart > 0 ? headerHeight + rowHeights[i] : rowHeights[i]
+      accHeight += needed
+
+      if (accHeight > printableHeight && i > pageStart) {
+        pages.push([pageStart, i - 1])
+        pageStart = i
+        accHeight = headerHeight + rowHeights[i]
+      }
+    }
+    pages.push([pageStart, rows.length - 1])
+
+    if (pages.length <= 1) {
+      // 1쪽 — 단일 페이지 프레임만 표시
+      const frame = document.createElement('div')
+      frame.className = 'table-page-frame'
+      frame.style.padding = `${marginVPx}px ${marginHPx}px`
+
+      const clone = this.cloneVisibleTable(hidden, null, null, false, 1)
+      frame.appendChild(clone)
+
+      const pageNum = document.createElement('div')
+      pageNum.className = 'table-page-number'
+      pageNum.textContent = '1 / 1'
+      frame.appendChild(pageNum)
+
+      this._pageContainer = document.createElement('div')
+      this._pageContainer.className = 'table-pages-container'
+      this._pageContainer.appendChild(frame)
+      this.tableArea.style.display = 'none'
+      this.dom.appendChild(this._pageContainer)
+      return
+    }
+
+    // 복수 쪽
+    this._pageContainer = document.createElement('div')
+    this._pageContainer.className = 'table-pages-container'
+
+    const totalPages = pages.length
+
+    for (let p = 0; p < totalPages; p++) {
+      const [start, end] = pages[p]
+      const frame = document.createElement('div')
+      frame.className = 'table-page-frame'
+      frame.style.padding = `${marginVPx}px ${marginHPx}px`
+
+      // 행 번호: 헤더 반복 시 헤더는 1번, 본문은 실제 인덱스+1
+      const rowStart = p > 0 ? start + 1 : 1
+      const pageTable = this.cloneVisibleTable(hidden, start, end, p > 0, rowStart)
+      frame.appendChild(pageTable)
+
+      const pageNum = document.createElement('div')
+      pageNum.className = 'table-page-number'
+      pageNum.textContent = `${p + 1} / ${totalPages}`
+      frame.appendChild(pageNum)
+
+      this._pageContainer.appendChild(frame)
+    }
+
+    this.tableArea.style.display = 'none'
+    this.dom.appendChild(this._pageContainer)
+  }
+
+  // 보이는 열만 포함한 테이블 클론 (특정 행 범위, 헤더 반복)
+  // rowStartNum: 행 번호 시작값
+  cloneVisibleTable(hidden, startRow, endRow, includeHeader, rowStartNum) {
+    const allRows = Array.from(this.contentDOM.querySelectorAll('tr'))
+    const rowsToClone = (startRow != null)
+      ? (includeHeader ? [allRows[0], ...allRows.slice(startRow, endRow + 1)] : allRows.slice(startRow, endRow + 1))
+      : allRows
+
+    // 보이는 열 인덱스
+    const colCount = this.getColCount()
+    const visibleCols = []
+    for (let c = 0; c < colCount; c++) {
+      if (!hidden.includes(c)) visibleCols.push(c)
+    }
+
+    // 래퍼 (열 문자 + 행 번호 + 테이블)
+    const wrapper = document.createElement('div')
+    wrapper.className = 'table-page-area'
+
+    // 테이블
+    const tbl = document.createElement('table')
+    tbl.className = 'table-page-table'
+    const tbody = document.createElement('tbody')
+
+    rowsToClone.forEach(row => {
+      const tr = document.createElement('tr')
+      const cells = row.querySelectorAll('th, td')
+      cells.forEach((cell, colIdx) => {
+        if (hidden.includes(colIdx)) return
+        const td = document.createElement(cell.tagName.toLowerCase())
+        td.innerHTML = cell.innerHTML
+        td.style.cssText = cell.style.cssText
+        if (cell.tagName === 'TH') td.className = 'page-th'
+        tr.appendChild(td)
+      })
+      tbody.appendChild(tr)
+    })
+    tbl.appendChild(tbody)
+    wrapper.appendChild(tbl)
+
+    // 열 문자 (A, B, C...) — 테이블 렌더 후 위치 계산을 위해 rAF 사용
+    const letterBar = document.createElement('div')
+    letterBar.className = 'table-page-col-letters'
+    wrapper.insertBefore(letterBar, tbl)
+
+    // 행 번호 컨테이너
+    const numGutter = document.createElement('div')
+    numGutter.className = 'table-page-row-numbers'
+    wrapper.appendChild(numGutter)
+
+    // DOM에 추가 후 위치 계산
+    requestAnimationFrame(() => {
+      const firstTr = tbl.querySelector('tr')
+      if (!firstTr) return
+      const tblCells = firstTr.querySelectorAll('th, td')
+
+      visibleCols.forEach((origIdx, visIdx) => {
+        const cell = tblCells[visIdx]
+        if (!cell) return
+        const letter = document.createElement('span')
+        letter.className = 'page-col-letter'
+        letter.textContent = this.colIndexToLetter(origIdx)
+        letter.style.left = `${cell.offsetLeft}px`
+        letterBar.appendChild(letter)
+      })
+
+      const trs = tbl.querySelectorAll('tr')
+      let num = rowStartNum || 1
+      trs.forEach((tr) => {
+        const n = document.createElement('span')
+        n.className = 'page-row-number'
+        n.textContent = num
+        n.style.top = `${tr.offsetTop}px`
+        n.style.height = `${tr.offsetHeight}px`
+        numGutter.appendChild(n)
+        num++
+      })
+    })
+
+    return wrapper
+  }
+
+  clearPageBreaks() {
+    if (this._pageContainer) {
+      this._pageContainer.remove()
+      this._pageContainer = null
+      this.tableArea.style.display = ''
+    }
+  }
+
 }
 
 // --- 커스텀 Table Extension ---

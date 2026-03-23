@@ -237,6 +237,47 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* 뷰어 모드: 관리자 상단 바 */
+.topbar-admin-bar {
+  background: rgba(167, 139, 250, 0.08);
+  border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+  height: 28px;
+  font-size: 11px;
+}
+
+.topbar-admin-bar .topbar-app-name {
+  font-size: 12px;
+  color: rgba(167, 139, 250, 0.8);
+}
+
+.topbar-admin-bar .topbar-impersonation {
+  background: none;
+  border: none;
+  padding: 0;
+  color: rgba(167, 139, 250, 0.7);
+}
+
+.topbar-admin-bar .topbar-viewer-badge {
+  background: rgba(167, 139, 250, 0.2);
+  color: rgba(167, 139, 250, 0.9);
+}
+
+.topbar-viewer-stop {
+  color: rgba(245, 158, 11, 0.9) !important;
+  font-size: 11px !important;
+  text-decoration: underline;
+}
+
+.topbar-viewer-stop:hover {
+  color: #f59e0b !important;
+}
+
+/* 뷰어 모드: 뷰어 대상 계정 바 */
+.topbar-viewer-bar {
+  background: rgba(245, 158, 11, 0.06);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+}
+
 /* =====================================================
    모바일
    ===================================================== */

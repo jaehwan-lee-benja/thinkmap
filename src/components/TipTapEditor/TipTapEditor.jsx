@@ -389,7 +389,69 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
           const table = cell.closest('table')
           if (table) {
             const tableRect = table.getBoundingClientRect()
-            setTableToolbar({ visible: true, position: { top: tableRect.top - 40, left: tableRect.left } })
+
+            // CellSelection 정보 추출 (DOM 기반 — selectedCell 클래스)
+            let cellSelInfo = null
+            const selectedCells = table.querySelectorAll('.selectedCell')
+            if (selectedCells.length > 1) {
+              const selRows = new Set()
+              const selCols = new Set()
+              selectedCells.forEach(c => {
+                const row = c.parentElement
+                const rowIdx = Array.from(row.parentElement.children).indexOf(row)
+                const colIdx = Array.from(row.children).indexOf(c)
+                selRows.add(rowIdx)
+                selCols.add(colIdx)
+              })
+              const rowArr = [...selRows].sort((a, b) => a - b)
+              const colArr = [...selCols].sort((a, b) => a - b)
+              cellSelInfo = {
+                rowCount: rowArr.length,
+                colCount: colArr.length,
+                minRow: rowArr[0], maxRow: rowArr[rowArr.length - 1],
+                minCol: colArr[0], maxCol: colArr[colArr.length - 1],
+              }
+            }
+
+            // 위치 계산: 선택 영역 또는 현재 셀 기준
+            let anchorRect
+            if (selectedCells.length > 1) {
+              // 선택된 셀들의 바운딩 박스
+              let minTop = Infinity, maxBottom = -Infinity, minLeft = Infinity, maxRight = -Infinity
+              selectedCells.forEach(c => {
+                const r = c.getBoundingClientRect()
+                if (r.top < minTop) minTop = r.top
+                if (r.bottom > maxBottom) maxBottom = r.bottom
+                if (r.left < minLeft) minLeft = r.left
+                if (r.right > maxRight) maxRight = r.right
+              })
+              anchorRect = { top: minTop, bottom: maxBottom, left: minLeft, right: maxRight }
+            } else {
+              anchorRect = cell.getBoundingClientRect()
+            }
+
+            const TOOLBAR_H = 36
+            const GAP = 6
+            const viewH = window.innerHeight
+            const viewW = window.innerWidth
+
+            // 기본: 선택 영역 위에 표시
+            let top = anchorRect.top - TOOLBAR_H - GAP
+            // 위에 공간이 부족하면 아래에 표시
+            if (top < 4) {
+              top = anchorRect.bottom + GAP
+            }
+            // 아래에도 잘리면 영역 안 상단에 표시
+            if (top + TOOLBAR_H > viewH - 4) {
+              top = anchorRect.top + GAP
+            }
+
+            let left = anchorRect.left
+            // 오른쪽으로 넘치면 보정
+            if (left + 300 > viewW) left = viewW - 310
+            if (left < 4) left = 4
+
+            setTableToolbar({ visible: true, position: { top, left }, cellSelInfo })
             return
           }
         }
@@ -693,6 +755,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         <TableToolbar
           editor={editor}
           position={tableToolbar.position}
+          cellSelInfo={tableToolbar.cellSelInfo}
           onClose={() => setTableToolbar(prev => ({ ...prev, visible: false }))}
         />
       )}

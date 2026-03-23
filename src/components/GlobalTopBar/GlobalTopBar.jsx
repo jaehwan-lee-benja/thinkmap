@@ -45,14 +45,35 @@ export function GlobalTopBar({ splitMode, onSplitToggle }) {
 
   return (
     <>
-      <div className="global-topbar">
+      {/* 뷰어 모드일 때: 관리자 전용 상단 바 */}
+      {isImpersonating && (
+        <div className="global-topbar topbar-admin-bar">
+          <div className="topbar-left">
+            <span className="topbar-app-name">ThinkMap</span>
+            <div className="topbar-impersonation">
+              <span className="topbar-viewer-badge">관리자</span>
+              <span>{ownEmail}</span>
+            </div>
+          </div>
+          <div className="topbar-right">
+            <button
+              className="topbar-button topbar-viewer-stop"
+              onClick={stopImpersonation}
+            >
+              뷰어 종료하기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 메인 상단 바 */}
+      <div className={`global-topbar ${isImpersonating ? 'topbar-viewer-bar' : ''}`}>
         <div className="topbar-left">
-          <span className="topbar-app-name">ThinkMap</span>
+          {!isImpersonating && <span className="topbar-app-name">ThinkMap</span>}
           {isImpersonating && (
             <div className="topbar-impersonation">
               <span className="topbar-viewer-badge">뷰어 모드</span>
               <span>{impersonatedEmail}</span>
-              <button onClick={stopImpersonation}>뷰어 종료하기</button>
             </div>
           )}
         </div>
@@ -72,7 +93,7 @@ export function GlobalTopBar({ splitMode, onSplitToggle }) {
             </button>
           )}
 
-          {isMaster && (
+          {isMaster && !isImpersonating && (
             <button
               className="topbar-button topbar-admin"
               onClick={() => setAdminModalOpen(true)}
@@ -83,8 +104,8 @@ export function GlobalTopBar({ splitMode, onSplitToggle }) {
             </button>
           )}
 
-          {/* 계정 전환 드롭다운 (연결 계정이 있을 때) */}
-          {hasLinkedAccounts ? (
+          {/* 계정 전환 드롭다운 (연결 계정이 있을 때, 뷰어 모드 아닐 때) */}
+          {!isImpersonating && hasLinkedAccounts ? (
             <div className="topbar-account-switcher" ref={dropdownRef}>
               <button
                 className={`topbar-button topbar-account-btn ${isLinkedAccountSwitch ? 'topbar-account-linked' : ''}`}
@@ -131,11 +152,11 @@ export function GlobalTopBar({ splitMode, onSplitToggle }) {
                 </div>
               )}
             </div>
-          ) : (
+          ) : !isImpersonating ? (
             <div className="topbar-user">
               <span className="topbar-email">{displayEmail}</span>
             </div>
-          )}
+          ) : null}
 
           <button
             className="topbar-button topbar-logout"

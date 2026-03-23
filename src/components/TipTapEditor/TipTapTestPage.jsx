@@ -1267,11 +1267,12 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           <div className="tiptap-header-actions">
             <div className="page-nav-dropdown-wrapper" ref={pageNavRef}>
               <button
-                className={`tiptap-btn tiptap-btn-icon page-nav-chevron ${showPageNav ? 'open' : ''}`}
+                className={`tiptap-btn tiptap-btn-secondary page-nav-chevron ${showPageNav ? 'open' : ''}`}
                 onClick={() => setShowPageNav(prev => !prev)}
                 title="다른 페이지로 이동"
               >
                 <ChevronDown size={16} />
+                <span className="tiptap-btn-label">페이지 이동</span>
               </button>
               {showPageNav && (
                 <div className="page-nav-dropdown">
@@ -1325,14 +1326,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               <Archive />
               <span className="tiptap-btn-label">저장</span>
             </button>}
-            <button
-              onClick={openHistory}
-              className="tiptap-btn tiptap-btn-purple"
-              title="버전 히스토리 보기"
-            >
-              <History />
-              <span className="tiptap-btn-label">히스토리</span>
-            </button>
             <div className="settings-wrapper" ref={settingsRef}>
               <button
                 onClick={() => setShowSettings(!showSettings)}
@@ -1345,6 +1338,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
                 <>
                   <div className="settings-overlay" onClick={() => setShowSettings(false)} />
                   <div className="settings-menu">
+                    <button onClick={() => { openHistory(); setShowSettings(false) }}>
+                      <History size={16} /> 히스토리
+                    </button>
+                    <div className="settings-menu-divider" />
                     <button onClick={() => { openColumnView(); setShowSettings(false) }}>
                       <Columns3 size={16} /> 칼럼모드
                     </button>
