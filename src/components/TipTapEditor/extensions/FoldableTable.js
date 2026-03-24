@@ -68,6 +68,8 @@ class FoldableTableView {
     this.editorView = editorView
 
     this._printPreview = true
+    this._zoom = 1
+    this._settingsOpen = false
 
     this.dom = document.createElement('div')
     this.dom.className = 'tableWrapper table-print-preview'
@@ -129,6 +131,17 @@ class FoldableTableView {
     })
     this.tableArea.appendChild(this.rowAddHandle)
 
+    // 설정 드롭다운 외부 클릭 닫기
+    this._onDocClick = (e) => {
+      const wrap = this.dom.querySelector('.fold-bar-settings-wrap')
+      if (wrap && !wrap.contains(e.target)) {
+        this._settingsOpen = false
+        const dd = wrap.querySelector('.fold-bar-settings-dropdown')
+        if (dd) dd.classList.remove('open')
+      }
+    }
+    document.addEventListener('mousedown', this._onDocClick)
+
     // 초기 fold 적용 (DOM 마운트 전이라 offsetWidth가 0 → 마운트 후 재계산)
     this.applyFold()
     requestAnimationFrame(() => this.applyFold())
@@ -147,6 +160,8 @@ class FoldableTableView {
     const isInsideWrapper = this.dom.contains(target)
     const isInsideContent = this.contentDOM.contains(target)
     if (isInsideWrapper && !isInsideContent) return true
+    // 쪽 나눠보기 셀 padding 변경 무시
+    if (mutation.type === 'attributes' && target.dataset && target.dataset.origPaddingTop != null) return true
     return false
   }
 
@@ -231,13 +246,11 @@ class FoldableTableView {
     // 체크박스 바 업데이트
     this.updateFoldBar(hidden, colCount)
 
-    // 열/행 헤더 업데이트
-    requestAnimationFrame(() => this.updateExcelHeaders(hidden, colCount))
-
-    // 쪽 나눠보기 활성 시 재렌더링
-    if (this._printPreview) {
-      requestAnimationFrame(() => this.renderPageBreaks())
-    }
+    // 열/행 헤더 업데이트 + 쪽 나눠보기 (쪽 패딩 후 헤더 위치 계산 필요)
+    requestAnimationFrame(() => {
+      if (this._printPreview) this.renderPageBreaks()
+      this.updateExcelHeaders(hidden, colCount)
+    })
   }
 
   // 엑셀 스타일 열 문자 + 행 번호
@@ -348,18 +361,45 @@ class FoldableTableView {
     const toolGroup = document.createElement('div')
     toolGroup.className = 'fold-bar-tools'
 
-    // 인쇄 보기 토글
-    const previewBtn = document.createElement('button')
-    previewBtn.className = `fold-bar-tool-btn ${this._printPreview ? 'active' : ''}`
-    previewBtn.innerHTML = this._printPreview
-      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>쪽 없이 보기</span>'
-      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>쪽 나눠보기</span>'
-    previewBtn.addEventListener('mousedown', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      this.togglePrintPreview()
-    })
-    toolGroup.appendChild(previewBtn)
+    // 확대/축소 (인쇄 보기일 때만)
+    if (this._printPreview) {
+      const zoomGroup = document.createElement('div')
+      zoomGroup.className = 'fold-bar-zoom'
+
+      const fitBtn = document.createElement('button')
+      fitBtn.className = 'fold-bar-tool-btn'
+      fitBtn.innerHTML = '<span>맞춤</span>'
+      fitBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault(); e.stopPropagation()
+        this.fitToWidth()
+      })
+      zoomGroup.appendChild(fitBtn)
+
+      const zoomOut = document.createElement('button')
+      zoomOut.className = 'fold-bar-tool-btn'
+      zoomOut.textContent = '−'
+      zoomOut.addEventListener('mousedown', (e) => {
+        e.preventDefault(); e.stopPropagation()
+        this.stepZoom(-1)
+      })
+      zoomGroup.appendChild(zoomOut)
+
+      const zoomLabel = document.createElement('span')
+      zoomLabel.className = 'fold-bar-zoom-label'
+      zoomLabel.textContent = `${Math.round(this._zoom * 100)}%`
+      zoomGroup.appendChild(zoomLabel)
+
+      const zoomIn = document.createElement('button')
+      zoomIn.className = 'fold-bar-tool-btn'
+      zoomIn.textContent = '+'
+      zoomIn.addEventListener('mousedown', (e) => {
+        e.preventDefault(); e.stopPropagation()
+        this.stepZoom(1)
+      })
+      zoomGroup.appendChild(zoomIn)
+
+      toolGroup.appendChild(zoomGroup)
+    }
 
     // 인쇄 버튼
     const printBtn = document.createElement('button')
@@ -371,6 +411,44 @@ class FoldableTableView {
       this.printTable()
     })
     toolGroup.appendChild(printBtn)
+
+    // 설정 버튼 (드롭다운)
+    const settingsWrap = document.createElement('div')
+    settingsWrap.className = 'fold-bar-settings-wrap'
+
+    const settingsBtn = document.createElement('button')
+    settingsBtn.className = 'fold-bar-tool-btn'
+    settingsBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
+    settingsBtn.title = '설정'
+    settingsBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      this._settingsOpen = !this._settingsOpen
+      const dropdown = settingsWrap.querySelector('.fold-bar-settings-dropdown')
+      dropdown.classList.toggle('open', this._settingsOpen)
+    })
+    settingsWrap.appendChild(settingsBtn)
+
+    const dropdown = document.createElement('div')
+    dropdown.className = `fold-bar-settings-dropdown${this._settingsOpen ? ' open' : ''}`
+    dropdown.contentEditable = 'false'
+
+    const previewItem = document.createElement('button')
+    previewItem.className = 'fold-bar-settings-item'
+    previewItem.innerHTML = this._printPreview
+      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>쪽 없이 보기</span>'
+      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>쪽 나눠보기</span>'
+    previewItem.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      this._settingsOpen = false
+      dropdown.classList.remove('open')
+      this.togglePrintPreview()
+    })
+    dropdown.appendChild(previewItem)
+
+    settingsWrap.appendChild(dropdown)
+    toolGroup.appendChild(settingsWrap)
 
     checkRow.appendChild(toolGroup)
 
@@ -703,12 +781,38 @@ class FoldableTableView {
     }, 0)
   }
 
+  // ─── 확대/축소 ───
+  applyZoom(zoom) {
+    this._zoom = zoom
+    this.tableArea.style.zoom = zoom === 1 ? '' : zoom
+    this.applyFold()
+  }
+
+  stepZoom(dir) {
+    const steps = [0.5, 0.75, 1, 1.25, 1.5]
+    const cur = steps.indexOf(this._zoom)
+    const next = cur === -1
+      ? (dir > 0 ? steps.findIndex(s => s > this._zoom) : steps.findLastIndex(s => s < this._zoom))
+      : Math.max(0, Math.min(steps.length - 1, cur + dir))
+    if (next !== -1) this.applyZoom(steps[next])
+  }
+
+  fitToWidth() {
+    const wrapperPad = 48 // 24px * 2
+    const wrapperWidth = this.dom.clientWidth - wrapperPad
+    const paperPx = 210 * 3.7795275591
+    const zoom = Math.min(1, Math.round((wrapperWidth / paperPx) * 20) / 20) // 5% 단위 반올림
+    this.applyZoom(zoom)
+  }
+
   togglePrintPreview() {
     this._printPreview = !this._printPreview
     this.dom.classList.toggle('table-print-preview', this._printPreview)
 
     if (!this._printPreview) {
       this.clearPageBreaks()
+      this._zoom = 1
+      this.tableArea.style.zoom = ''
       if (this._pageBreakUpdate) {
         this.editorView.dom.removeEventListener('input', this._pageBreakUpdate)
         this._pageBreakUpdate = null
@@ -726,183 +830,113 @@ class FoldableTableView {
   }
 
   renderPageBreaks() {
-    // 기존 페이지 컨테이너 제거 + 원본 테이블 복원 (높이 측정용)
-    if (this._pageContainer) {
-      this._pageContainer.remove()
-      this._pageContainer = null
-    }
-    this.tableArea.style.display = ''
+    // 기존 오버레이·셀 패딩 제거 (CSS 용지 스타일은 유지)
+    this._clearBreakElements()
 
-    const MARGIN_V = 10 // 상하 여백 mm
-    const MARGIN_H = 12 // 좌우 여백 mm
-    const MM = 3.7795275591
-    const marginVPx = MARGIN_V * MM
-    const marginHPx = MARGIN_H * MM
-    const printableHeight = (297 - MARGIN_V * 2) * MM
-
-    const hidden = this.getHiddenCols()
     const rows = Array.from(this.contentDOM.querySelectorAll('tr'))
     if (rows.length === 0) return
 
-    // 행별 높이 측정
+    // A4 페이지 치수 (mm → px)
+    const MM = 3.7795275591
+    const MARGIN_V_PX = Math.round(10 * MM)  // 38px — 상하 여백
+    const MARGIN_H_PX = Math.round(12 * MM)  // 45px — 좌우 여백
+    const GAP_PX = 16                         // 쪽 사이 간격
+    const BREAK_GAP = MARGIN_V_PX + GAP_PX + MARGIN_V_PX // 92px
+    const printableHeight = (297 - 20) * MM   // ~1047px
+
+    // 행별 높이 측정 (용지 너비 반영된 자연 높이)
     const rowHeights = rows.map(r => r.offsetHeight)
     const headerHeight = rowHeights[0] || 0
 
-    // 쪽별 행 인덱스 분배
-    const pages = [] // [[startIdx, endIdx], ...]
+    // 쪽 경계 행 계산
+    const breakRows = []
     let accHeight = 0
     let pageStart = 0
 
     for (let i = 0; i < rows.length; i++) {
       const needed = accHeight === 0 && pageStart > 0 ? headerHeight + rowHeights[i] : rowHeights[i]
       accHeight += needed
-
       if (accHeight > printableHeight && i > pageStart) {
-        pages.push([pageStart, i - 1])
+        breakRows.push(i)
         pageStart = i
         accHeight = headerHeight + rowHeights[i]
       }
     }
-    pages.push([pageStart, rows.length - 1])
 
-    if (pages.length <= 1) {
-      // 1쪽 — 단일 페이지 프레임만 표시
-      const frame = document.createElement('div')
-      frame.className = 'table-page-frame'
-      frame.style.padding = `${marginVPx}px ${marginHPx}px`
+    if (breakRows.length === 0) return // 1쪽 — 경계 불필요
 
-      const clone = this.cloneVisibleTable(hidden, null, null, false, 1)
-      frame.appendChild(clone)
-
-      const pageNum = document.createElement('div')
-      pageNum.className = 'table-page-number'
-      pageNum.textContent = '1 / 1'
-      frame.appendChild(pageNum)
-
-      this._pageContainer = document.createElement('div')
-      this._pageContainer.className = 'table-pages-container'
-      this._pageContainer.appendChild(frame)
-      this.tableArea.style.display = 'none'
-      this.dom.appendChild(this._pageContainer)
-      return
-    }
-
-    // 복수 쪽
-    this._pageContainer = document.createElement('div')
-    this._pageContainer.className = 'table-pages-container'
-
-    const totalPages = pages.length
-
-    for (let p = 0; p < totalPages; p++) {
-      const [start, end] = pages[p]
-      const frame = document.createElement('div')
-      frame.className = 'table-page-frame'
-      frame.style.padding = `${marginVPx}px ${marginHPx}px`
-
-      // 행 번호: 헤더 반복 시 헤더는 1번, 본문은 실제 인덱스+1
-      const rowStart = p > 0 ? start + 1 : 1
-      const pageTable = this.cloneVisibleTable(hidden, start, end, p > 0, rowStart)
-      frame.appendChild(pageTable)
-
-      const pageNum = document.createElement('div')
-      pageNum.className = 'table-page-number'
-      pageNum.textContent = `${p + 1} / ${totalPages}`
-      frame.appendChild(pageNum)
-
-      this._pageContainer.appendChild(frame)
-    }
-
-    this.tableArea.style.display = 'none'
-    this.dom.appendChild(this._pageContainer)
-  }
-
-  // 보이는 열만 포함한 테이블 클론 (특정 행 범위, 헤더 반복)
-  // rowStartNum: 행 번호 시작값
-  cloneVisibleTable(hidden, startRow, endRow, includeHeader, rowStartNum) {
-    const allRows = Array.from(this.contentDOM.querySelectorAll('tr'))
-    const rowsToClone = (startRow != null)
-      ? (includeHeader ? [allRows[0], ...allRows.slice(startRow, endRow + 1)] : allRows.slice(startRow, endRow + 1))
-      : allRows
-
-    // 보이는 열 인덱스
-    const colCount = this.getColCount()
-    const visibleCols = []
-    for (let c = 0; c < colCount; c++) {
-      if (!hidden.includes(c)) visibleCols.push(c)
-    }
-
-    // 래퍼 (열 문자 + 행 번호 + 테이블)
-    const wrapper = document.createElement('div')
-    wrapper.className = 'table-page-area'
-
-    // 테이블
-    const tbl = document.createElement('table')
-    tbl.className = 'table-page-table'
-    const tbody = document.createElement('tbody')
-
-    rowsToClone.forEach(row => {
-      const tr = document.createElement('tr')
-      const cells = row.querySelectorAll('th, td')
-      cells.forEach((cell, colIdx) => {
-        if (hidden.includes(colIdx)) return
-        const td = document.createElement(cell.tagName.toLowerCase())
-        td.innerHTML = cell.innerHTML
-        td.style.cssText = cell.style.cssText
-        if (cell.tagName === 'TH') td.className = 'page-th'
-        tr.appendChild(td)
-      })
-      tbody.appendChild(tr)
-    })
-    tbl.appendChild(tbody)
-    wrapper.appendChild(tbl)
-
-    // 열 문자 (A, B, C...) — 테이블 렌더 후 위치 계산을 위해 rAF 사용
-    const letterBar = document.createElement('div')
-    letterBar.className = 'table-page-col-letters'
-    wrapper.insertBefore(letterBar, tbl)
-
-    // 행 번호 컨테이너
-    const numGutter = document.createElement('div')
-    numGutter.className = 'table-page-row-numbers'
-    wrapper.appendChild(numGutter)
-
-    // DOM에 추가 후 위치 계산
-    requestAnimationFrame(() => {
-      const firstTr = tbl.querySelector('tr')
-      if (!firstTr) return
-      const tblCells = firstTr.querySelectorAll('th, td')
-
-      visibleCols.forEach((origIdx, visIdx) => {
-        const cell = tblCells[visIdx]
-        if (!cell) return
-        const letter = document.createElement('span')
-        letter.className = 'page-col-letter'
-        letter.textContent = this.colIndexToLetter(origIdx)
-        letter.style.left = `${cell.offsetLeft}px`
-        letterBar.appendChild(letter)
-      })
-
-      const trs = tbl.querySelectorAll('tr')
-      let num = rowStartNum || 1
-      trs.forEach((tr) => {
-        const n = document.createElement('span')
-        n.className = 'page-row-number'
-        n.textContent = num
-        n.style.top = `${tr.offsetTop}px`
-        n.style.height = `${tr.offsetHeight}px`
-        numGutter.appendChild(n)
-        num++
+    // 쪽 경계 행에 padding-top 삽입 → 실제 여백 공간 생성
+    this._breakRowCells = []
+    breakRows.forEach(rowIdx => {
+      const cells = rows[rowIdx].querySelectorAll('td, th')
+      cells.forEach(cell => {
+        const orig = parseInt(getComputedStyle(cell).paddingTop) || 0
+        cell.dataset.origPaddingTop = orig
+        cell.style.paddingTop = `${BREAK_GAP + orig}px`
+        this._breakRowCells.push(cell)
       })
     })
 
-    return wrapper
+    // 오버레이 배치 (셀 padding 적용 후 위치 계산)
+    if (this._pageBreakRaf) cancelAnimationFrame(this._pageBreakRaf)
+    this._pageBreakRaf = requestAnimationFrame(() => {
+      this._pageBreakRaf = null
+      this._pageBreakOverlays = []
+      const areaRect = this.tableArea.getBoundingClientRect()
+      const totalPages = breakRows.length + 1
+      const zoom = this._zoom || 1
+
+      breakRows.forEach((rowIdx, idx) => {
+        const firstCell = rows[rowIdx].querySelector('td, th')
+        if (!firstCell) return
+        const cellRect = firstCell.getBoundingClientRect()
+        const yPos = (cellRect.top - areaRect.top) / zoom
+
+        const band = document.createElement('div')
+        band.className = 'table-page-break-band'
+        band.contentEditable = 'false'
+        band.style.top = `${yPos}px`
+        band.style.height = `${BREAK_GAP}px`
+
+        const label = document.createElement('span')
+        label.className = 'table-page-break-label'
+        label.textContent = `${idx + 1} / ${totalPages}`
+        band.appendChild(label)
+
+        this.tableArea.appendChild(band)
+        this._pageBreakOverlays.push(band)
+      })
+    })
   }
 
+  // 오버레이·셀 패딩만 제거 (CSS 용지 스타일은 유지)
+  _clearBreakElements() {
+    if (this._pageBreakRaf) {
+      cancelAnimationFrame(this._pageBreakRaf)
+      this._pageBreakRaf = null
+    }
+    if (this._pageBreakOverlays) {
+      this._pageBreakOverlays.forEach(el => el.remove())
+      this._pageBreakOverlays = null
+    }
+    if (this._breakRowCells) {
+      this._breakRowCells.forEach(cell => {
+        const orig = cell.dataset.origPaddingTop
+        cell.style.paddingTop = orig != null ? `${orig}px` : ''
+        delete cell.dataset.origPaddingTop
+      })
+      this._breakRowCells = null
+    }
+  }
+
+  // 전체 정리 (쪽 없이 보기 전환 시)
   clearPageBreaks() {
-    if (this._pageContainer) {
-      this._pageContainer.remove()
-      this._pageContainer = null
-      this.tableArea.style.display = ''
+    this._clearBreakElements()
+  }
+
+  destroy() {
+    if (this._onDocClick) {
+      document.removeEventListener('mousedown', this._onDocClick)
     }
   }
 

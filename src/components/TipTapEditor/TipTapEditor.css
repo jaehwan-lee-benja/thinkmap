@@ -528,6 +528,24 @@ th .paragraph-drag-handle {
   margin-left: auto;
 }
 
+/* 확대/축소 */
+.fold-bar-zoom {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  padding-right: 8px;
+  border-right: 1px solid #374151;
+}
+
+.fold-bar-zoom-label {
+  min-width: 36px;
+  text-align: center;
+  font-size: 11px;
+  color: #9ca3af;
+  user-select: none;
+}
+
 .fold-bar-tool-btn {
   display: flex;
   align-items: center;
@@ -577,6 +595,51 @@ th .paragraph-drag-handle {
 
 .fold-bar-tool-btn svg {
   flex-shrink: 0;
+}
+
+/* 설정 드롭다운 */
+.fold-bar-settings-wrap {
+  position: relative;
+}
+
+.fold-bar-settings-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  min-width: 140px;
+  padding: 4px;
+}
+
+.fold-bar-settings-dropdown.open {
+  display: block;
+}
+
+.fold-bar-settings-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fold-bar-settings-item:hover {
+  background: #374151;
+  color: #fff;
 }
 
 /* 번호 헤더 (flex 기반) */
@@ -661,6 +724,7 @@ th .paragraph-drag-handle {
   background: #525659;
   padding: 24px;
   border-radius: 6px;
+  overflow-x: auto !important;
 }
 
 .table-print-preview > .table-area,
@@ -698,142 +762,59 @@ th .paragraph-drag-handle {
   color: #6b7280 !important;
 }
 
-/* 인쇄 보기: 행/열 추가 핸들, 엑셀 헤더 숨김 */
-.table-print-preview .table-add-col-handle,
-.table-print-preview .table-add-row-handle,
-.table-print-preview .table-col-letters,
-.table-print-preview .table-row-numbers {
-  display: none;
-}
-
+/* ─── 인쇄 보기: 용지 스타일 (A4 고정) ─── */
 .table-print-preview .table-area {
-  margin-left: 0;
-}
-
-/* 인쇄 보기: 리사이즈 핸들 숨김 */
-.table-print-preview .column-resize-handle {
-  display: none;
-}
-
-/* 인쇄 보기: selectedCell 하이라이트 숨김 */
-.table-print-preview .selectedCell::after {
-  display: none;
-}
-
-/* ─── 쪽 나눠보기: 페이지 컨테이너 ─── */
-.table-pages-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 0;
-}
-
-.table-page-frame {
+  display: block;
   width: 210mm;
-  height: 297mm;
+  margin: 0 auto;
   background: #fff;
-  border: 1px solid #999;
+  padding: 38px 45px;
   box-sizing: border-box;
-  position: relative;
   overflow: hidden;
 }
 
-/* 페이지 내 테이블 */
-.table-page-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: auto;
-  font-size: 13px;
-  color: #1a1a1a;
+/* 인쇄 보기: 표가 인쇄 가능 영역(186mm)에 맞춤 */
+.table-print-preview table {
+  width: 100% !important;
+  min-width: 0 !important;
 }
 
-.table-page-table th,
-.table-page-table td {
-  border: 1px solid #bbb;
-  padding: 6px 10px;
-  text-align: left;
-  vertical-align: top;
+.table-print-preview col {
+  min-width: 0 !important;
+}
+
+.table-print-preview th,
+.table-print-preview td {
   word-break: break-word;
 }
 
-.table-page-table th,
-.table-page-table .page-th {
-  background: #f5f5f5;
-  font-weight: 600;
-  border-bottom-width: 2px;
-  border-bottom-color: #999;
+/* ─── 쪽 나눠보기: 종이 경계 오버레이 ─── */
+.table-page-break-band {
+  position: absolute;
+  left: -45px;
+  right: -45px;
+  pointer-events: none;
+  z-index: 5;
+  /* 하단여백(38px) → 경계선(1px) → 갭(14px) → 경계선(1px) → 상단여백(38px) */
+  background: linear-gradient(to bottom,
+    #fff 0, #fff 37px,
+    #bbb 37px, #bbb 38px,
+    #525659 38px, #525659 54px,
+    #bbb 54px, #bbb 55px,
+    #fff 55px, #fff 100%
+  );
 }
 
-/* 페이지 내 토글 블록 */
-.table-page-table .toggle-block {
-  color: #1a1a1a !important;
-}
-
-.table-page-table .toggle-button,
-.table-page-table .toggle-drag-handle {
-  display: none !important;
-}
-
-/* 페이지 내 테이블 영역 (열 문자 + 행 번호 래퍼) */
-.table-page-area {
-  position: relative;
-  margin-left: 20px;
-}
-
-/* 페이지 내 열 문자 */
-.table-page-col-letters {
-  position: relative;
+.table-page-break-label {
+  position: absolute;
+  top: 38px;
+  left: 50%;
+  transform: translateX(-50%);
   height: 16px;
-  margin-left: 20px;
-}
-
-.page-col-letter {
-  position: absolute;
-  top: 0;
-  font-size: 10px;
-  font-weight: 600;
-  color: #999;
   line-height: 16px;
-  padding-left: 2px;
-}
-
-/* 페이지 내 행 번호 */
-.table-page-row-numbers {
-  position: absolute;
-  left: 0;
-  top: 16px; /* 열 문자 바 높이 */
-  width: 20px;
-}
-
-.page-row-number {
-  position: absolute;
-  left: 0;
-  width: 20px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 3px;
+  color: #9ca3af;
   font-size: 10px;
-  font-weight: 600;
-  color: #999;
-  box-sizing: border-box;
-}
-
-/* 페이지 내 테이블은 행 번호 공간만큼 들여쓰기 */
-.table-page-area .table-page-table {
-  margin-left: 20px;
-}
-
-/* 쪽 번호 — 용지 하단 고정 */
-.table-page-number {
-  position: absolute;
-  bottom: 6mm;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 11px;
-  color: #999;
+  white-space: nowrap;
   user-select: none;
 }
 
