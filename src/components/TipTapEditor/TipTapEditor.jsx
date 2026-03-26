@@ -322,7 +322,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         // TipTap의 기본 드래그 이벤트 비활성화 (우리의 커스텀 드래그 사용)
         dragstart: (view, event) => {
           // drag-handle에서 시작한 드래그는 허용
-          if (event.target.closest('.drag-handle')) {
+          if (event.target.closest && event.target.closest('.drag-handle')) {
             return false // TipTap이 처리하지 않음
           }
           // 다른 곳에서의 드래그는 TipTap이 처리

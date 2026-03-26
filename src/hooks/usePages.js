@@ -12,13 +12,16 @@ const buildPageTree = (pages) => {
   const pageMap = {}
   const tree = []
 
+  // calendar/daily 페이지는 사이드바 페이지 목록에서 제외 (고정 업무일지 버튼으로만 접근)
+  const visiblePages = pages.filter(p => p.page_type !== 'calendar' && p.page_type !== 'daily')
+
   // 1단계: 모든 페이지를 맵에 등록 (children 배열 추가)
-  pages.forEach(page => {
+  visiblePages.forEach(page => {
     pageMap[page.id] = { ...page, children: [] }
   })
 
   // 2단계: 부모-자식 관계 설정
-  pages.forEach(page => {
+  visiblePages.forEach(page => {
     const node = pageMap[page.id]
     if (page.parent_id && pageMap[page.parent_id]) {
       pageMap[page.parent_id].children.push(node)

@@ -597,51 +597,6 @@ th .paragraph-drag-handle {
   flex-shrink: 0;
 }
 
-/* 설정 드롭다운 */
-.fold-bar-settings-wrap {
-  position: relative;
-}
-
-.fold-bar-settings-dropdown {
-  display: none;
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  background: #1f2937;
-  border: 1px solid #374151;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  z-index: 50;
-  min-width: 140px;
-  padding: 4px;
-}
-
-.fold-bar-settings-dropdown.open {
-  display: block;
-}
-
-.fold-bar-settings-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: #d1d5db;
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.fold-bar-settings-item:hover {
-  background: #374151;
-  color: #fff;
-}
-
 /* 번호 헤더 (flex 기반) */
 .fold-bar-header {
   display: flex;
@@ -718,7 +673,7 @@ th .paragraph-drag-handle {
 }
 
 /* =====================================================
-   표 레벨 인쇄 보기 (Print Preview)
+   표 쪽 나눠보기 (항상 적용)
    ===================================================== */
 .table-print-preview {
   background: #525659;
@@ -727,20 +682,22 @@ th .paragraph-drag-handle {
   overflow-x: auto !important;
 }
 
-.table-print-preview > .table-area,
-.table-print-preview > table {
-  /* 별도 table-area가 없는 경우 대비 */
-}
-
 .table-print-preview table {
   background: #fff;
   border-collapse: collapse;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.table-print-preview col {
+  min-width: 0 !important;
 }
 
 .table-print-preview th,
 .table-print-preview td {
   border-color: #bbb !important;
   color: #1a1a1a !important;
+  word-break: break-word;
 }
 
 .table-print-preview th {
@@ -752,7 +709,6 @@ th .paragraph-drag-handle {
   background-color: #fff !important;
 }
 
-/* 인쇄 보기: 토글 블록 텍스트 색상 */
 .table-print-preview .toggle-content p,
 .table-print-preview .toggle-block {
   color: #1a1a1a !important;
@@ -762,7 +718,7 @@ th .paragraph-drag-handle {
   color: #6b7280 !important;
 }
 
-/* ─── 인쇄 보기: 용지 스타일 (A4 고정) ─── */
+/* ─── 용지 스타일 (A4 고정) ─── */
 .table-print-preview .table-area {
   display: block;
   width: 210mm;
@@ -771,21 +727,6 @@ th .paragraph-drag-handle {
   padding: 38px 45px;
   box-sizing: border-box;
   overflow: hidden;
-}
-
-/* 인쇄 보기: 표가 인쇄 가능 영역(186mm)에 맞춤 */
-.table-print-preview table {
-  width: 100% !important;
-  min-width: 0 !important;
-}
-
-.table-print-preview col {
-  min-width: 0 !important;
-}
-
-.table-print-preview th,
-.table-print-preview td {
-  word-break: break-word;
 }
 
 /* ─── 쪽 나눠보기: 종이 경계 오버레이 ─── */

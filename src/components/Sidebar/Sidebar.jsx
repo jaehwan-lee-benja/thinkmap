@@ -97,19 +97,7 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
                     return
                   }
 
-                  // 이름이 "업무일지"인 기존 페이지를 calendar로 전환
-                  const existingByName = pages.find(p => p.name === '업무일지' && !p.parent_id)
-                  if (existingByName) {
-                    await supabase
-                      .from('pages')
-                      .update({ page_type: 'calendar' })
-                      .eq('id', existingByName.id)
-                    handlePageSelect(existingByName.id)
-                    window.location.reload()
-                    return
-                  }
-
-                  // 완전히 없으면 자동 생성
+                  // calendar 페이지가 없으면 새로 생성 (기존 페이지를 변환하지 않음)
                   const newPage = await createPage('업무일지', null, null)
                   if (newPage) {
                     await supabase
@@ -127,7 +115,7 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
               }}
             >
               <CalendarDays size={16} />
-              <span>업무일지</span>
+              <span>업무일지(개발중)</span>
             </button>
           </div>
 

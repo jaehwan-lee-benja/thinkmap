@@ -67,9 +67,7 @@ class FoldableTableView {
     this.cellMinWidth = cellMinWidth
     this.editorView = editorView
 
-    this._printPreview = true
     this._zoom = 1
-    this._settingsOpen = false
 
     this.dom = document.createElement('div')
     this.dom.className = 'tableWrapper table-print-preview'
@@ -131,16 +129,9 @@ class FoldableTableView {
     })
     this.tableArea.appendChild(this.rowAddHandle)
 
-    // 설정 드롭다운 외부 클릭 닫기
-    this._onDocClick = (e) => {
-      const wrap = this.dom.querySelector('.fold-bar-settings-wrap')
-      if (wrap && !wrap.contains(e.target)) {
-        this._settingsOpen = false
-        const dd = wrap.querySelector('.fold-bar-settings-dropdown')
-        if (dd) dd.classList.remove('open')
-      }
-    }
-    document.addEventListener('mousedown', this._onDocClick)
+    // 에디터 변경 시 쪽 나누기 재계산
+    this._pageBreakUpdate = () => this._schedulePageBreaks()
+    this.editorView.dom.addEventListener('input', this._pageBreakUpdate)
 
     // 초기 fold 적용 (DOM 마운트 전이라 offsetWidth가 0 → 마운트 후 재계산)
     this.applyFold()
@@ -149,9 +140,16 @@ class FoldableTableView {
 
   update(node) {
     if (node.type !== this.node.type) return false
+    const prevHidden = JSON.stringify(this.node.attrs.hiddenCols || [])
+    const nextHidden = JSON.stringify(node.attrs.hiddenCols || [])
     this.node = node
     updateColumns(node, this.colgroup, this.table, this.cellMinWidth)
-    this.applyFold()
+    // hiddenCols가 바뀌었을 때만 전체 재계산
+    if (prevHidden !== nextHidden) {
+      this.applyFold()
+    } else {
+      this._schedulePageBreaks()
+    }
     return true
   }
 
@@ -246,9 +244,16 @@ class FoldableTableView {
     // 체크박스 바 업데이트
     this.updateFoldBar(hidden, colCount)
 
-    // 열/행 헤더 업데이트 + 쪽 나눠보기 (쪽 패딩 후 헤더 위치 계산 필요)
-    requestAnimationFrame(() => {
-      if (this._printPreview) this.renderPageBreaks()
+    this._schedulePageBreaks()
+  }
+
+  _schedulePageBreaks() {
+    if (this._scheduleRaf) return
+    this._scheduleRaf = requestAnimationFrame(() => {
+      this._scheduleRaf = null
+      this.renderPageBreaks()
+      const hidden = this.getHiddenCols()
+      const colCount = this.getColCount()
       this.updateExcelHeaders(hidden, colCount)
     })
   }
@@ -361,45 +366,43 @@ class FoldableTableView {
     const toolGroup = document.createElement('div')
     toolGroup.className = 'fold-bar-tools'
 
-    // 확대/축소 (인쇄 보기일 때만)
-    if (this._printPreview) {
-      const zoomGroup = document.createElement('div')
-      zoomGroup.className = 'fold-bar-zoom'
+    // 확대/축소
+    const zoomGroup = document.createElement('div')
+    zoomGroup.className = 'fold-bar-zoom'
 
-      const fitBtn = document.createElement('button')
-      fitBtn.className = 'fold-bar-tool-btn'
-      fitBtn.innerHTML = '<span>맞춤</span>'
-      fitBtn.addEventListener('mousedown', (e) => {
-        e.preventDefault(); e.stopPropagation()
-        this.fitToWidth()
-      })
-      zoomGroup.appendChild(fitBtn)
+    const fitBtn = document.createElement('button')
+    fitBtn.className = 'fold-bar-tool-btn'
+    fitBtn.innerHTML = '<span>맞춤</span>'
+    fitBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation()
+      this.fitToWidth()
+    })
+    zoomGroup.appendChild(fitBtn)
 
-      const zoomOut = document.createElement('button')
-      zoomOut.className = 'fold-bar-tool-btn'
-      zoomOut.textContent = '−'
-      zoomOut.addEventListener('mousedown', (e) => {
-        e.preventDefault(); e.stopPropagation()
-        this.stepZoom(-1)
-      })
-      zoomGroup.appendChild(zoomOut)
+    const zoomOut = document.createElement('button')
+    zoomOut.className = 'fold-bar-tool-btn'
+    zoomOut.textContent = '−'
+    zoomOut.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation()
+      this.stepZoom(-1)
+    })
+    zoomGroup.appendChild(zoomOut)
 
-      const zoomLabel = document.createElement('span')
-      zoomLabel.className = 'fold-bar-zoom-label'
-      zoomLabel.textContent = `${Math.round(this._zoom * 100)}%`
-      zoomGroup.appendChild(zoomLabel)
+    const zoomLabel = document.createElement('span')
+    zoomLabel.className = 'fold-bar-zoom-label'
+    zoomLabel.textContent = `${Math.round(this._zoom * 100)}%`
+    zoomGroup.appendChild(zoomLabel)
 
-      const zoomIn = document.createElement('button')
-      zoomIn.className = 'fold-bar-tool-btn'
-      zoomIn.textContent = '+'
-      zoomIn.addEventListener('mousedown', (e) => {
-        e.preventDefault(); e.stopPropagation()
-        this.stepZoom(1)
-      })
-      zoomGroup.appendChild(zoomIn)
+    const zoomIn = document.createElement('button')
+    zoomIn.className = 'fold-bar-tool-btn'
+    zoomIn.textContent = '+'
+    zoomIn.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation()
+      this.stepZoom(1)
+    })
+    zoomGroup.appendChild(zoomIn)
 
-      toolGroup.appendChild(zoomGroup)
-    }
+    toolGroup.appendChild(zoomGroup)
 
     // 인쇄 버튼
     const printBtn = document.createElement('button')
@@ -411,44 +414,6 @@ class FoldableTableView {
       this.printTable()
     })
     toolGroup.appendChild(printBtn)
-
-    // 설정 버튼 (드롭다운)
-    const settingsWrap = document.createElement('div')
-    settingsWrap.className = 'fold-bar-settings-wrap'
-
-    const settingsBtn = document.createElement('button')
-    settingsBtn.className = 'fold-bar-tool-btn'
-    settingsBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
-    settingsBtn.title = '설정'
-    settingsBtn.addEventListener('mousedown', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      this._settingsOpen = !this._settingsOpen
-      const dropdown = settingsWrap.querySelector('.fold-bar-settings-dropdown')
-      dropdown.classList.toggle('open', this._settingsOpen)
-    })
-    settingsWrap.appendChild(settingsBtn)
-
-    const dropdown = document.createElement('div')
-    dropdown.className = `fold-bar-settings-dropdown${this._settingsOpen ? ' open' : ''}`
-    dropdown.contentEditable = 'false'
-
-    const previewItem = document.createElement('button')
-    previewItem.className = 'fold-bar-settings-item'
-    previewItem.innerHTML = this._printPreview
-      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>쪽 없이 보기</span>'
-      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>쪽 나눠보기</span>'
-    previewItem.addEventListener('mousedown', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      this._settingsOpen = false
-      dropdown.classList.remove('open')
-      this.togglePrintPreview()
-    })
-    dropdown.appendChild(previewItem)
-
-    settingsWrap.appendChild(dropdown)
-    toolGroup.appendChild(settingsWrap)
 
     checkRow.appendChild(toolGroup)
 
@@ -805,30 +770,6 @@ class FoldableTableView {
     this.applyZoom(zoom)
   }
 
-  togglePrintPreview() {
-    this._printPreview = !this._printPreview
-    this.dom.classList.toggle('table-print-preview', this._printPreview)
-
-    if (!this._printPreview) {
-      this.clearPageBreaks()
-      this._zoom = 1
-      this.tableArea.style.zoom = ''
-      if (this._pageBreakUpdate) {
-        this.editorView.dom.removeEventListener('input', this._pageBreakUpdate)
-        this._pageBreakUpdate = null
-      }
-    } else {
-      // 에디터 변경 시 쪽 나누기 재계산
-      this._pageBreakUpdate = () => {
-        if (this._printPreview) requestAnimationFrame(() => this.renderPageBreaks())
-      }
-      this.editorView.dom.addEventListener('input', this._pageBreakUpdate)
-    }
-
-    // fold bar 버튼 상태 갱신 + 쪽 나눠보기 렌더링 (applyFold 내부에서 처리)
-    this.applyFold()
-  }
-
   renderPageBreaks() {
     // 기존 오버레이·셀 패딩 제거 (CSS 용지 스타일은 유지)
     this._clearBreakElements()
@@ -929,14 +870,12 @@ class FoldableTableView {
     }
   }
 
-  // 전체 정리 (쪽 없이 보기 전환 시)
-  clearPageBreaks() {
-    this._clearBreakElements()
-  }
-
   destroy() {
-    if (this._onDocClick) {
-      document.removeEventListener('mousedown', this._onDocClick)
+    if (this._pageBreakUpdate) {
+      this.editorView.dom.removeEventListener('input', this._pageBreakUpdate)
+    }
+    if (this._scheduleRaf) {
+      cancelAnimationFrame(this._scheduleRaf)
     }
   }
 
