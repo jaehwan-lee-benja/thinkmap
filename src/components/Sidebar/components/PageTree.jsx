@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useEditableField } from '../../../hooks/useEditableField'
-import { TemplateSelectModal } from './TemplateSelectModal'
 import { useFavoritesContext } from '../../../contexts/FavoritesContext'
 import { useProjectContext } from '../../../contexts/ProjectContext'
 
@@ -40,8 +39,6 @@ export function PageTree({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [openMenuId])
 
-  // 양식 선택 모달 상태
-  const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [pendingParentId, setPendingParentId] = useState(null)
 
   // 드래그 상태
@@ -86,27 +83,20 @@ export function PageTree({
     }
   }
 
-  const handleCreateSubPage = (parentId, e) => {
+  const handleCreateSubPage = async (parentId, e) => {
     e.stopPropagation()
-    setPendingParentId(parentId)
-    setTemplateModalOpen(true)
-  }
-
-  const handleCreatePage = () => {
-    setPendingParentId(null)
-    setTemplateModalOpen(true)
-  }
-
-  const handleTemplateConfirm = async (name, template) => {
-    setTemplateModalOpen(false)
-    const content = template?.getContent?.() || null
-    const newPage = await onPageCreate(name, pendingParentId, content)
+    const newPage = await onPageCreate('Untitled', parentId)
     if (newPage) {
-      if (pendingParentId) {
-        const updated = { ...expandedPages, [pendingParentId]: true }
-        setExpandedPages(updated)
-        onExpandedPagesChange?.(updated)
-      }
+      const updated = { ...expandedPages, [parentId]: true }
+      setExpandedPages(updated)
+      onExpandedPagesChange?.(updated)
+      onPageSelect(newPage.id)
+    }
+  }
+
+  const handleCreatePage = async () => {
+    const newPage = await onPageCreate('Untitled', null)
+    if (newPage) {
       onPageSelect(newPage.id)
     }
   }
@@ -386,11 +376,6 @@ export function PageTree({
         + 새 페이지
       </button>
 
-      <TemplateSelectModal
-        isOpen={templateModalOpen}
-        onClose={() => setTemplateModalOpen(false)}
-        onConfirm={handleTemplateConfirm}
-      />
     </>
   )
 }

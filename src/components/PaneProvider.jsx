@@ -3,12 +3,10 @@ import { useProjects } from '../hooks/useProjects'
 import { usePages } from '../hooks/usePages'
 import { useSharing } from '../hooks/useSharing'
 import { useBackup } from '../hooks/useBackup'
-import { useTemplates } from '../hooks/useTemplates'
 import ProjectContext from '../contexts/ProjectContext'
 import PageContext from '../contexts/PageContext'
 import SharingContext from '../contexts/SharingContext'
 import BackupContext from '../contexts/BackupContext'
-import TemplateContext from '../contexts/TemplateContext'
 
 const PaneDataContext = createContext(null)
 export function usePaneData() { return useContext(PaneDataContext) }
@@ -181,9 +179,6 @@ export function PaneProvider({
     isLoading: backupLoading,
     getBackups, createBackup, restoreBackup, deleteBackup, exportBackup, importBackup,
   } = useBackup(effectiveSession)
-
-  // ─── Templates ───
-  const templateHook = useTemplates(effectiveSession)
 
   // ─── Backup list ───
   const [backups, setBackups] = useState([])
@@ -443,9 +438,7 @@ export function PaneProvider({
     <PageContext.Provider value={pageCtx}>
     <SharingContext.Provider value={sharingCtx}>
     <BackupContext.Provider value={backupCtx}>
-    <TemplateContext.Provider value={templateHook}>
       {children}
-    </TemplateContext.Provider>
     </BackupContext.Provider>
     </SharingContext.Provider>
     </PageContext.Provider>

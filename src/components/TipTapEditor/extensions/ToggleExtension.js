@@ -1,6 +1,7 @@
 import { Node, mergeAttributes, InputRule } from '@tiptap/core'
 import { NodeSelection, TextSelection, Selection, Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { DOMSerializer } from '@tiptap/pm/model'
 
 export const multiSelectPluginKey = new PluginKey('multiSelect')
 export const focusHighlightPluginKey = new PluginKey('toggleFocusHighlight')
@@ -121,6 +122,66 @@ function collectVisiblePositions(doc) {
     pos += doc.child(i).nodeSize
   }
   return positions
+}
+
+/** 멀티셀렉트 복사/잘라내기 핸들러 */
+function handleMultiSelectCopy(view, event, isCut) {
+  const pluginState = multiSelectPluginKey.getState(view.state)
+  if (!pluginState || pluginState.selectedPositions.length === 0) {
+    console.log('[멀티복사] 선택 없음')
+    return false
+  }
+
+  console.log('[멀티복사] 선택된 위치:', pluginState.selectedPositions)
+
+  const entries = pluginState.selectedPositions
+    .map(pos => ({ pos, node: view.state.doc.nodeAt(pos) }))
+    .filter(e => e.node && e.node.type.name === 'toggle')
+    .sort((a, b) => a.pos - b.pos)
+
+  console.log('[멀티복사] 토글 노드:', entries.length, '개')
+
+  // 중첩된 토글 필터링 (부모가 선택되었으면 자식 제외)
+  const filtered = []
+  for (const entry of entries) {
+    const end = entry.pos + entry.node.nodeSize
+    const isNested = filtered.some(f => entry.pos >= f.pos && end <= f.pos + f.node.nodeSize)
+    if (!isNested) filtered.push(entry)
+  }
+
+  if (filtered.length === 0) {
+    console.log('[멀티복사] 필터 후 0개')
+    return false
+  }
+
+  // DOMSerializer로 HTML 생성
+  const ser = DOMSerializer.fromSchema(view.state.schema)
+  const div = document.createElement('div')
+  for (const entry of filtered) {
+    const nodeDom = ser.serializeNode(entry.node)
+    div.appendChild(nodeDom)
+  }
+
+  const htmlStr = div.innerHTML
+  const textStr = filtered.map(e => e.node.textContent).join('\n')
+
+  console.log('[멀티복사] HTML:', htmlStr.substring(0, 200))
+  console.log('[멀티복사] TEXT:', textStr.substring(0, 100))
+
+  // clipboardData에 직접 쓰기 (동기적, 안정적)
+  event.clipboardData.clearData()
+  event.clipboardData.setData('text/html', htmlStr)
+  event.clipboardData.setData('text/plain', textStr)
+  event.preventDefault()
+
+  console.log('[멀티복사] 클립보드 쓰기 완료, isCut:', isCut)
+
+  // cut이면 삭제
+  if (isCut) {
+    deleteMultiSelected(view.state, (tr) => view.dispatch(tr))
+  }
+
+  return true
 }
 
 /** 빈 토글 JSON 객체 반환 */
@@ -286,6 +347,7 @@ export const Toggle = Node.create({
     return ({ node, editor, getPos, decorations }) => {
       const dom = document.createElement('div')
       dom.classList.add('toggle-block')
+      dom.setAttribute('data-type', 'toggle')
       dom.setAttribute('data-is-open', node.attrs.isOpen)
 
       // 배경색 적용
@@ -350,6 +412,7 @@ export const Toggle = Node.create({
           editor.view.dispatch(
             editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos })
           )
+          editor.view.focus()
           return
         }
 
@@ -374,6 +437,7 @@ export const Toggle = Node.create({
                   lastClickedPos: pos
                 })
               )
+              editor.view.focus()
               return
             }
           }
@@ -381,6 +445,7 @@ export const Toggle = Node.create({
           editor.view.dispatch(
             editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos })
           )
+          editor.view.focus()
           return
         }
 
@@ -427,6 +492,7 @@ export const Toggle = Node.create({
           editor.view.dispatch(
             editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos: getPos() })
           )
+          editor.view.focus()
           return
         }
 
@@ -617,6 +683,7 @@ export const Toggle = Node.create({
           editor.view.dispatch(
             editor.state.tr.setMeta(multiSelectPluginKey, { type: 'toggle', pos: getPos() })
           )
+          editor.view.focus()
           return
         }
 
@@ -1057,6 +1124,21 @@ export const Toggle = Node.create({
             }
             return false
           },
+          handleDOMEvents: {
+            copy(view, event) {
+              console.log('[DOM이벤트] copy 발생')
+              const pluginState = multiSelectPluginKey.getState(view.state)
+              console.log('[DOM이벤트] 멀티셀렉트 상태:', pluginState?.selectedPositions?.length || 0, '개')
+              if (!pluginState || pluginState.selectedPositions.length === 0) return false
+              return handleMultiSelectCopy(view, event, false)
+            },
+            cut(view, event) {
+              console.log('[DOM이벤트] cut 발생')
+              const pluginState = multiSelectPluginKey.getState(view.state)
+              if (!pluginState || pluginState.selectedPositions.length === 0) return false
+              return handleMultiSelectCopy(view, event, true)
+            },
+          },
           handleKeyDown(view, event) {
             const pluginState = multiSelectPluginKey.getState(view.state)
             if (!pluginState || pluginState.selectedPositions.length === 0) return false
@@ -1068,6 +1150,7 @@ export const Toggle = Node.create({
             if (event.key === 'Delete' || event.key === 'Backspace') {
               return deleteMultiSelected(view.state, (tr) => view.dispatch(tr))
             }
+
             return false
           }
         }
@@ -1531,9 +1614,16 @@ export const Toggle = Node.create({
         return true
       },
 
-      // Backspace: 토글 첫 위치에서 토글 해제 방지, 단 빈 토글이면 삭제
+      // Backspace: 멀티셀렉트 삭제 우선, 그 외 토글 첫 위치 방지
       'Backspace': ({ editor }) => {
         const { state } = editor
+
+        // 멀티셀렉트 상태면 선택된 블록 삭제
+        const multiState = multiSelectPluginKey.getState(state)
+        if (multiState && multiState.selectedPositions.length > 0) {
+          return deleteMultiSelected(state, (tr) => editor.view.dispatch(tr))
+        }
+
         const { $from, empty } = state.selection
 
         if (!empty) return false
