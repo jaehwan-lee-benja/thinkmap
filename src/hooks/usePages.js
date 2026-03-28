@@ -111,10 +111,12 @@ export const usePages = (session, currentProjectId, options = {}) => {
       setPagesLoading(true)
 
       // RLS 정책이 공유된 페이지도 허용하므로 user_id 필터 제거
+      // soft-delete된 페이지는 제외
       const { data, error } = await supabase
         .from('pages')
         .select('*')
         .eq('project_id', currentProjectId)
+        .is('deleted_at', null)
         .order('position', { ascending: true })
 
       // 더 최신 fetch가 시작됐으면 이 응답은 무시 (경쟁 조건 방지)
@@ -223,7 +225,6 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .from('pages')
         .update({ name: newName.trim(), updated_at: new Date().toISOString() })
         .eq('id', pageId)
-        .eq('user_id', session.user.id)
 
       if (logError('페이지 이름 변경', error)) return false
 
@@ -237,11 +238,11 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }
 
-  // 삭제 예약 타이머 ref
-  const deleteTimerRef = useRef(null)
+  // undo용 삭제 정보 ref + 타이머 (undo 유효 시간)
   const pendingDeleteRef = useRef(null)
+  const undoTimerRef = useRef(null)
 
-  // 페이지 삭제 (자손 페이지도 함께 삭제 — DB 삭제는 지연)
+  // 페이지 삭제 (soft-delete: deleted_at 타임스탬프 기록)
   const deletePage = async (pageId) => {
     if (!session?.user?.id) return false
 
@@ -256,20 +257,13 @@ export const usePages = (session, currentProjectId, options = {}) => {
       return false
     }
 
-    // 이전 대기 중인 삭제가 있으면 즉시 실행
-    if (deleteTimerRef.current && pendingDeleteRef.current) {
-      clearTimeout(deleteTimerRef.current)
-      const prev = pendingDeleteRef.current
-      supabase.from('pages').delete().eq('id', prev.pageId).eq('user_id', session.user.id)
-      deleteTimerRef.current = null
-      pendingDeleteRef.current = null
-    }
-
-    // 자손 ID 수집 (로컬 상태에서도 제거)
+    // 자손 ID 수집
     const descendantIds = getDescendantIds(pageId, pages)
     const idsToRemove = new Set([pageId, ...descendantIds])
     const removedPages = pages.filter(p => idsToRemove.has(p.id))
     const updatedPages = pages.filter(p => !idsToRemove.has(p.id))
+
+    // 로컬 상태에서 즉시 제거
     setPages(updatedPages)
 
     // 삭제된 페이지(또는 자손)가 현재 페이지였다면 다른 페이지로 전환
@@ -278,39 +272,61 @@ export const usePages = (session, currentProjectId, options = {}) => {
       selectPage(updatedPages[0].id)
     }
 
-    // 삭제 정보 저장 (undo용)
+    // DB soft-delete: deleted_at 타임스탬프 기록 (대상 + 자손 모두)
+    const now = new Date().toISOString()
+    try {
+      const allIds = [pageId, ...descendantIds]
+      const { error } = await supabase
+        .from('pages')
+        .update({ deleted_at: now })
+        .in('id', allIds)
+      if (error) logError('페이지 삭제', error)
+    } catch (error) {
+      logError('페이지 삭제', error)
+    }
+
+    // 이전 undo 타이머가 있으면 제거
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current)
+    }
+
+    // undo 정보 저장 (5초간 유효)
     pendingDeleteRef.current = {
-      pageId,
       removedPages,
       prevPageId,
       pageName: targetPage.name,
     }
-
-    // 5초 후 DB에서 실제 삭제
-    deleteTimerRef.current = setTimeout(async () => {
-      try {
-        const { error } = await supabase
-          .from('pages')
-          .delete()
-          .eq('id', pageId)
-          .eq('user_id', session.user.id)
-        if (error) logError('페이지 삭제', error)
-      } catch (error) {
-        logError('페이지 삭제', error)
-      }
+    undoTimerRef.current = setTimeout(() => {
       pendingDeleteRef.current = null
-      deleteTimerRef.current = null
+      undoTimerRef.current = null
     }, 5000)
 
     return targetPage.name
   }
 
-  // 삭제 취소 (undo)
-  const undoDeletePage = useCallback(() => {
-    if (!deleteTimerRef.current || !pendingDeleteRef.current) return false
+  // 삭제 취소 (undo — soft-delete 해제: deleted_at = null)
+  const undoDeletePage = useCallback(async () => {
+    if (!pendingDeleteRef.current) return false
 
-    clearTimeout(deleteTimerRef.current)
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current)
+      undoTimerRef.current = null
+    }
+
     const { removedPages, prevPageId } = pendingDeleteRef.current
+    pendingDeleteRef.current = null
+
+    // DB에서 deleted_at 해제
+    const ids = removedPages.map(p => p.id)
+    try {
+      const { error } = await supabase
+        .from('pages')
+        .update({ deleted_at: null })
+        .in('id', ids)
+      if (error) logError('페이지 복원', error)
+    } catch (error) {
+      logError('페이지 복원', error)
+    }
 
     // 로컬 상태 복원
     setPages(prev => {
@@ -324,8 +340,6 @@ export const usePages = (session, currentProjectId, options = {}) => {
       selectPage(prevPageId)
     }
 
-    pendingDeleteRef.current = null
-    deleteTimerRef.current = null
     return true
   }, [selectPage])
 
@@ -350,7 +364,6 @@ export const usePages = (session, currentProjectId, options = {}) => {
           .from('pages')
           .update({ position: newPage.position, parent_id: newPage.parent_id || null, updated_at: now })
           .eq('id', newPage.id)
-          .eq('user_id', session.user.id)
 
         if (error) throw error
       }

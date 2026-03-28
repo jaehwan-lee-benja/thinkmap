@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Users, UserPlus, Shield, Link2, Trash2 } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Users, UserPlus, Shield, Link2, Trash2, RotateCcw } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { Modal, ModalHeader, ModalBody } from '../Common/Modal/Modal'
@@ -26,6 +26,44 @@ function AdminModal({
 
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState('user')
+
+  // 휴지통 상태
+  const [trashPages, setTrashPages] = useState([])
+  const [trashLoading, setTrashLoading] = useState(false)
+
+  const fetchTrash = useCallback(async () => {
+    setTrashLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('pages')
+        .select('id, name, user_id, project_id, deleted_at')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+      if (!error) setTrashPages(data || [])
+    } catch (e) { /* ignore */ }
+    setTrashLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (isOpen) fetchTrash()
+  }, [isOpen, fetchTrash])
+
+  const handleRestorePage = async (pageId) => {
+    const { error } = await supabase
+      .from('pages')
+      .update({ deleted_at: null })
+      .eq('id', pageId)
+    if (!error) setTrashPages(prev => prev.filter(p => p.id !== pageId))
+  }
+
+  const handlePermanentDelete = async (page) => {
+    if (!window.confirm(`"${page.name}" 페이지를 완전히 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return
+    const { error } = await supabase
+      .from('pages')
+      .delete()
+      .eq('id', page.id)
+    if (!error) setTrashPages(prev => prev.filter(p => p.id !== page.id))
+  }
 
   // 연결 계정 추가 폼
   const [linkPrimary, setLinkPrimary] = useState('')
@@ -285,6 +323,61 @@ function AdminModal({
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+        {/* 휴지통 */}
+        <div className="admin-section">
+          <div className="admin-section-header">
+            <Trash2 size={16} />
+            <span>휴지통</span>
+            <button className="refresh-button" onClick={fetchTrash}>새로고침</button>
+          </div>
+          <p className="admin-section-desc">
+            삭제된 페이지는 30일 후 자동으로 완전 삭제됩니다.
+          </p>
+
+          {trashLoading ? (
+            <div className="users-loading">로딩 중...</div>
+          ) : trashPages.length === 0 ? (
+            <div className="users-empty">휴지통이 비어있습니다.</div>
+          ) : (
+            <div className="users-list trash-list">
+              {trashPages.map((page) => {
+                const deletedDate = new Date(page.deleted_at)
+                const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - deletedDate) / 86400000))
+                const ownerUser = users.find(u => u.auth_uid === page.user_id || u.id === page.user_id)
+                return (
+                  <div key={page.id} className="user-item trash-item">
+                    <div className="user-info">
+                      <div className="user-email">{page.name}</div>
+                      <div className="user-meta">
+                        {ownerUser && <span className="trash-owner">{ownerUser.email}</span>}
+                        <span className="trash-date">
+                          {deletedDate.toLocaleDateString('ko-KR')} 삭제 · {daysLeft}일 남음
+                        </span>
+                      </div>
+                    </div>
+                    <div className="user-actions">
+                      <button
+                        className="trash-restore-button"
+                        onClick={() => handleRestorePage(page.id)}
+                        title="복원"
+                      >
+                        <RotateCcw size={13} />
+                        <span>복원</span>
+                      </button>
+                      <button
+                        className="user-delete-button"
+                        onClick={() => handlePermanentDelete(page)}
+                        title="완전 삭제"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

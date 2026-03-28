@@ -403,4 +403,42 @@
   }
 }
 
+/* 휴지통 */
+.trash-item {
+  gap: 8px;
+}
+
+.trash-owner {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--color-bg-active);
+  color: var(--color-text-tertiary);
+}
+
+.trash-date {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.trash-restore-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.trash-restore-button:hover {
+  background: var(--color-success-bg-hover, var(--color-success-bg));
+  opacity: 0.85;
+}
+
 /* slideUpAdminModal -> _animations.css (slideUpModal) */
