@@ -6,7 +6,6 @@ import { useKeyboardHeight } from '../../hooks/useKeyboardHeight'
 import { usePageContext } from '../../contexts/PageContext'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
-import { DOMParser as PmDOMParser } from '@tiptap/pm/model'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { OrderedList } from '@tiptap/extension-ordered-list'
@@ -212,15 +211,13 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         })
         return text
       },
-      // 붙여넣기: 토글 블록 복사/텍스트 여러 줄 처리
+      // 붙여넣기: 토글 안에서 여러 줄 텍스트 → 각 줄을 토글 블록으로 생성
+      // (토글 블록 복사/붙여넣기는 ToggleExtension의 transformCopied/transformPasted가 처리)
       handlePaste: (view, event) => {
         const { state } = view
         const { $from } = state.selection
 
-        const html = event.clipboardData?.getData('text/html')
         const text = event.clipboardData?.getData('text/plain')
-        console.log('[붙여넣기] HTML 있음:', !!html, 'TEXT:', text?.substring(0, 50))
-        if (html) console.log('[붙여넣기] HTML 미리보기:', html.substring(0, 300))
 
         // 현재 커서가 토글 블록 안인지 확인
         let toggleDepth = -1
@@ -230,62 +227,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
             break
           }
         }
-        console.log('[붙여넣기] toggleDepth:', toggleDepth)
 
-        // ─── 1) HTML 클립보드에 토글 구조가 포함된 경우 (내부 복사) ───
-        if (html && (html.includes('data-type="toggle"') || html.includes('toggle-block'))) {
-          const wrapper = document.createElement('div')
-          wrapper.innerHTML = html
-          const parsed = PmDOMParser.fromSchema(state.schema).parse(wrapper)
-
-          // 파싱된 문서에서 최상위 노드 수집
-          const nodes = []
-          parsed.content.forEach(node => {
-            if (node.type.name === 'toggle') {
-              nodes.push(node)
-            } else if (node.content && node.content.size > 0) {
-              nodes.push(node)
-            }
-          })
-
-          console.log('[붙여넣기] 파싱된 노드:', nodes.length, '개, 타입:', nodes.map(n => n.type.name))
-
-          if (nodes.length > 0 && nodes.some(n => n.type.name === 'toggle')) {
-            const { tr } = state
-
-            // 토글 안에 있으면 → 현재 토글의 형제 레벨(뒤)에 삽입
-            if (toggleDepth !== -1) {
-              const toggleNode = $from.node(toggleDepth)
-              const togglePos = $from.before(toggleDepth)
-              const afterTogglePos = togglePos + toggleNode.nodeSize
-
-              let insertPos = afterTogglePos
-              nodes.forEach(node => {
-                tr.insert(insertPos, node)
-                insertPos += node.nodeSize
-              })
-
-              tr.setSelection(TextSelection.near(tr.doc.resolve(afterTogglePos + 2)))
-            } else {
-              // 토글 밖이면 → 현재 커서 위치에 삽입
-              let insertPos = $from.pos
-              // 현재 블록의 끝으로 이동
-              const blockEnd = $from.end($from.depth)
-              if (blockEnd > insertPos) insertPos = blockEnd + 1
-
-              nodes.forEach(node => {
-                tr.insert(insertPos, node)
-                insertPos += node.nodeSize
-              })
-            }
-
-            view.dispatch(tr)
-            event.preventDefault()
-            return true
-          }
-        }
-
-        // ─── 2) 텍스트 여러 줄 붙여넣기: 각 줄을 토글 블록으로 생성 ───
         if (!text || !text.includes('\n')) return false
         if (toggleDepth === -1) return false
 

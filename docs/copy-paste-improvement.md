@@ -48,93 +48,71 @@
 
 ---
 
-## 미해결 — 멀티셀렉트 복사 (Cmd+C)
+## 해결 완료 — 멀티셀렉트 복사 (Cmd+C) + 붙여넣기 중첩 문제
 
-### 시도한 접근
+### 근본 원인 분석
 
-#### 접근 1: handleKeyDown에서 Cmd+C 가로채기
+**붙여넣기 중첩 원인**: ProseMirror의 `Slice` 객체에 `openStart`/`openEnd` 값이 설정되면, 피팅 알고리즘(`replaceRange`)이 토글 노드의 `defining: true` 속성을 경계로 인식하여 내부에 삽입함.
 
-```js
-// 플러그인 handleKeyDown 내부
-if (isMod && (event.key === 'c' || event.key === 'x')) {
-  // navigator.clipboard.write()로 클립보드 쓰기
-}
-```
+**멀티셀렉트 복사 실패 원인**: `contentEditable=false` 요소(드래그 핸��, 토글 버튼, 체크박스)를 Cmd+클릭하면 에디터가 포커스를 잃어서, `copy` 이벤트가 에디터의 `handleDOMEvents`에 도달하지 않음.
 
-**실패 이유**: `navigator.clipboard.write()`는 비동기이고, 브라우저 보안 정책에 따라 불안정.
+### 이전 시도 (접근 1~3) — 실패
 
-#### 접근 2: handleDOMEvents.copy/cut 사용
+1. `handleKeyDown`에서 `navigator.clipboard.write()` → 비동기 + 보안 정책 불안정
+2. `handleDOMEvents.copy` → 에디터 포커스 상실로 이벤트 미도달
+3. `editor.view.focus()` 복원 → 타이밍 불일치
 
-```js
-// 플러그인 props
-handleDOMEvents: {
-  copy(view, event) {
-    // event.clipboardData.setData()로 동기적 쓰기
-    const ser = DOMSerializer.fromSchema(view.state.schema)
-    // ... 노드를 HTML로 직렬화
-    event.clipboardData.clearData()
-    event.clipboardData.setData('text/html', htmlStr)
-    event.clipboardData.setData('text/plain', textStr)
-    event.preventDefault()
-    return true
-  }
-}
-```
+### 최종 해결 — ProseMirror 공식 클립보드 파이프라인 활용
 
-**실패 이유**: `copy` 이벤트가 에디터에 도달하지 않음. 드래그 핸들/토글 버튼/체크박스가 `contentEditable=false`이므로 Cmd+클릭 시 에디터 포커스가 사라짐.
-
-#### 접근 3: editor.view.focus() 호출
-
-모든 Cmd+클릭 멀티셀렉트 핸들러(4곳)에서 `editor.view.dispatch()` 후 `editor.view.focus()` 추가.
-
-- 드래그 핸들 click (약 413행)
-- 드래그 핸들 shift+click 범위 선택 (약 438행, 445행)
-- 토글 버튼 mousedown (약 493행)
-- 체크박스 mousedown (약 684행)
-
-**결과**: 아직 불안정. focus가 복원되는 타이밍과 copy 이벤트 발생 타이밍이 어긋나거나, 다른 이유로 copy 이벤트가 에디터에 도달하지 않는 경우가 있음.
-
-### 남은 디버깅 포인트
-
-1. **콘솔 로그 위치** (현재 코드에 남아있음):
-   - `ToggleExtension.js` — `handleMultiSelectCopy()`: `[멀티복사]` 로그
-   - `ToggleExtension.js` — `handleDOMEvents.copy`: `[DOM이벤트] copy 발생` 로그
-   - `TipTapEditor.jsx` — `handlePaste`: `[붙여넣기]` 로그
-
-2. **확인 필요 사항**:
-   - Cmd+클릭 후 `document.activeElement`가 에디터 DOM인지 확인
-   - `copy` 이벤트가 어디서 발생하는지 (에디터 vs 다른 요소)
-   - ProseMirror의 `handleDOMEvents` 등록이 올바른 순서인지
-
-### 추천 다음 접근
-
-**접근 A**: `document` 레벨에서 `copy` 이벤트를 리스너로 잡기
+#### 1) `transformCopied` + `transformPasted` 플러그인 (붙여넣기 중첩 해결)
 
 ```js
-// 에디터 초기화 시 document에 리스너 등록
-document.addEventListener('copy', (e) => {
-  const pluginState = multiSelectPluginKey.getState(editor.state)
-  if (!pluginState || pluginState.selectedPositions.length === 0) return
-  // clipboardData에 쓰기
+new Plugin({
+  props: {
+    transformCopied(slice) {
+      if (slice.content.firstChild?.type.name === 'toggle') {
+        return new Slice(slice.content, 0, 0) // 완결된 블록으로 취급
+      }
+      return slice
+    },
+    transformPasted(slice) {
+      if (slice.content.firstChild?.type.name === 'toggle') {
+        return new Slice(slice.content, 0, 0)
+      }
+      return slice
+    },
+  },
 })
 ```
 
-이 방식은 포커스 위치와 무관하게 동작하므로 가장 안정적일 수 있음.
+`openStart=0, openEnd=0`으로 강제하면 ProseMirror 피팅 알고리즘이 토글을 "완결된 블록"으로 인식하여 형제 레벨에 삽입함.
 
-**접근 B**: Cmd+C 키다운 시 에디터에 프로그래밍적으로 copy 이벤트를 트리거
+#### 2) `document` 레벨 copy/cut 리스너 + `serializeForClipboard` (멀티셀렉트 복사 해결)
 
 ```js
-// handleKeyDown에서
-if (isMod && event.key === 'c') {
-  // 데이터를 준비하고, 직접 copy 이벤트를 에디터 DOM에 dispatch
-  const copyEvent = new ClipboardEvent('copy', { clipboardData: new DataTransfer() })
-  // ... 데이터 설정 후 dispatch
+// 멀티셀렉트 플러그인의 view() lifecycle에서 등록/해제
+view(editorView) {
+  const handleCopy = (event) => {
+    const filtered = collectMultiSelectedNodes(editorView.state)
+    if (filtered.length === 0) return
+    const slice = new Slice(Fragment.from(nodes), 0, 0)
+    const { dom, text } = editorView.serializeForClipboard(slice)
+    event.clipboardData.clearData()
+    event.clipboardData.setData('text/html', dom.innerHTML)
+    event.clipboardData.setData('text/plain', text)
+    event.preventDefault()
+  }
+  document.addEventListener('copy', handleCopy)
+  return { destroy() { document.removeEventListener('copy', handleCopy) } }
 }
 ```
 
-**접근 C**: 멀티셀렉트 시 ProseMirror Selection을 실제 텍스트 범위로 설정
+- `document` 레벨이므로 에디터 포커스 유무와 무관하게 동작
+- `view.serializeForClipboard()`는 ProseMirror 내부에서 사용하는 공식 함수로, `data-pm-slice` 메타데이터를 자동 포함
 
-멀티셀렉트된 토글들의 전체 범위를 ProseMirror TextSelection으로 설정하면, 기본 copy가 해당 범위를 복사함. 단, 중간에 선택되지 않은 토글이 있는 경우(비연속 선택) 처리가 필요.
+#### 3) `handlePaste` 정리
+
+`TipTapEditor.jsx`의 `handlePaste`에서 토글 HTML 수동 파싱 로직(섹션 1)을 제거. `transformPasted`가 공식 파이프라인에서 처리하므로 불필요. 텍스트 여러 줄 붙여넣기(섹�� 2)만 유지.
 
 ---
 
@@ -145,8 +123,6 @@ if (isMod && event.key === 'c') {
 | `src/components/TipTapEditor/extensions/ToggleExtension.js` | 토글 블록 정의, 멀티셀렉트 플러그인, 키보드 핸들러 |
 | `src/components/TipTapEditor/TipTapEditor.jsx` | 에디터 설정, handlePaste, clipboardTextSerializer |
 
-## 현재 코드에 남아있는 디버깅 로그
+## 디버깅 로그
 
-제거 대상 (문제 해결 후):
-- `ToggleExtension.js`: `console.log('[멀티복사]...')`, `console.log('[DOM이벤트]...')`
-- `TipTapEditor.jsx`: `console.log('[붙여넣기]...')`
+모두 제거 완료.
