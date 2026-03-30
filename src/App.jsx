@@ -4,7 +4,8 @@ import { GlobalTopBar } from './components/GlobalTopBar/GlobalTopBar'
 import Sidebar from './components/Sidebar/Sidebar'
 import { TabBar } from './components/TabBar/TabBar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
-import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
+// 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능
+// import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
 import { useAuth } from './hooks/useAuth'
 import { useUserPreferences } from './hooks/useUserPreferences'
 import { useFavorites } from './hooks/useFavorites'
@@ -192,7 +193,6 @@ function App() {
 
   // 즐겨찾기
   const favoritesHook = useFavorites(session)
-  const [favoritesOpen, setFavoritesOpen] = useState(false)
   const paneNavRef = useRef({})
 
   const handleFavoriteNavigate = useCallback((fav) => {
@@ -372,16 +372,16 @@ function App() {
     <AuthContext.Provider value={authCtx}>
     <FavoritesContext.Provider value={favoritesHook}>
       <div className="app app-main">
-        <GlobalTopBar splitMode={splitMode} onSplitToggle={toggleSplit} />
+        <GlobalTopBar
+          splitMode={splitMode}
+          onSplitToggle={toggleSplit}
+          favorites={favoritesHook.favorites}
+          onFavoriteNavigate={handleFavoriteNavigate}
+          onRemoveFavorite={favoritesHook.removeFavorite}
+        />
 
         <div className="app-body">
-          <FavoritesRail
-            isOpen={favoritesOpen}
-            onToggle={() => setFavoritesOpen(prev => !prev)}
-            favorites={favoritesHook.favorites}
-            onNavigate={handleFavoriteNavigate}
-            onRemoveFavorite={favoritesHook.removeFavorite}
-          />
+          {/* 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능 */}
 
           <div className={`container ${splitMode ? 'split-active' : ''}`}>
             {splitMode ? (

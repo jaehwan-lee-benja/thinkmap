@@ -279,6 +279,234 @@
 }
 
 /* =====================================================
+   북마크 바 (크롬 북마크바 스타일)
+   ===================================================== */
+
+.bookmark-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--color-bg-secondary, #1a1a1a);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  z-index: 200;
+  font-size: 12px;
+  user-select: none;
+  box-sizing: border-box;
+  gap: 4px;
+}
+
+/* 왼쪽: 검색 영역 (향후) */
+.bookmark-bar-left {
+  flex-shrink: 0;
+}
+
+/* 가운데: 북마크 아이템 가로 정렬 */
+.bookmark-bar-items {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+}
+
+.bookmark-bar-items::-webkit-scrollbar {
+  display: none;
+}
+
+.bookmark-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 140px;
+  transition: all 0.1s ease;
+  flex-shrink: 0;
+}
+
+.bookmark-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.bookmark-item-icon {
+  font-size: 11px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.bookmark-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 오른쪽: 모든 즐겨찾기 버튼 + 드롭다운 */
+.bookmark-bar-right {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.bookmark-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+  transition: all 0.1s ease;
+}
+
+.bookmark-all-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bookmark-all-btn.active {
+  color: #f5c518;
+  background: rgba(245, 197, 24, 0.08);
+}
+
+/* 드롭다운 */
+.bookmark-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--color-bg-secondary, #1a1a1a);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  min-width: 260px;
+  max-height: 380px;
+  z-index: 300;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.bookmark-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #f5c518;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.bookmark-dropdown-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+}
+
+.bookmark-dropdown-list {
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.bookmark-dropdown-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bookmark-dropdown-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+
+.bookmark-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.bookmark-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bookmark-dropdown-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.bookmark-dropdown-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.bookmark-dropdown-name {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-dropdown-project {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.bookmark-dropdown-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: all 0.12s ease;
+}
+
+.bookmark-dropdown-item:hover .bookmark-dropdown-remove {
+  opacity: 1;
+}
+
+.bookmark-dropdown-remove:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: rgba(239, 68, 68, 0.8);
+}
+
+/* =====================================================
    모바일
    ===================================================== */
 
@@ -291,8 +519,11 @@
     padding: 0 8px;
   }
 
-  /* 모바일에서는 분할 라벨만 숨김 */
   .topbar-split span {
     display: none;
+  }
+
+  .bookmark-bar {
+    padding: 0 6px;
   }
 }

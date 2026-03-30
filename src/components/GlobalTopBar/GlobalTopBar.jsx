@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Shield, ChevronDown } from 'lucide-react'
+import { Shield, ChevronDown, Star, X } from 'lucide-react'
 import AdminModal from '../Admin/AdminModal'
 import { useAuthContext } from '../../contexts/AuthContext'
 import './GlobalTopBar.css'
 
-export function GlobalTopBar({ splitMode, onSplitToggle }) {
+export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite }) {
   const {
     userEmail, ownEmail, userAvatarUrl, handleLogout, isMaster,
     isImpersonating, impersonatedEmail, stopImpersonation,
@@ -15,19 +15,24 @@ export function GlobalTopBar({ splitMode, onSplitToggle }) {
 
   const [adminModalOpen, setAdminModalOpen] = useState(false)
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
+  const [favListOpen, setFavListOpen] = useState(false)
   const dropdownRef = useRef(null)
+  const favDropdownRef = useRef(null)
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
-    if (!accountDropdownOpen) return
+    if (!accountDropdownOpen && !favListOpen) return
     const handleClick = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+      if (accountDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setAccountDropdownOpen(false)
+      }
+      if (favListOpen && favDropdownRef.current && !favDropdownRef.current.contains(e.target)) {
+        setFavListOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [accountDropdownOpen])
+  }, [accountDropdownOpen, favListOpen])
 
   const hasLinkedAccounts = linkedAccounts && linkedAccounts.length > 0
   // 현재 표시할 이메일: 연결 계정 사용 중이면 해당 이메일, 아니면 원래 이메일
@@ -45,6 +50,77 @@ export function GlobalTopBar({ splitMode, onSplitToggle }) {
 
   return (
     <>
+      {/* 북마크 바 — 크롬 북마크바 스타일, 향후 왼쪽에 검색 기능 추가 예정 */}
+      {!isImpersonating && (
+        <div className="bookmark-bar">
+          <div className="bookmark-bar-left">
+            {/* TODO: 검색 기능 (향후 추가 예정) */}
+          </div>
+
+          <div className="bookmark-bar-items">
+            {favorites.map(fav => (
+              <button
+                key={fav.pageId}
+                className="bookmark-item"
+                onClick={() => onFavoriteNavigate?.(fav)}
+                title={fav.pageName}
+              >
+                <span className="bookmark-item-icon">📄</span>
+                <span className="bookmark-item-name">{fav.pageName}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="bookmark-bar-right" ref={favDropdownRef}>
+            <button
+              className={`bookmark-all-btn ${favListOpen ? 'active' : ''}`}
+              onClick={() => setFavListOpen(prev => !prev)}
+              title="모든 즐겨찾기"
+            >
+              <Star size={12} fill={favListOpen ? 'currentColor' : 'none'} />
+              <span>모든 즐겨찾기</span>
+            </button>
+
+            {favListOpen && (
+              <div className="bookmark-dropdown">
+                <div className="bookmark-dropdown-header">
+                  <Star size={12} fill="currentColor" />
+                  <span>모든 즐겨찾기</span>
+                </div>
+                {favorites.length === 0 ? (
+                  <div className="bookmark-dropdown-empty">즐겨찾기가 없습니다</div>
+                ) : (
+                  <div className="bookmark-dropdown-list">
+                    {favorites.map(fav => (
+                      <div
+                        key={fav.pageId}
+                        className="bookmark-dropdown-item"
+                        onClick={() => { onFavoriteNavigate?.(fav); setFavListOpen(false) }}
+                      >
+                        <span className="bookmark-dropdown-icon">📄</span>
+                        <div className="bookmark-dropdown-text">
+                          <span className="bookmark-dropdown-name">{fav.pageName}</span>
+                          {fav.projectName && (
+                            <span className="bookmark-dropdown-project">{fav.projectName}</span>
+                          )}
+                        </div>
+                        <button
+                          className="bookmark-dropdown-remove"
+                          onClick={(e) => { e.stopPropagation(); onRemoveFavorite?.(fav.pageId) }}
+                          title="즐겨찾기 해제"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 뷰어 모드일 때: 관리자 전용 상단 바 */}
       {isImpersonating && (
         <div className="global-topbar topbar-admin-bar">

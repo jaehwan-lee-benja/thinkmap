@@ -211,63 +211,6 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         })
         return text
       },
-      // 붙여넣기: 토글 안에서 여러 줄 텍스트 → 각 줄을 토글 블록으로 생성
-      // (토글 블록 복사/붙여넣기는 ToggleExtension의 transformCopied/transformPasted가 처리)
-      handlePaste: (view, event) => {
-        const { state } = view
-        const { $from } = state.selection
-
-        const text = event.clipboardData?.getData('text/plain')
-
-        // 현재 커서가 토글 블록 안인지 확인
-        let toggleDepth = -1
-        for (let d = $from.depth; d > 0; d--) {
-          if ($from.node(d).type.name === 'toggle') {
-            toggleDepth = d
-            break
-          }
-        }
-
-        if (!text || !text.includes('\n')) return false
-        if (toggleDepth === -1) return false
-
-        const lines = text.split('\n')
-        const toggleNode = $from.node(toggleDepth)
-        const togglePos = $from.before(toggleDepth)
-        const afterTogglePos = togglePos + toggleNode.nodeSize
-
-        // 첫 줄은 현재 커서 위치에 삽입
-        const { tr } = state
-        if (lines[0]) {
-          tr.insertText(lines[0], $from.pos)
-        }
-
-        // 나머지 줄은 현재 토글 뒤에 새 토글 블록으로 삽입
-        const newAttrs = { isOpen: true }
-        if (toggleNode.attrs.isTodo) {
-          newAttrs.isTodo = true
-          newAttrs.todoChecked = false
-        }
-
-        let insertPos = afterTogglePos + (lines[0] ? lines[0].length : 0)
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i]
-          const newToggle = state.schema.nodeFromJSON({
-            type: 'toggle',
-            attrs: newAttrs,
-            content: [{
-              type: 'paragraph',
-              content: line ? [{ type: 'text', text: line }] : []
-            }]
-          })
-          tr.insert(insertPos, newToggle)
-          insertPos += newToggle.nodeSize
-        }
-
-        view.dispatch(tr)
-        event.preventDefault()
-        return true
-      },
       // 크로스 패널 드롭 처리
       handleDrop: (view, event, slice, moved) => {
         const blockData = event.dataTransfer.getData('application/x-thinkmap-block')
