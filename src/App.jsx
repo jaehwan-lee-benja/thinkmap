@@ -196,14 +196,9 @@ function App() {
   const paneNavRef = useRef({})
 
   const handleFavoriteNavigate = useCallback((fav) => {
-    // 탭의 pageId를 먼저 업데이트 (프로젝트 전환 시 usePages의 initialPageId로 사용됨)
-    updateTabInPane(activePaneIndex, { projectId: fav.projectId, pageId: fav.pageId })
-    const nav = paneNavRef.current[activePaneIndex]
-    if (nav) {
-      nav.setCurrentProjectId(fav.projectId)
-      nav.setCurrentPageId(fav.pageId)
-    }
-  }, [updateTabInPane, activePaneIndex])
+    // 새 탭을 열어서 즐겨찾기 페이지로 이동
+    addTab(activePaneIndex, { projectId: fav.projectId, pageId: fav.pageId })
+  }, [addTab, activePaneIndex])
 
   // 삭제 토스트 상태
   const [deleteToast, setDeleteToast] = useState(null)

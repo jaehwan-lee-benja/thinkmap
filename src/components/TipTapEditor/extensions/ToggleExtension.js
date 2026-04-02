@@ -227,7 +227,11 @@ export const Toggle = Node.create({
 
   content: '(paragraph | toggle)+',
 
-  defining: true,
+  // defining: false — 의도적으로 제거.
+  // defining: true이면 ProseMirror fitting 알고리즘이 붙여넣기 시
+  // 콘텐츠를 토글 내부로 밀어넣어 토글 중첩을 유발함.
+  // Enter/Backspace 등은 모두 커스텀 핸들러로 제어하므로 defining 불필요.
+  defining: false,
 
   addStorage() {
     return { viewerMode: false }
