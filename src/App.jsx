@@ -12,7 +12,9 @@ import { useFavorites } from './hooks/useFavorites'
 import { useTabs } from './hooks/useTabs'
 import { useUsers } from './hooks/useUsers'
 import { useLinkedAccounts, useLinkedAccountsAdmin } from './hooks/useLinkedAccounts'
+import { useQuickMemo } from './hooks/useMemo'
 import { PaneProvider, usePaneData } from './components/PaneProvider'
+import { MemoPanel } from './components/MemoPanel/MemoPanel'
 import { usePageContext } from './contexts/PageContext'
 import { useProjectContext } from './contexts/ProjectContext'
 import DeleteToast from './components/Common/DeleteToast'
@@ -119,7 +121,7 @@ function PaneInner({
                   <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>
-              <p>{projectsLoading || pagesLoading ? '로딩 중...' : '페이지를 선택하세요'}</p>
+              <p>{projectsLoading || pagesLoading ? '로딩 중...' : '원하는 페이지를 상단 탭에서 선택해주세요 :)'}</p>
             </div>
           ) : (
             <TipTapEditorPage
@@ -190,6 +192,11 @@ function App() {
   // 연결 계정
   const { linkedAccounts } = useLinkedAccounts(session)
   const linkedAdmin = useLinkedAccountsAdmin(session, isMaster)
+
+  // 메모
+  const { content: memoContent, updateContent: updateMemoContent, loading: memoLoading, saving: memoSaving } = useQuickMemo(session)
+  const [memoOpen, setMemoOpen] = useState(false)
+  const toggleMemo = useCallback(() => setMemoOpen(prev => !prev), [])
 
   // 즐겨찾기
   const favoritesHook = useFavorites(session)
@@ -394,6 +401,16 @@ function App() {
             )}
           </div>
         </div>
+
+        {/* 메모 패널 */}
+        <MemoPanel
+          isOpen={memoOpen}
+          onToggle={toggleMemo}
+          content={memoContent}
+          onContentChange={updateMemoContent}
+          loading={memoLoading}
+          saving={memoSaving}
+        />
 
         {/* 삭제 취소 토스트 */}
         {deleteToast && (

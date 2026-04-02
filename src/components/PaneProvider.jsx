@@ -84,6 +84,7 @@ export function PaneProvider({
     undoDeletePage, reorderPages, getDescendantCount,
   } = usePages(effectiveSession, currentProjectId, {
     initialPageId: activeTab?.pageId || null,
+    noAutoPage: !!activeTab?.noAutoPage,
     onPageChange: handlePageChange,
     preferencesLoaded: !prefs.preferencesLoading,
     isImpersonating,

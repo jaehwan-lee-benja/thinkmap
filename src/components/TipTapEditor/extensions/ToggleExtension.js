@@ -811,10 +811,12 @@ export const Toggle = Node.create({
 
       // 드래그 오버: 토글 위에 호버 시 "내부 삽입" 피드백 + 자동 열기
       let autoOpenTimer = null
+      let dragLeaveTimer = null
       const AUTO_OPEN_DELAY = 600
 
       const clearDropTimers = () => {
         if (autoOpenTimer) { clearTimeout(autoOpenTimer); autoOpenTimer = null }
+        if (dragLeaveTimer) { clearTimeout(dragLeaveTimer); dragLeaveTimer = null }
         dom.classList.remove('toggle-drop-target')
       }
 
@@ -826,9 +828,11 @@ export const Toggle = Node.create({
           if (sel instanceof NodeSelection && sel.from === myPos) return
         }
 
-        // 드래그 중인 블록이 있는지 확인
-        const hasDragData = e.dataTransfer.types.includes('application/x-thinkmap-block') || editor.view.dragging
-        if (!hasDragData) return
+        // 블록 드래그만 처리: 드래그 핸들은 NodeSelection을 설정, 텍스트 드래그는 TextSelection
+        const isBlockDrag = e.dataTransfer.types.includes('application/x-thinkmap-block')
+          || (editor.view.dragging && editor.state.selection instanceof NodeSelection)
+          || window.__crossPaneDrag
+        if (!isBlockDrag) return
 
         // 토글 블록의 header 영역 위에 호버 중인지 확인
         const rect = dom.getBoundingClientRect()
@@ -842,10 +846,12 @@ export const Toggle = Node.create({
         // 하위 토글 내부에서 발생한 이벤트는 무시 (가장 가까운 토글이 자신인 경우만)
         const closestToggle = e.target.closest?.('.toggle-block')
         if (closestToggle !== dom) return
-
         e.preventDefault()
         e.stopPropagation()
         e.dataTransfer.dropEffect = 'move'
+
+        // dragleave 대기 중이면 취소 (자식 요소 간 이동일 뿐)
+        if (dragLeaveTimer) { clearTimeout(dragLeaveTimer); dragLeaveTimer = null }
 
         if (!dom.classList.contains('toggle-drop-target')) {
           dom.classList.add('toggle-drop-target')
@@ -866,77 +872,94 @@ export const Toggle = Node.create({
       })
 
       dom.addEventListener('dragleave', (e) => {
-        if (!dom.contains(e.relatedTarget)) clearDropTimers()
+        if (!dom.contains(e.relatedTarget)) {
+          // 자식 요소 이동 시 relatedTarget이 null일 수 있음 — 짧은 딜레이로 구분
+          dragLeaveTimer = setTimeout(() => clearDropTimers(), 50)
+        }
       })
 
       dom.addEventListener('drop', (e) => {
-        if (!dom.classList.contains('toggle-drop-target')) return
         clearDropTimers()
+
+        // CSS 클래스 대신 직접 조건 확인 (dragleave 타이밍 이슈 회피)
+        const isBlockDrag = e.dataTransfer.types.includes('application/x-thinkmap-block')
+          || (editor.view.dragging && editor.state.selection instanceof NodeSelection)
+          || window.__crossPaneDrag
+        if (!isBlockDrag) return
 
         e.preventDefault()
         e.stopPropagation()
 
-        if (typeof getPos !== 'function') return
-        const targetPos = getPos()
-        const targetNode = editor.state.doc.nodeAt(targetPos)
-        if (!targetNode) return
+        try {
+          if (typeof getPos !== 'function') return
+          const targetPos = getPos()
+          if (targetPos == null || targetPos >= editor.state.doc.content.size) return
+          const targetNode = editor.state.doc.nodeAt(targetPos)
+          if (!targetNode || targetNode.type.name !== 'toggle') return
 
-        // 드래그 소스 노드 가져오기
-        let sourceJSON = null
-        let sourcePos = null
-        let sourceSize = null
+          // 자기 자신에게 드롭하는 경우 무시
+          const sel = editor.state.selection
+          if (sel instanceof NodeSelection && sel.from === targetPos) return
 
-        const blockData = e.dataTransfer.getData('application/x-thinkmap-block')
-        if (blockData) {
-          sourceJSON = JSON.parse(blockData)
-        }
+          // 드래그 소스 노드 가져오기
+          let sourceJSON = null
+          let sourcePos = null
+          let sourceSize = null
 
-        // 같은 에디터 내 드래그 (ProseMirror dragging)
-        const dragging = editor.view.dragging
-        if (dragging?.slice) {
-          const draggedNode = dragging.slice.content.firstChild
-          if (draggedNode) {
-            sourceJSON = draggedNode.toJSON()
-            // 현재 선택에서 소스 위치 찾기
-            const sel = editor.state.selection
-            if (sel instanceof NodeSelection) {
-              sourcePos = sel.from
-              sourceSize = sel.node.nodeSize
+          const blockData = e.dataTransfer.getData('application/x-thinkmap-block')
+          if (blockData) {
+            sourceJSON = JSON.parse(blockData)
+          }
+
+          const dragging = editor.view.dragging
+          if (dragging?.slice) {
+            const draggedNode = dragging.slice.content.firstChild
+            if (draggedNode) {
+              sourceJSON = draggedNode.toJSON()
+              if (sel instanceof NodeSelection) {
+                sourcePos = sel.from
+                sourceSize = sel.node.nodeSize
+              }
             }
           }
-        }
 
-        // 크로스 패널 드래그
-        const crossDrag = window.__crossPaneDrag
-        if (crossDrag) {
-          sourcePos = crossDrag.sourcePos
-          sourceSize = crossDrag.nodeSize
-        }
-
-        if (!sourceJSON) return
-
-        const { tr } = editor.state
-        const nodeToInsert = editor.state.schema.nodeFromJSON(sourceJSON)
-
-        // 대상 토글을 열고, 하위 끝에 삽입
-        if (!targetNode.attrs.isOpen) {
-          tr.setNodeMarkup(targetPos, null, { ...targetNode.attrs, isOpen: true })
-        }
-        const insertPos = targetPos + targetNode.nodeSize - 1
-        tr.insert(insertPos, nodeToInsert)
-
-        // 소스 삭제 (같은 에디터 내)
-        if (sourcePos !== null && sourceSize !== null && (!crossDrag || crossDrag.sourceEditor === editor)) {
-          const mappedSource = tr.mapping.map(sourcePos)
-          const srcNode = tr.doc.nodeAt(mappedSource)
-          if (srcNode && srcNode.type.name === sourceJSON.type) {
-            tr.delete(mappedSource, mappedSource + srcNode.nodeSize)
+          const crossDrag = window.__crossPaneDrag
+          if (crossDrag) {
+            sourcePos = crossDrag.sourcePos
+            sourceSize = crossDrag.nodeSize
           }
-        }
 
-        tr.setMeta('toggleButtonClick', true)
-        editor.view.dispatch(tr)
-        editor.view.dragging = null
+          if (!sourceJSON) return
+
+          const { tr } = editor.state
+          const nodeToInsert = editor.state.schema.nodeFromJSON(sourceJSON)
+
+          // 소스를 먼저 삭제 (위치 안정성을 위해)
+          if (sourcePos !== null && sourceSize !== null && (!crossDrag || crossDrag.sourceEditor === editor)) {
+            const srcNode = tr.doc.nodeAt(sourcePos)
+            if (srcNode && srcNode.type.name === sourceJSON.type) {
+              tr.delete(sourcePos, sourcePos + srcNode.nodeSize)
+            }
+          }
+
+          // 매핑된 대상 위치에 삽입
+          const mappedTargetPos = tr.mapping.map(targetPos)
+          const mappedTarget = tr.doc.nodeAt(mappedTargetPos)
+          if (!mappedTarget || mappedTarget.type.name !== 'toggle') return
+
+          if (!mappedTarget.attrs.isOpen) {
+            tr.setNodeMarkup(mappedTargetPos, null, { ...mappedTarget.attrs, isOpen: true })
+          }
+          const insertPos = mappedTargetPos + mappedTarget.nodeSize - 1
+          tr.insert(insertPos, nodeToInsert)
+
+          tr.setMeta('toggleButtonClick', true)
+          editor.view.dispatch(tr)
+          editor.view.dragging = null
+        } catch (err) {
+          console.error('블록 드롭 오류:', err)
+          editor.view.dragging = null
+        }
 
         // 크로스 패널: 소스 에디터에서 삭제
         if (crossDrag && crossDrag.sourceEditor !== editor) {
@@ -1065,6 +1088,16 @@ export const Toggle = Node.create({
           // 붙여넣기 시 블록 단위 보장
           transformPasted(slice) {
             if (slice.content.firstChild?.type.name === 'toggle') {
+              // 단일 토글 체인(toggle > toggle > ... > paragraph) = 텍스트 복사 → 래퍼 벗기기
+              if (slice.content.childCount === 1) {
+                let node = slice.content.firstChild
+                while (node.type.name === 'toggle' && node.childCount === 1) {
+                  node = node.firstChild
+                }
+                if (node.type.name === 'paragraph') {
+                  return new Slice(Fragment.from(node), 0, 0)
+                }
+              }
               return new Slice(slice.content, 0, 0)
             }
             return slice
@@ -1088,8 +1121,17 @@ export const Toggle = Node.create({
               return true
             }
 
-            // 단일 블록 → ProseMirror 기본 처리 (인라인 삽입)
-            if (slice.content.childCount <= 1) return false
+            // 단일 블록 → 인라인 삽입
+            if (slice.content.childCount <= 1) {
+              const first = slice.content.firstChild
+              if (first?.content && first.content.size > 0) {
+                const { tr } = state
+                tr.insert($from.pos, first.content)
+                view.dispatch(tr)
+                return true
+              }
+              return false
+            }
 
             // 여러 블록 → 첫 블록 인라인은 커서에, 나머지는 형제 토글로
             const { tr } = state
@@ -1119,6 +1161,39 @@ export const Toggle = Node.create({
             const newToggles = children.slice(1).map(wrapInToggle)
             if (newToggles.length > 0) {
               tr.insert(tr.mapping.map(afterTogglePos), Fragment.from(newToggles))
+            }
+
+            view.dispatch(tr)
+            return true
+          },
+          // 텍스트 드래그 → 토글에 드롭 시 중첩 방지 (handlePaste와 동일한 원리)
+          handleDrop(view, event, slice, moved) {
+            const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })
+            if (!pos) return false
+
+            const { state } = view
+            const $pos = state.doc.resolve(pos.pos)
+            const toggleDepth = findToggleDepth($pos)
+            if (toggleDepth === -1) return false
+
+            // 토글 블록 드롭은 드래그 핸들 시스템이 처리
+            if (slice.content.firstChild?.type.name === 'toggle') return false
+
+            // 텍스트 콘텐츠를 인라인으로 삽입 (ProseMirror fitting 우회)
+            const { tr } = state
+            if (moved) tr.deleteSelection()
+
+            const mapped = tr.mapping.map(pos.pos)
+            const contents = []
+            slice.content.forEach(node => {
+              if (node.content && node.content.size > 0) contents.push(node.content)
+            })
+            if (contents.length === 0) return false
+
+            let insertAt = mapped
+            for (const c of contents) {
+              tr.insert(insertAt, c)
+              insertAt = tr.mapping.map(insertAt)
             }
 
             view.dispatch(tr)

@@ -171,8 +171,16 @@ export const useTabs = (prefs) => {
       if (pane.activeTabId === tabId) {
         if (newTabs.length > 0) {
           newActiveId = (idx > 0 ? pane.tabs[idx - 1] : pane.tabs[idx + 1])?.id || newTabs[0]?.id
+        } else if (prev.length > 1) {
+          // 분할 모드에서 마지막 탭 닫기 → 해당 패널 제거, 분할 종료
+          const remainingIndex = paneIndex === 0 ? 1 : 0
+          const merged = [prev[remainingIndex]]
+          setSplitMode(false)
+          setActivePaneIndex(0)
+          saveImmediate(merged, 0)
+          return merged
         } else {
-          // 마지막 탭 닫으면 빈 탭 생성
+          // 단일 모드에서 마지막 탭 → 빈 탭 생성
           const emptyTab = { id: generateTabId(), projectId: null, pageId: null, impersonatedUserId: null, impersonatedUserEmail: null, viewerMode: false }
           newTabs.push(emptyTab)
           newActiveId = emptyTab.id
@@ -186,7 +194,7 @@ export const useTabs = (prefs) => {
       save(newPanes)
       return newPanes
     })
-  }, [save])
+  }, [save, saveImmediate])
 
   const switchTab = useCallback((paneIndex, tabId) => {
     setPanes(prev => {
@@ -250,12 +258,13 @@ export const useTabs = (prefs) => {
         saveImmediate([merged], 0)
         return [merged]
       } else {
-        // 분할 열기 → 현재 활성 탭을 복제하여 pane 1 생성
+        // 분할 열기 → 빈 탭으로 pane 1 생성 (사용자가 페이지를 직접 선택)
         const current = prev[0].tabs.find(t => t.id === prev[0].activeTabId)
         const newTab = {
           id: generateTabId(),
           projectId: current?.projectId ?? null,
-          pageId: current?.pageId ?? null,
+          pageId: null,
+          noAutoPage: true,
           impersonatedUserId: current?.impersonatedUserId ?? null,
           impersonatedUserEmail: current?.impersonatedUserEmail ?? null,
           viewerMode: current?.viewerMode ?? false,

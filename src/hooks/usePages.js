@@ -71,7 +71,7 @@ const getDescendantIds = (pageId, pages) => {
  * @param {Function} options.onPageChange - 페이지 변경 시 콜백 (Supabase 저장용)
  */
 export const usePages = (session, currentProjectId, options = {}) => {
-  const { initialPageId = null, onPageChange, preferencesLoaded = true, isImpersonating = false } = options
+  const { initialPageId = null, noAutoPage = false, onPageChange, preferencesLoaded = true, isImpersonating = false } = options
   const [pages, setPages] = useState([])
   const [currentPageId, setCurrentPageId] = useState(null)
   const [pagesLoading, setPagesLoading] = useState(true)
@@ -139,12 +139,17 @@ export const usePages = (session, currentProjectId, options = {}) => {
           const targetPage = savedPageId
             ? data.find(p => p.id === savedPageId)
             : null
-          const targetPageId = targetPage ? targetPage.id : data[0].id
-          setCurrentPageId(targetPageId)
-          initialLoadDoneRef.current = true
-          // 저장된 값으로 복원할 때는 콜백 호출하지 않음
-          if (!targetPage && onPageChange) {
-            onPageChange(targetPageId)
+          if (noAutoPage && !targetPage) {
+            // 자동 선택 방지 (분할뷰 새 패널 등)
+            initialLoadDoneRef.current = true
+          } else {
+            const targetPageId = targetPage ? targetPage.id : data[0].id
+            setCurrentPageId(targetPageId)
+            initialLoadDoneRef.current = true
+            // 저장된 값으로 복원할 때는 콜백 호출하지 않음
+            if (!targetPage && onPageChange) {
+              onPageChange(targetPageId)
+            }
           }
         }
       }

@@ -35,8 +35,8 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
   }, [accountDropdownOpen, favListOpen])
 
   const hasLinkedAccounts = linkedAccounts && linkedAccounts.length > 0
-  // 현재 표시할 이메일: 연결 계정 사용 중이면 해당 이메일, 아니면 원래 이메일
-  const displayEmail = userEmail || 'User'
+  // 최상단 바에는 항상 실제 로그인 계정 표시 (탭별 전환 무관)
+  const displayEmail = ownEmail || 'User'
 
   const handleSwitchAccount = (la) => {
     startImpersonation(la.linked_auth_uid, la.linked_email)
