@@ -17,7 +17,7 @@ function AdminModal({
   onRefresh,
   onStartImpersonation,
 }) {
-  const { linkedAdmin, isImpersonating, impersonatedEmail, stopImpersonation } = useAuthContext()
+  const { linkedAdmin, isImpersonating, impersonatedEmail, stopImpersonation, ownEmail } = useAuthContext()
   const {
     allLinkedAccounts, loading: linkedLoading,
     fetchAll: refreshLinked,
@@ -174,6 +174,7 @@ function AdminModal({
             >
               <option value="user">사용자</option>
               <option value="admin">관리자</option>
+              <option value="master">마스터</option>
             </select>
             <button type="submit" className="add-user-button">추가</button>
           </form>
@@ -213,37 +214,46 @@ function AdminModal({
                     </div>
                   </div>
                   <div className="user-actions">
-                    <select
-                      value={user.role}
-                      onChange={(e) => onUpdateUserRole(user.id, e.target.value)}
-                      className="user-role-select"
-                      disabled={user.role === 'master'}
-                    >
-                      <option value="user">사용자</option>
-                      <option value="admin">관리자</option>
-                    </select>
-                    <select
-                      value={user.status}
-                      onChange={(e) => onUpdateUserStatus(user.id, e.target.value)}
-                      className="user-status-select"
-                    >
-                      <option value="active">활성</option>
-                      <option value="inactive">비활성</option>
-                    </select>
-                    {user.role !== 'master' && (
-                      <>
-                        <button
-                          className="user-impersonate-button"
-                          onClick={() => handleActAsUser(user)}
-                          disabled={isActing}
-                        >
-                          활동하기
-                        </button>
-                        <button className="user-delete-button" onClick={() => handleDeleteUser(user)}>
-                          삭제
-                        </button>
-                      </>
-                    )}
+                    {(() => {
+                      const isSelf = user.email === ownEmail
+                      return (
+                        <>
+                          <select
+                            value={user.role}
+                            onChange={(e) => onUpdateUserRole(user.id, e.target.value)}
+                            className="user-role-select"
+                            disabled={isSelf}
+                          >
+                            <option value="user">사용자</option>
+                            <option value="admin">관리자</option>
+                            <option value="master">마스터</option>
+                          </select>
+                          <select
+                            value={user.status}
+                            onChange={(e) => onUpdateUserStatus(user.id, e.target.value)}
+                            className="user-status-select"
+                            disabled={isSelf}
+                          >
+                            <option value="active">활성</option>
+                            <option value="inactive">비활성</option>
+                          </select>
+                          {!isSelf && (
+                            <>
+                              <button
+                                className="user-impersonate-button"
+                                onClick={() => handleActAsUser(user)}
+                                disabled={isActing}
+                              >
+                                활동하기
+                              </button>
+                              <button className="user-delete-button" onClick={() => handleDeleteUser(user)}>
+                                삭제
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
                 )

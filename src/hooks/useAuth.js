@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 
-// 마스터 계정 이메일 목록
-const MASTER_EMAILS = ['designerbenja@gmail.com']
-
 /**
  * 인증 관련 로직을 관리하는 커스텀 훅
  * @returns {Object} 인증 상태 및 핸들러
@@ -13,10 +10,18 @@ export const useAuth = () => {
   const [authLoading, setAuthLoading] = useState(true)
   const [isMaster, setIsMaster] = useState(false)
 
-  // 마스터 여부 확인
-  const checkIsMaster = (session) => {
-    const email = session?.user?.email
-    return email ? MASTER_EMAILS.includes(email.toLowerCase()) : false
+  // DB에서 마스터 여부 확인 (app_users 테이블 직접 조회)
+  const checkIsMaster = async (session) => {
+    if (!session?.user?.email) return false
+    try {
+      const { data } = await supabase
+        .from('app_users')
+        .select('role')
+        .eq('email', session.user.email.toLowerCase())
+        .single()
+      return data?.role === 'master'
+    } catch (e) { /* ignore */ }
+    return false
   }
 
   // 로그인 시 app_users에 자동 등록 + auth_uid 동기화
@@ -35,11 +40,10 @@ export const useAuth = () => {
       await supabase.from('app_users').insert([{
         email,
         auth_uid: authUid,
-        role: MASTER_EMAILS.includes(email) ? 'master' : 'user',
+        role: 'user',
         status: 'active',
       }])
     } else if (!data.auth_uid || data.auth_uid !== authUid) {
-      // auth_uid가 없거나 변경된 경우 업데이트
       await supabase.from('app_users')
         .update({ auth_uid: authUid })
         .eq('id', data.id)
@@ -51,9 +55,13 @@ export const useAuth = () => {
     // 현재 세션 가져오기
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      setIsMaster(checkIsMaster(session))
-      if (session) ensureAppUser(session)
       setAuthLoading(false)
+
+      if (session) {
+        // 비차단: 백그라운드에서 처리
+        ensureAppUser(session).catch(() => {})
+        checkIsMaster(session).then(setIsMaster).catch(() => {})
+      }
     })
 
     // 인증 상태 변경 리스너
@@ -61,8 +69,12 @@ export const useAuth = () => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      setIsMaster(checkIsMaster(session))
-      if (session) ensureAppUser(session)
+      if (session) {
+        ensureAppUser(session).catch(() => {})
+        checkIsMaster(session).then(setIsMaster).catch(() => {})
+      } else {
+        setIsMaster(false)
+      }
     })
 
     return () => subscription.unsubscribe()
