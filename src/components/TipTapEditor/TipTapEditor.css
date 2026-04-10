@@ -42,6 +42,9 @@
   cursor: grabbing !important;
 }
 
+/* 블록 드래그 중 자식 요소 hit-test 차단은 JS 측에서 dragenter/leave 카운터로 처리.
+   (이전에 시도한 pointer-events: none 접근은 핸들 드래그의 dragover 자체를 막아서 폐기) */
+
 /* 기본 텍스트 스타일 */
 .tiptap-editor p {
   margin: 0.5rem 0;

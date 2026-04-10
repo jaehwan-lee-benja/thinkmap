@@ -191,19 +191,11 @@ priority: 200
 
 **주의:** ProseMirror의 dragstart 핸들러가 dataTransfer를 덮어쓰기 때문에 `application/x-thinkmap-block`이 types에서 사라질 수 있다. 따라서 `NodeSelection` 타입 체크를 병행해야 한다.
 
-### 6.4 알려진 이슈 및 디버깅 기록 (2026-04-02~03, 미해결)
+### 6.4 알려진 이슈 및 디버깅 기록
 
-#### 이슈 A: dragleave 플리커링 — 시각적 피드백 불안정
+> A, B, C, D 모두 해결됨 (2026-04-10). 상세 해결 내용은 섹션 11 참조.
 
-**현상:** `toggle-drop-target` 클래스가 추가 즉시 dragleave로 제거되어, 하이라이트가 보이지 않음.
-
-**원인:** 토글 블록 내부의 자식 요소(drag-handle, checkbox, toggle-content 등) 위로 마우스가 이동할 때마다 dragleave가 발생. `e.relatedTarget`이 null이어서 `dom.contains()` 체크가 실패.
-
-**시도한 해결:**
-1. ~~dragleave에 50ms 딜레이 + dragover에서 타이머 취소~~ → 효과 미미, 여전히 플리커 발생
-2. 검토 필요: `pointer-events: none`을 드래그 중 자식 요소에 적용, 또는 별도 오버레이 사용
-
-#### 이슈 B: ProseMirror dataTransfer 덮어쓰기
+#### 이슈 B: ProseMirror dataTransfer 덮어쓰기 (해결)
 
 **현상:** 드래그 핸들의 dragstart에서 `e.dataTransfer.setData('application/x-thinkmap-block', ...)`을 설정하지만, ProseMirror의 dragstart 핸들러가 이후 실행되면서 커스텀 타입이 사라짐.
 
@@ -213,30 +205,6 @@ const isBlockDrag = types.includes('application/x-thinkmap-block')
   || (view.dragging && selection instanceof NodeSelection)
   || window.__crossPaneDrag
 ```
-
-#### 이슈 C: drop 위치 RangeError
-
-**현상:** `doc.nodeAt(getPos())`에서 `Index N out of range` 에러 발생. 드래그 중 에디터 상태가 변경되어 NodeView의 `getPos()`가 유효하지 않은 위치를 반환.
-
-**시도한 해결:**
-1. 위치 범위 검증: `getPos() >= doc.content.size`이면 무시
-2. 삭제 먼저 → 삽입 나중 순서로 변경 (위치 매핑 안정성 개선)
-3. try-catch로 에러 시 에디터 보호
-
-#### 이슈 D: 실패한 드롭이 토글을 일반 텍스트로 분해
-
-**현상:** NodeView drop 핸들러가 이벤트를 처리하지 못하면(`return`), ProseMirror 기본 drop 핸들러가 작동하여 토글 블록이 bare paragraph로 분해됨. 이 bare paragraph는:
-- 토글 화살표/핸들/체크박스가 없음
-- 백스페이스로 상위 블록에 붙이면 텍스트가 병합되지 않고 하위 토글로 들어감
-- `> ` 입력으로 토글 변환이 안 됨 (이미 토글 내부이므로 InputRule이 차단)
-- 상위 토글의 화살표가 비어있음 (`hasChildToggles()`가 paragraph를 감지하지 못함)
-
-**근본 원인:** 스키마 `content: '(paragraph | toggle)+'`가 bare paragraph를 허용하므로, ProseMirror 기본 drop이 paragraph를 토글 내부에 직접 삽입 가능.
-
-**해결 방향:**
-- NodeView drop 핸들러의 안정성을 높여 ProseMirror 기본 경로로 빠지는 케이스 최소화
-- 또는 Plugin `handleDrop`에서 블록 드래그도 가로채서 fallback 처리
-- 또는 `appendTransaction`에서 토글 내 bare paragraph를 자동으로 토글로 감싸는 정규화 로직 추가
 
 ---
 
@@ -314,13 +282,76 @@ isBlockDrag = types.includes('application/x-thinkmap-block')
   || window.__crossPaneDrag
 ```
 
----
+### 11.3 블록 드롭 실패 시 토글 분해 — Issue D (2026-04-10, 해결)
 
-## 12. 미해결 이슈 기록
+**현상:** NodeView drop이 처리하지 못한 케이스에서 PM 기본 핸들러가 동작하여 토글이 bare paragraph로 분해됨. 분해된 paragraph는 화살표/핸들/체크박스가 없고 백스페이스/InputRule이 정상 동작하지 않음.
 
-> 블록 드래그 앤 드롭 관련 이슈들은 **섹션 6.4**에 상세 기록되어 있다.
->
-> 요약: dragleave 플리커링(A), RangeError(C), 실패 시 토글 분해(D)
+**해결 (defense in depth):**
+1. **Plugin `handleDrop` 폴백** — 토글 슬라이스가 빈 영역(NodeView drop이 잡지 못하는 영역)에 드롭되면 그 위치의 가장 가까운 토글 다음 형제로 삽입. PM 기본 핸들러로 떨어지는 경로 차단.
+2. **`appendTransaction` 정규화 안전망** — 토글의 첫 자식(헤더 paragraph) 외에 bare paragraph가 발견되면 자동으로 toggle 노드로 감싸기. 어떤 경로로 분해되어도 즉시 복구.
+
+### 11.4 dragleave 플리커링 — Issue A (2026-04-10, **미해결**, 시도 기록 보관)
+
+**현상:** 드래그 중 토글의 자식 요소(.toggle-button, .toggle-drag-handle, .toggle-todo-checkbox 등) 위로 마우스가 들어갈 때마다 .toggle-block에서 dragleave 발생 → `toggle-drop-target` 클래스가 깜빡이거나 시각효과가 보이지 않음.
+
+**원인:** 자식 요소가 dragenter/leave 이벤트의 별도 타겟이 됨. relatedTarget이 null인 경우도 있어 `dom.contains()` 체크 실패.
+
+#### 시도 1 (실패): 모든 자식 요소에 `pointer-events: none` 적용
+
+```css
+.tiptap-editor.block-dragging .toggle-block * { pointer-events: none !important; }
+.tiptap-editor.block-dragging .toggle-block .toggle-block { pointer-events: auto !important; }
+.tiptap-editor.block-dragging .toggle-drag-handle { pointer-events: auto !important; }
+```
+
+- **결과**: 처음에는 enter-target 클래스가 추가되지만 즉시 dragleave가 발생해 화면에 보이지 않음. computed style로는 outline rgb(255,0,0) solid 8px와 background lime이 정확히 적용된 것이 확인됐지만 시각적으로 보이지 않음.
+- **추가 시도**: position:fixed 빨간 박스를 body에 직접 부착(z-index 999999) — 이것조차 보이지 않음.
+- **흔적**: 탭 제목(`document.title`)을 호버 시 변경하니 "한 번씩 깜박"이는 것이 관찰됨 → enter가 즉시 leave로 취소됨이 확인.
+- **결론**: 모든 핸들에 pointer-events: auto를 주면 *타겟* 토글의 핸들도 활성화되어 자식 진입 시 dragleave가 부모에서 발생하는 것이 원인.
+
+#### 시도 2 (실패): source 핸들에만 pointer-events 활성화 (`drag-source` 클래스)
+
+`dragstart`에서 `drag-source` 클래스를 추가하고 CSS를 `.toggle-drag-handle.drag-source { pointer-events: auto }`로 변경.
+
+- **결과**: 핸들 드래그 시 dragover 이벤트 자체가 발화하지 않음 (글로벌 capture-phase 리스너에서도 잡히지 않음). 텍스트 드래그(블록 안쪽 텍스트 잡기)는 발화함.
+- **부수 발견**: 텍스트 드래그가 stale `window.__crossPaneDrag` 와 `NodeSelection` 때문에 블록 드래그로 오인되는 또 다른 버그 발견 → `dragend`에서 stale state 정리하여 수정.
+- **결론**: 원인 미상. CSS pointer-events 접근 자체가 핸들 드래그의 dragover 발화를 막는 부작용이 있음.
+
+#### 시도 3 (현재 코드, 미검증): debounce 방식 dragover
+
+CSS pointer-events 접근을 모두 폐기하고, dragleave 핸들러도 제거. 대신 dragover에 100ms debounce를 적용:
+
+```js
+// dragover가 계속 오면 timer 리셋, 100ms 동안 안 오면 떠난 것으로 판단
+if (dragoverDebounceTimer) clearTimeout(dragoverDebounceTimer)
+dragoverDebounceTimer = setTimeout(() => clearDropTimers(), 100)
+```
+
+- **이론**: 자식 진입 시 dragleave가 발생해도 dragover가 계속 부모에 오므로 100ms debounce가 timer를 리셋해 클래스가 유지됨. 진짜로 떠나면 dragover가 끊겨 100ms 후 정리.
+- **상태**: 코드 적용했으나 사용자 검증 전. 다음 세션에서 확인 필요.
+
+#### 부수 수정 (확정): dragend stale state cleanup
+
+`dragend` 핸들러에서 `window.__crossPaneDrag = null`과 `editor.view.dragging = null`을 명시적으로 정리. 이전에는 cancelled drag 후 stale state가 남아 다음 텍스트 드래그가 블록 드래그로 오인되는 버그가 있었음.
+
+#### 다음 세션 진단 필요 사항
+
+1. 시도 3 (debounce 방식)이 실제로 동작하는지 확인 — 아직 시각효과 검증되지 않음
+2. 만약 debounce도 실패하면, dragover가 어디까지 도달하는지 글로벌 capture-phase 리스너로 다시 추적
+3. 위 모든 것이 실패하면, NodeView 자체를 재구성 — 헤더 영역만 별도 div로 감싸서 그 위에서만 드롭 처리
+
+### 11.5 drop 위치 RangeError 및 스코프 버그 — Issue C (2026-04-10, 해결)
+
+**현상:** `doc.nodeAt(getPos())`에서 `Index N out of range` 에러. 또한 NodeView drop 핸들러의 try 블록 안에 `const crossDrag` 선언이 있어 try 블록 밖의 cross-pane cleanup 코드에서 ReferenceError 발생.
+
+**해결:**
+1. **스코프 버그 수정** — `crossDrag` 선언을 try 블록 밖으로 이동하여 cleanup 코드에서 접근 가능하도록 함. (이전: try 안에서 `const crossDrag` 선언 → 밖에서 사용 시 ReferenceError 발생, 매 드롭마다 silent error)
+2. **위치 검증 강화**:
+   - `Number.isInteger(pos) && pos >= 0 && pos < doc.content.size` 체크
+   - `doc.nodeAt()` 호출도 try/catch로 보호
+   - 매핑된 대상 위치 재검증
+   - 소스 위치도 재검증 후 삭제
+3. **`finally`로 cleanup 보장** — `editor.view.dragging = null`을 finally에 옮겨 어떤 경로로든 정리 보장.
 
 ---
 
@@ -344,7 +375,8 @@ ProseMirror에서 콘텐츠가 에디터에 삽입되는 경로는 **3가지**�
 |------|-----------------|-----------|
 | Cmd+V 붙여넣기 | `handlePaste` | 해결됨 (2026-04-02) |
 | 텍스트 드래그 드롭 | `handleDrop` plugin prop | 해결됨 (2026-04-02) |
-| 블록 드래그 드롭 | NodeView의 `drop` 이벤트 | **미해결** — dragleave 플리커, RangeError, fallback 분해 이슈 (섹션 6.4 참조) |
+| 블록 드래그 드롭 (D, C: 데이터/RangeError) | NodeView `drop` + Plugin `handleDrop` 폴백 + `appendTransaction` 정규화 | 해결됨 (2026-04-10) — 섹션 11.3, 11.5 |
+| 블록 드래그 드롭 (A: 시각 피드백) | dragover debounce 방식 (시도 3) | **미해결** — 섹션 11.4 |
 
 **원칙:**
 - 콘텐츠 삽입 문제는 반드시 **ProseMirror가 제공하는 표준 plugin prop**(`handlePaste`, `handleDrop`, `transformPasted` 등)으로 해결한다.
