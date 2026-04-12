@@ -1343,6 +1343,39 @@ th .paragraph-drag-handle {
   margin-bottom: 0;
 }
 
+/* ── 업무일지 섹션 헤더 (blockType h2 / h3) ── */
+.toggle-block[data-block-type="h2"] {
+  margin-top: 1.25rem;
+}
+
+.toggle-block[data-block-type="h2"] > .toggle-content > p,
+.toggle-block[data-block-type="h2"] > .toggle-content > .paragraph-block > p {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding-bottom: 0.4rem;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.12);
+  margin-bottom: 0.15rem;
+}
+
+.toggle-block[data-block-type="h3"] > .toggle-content > p,
+.toggle-block[data-block-type="h3"] > .toggle-content > .paragraph-block > p {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 섹션 헤더 토글 화살표: 평소 반투명, 호버 시 표시 */
+.toggle-block[data-block-type="h2"] > .toggle-button,
+.toggle-block[data-block-type="h3"] > .toggle-button {
+  opacity: 0.3;
+  transition: opacity 0.15s;
+}
+.toggle-block[data-block-type="h2"]:hover > .toggle-button,
+.toggle-block[data-block-type="h3"]:hover > .toggle-button {
+  opacity: 1;
+}
+
 /* 커서가 위치한 토글 블록 음영 표시 - 해당 블록의 첫 줄만 */
 .toggle-block-focused {
   position: relative;

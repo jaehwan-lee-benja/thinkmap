@@ -1017,4 +1017,59 @@
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* ── 업무일지 헤더 (WorklogHeader) ── */
+.worklog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0 0.75rem 0;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.85rem;
+}
+
+.worklog-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.worklog-header-icon {
+  color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.worklog-header-label {
+  min-width: 42px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+}
+
+.worklog-header-value {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── 업무일지: 섹션 추가 버튼 ── */
+.worklog-add-section-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.6rem 0;
+  margin-top: 0.5rem;
+  border: 1.5px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 0.375rem;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.worklog-add-section-btn:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.03);
+}
+
 /* dropdown-appear -> _animations.css (dropdownAppear) */

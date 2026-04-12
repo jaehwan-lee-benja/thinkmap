@@ -27,9 +27,16 @@ function deleteMultiSelected(state, dispatch) {
 
   if (filtered.length === 0) return false
 
+  // 고정 섹션(isFixedSection) 제외
+  const deletable = filtered.filter(e => {
+    const node = state.doc.nodeAt(e.pos)
+    return !(node && node.attrs.isFixedSection)
+  })
+  if (deletable.length === 0) return false
+
   const { tr } = state
-  for (let i = filtered.length - 1; i >= 0; i--) {
-    const mappedPos = tr.mapping.map(filtered[i].pos)
+  for (let i = deletable.length - 1; i >= 0; i--) {
+    const mappedPos = tr.mapping.map(deletable[i].pos)
     const node = tr.doc.nodeAt(mappedPos)
     if (node && node.type.name === 'toggle') {
       tr.delete(mappedPos, mappedPos + node.nodeSize)
@@ -286,6 +293,11 @@ export const Toggle = Node.create({
         default: null,
         parseHTML: element => element.getAttribute('data-page-id') || null,
         renderHTML: attributes => attributes.pageId ? { 'data-page-id': attributes.pageId } : {},
+      },
+      isFixedSection: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-fixed-section') === 'true',
+        renderHTML: attributes => attributes.isFixedSection ? { 'data-fixed-section': 'true' } : {},
       },
     }
   },
@@ -2129,6 +2141,8 @@ export const Toggle = Node.create({
           if (isEmpty) {
             // 이전 블록이 없으면 삭제 방지 (문서 첫 블록)
             if (togglePos === 0) return true
+            // 고정 섹션 삭제 방지
+            if (toggleNode.attrs.isFixedSection) return true
 
             const { tr } = state
             tr.delete(togglePos, togglePos + toggleNode.nodeSize)
