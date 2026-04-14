@@ -299,6 +299,21 @@ export const Toggle = Node.create({
         parseHTML: element => element.getAttribute('data-fixed-section') === 'true',
         renderHTML: attributes => attributes.isFixedSection ? { 'data-fixed-section': 'true' } : {},
       },
+      isPinned: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-is-pinned') === 'true',
+        renderHTML: attributes => attributes.isPinned ? { 'data-is-pinned': 'true' } : {},
+      },
+      isCarryOver: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-carry-over') === 'true',
+        renderHTML: attributes => attributes.isCarryOver ? { 'data-carry-over': 'true' } : {},
+      },
+      carryOverFrom: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-carry-over-from') || null,
+        renderHTML: attributes => attributes.carryOverFrom ? { 'data-carry-over-from': attributes.carryOverFrom } : {},
+      },
     }
   },
 
@@ -348,6 +363,7 @@ export const Toggle = Node.create({
       dom.classList.add('toggle-block')
       dom.setAttribute('data-type', 'toggle')
       dom.setAttribute('data-is-open', node.attrs.isOpen)
+      dom.setAttribute('data-block-type', node.attrs.blockType || 'paragraph')
 
       // 배경색 적용
       if (node.attrs.backgroundColor) {
@@ -1007,11 +1023,46 @@ export const Toggle = Node.create({
         window.__crossPaneDrag = null
       })
 
+      // Pin 버튼 (자유 섹션 h2 전용)
+      const pinButton = document.createElement('button')
+      pinButton.classList.add('toggle-pin-button')
+      pinButton.contentEditable = 'false'
+      pinButton.title = node.attrs.isPinned ? '고정 해제' : '섹션 고정'
+      if (node.attrs.isPinned) pinButton.classList.add('pinned')
+      // h2 자유 섹션에서만 표시
+      pinButton.style.display = (node.attrs.blockType === 'h2' && !node.attrs.isFixedSection) ? '' : 'none'
+      pinButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>'
+      pinButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        if (!currentNode) return
+        const newPinned = !currentNode.attrs.isPinned
+        editor.view.dispatch(
+          editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, isPinned: newPinned })
+        )
+      })
+
+      // 이월 태그
+      const carryOverTag = document.createElement('span')
+      carryOverTag.classList.add('toggle-carry-over-tag')
+      carryOverTag.contentEditable = 'false'
+      if (node.attrs.isCarryOver && node.attrs.carryOverFrom) {
+        const mmdd = node.attrs.carryOverFrom.slice(5).replace('-', '/')
+        carryOverTag.textContent = `이월 ${mmdd}`
+        carryOverTag.style.display = ''
+      } else {
+        carryOverTag.style.display = 'none'
+      }
+
       dom.appendChild(dragHandle)
       dom.appendChild(pageLink)
       dom.appendChild(button)
       dom.appendChild(checkbox)
+      dom.appendChild(carryOverTag)
       dom.appendChild(contentWrapper)
+      dom.appendChild(pinButton)
       dom.appendChild(pageOverlay)
 
       return {
@@ -1061,6 +1112,15 @@ export const Toggle = Node.create({
             }
           }
 
+          // 이월 태그 업데이트
+          if (updatedNode.attrs.isCarryOver && updatedNode.attrs.carryOverFrom) {
+            const mmdd = updatedNode.attrs.carryOverFrom.slice(5).replace('-', '/')
+            carryOverTag.textContent = `이월 ${mmdd}`
+            carryOverTag.style.display = ''
+          } else {
+            carryOverTag.style.display = 'none'
+          }
+
           // 배경색 업데이트
           if (updatedNode.attrs.backgroundColor) {
             dom.setAttribute('data-bg-color', updatedNode.attrs.backgroundColor)
@@ -1069,6 +1129,12 @@ export const Toggle = Node.create({
             dom.removeAttribute('data-bg-color')
             dom.style.removeProperty('background-color')
           }
+
+          // Pin 버튼 상태 업데이트
+          const showPin = updatedNode.attrs.blockType === 'h2' && !updatedNode.attrs.isFixedSection
+          pinButton.style.display = showPin ? '' : 'none'
+          pinButton.classList.toggle('pinned', !!updatedNode.attrs.isPinned)
+          pinButton.title = updatedNode.attrs.isPinned ? '고정 해제' : '섹션 고정'
 
           // Decoration 반영 (Plugin이 전달한 포커스 상태)
           dom.classList.toggle('toggle-block-focused', hasFocusClass(outerDecorations))

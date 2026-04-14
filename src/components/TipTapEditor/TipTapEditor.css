@@ -989,6 +989,7 @@ th .paragraph-drag-handle {
 
 /* Toggle Block 스타일 - 노션 스타일 */
 .toggle-block {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 0.25rem;
@@ -1343,57 +1344,58 @@ th .paragraph-drag-handle {
   margin-bottom: 0;
 }
 
-/* ── 업무일지 섹션 헤더 (blockType h2 / h3) ── */
-.toggle-block[data-block-type="h2"] {
-  margin-top: 1.25rem;
+/* ── 업무일지 섹션 헤더: 본문과 동일한 폰트, 장식 없음 ── */
+
+/* ── 이월 태그 ── */
+.toggle-carry-over-tag {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-top: 3px;
+  margin-right: 2px;
+  white-space: nowrap;
+  user-select: none;
 }
 
-.toggle-block[data-block-type="h2"] > .toggle-content > p,
-.toggle-block[data-block-type="h2"] > .toggle-content > .paragraph-block > p {
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  padding-bottom: 0.4rem;
-  border-bottom: 1.5px solid rgba(255, 255, 255, 0.12);
-  margin-bottom: 0.15rem;
+/* ── 섹션 pin 버튼 ── */
+.toggle-pin-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
 }
 
-.toggle-block[data-block-type="h3"] > .toggle-content > p,
-.toggle-block[data-block-type="h3"] > .toggle-content > .paragraph-block > p {
-  font-size: 1rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-/* 섹션 헤더 토글 화살표: 평소 반투명, 호버 시 표시 */
-.toggle-block[data-block-type="h2"] > .toggle-button,
-.toggle-block[data-block-type="h3"] > .toggle-button {
-  opacity: 0.3;
-  transition: opacity 0.15s;
-}
-.toggle-block[data-block-type="h2"]:hover > .toggle-button,
-.toggle-block[data-block-type="h3"]:hover > .toggle-button {
+.toggle-block:hover > .toggle-pin-button {
   opacity: 1;
 }
 
-/* 커서가 위치한 토글 블록 음영 표시 - 해당 블록의 첫 줄만 */
-.toggle-block-focused {
-  position: relative;
-}
-
-.toggle-block-focused::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.toggle-pin-button:hover {
+  color: rgba(255, 255, 255, 0.6);
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 0.25rem;
-  pointer-events: none;
-  z-index: 0;
 }
 
+.toggle-pin-button.pinned {
+  opacity: 1;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.toggle-pin-button.pinned:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
 
 /* 드래그 드롭: 토글 안으로 삽입 타겟 피드백 */
 .toggle-block.toggle-drop-target {

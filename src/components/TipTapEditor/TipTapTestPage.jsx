@@ -63,10 +63,12 @@ import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePageContext } from '../../contexts/PageContext'
 import { useProjectContext } from '../../contexts/ProjectContext'
 import { useFavoritesContext } from '../../contexts/FavoritesContext'
-import { FileText, Star, ChevronDown, X } from 'lucide-react'
+import { FileText, Star, ChevronDown, X, CalendarDays } from 'lucide-react'
 import { CalendarView } from '../CalendarView/CalendarView'
 import { createWorklogTemplate } from '../../utils/worklogTemplate'
 import WorklogHeader from './WorklogHeader'
+import WorklogComments from './WorklogComments'
+import { useWorklogComments } from '../../hooks/useWorklogComments'
 import './TipTapPage.css'
 
 /**
@@ -90,10 +92,15 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const imageInputRef = useRef(null)
   const pageRef = useRef(null)
   const { isTablet } = useIsMobile()
-  const { pages, setCurrentPageId, createPage, goBack, goForward, canGoBack, canGoForward } = usePageContext()
+  const { pages, setCurrentPageId, createPage, deletePage, goBack, goForward, canGoBack, canGoForward } = usePageContext()
   const { projects, currentProjectId } = useProjectContext()
   const { toggleFavorite, isFavorite } = useFavoritesContext()
   const currentPage = pages.find(p => p.id === currentPageId)
+  const { comments, mentionableUsers, addComment, toggleResolved, deleteComment } = useWorklogComments(
+    session,
+    currentPage?.page_type === 'daily' ? currentPageId : null,
+    currentProjectId
+  )
   // 형제 페이지 드롭다운
   const [showPageNav, setShowPageNav] = useState(false)
   const pageNavRef = useRef(null)
@@ -835,15 +842,53 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     const dailyPages = pages.filter(p => p.parent_id === currentPageId)
 
     const handleCreateDailyPage = async (dateKey) => {
-      const template = createWorklogTemplate()
-      const newPage = await createPage(dateKey, currentPageId, template)
-      if (newPage) {
-        // page_date와 page_type 설정
-        await supabase
-          .from('pages')
-          .update({ page_date: dateKey, page_type: 'daily' })
-          .eq('id', newPage.id)
+      const pinnedSections = []
+      const carryOverTodos = []
 
+      const sorted = dailyPages
+        .filter(p => p.page_date && p.content_tiptap)
+        .sort((a, b) => b.page_date.localeCompare(a.page_date))
+
+      if (sorted.length > 0) {
+        const recentPage = sorted[0]
+        const content = recentPage.content_tiptap
+
+        if (content?.content) {
+          for (const node of content.content) {
+            if (node.type !== 'toggle') continue
+
+            // pinned 섹션 추출
+            if (node.attrs?.isPinned && node.attrs?.blockType === 'h2') {
+              const titleText = node.content?.[0]?.content?.[0]?.text
+              if (titleText) pinnedSections.push(titleText)
+            }
+
+            // "할 일" 섹션에서 미완료 todo 추출 (첫 번째 isFixedSection h2)
+            if (node.attrs?.isFixedSection && node.attrs?.blockType === 'h2') {
+              const sectionTitle = node.content?.[0]?.content?.[0]?.text
+              if (sectionTitle === '할 일' && node.content) {
+                for (const child of node.content) {
+                  if (child.type === 'toggle' && child.attrs?.isTodo && !child.attrs?.todoChecked) {
+                    const todoText = child.content?.[0]?.content?.[0]?.text
+                    if (todoText) {
+                      // 이미 이월된 항목이면 최초 출처 날짜 유지
+                      const fromDate = child.attrs?.carryOverFrom || recentPage.page_date
+                      carryOverTodos.push({ text: todoText, fromDate })
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const template = createWorklogTemplate(pinnedSections, carryOverTodos)
+      const newPage = await createPage(dateKey, currentPageId, template, {
+        page_type: 'daily',
+        page_date: dateKey,
+      })
+      if (newPage) {
         setCurrentPageId(newPage.id)
       }
     }
@@ -881,7 +926,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   }
 
   return (
-    <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
+    <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''} ${currentPage?.page_type === 'daily' ? 'tiptap-page--daily' : ''}`}>
       <div className="tiptap-page-inner">
         {/* 페이지 헤더 */}
         <div className="tiptap-page-header">
@@ -949,6 +994,16 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
                 <div className="page-nav-dropdown">
                   <div className="page-nav-dropdown-header">페이지</div>
                   <div className="page-nav-dropdown-list">
+                    {/* 업무일지 캘린더 (daily 페이지에서 부모로 이동) */}
+                    {currentPage?.page_type === 'daily' && currentPage.parent_id && (
+                      <button
+                        className="page-nav-dropdown-item"
+                        onClick={() => setCurrentPageId(currentPage.parent_id)}
+                      >
+                        <CalendarDays size={14} />
+                        <span>업무일지</span>
+                      </button>
+                    )}
                     {/* 현재 페이지 (강조) */}
                     <button className="page-nav-dropdown-item current">
                       <FileText size={14} />
@@ -967,7 +1022,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
                         <span>{page.name}</span>
                       </button>
                     ))}
-                    {siblingPages.length === 0 && (
+                    {siblingPages.length === 0 && !currentPage?.parent_id && (
                       <div className="page-nav-dropdown-empty">다른 페이지가 없습니다</div>
                     )}
                   </div>
@@ -1031,7 +1086,16 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
         {/* 업무일지 헤더 (daily 페이지 전용) */}
         {currentPage?.page_type === 'daily' && (
-          <WorklogHeader pageDate={currentPage.page_date} />
+          <WorklogHeader
+            pageDate={currentPage.page_date}
+            authorEmail={session?.user?.email}
+            onDelete={!isImpersonating ? async () => {
+              if (!confirm(`${currentPage.page_date} 업무일지를 삭제하시겠습니까?`)) return
+              const parentId = currentPage.parent_id
+              await deletePage(currentPageId)
+              if (parentId) setCurrentPageId(parentId)
+            } : null}
+          />
         )}
 
         {/* 툴바 (뷰어 모드에서 숨김) */}
@@ -1147,7 +1211,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
         </div>
 
-        <div className="tiptap-editor-wrapper">
+        <div className={`tiptap-editor-wrapper ${currentPage?.page_type === 'daily' ? 'tiptap-editor-wrapper--daily' : ''}`}>
           {content ? (
             <TipTapEditor
               content={content}
@@ -1172,7 +1236,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               const { doc } = editor.state
               const endPos = doc.content.size
               const sectionNode = editor.schema.nodes.toggle.create(
-                { isOpen: true, blockType: 'h2', isTodo: false, todoChecked: false, autoGenerated: false, backgroundColor: null },
+                { isOpen: true, blockType: 'h2', isTodo: false, todoChecked: false, autoGenerated: false, backgroundColor: null, isFixedSection: false },
                 [
                   editor.schema.nodes.paragraph.create(null, [editor.schema.text('새 섹션')]),
                   editor.schema.nodes.toggle.create(
@@ -1186,6 +1250,18 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           >
             + 섹션 추가
           </button>
+        )}
+
+        {/* 업무일지: 코멘트 영역 */}
+        {currentPage?.page_type === 'daily' && (
+          <WorklogComments
+            comments={comments}
+            mentionableUsers={mentionableUsers}
+            currentUserEmail={session?.user?.email}
+            onAdd={addComment}
+            onToggleResolved={toggleResolved}
+            onDelete={deleteComment}
+          />
         )}
 
         {/* 뷰어 모드 토스트 */}

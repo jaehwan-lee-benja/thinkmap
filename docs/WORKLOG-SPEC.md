@@ -1,8 +1,9 @@
 # 업무일지 기획서 (WorkLog Specification)
 
 > 작성일: 2026-04-12
-> 상태: 기획 확정 → 구현 대기
-> 관련 페이지: CalendarView(작업중), daily 페이지 시스템
+> 최종 업데이트: 2026-04-14
+> 상태: Phase 1~4 완료, Phase 5 진행 예정
+> 관련 페이지: CalendarView, daily 페이지 시스템, WorklogComments
 
 ---
 
@@ -218,6 +219,15 @@ CREATE TABLE worklog_templates (
 
 ## 4. 이월 기능
 
+### 4.0 데이터 방식 결정 (2026-04-14 확정)
+
+**A 방식 (JSON 복사) 채택.**
+
+- 이월된 todo는 새 페이지의 `content_tiptap` JSON 안에 **독립된 사본**으로 복사
+- 원본과 사본은 별개 데이터 — 한쪽 수정이 다른 쪽에 영향 없음
+- `isCarryOver: true`, `carryOverFrom: "YYYY-MM-DD"` 속성으로 출처 추적
+- B 방식(별도 todo 테이블에서 공유 참조)은 현재 구조와 맞지 않아 보류. 향후 필요 시 마이그레이션 가능
+
 ### 4.1 이월 대상
 - 전날(또는 가장 최근) daily 페이지에서 `isTodo: true && todoChecked: false` 인 항목
 - `todoStatus: "hold"` 항목은 이월하되 별도 표시
@@ -235,7 +245,19 @@ CREATE TABLE worklog_templates (
 5. 원본에는 carryOverTo: "새_페이지_날짜" 표시 (추적용)
 ```
 
-### 4.4 이월 표시 UI
+### 4.4 이월 데이터 구조
+
+toggle 노드에 추가되는 속성:
+```json
+{
+  "isCarryOver": true,
+  "carryOverFrom": "2026-04-11"
+}
+```
+- `isCarryOver` (boolean) — 이 항목이 이월된 사본인지
+- `carryOverFrom` (string, YYYY-MM-DD) — 어느 날짜에서 이월되었는지
+
+### 4.5 이월 표시 UI
 ```
 [이월 04/11] ☐ 오픈 시점 루틴 비치하기
 ```
@@ -335,32 +357,38 @@ const mentionableUsers = [
 
 ## 8. 구현 순서 (Phase)
 
-### Phase 1: 기본 구조 (MVP)
-- [ ] `worklogSection` TipTap 커스텀 노드 구현
-- [ ] daily 페이지 생성 시 고정 섹션 3개 자동 삽입
-- [ ] 페이지 헤더에 날짜/작성자 표시
-- [ ] 캘린더 뷰에서 daily 페이지 생성/열기 연동
-- [ ] 기존 양식(page_templates) 관련 UI 제거 (CLAUDE.md 지시대로)
+### Phase 1: 기본 구조 (MVP) — ✅ 완료 (2026-04-14)
+- [x] ~~`worklogSection` TipTap 커스텀 노드~~ → 기존 toggle 노드 + `blockType` 속성으로 대체 (별도 노드 불필요)
+- [x] daily 페이지 생성 시 고정 섹션 3개 자동 삽입
+- [x] 페이지 헤더에 날짜/작성자 표시
+- [x] 캘린더 뷰에서 daily 페이지 생성/열기 연동
+- [x] 기존 양식(page_templates) 관련 UI 제거
+- [x] 섹션 카드 레이아웃 (구글 설문지 스타일, daily 페이지 전용)
+- [x] 건조한 스타일 철학 적용 (폰트 크기/밑줄/장식 제거)
 
-### Phase 2: 자유 섹션
-- [ ] [+ 섹션 추가] 기능
-- [ ] 섹션 제목 편집
-- [ ] 섹션 삭제 (고정 섹션 보호)
-- [ ] 섹션 순서 드래그
-- [ ] 섹션 구성을 worklog_templates에 저장
+### Phase 2: 자유 섹션 — ✅ 완료 (2026-04-14)
+- [x] [+ 섹션 추가] 기능
+- [x] 섹션 삭제 (고정 섹션 보호 — `isFixedSection`)
+- [x] 섹션 pin 기능 (pinned 섹션은 새 daily 페이지에 자동 포함)
+- [x] 섹션 제목 인라인 편집 — 토글 첫 paragraph에서 직접 편집 (별도 UI 불필요)
+- [x] 섹션 순서 드래그 — 기존 토글 드래그 핸들로 동작
+- [ ] 섹션 구성을 worklog_templates에 저장 (향후)
 
-### Phase 3: 이월 기능
-- [ ] 이전 daily 페이지 미완료 todo 스캔
-- [ ] 새 페이지 생성 시 이월 항목 자동 삽입
-- [ ] [이월] 태그 UI 표시
-- [ ] 이월 원본 추적 (carryOverFrom/To)
+### Phase 3: 이월 기능 — ✅ 완료 (2026-04-14)
+- [x] `isCarryOver`, `carryOverFrom` 속성 추가 (toggle 노드)
+- [x] 이전 daily 페이지 미완료 todo 스캔
+- [x] 새 페이지 생성 시 이월 항목 자동 삽입
+- [x] [이월 MM/DD] 태그 UI 표시
+- [x] 이월 원본 추적 — 최초 출처 날짜 유지 (반복 이월 시에도 원본 날짜 보존)
 
-### Phase 4: @멘션 코멘트
-- [ ] worklog_comments 테이블 생성 + RLS
-- [ ] 코멘트 입력 UI (섹션별, todo별)
-- [ ] @ 타이핑 시 멤버 드롭다운
-- [ ] 코멘트 목록 표시 + 해결됨 토글
-- [ ] 캘린더 뷰에 코멘트 배지
+### Phase 4: @멘션 코멘트 — ✅ 기본 완료 (2026-04-14)
+- [x] worklog_comments 테이블 생성 + RLS (`create-worklog-comments-table.sql`)
+- [x] useWorklogComments 훅 (CRUD + 실시간 구독 + 멘션 사용자 목록)
+- [x] 코멘트 입력 UI (페이지 하단 전체 코멘트 영역)
+- [x] @ 타이핑 시 멤버 드롭다운
+- [x] 코멘트 목록 표시 + 해결됨 토글
+- [ ] 섹션별/todo별 코멘트 (향후 확장)
+- [ ] 캘린더 뷰에 코멘트 배지 (Phase 5)
 
 ### Phase 5: 캘린더 뷰 강화
 - [ ] 날짜 셀에 완료율/코멘트 수 표시
@@ -377,16 +405,42 @@ const mentionableUsers = [
 
 ---
 
-## 10. 관련 파일 (구현 시 참고)
+## 10. 기술 부채: RLS 마스터 bypass 하드코딩
+
+**현황**: 프로젝트 전체 SQL 파일에서 마스터 권한을 `auth.jwt() ->> 'email' = 'designerbenja@gmail.com'`으로 하드코딩 중.
+
+**해당 파일**: `master-bypass-rls.sql`, `create-worklog-comments-table.sql`, 기타 RLS 정책 파일 전체
+
+**개선 방향**: `app_users` 테이블의 `role = 'master'`를 기반으로 판단하는 함수로 일괄 교체
+```sql
+-- 예시: 마스터 여부 판단 함수
+CREATE OR REPLACE FUNCTION is_master() RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM app_users
+    WHERE auth_uid = auth.uid() AND role = 'master'
+  );
+$$ LANGUAGE sql SECURITY DEFINER;
+```
+이렇게 하면 마스터 변경 시 DB 함수 하나만 수정하면 됨. **프로젝트 전체 변경이므로 별도 작업으로 진행.**
+
+---
+
+## 11. 관련 파일 (구현 시 참고)
 
 | 파일 | 역할 |
 |---|---|
 | `src/components/CalendarView/CalendarView.jsx` | 캘린더 뷰 메인 |
 | `src/components/TipTapEditor/TipTapTestPage.jsx` | 페이지 에디터 (daily 페이지 렌더링) |
-| `src/components/TipTapEditor/extensions/ToggleExtension.js` | 토글 블록 (todo 포함) |
+| `src/components/TipTapEditor/WorklogHeader.jsx` | daily 페이지 헤더 (날짜/작성자/삭제) |
+| `src/components/TipTapEditor/WorklogComments.jsx` | 코멘트 UI (목록/입력/@멘션) |
+| `src/components/TipTapEditor/extensions/ToggleExtension.js` | 토글 블록 (todo, pin, 이월 포함) |
 | `src/hooks/usePages.js` | 페이지 CRUD + daily 페이지 생성 |
+| `src/hooks/useWorklogComments.js` | 코멘트 CRUD + 실시간 구독 |
+| `src/utils/worklogTemplate.js` | daily 페이지 초기 템플릿 (이월/pin 포함) |
+| `create-worklog-comments-table.sql` | 코멘트 테이블 + RLS |
 | `alter-pages-add-calendar.sql` | calendar/daily page_type 스키마 |
 | `docs/TOGGLE-BLOCK-SPEC.md` | 토글 블록 명세 (todo 속성 포함) |
+| `docs/DESIGN-PHILOSOPHY.md` | 건조한 스타일 디자인 철학 |
 
 ---
 

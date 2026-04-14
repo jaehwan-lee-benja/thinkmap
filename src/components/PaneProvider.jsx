@@ -302,7 +302,7 @@ export function PaneProvider({
       if (pages.length > 0) {
         let cur = pages.find(p => p.id === tab.pageId)
         while (cur) {
-          pageParts.unshift({ type: 'page', id: cur.id, name: cur.name, parentId: cur.parent_id || null })
+          pageParts.unshift({ type: 'page', id: cur.id, name: cur.name, parentId: cur.parent_id || null, pageType: cur.page_type || 'normal' })
           cur = cur.parent_id ? pages.find(p => p.id === cur.parent_id) : null
         }
       }
@@ -339,8 +339,13 @@ export function PaneProvider({
     if (part.type === 'page') {
       return pages
         .filter(p => (p.parent_id || null) === (part.parentId || null))
-        .sort((a, b) => a.position - b.position)
-        .map(p => ({ id: p.id, name: p.name }))
+        .sort((a, b) => {
+          // 캘린더(업무일지) 페이지를 최상단으로
+          if (a.page_type === 'calendar' && b.page_type !== 'calendar') return -1
+          if (b.page_type === 'calendar' && a.page_type !== 'calendar') return 1
+          return a.position - b.position
+        })
+        .map(p => ({ id: p.id, name: p.name, pageType: p.page_type || 'normal' }))
     }
     return []
   }, [projects, pages, users, linkedAccounts, isMaster, ownEmail])

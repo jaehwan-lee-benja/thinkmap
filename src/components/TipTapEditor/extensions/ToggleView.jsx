@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react'
+import { Pin } from 'lucide-react'
 import { usePageContext } from '../../../contexts/PageContext'
 
 /**
@@ -28,7 +29,7 @@ function computeOrderedNumber(editor, getPos) {
 }
 
 function ToggleView({ node, updateAttributes, editor, getPos }) {
-  const { isOpen: isOpenAttr, blockType, pageId } = node.attrs
+  const { isOpen: isOpenAttr, blockType, pageId, isFixedSection, isPinned } = node.attrs
   const pageContext = usePageContext()
   const isPageBlock = blockType === 'page' && pageId
 
@@ -70,6 +71,14 @@ function ToggleView({ node, updateAttributes, editor, getPos }) {
     const newIsOpen = !isOpen
     setIsOpen(newIsOpen)
     updateAttributes({ isOpen: newIsOpen })
+  }
+
+  // pin 버튼: 자유 섹션(h2, 비고정)에만 표시
+  const showPinButton = blockType === 'h2' && !isFixedSection
+  const handlePinMouseDown = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    updateAttributes({ isPinned: !isPinned })
   }
 
   // 페이지 블록 클릭 → 해당 페이지로 이동
@@ -124,6 +133,16 @@ function ToggleView({ node, updateAttributes, editor, getPos }) {
         data-number={orderedNumber ?? undefined}
       />
       <NodeViewContent className={`toggle-content ${isOpen ? 'open' : 'closed'}`} />
+      {showPinButton && (
+        <button
+          className={`toggle-pin-button ${isPinned ? 'pinned' : ''}`}
+          contentEditable={false}
+          onMouseDown={handlePinMouseDown}
+          title={isPinned ? '고정 해제' : '섹션 고정'}
+        >
+          <Pin size={13} />
+        </button>
+      )}
     </NodeViewWrapper>
   )
 }

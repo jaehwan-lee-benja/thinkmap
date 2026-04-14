@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { CalendarDays } from 'lucide-react'
 import './TabBar.css'
 
 export function TabBar({
@@ -76,6 +77,7 @@ export function TabBar({
               className={`tab-breadcrumb-part ${i === parts.length - 1 ? 'current' : ''} ${isActive && part.type !== 'none' ? 'clickable' : ''} ${dropdown && dropdown.tabId === tab.id && dropdown.partIndex === i ? 'open' : ''}`}
               onClick={isActive ? (e) => handlePartClick(e, tab, part, i) : undefined}
             >
+              {part.pageType === 'calendar' && <CalendarDays size={12} style={{ marginRight: 3, verticalAlign: -1, flexShrink: 0 }} />}
               {part.name}
               {isActive && part.type !== 'none' && (
                 <svg className="breadcrumb-chevron" width="10" height="10" viewBox="0 0 10 10">
@@ -196,7 +198,10 @@ export function TabBar({
                 className={`breadcrumb-dropdown-item ${item.id === dropdown.currentId ? 'current' : ''}`}
                 onClick={() => handleDropdownSelect(dropdown.type, item.id)}
               >
-                {item.name}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
+                  {item.pageType === 'calendar' && <CalendarDays size={12} style={{ flexShrink: 0 }} />}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.pageType === 'calendar' ? '업무일지(개발중)' : item.name}</span>
+                </span>
                 {item.id === dropdown.currentId && (
                   <svg width="12" height="12" viewBox="0 0 12 12" className="breadcrumb-dropdown-check">
                     <path d="M2.5 6l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
