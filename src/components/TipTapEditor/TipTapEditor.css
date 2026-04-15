@@ -1360,6 +1360,34 @@ th .paragraph-drag-handle {
   user-select: none;
 }
 
+/* ── 섹션 코멘트 버튼 ── */
+.toggle-comment-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.toggle-block:hover > .toggle-comment-button {
+  opacity: 1;
+}
+
+.toggle-comment-button:hover {
+  color: var(--color-primary, #646cff);
+  background: rgba(100, 108, 255, 0.08);
+}
+
 /* ── 섹션 pin 버튼 ── */
 .toggle-pin-button {
   flex-shrink: 0;

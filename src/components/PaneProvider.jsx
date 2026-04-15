@@ -80,7 +80,7 @@ export function PaneProvider({
 
   const {
     pages, pageTree, currentPageId, setCurrentPageId: rawSetCurrentPageId,
-    pagesLoading, createPage, renamePage, deletePage,
+    pagesLoading, createPage, renamePage, updatePageIcon, deletePage,
     undoDeletePage, reorderPages, getDescendantCount,
   } = usePages(effectiveSession, currentProjectId, {
     initialPageId: activeTab?.pageId || null,
@@ -302,7 +302,7 @@ export function PaneProvider({
       if (pages.length > 0) {
         let cur = pages.find(p => p.id === tab.pageId)
         while (cur) {
-          pageParts.unshift({ type: 'page', id: cur.id, name: cur.name, parentId: cur.parent_id || null, pageType: cur.page_type || 'normal' })
+          pageParts.unshift({ type: 'page', id: cur.id, name: cur.name, parentId: cur.parent_id || null, pageType: cur.page_type || 'normal', icon: cur.icon || null })
           cur = cur.parent_id ? pages.find(p => p.id === cur.parent_id) : null
         }
       }
@@ -406,10 +406,10 @@ export function PaneProvider({
 
   const pageCtx = useMemo(() => ({
     pages, pageTree, currentPageId, setCurrentPageId,
-    createPage, renamePage, deletePage: handleDeletePage, reorderPages, getDescendantCount,
+    createPage, renamePage, updatePageIcon, deletePage: handleDeletePage, reorderPages, getDescendantCount,
     expandedPages: prefs.expandedPages, saveExpandedPages: prefs.saveExpandedPages,
     goBack, goForward, canGoBack, canGoForward,
-  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, handleDeletePage, reorderPages, getDescendantCount, prefs.expandedPages, prefs.saveExpandedPages, goBack, goForward, canGoBack, canGoForward])
+  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, updatePageIcon, handleDeletePage, reorderPages, getDescendantCount, prefs.expandedPages, prefs.saveExpandedPages, goBack, goForward, canGoBack, canGoForward])
 
   const sharingCtx = useMemo(() => ({
     sharedWithMe, sharingLoading,

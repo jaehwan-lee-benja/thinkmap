@@ -17,14 +17,26 @@ export default function WorklogComments({
   onAdd,
   onToggleResolved,
   onDelete,
+  commentTarget = null,
+  onClearTarget,
+  defaultOpen = false,
 }) {
   const [input, setInput] = useState('')
   const [showMentionDropdown, setShowMentionDropdown] = useState(false)
   const [mentionFilter, setMentionFilter] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(defaultOpen)
   const inputRef = useRef(null)
 
   const unresolvedCount = comments.filter(c => !c.resolved).length
+
+  // 섹션 타겟이 변경되면 자동으로 패널 열기
+  const prevTargetRef = useRef(commentTarget)
+  useEffect(() => {
+    if (commentTarget && commentTarget !== prevTargetRef.current) {
+      setIsOpen(true)
+    }
+    prevTargetRef.current = commentTarget
+  }, [commentTarget])
 
   // @ 입력 감지
   const handleInputChange = (e) => {
@@ -78,13 +90,22 @@ export default function WorklogComments({
 
   return (
     <div className="worklog-comments">
-      <button
-        className={`worklog-comments-toggle ${isOpen ? 'open' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <MessageSquare size={14} />
-        <span>코멘트{unresolvedCount > 0 ? ` (${unresolvedCount})` : ''}</span>
-      </button>
+      <div className="worklog-comments-header-row">
+        <button
+          className={`worklog-comments-toggle ${isOpen ? 'open' : ''}`}
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <MessageSquare size={14} />
+          <span>
+            코멘트{commentTarget ? ` — ${commentTarget}` : ''}{unresolvedCount > 0 ? ` (${unresolvedCount})` : ''}
+          </span>
+        </button>
+        {commentTarget && (
+          <button className="worklog-comments-clear-target" onClick={onClearTarget}>
+            전체 보기
+          </button>
+        )}
+      </div>
 
       {isOpen && (
         <div className="worklog-comments-body">

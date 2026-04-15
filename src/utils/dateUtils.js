@@ -1,3 +1,6 @@
+// 요일 이름 (공통 상수)
+export const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
+
 // 날짜를 YYYY-MM-DD 형식으로 변환 (DB 저장용)
 export const formatDateForDB = (date) => {
   const year = date.getFullYear()
@@ -11,8 +14,7 @@ export const formatDateOnly = (date) => {
   const year = String(date.getFullYear()).slice(2)
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
-  const weekdays = ['일', '월', '화', '수', '목', '금', '토']
-  const weekday = weekdays[date.getDay()]
+  const weekday = DAY_NAMES[date.getDay()]
   return `${year}.${month}.${day}(${weekday})`
 }
 
@@ -25,8 +27,7 @@ export const formatDate = (dateString) => {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
 
-  const weekdays = ['일', '월', '화', '수', '목', '금', '토']
-  const weekday = weekdays[date.getDay()]
+  const weekday = DAY_NAMES[date.getDay()]
 
   return `${year}.${month}.${day}(${weekday}) ${hours}:${minutes}`
 }

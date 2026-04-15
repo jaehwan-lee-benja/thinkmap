@@ -1,34 +1,81 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, List } from 'lucide-react'
 import './TabBar.css'
 
 export function TabBar({
   tabs, activeTabId, onSwitch, onAdd, onRemove, onReorder, onMoveTab,
   paneIndex,
   buildBreadcrumb, getBreadcrumbSiblings, onBreadcrumbNavigate,
+  highlightedTabId,
 }) {
-  // 드롭다운 상태: { tabId, partIndex, type, items, anchorRect }
   const [dropdown, setDropdown] = useState(null)
   const dropdownRef = useRef(null)
+  const [tabListOpen, setTabListOpen] = useState(false)
+  const tabListRef = useRef(null)
+  const tabListBtnRef = useRef(null)
+  const [tabListRect, setTabListRect] = useState(null)
 
-  // 드래그 앤 드롭 상태
+  // 가로 스크롤
+  const scrollRef = useRef(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 1)
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    updateScrollState()
+    el.addEventListener('scroll', updateScrollState)
+    const ro = new ResizeObserver(updateScrollState)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', updateScrollState)
+      ro.disconnect()
+    }
+  }, [updateScrollState, tabs.length])
+
+  // 활성 탭이 바뀌면 해당 탭으로 스크롤
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const activeEl = el.querySelector('.tab-bar-tab.active')
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+    }
+  }, [activeTabId])
+
+  const scrollBy = (dir) => {
+    scrollRef.current?.scrollBy({ left: dir * 150, behavior: 'smooth' })
+  }
+
+  // 드래그 앤 드롭
   const [dragIndex, setDragIndex] = useState(null)
   const [dropIndex, setDropIndex] = useState(null)
-  const [crossDrop, setCrossDrop] = useState(false) // 다른 패널에서 드래그 중
+  const [crossDrop, setCrossDrop] = useState(false)
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
-    if (!dropdown) return
+    if (!dropdown && !tabListOpen) return
     const handleClick = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+      if (dropdown && dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdown(null)
+      }
+      if (tabListOpen) {
+        const inList = tabListRef.current?.contains(e.target)
+        const inBtn = tabListBtnRef.current?.contains(e.target)
+        if (!inList && !inBtn) setTabListOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [dropdown])
+  }, [dropdown, tabListOpen])
 
-  // breadcrumb 파트 클릭 → 드롭다운 열기 (활성 탭에서만)
   const handlePartClick = useCallback((e, tab, part, partIndex) => {
     e.stopPropagation()
     if (tab.id !== activeTabId) {
@@ -64,6 +111,15 @@ export function TabBar({
     ? dropdown.type === 'user' ? '계정' : dropdown.type === 'project' ? '프로젝트' : '페이지'
     : ''
 
+  const getTabInfo = (tab) => {
+    if (!buildBreadcrumb) return { label: '새 탭', icon: null }
+    const parts = buildBreadcrumb(tab)
+    const last = parts[parts.length - 1]
+    const label = last?.pageType === 'calendar' ? '업무일지' : (last?.name || '새 탭')
+    const icon = last?.icon || null
+    return { label, icon }
+  }
+
   const renderBreadcrumb = (tab) => {
     if (!buildBreadcrumb) return <span className="tab-bar-label">새 탭</span>
     const parts = buildBreadcrumb(tab)
@@ -77,7 +133,12 @@ export function TabBar({
               className={`tab-breadcrumb-part ${i === parts.length - 1 ? 'current' : ''} ${isActive && part.type !== 'none' ? 'clickable' : ''} ${dropdown && dropdown.tabId === tab.id && dropdown.partIndex === i ? 'open' : ''}`}
               onClick={isActive ? (e) => handlePartClick(e, tab, part, i) : undefined}
             >
-              {part.pageType === 'calendar' && <CalendarDays size={12} style={{ marginRight: 3, verticalAlign: -1, flexShrink: 0 }} />}
+              {part.icon
+                ? <span style={{ marginRight: 3, flexShrink: 0, fontSize: 12 }}>{part.icon}</span>
+                : part.pageType === 'calendar'
+                  ? <CalendarDays size={12} style={{ marginRight: 3, verticalAlign: -1, flexShrink: 0 }} />
+                  : null
+              }
               {part.name}
               {isActive && part.type !== 'none' && (
                 <svg className="breadcrumb-chevron" width="10" height="10" viewBox="0 0 10 10">
@@ -93,7 +154,31 @@ export function TabBar({
 
   return (
     <div className="tab-bar">
+      {/* 탭 리스트 드롭다운 버튼 */}
+      <button
+        ref={tabListBtnRef}
+        className={`tab-bar-list-btn ${tabListOpen ? 'active' : ''}`}
+        onClick={() => {
+          if (!tabListOpen && tabListBtnRef.current) {
+            setTabListRect(tabListBtnRef.current.getBoundingClientRect())
+          }
+          setTabListOpen(prev => !prev)
+        }}
+        title="탭 목록"
+      >
+        <List size={14} />
+      </button>
+
+      {/* 왼쪽 스크롤 화살표 */}
+      {canScrollLeft && (
+        <button className="tab-scroll-btn tab-scroll-left" onClick={() => scrollBy(-1)}>
+          <ChevronLeft size={14} />
+        </button>
+      )}
+
+      {/* 탭 영역 (가로 스크롤) */}
       <div
+        ref={scrollRef}
         className={`tab-bar-tabs ${crossDrop && dropIndex === null ? 'tab-bar-cross-drop' : ''}`}
         onDragOver={(e) => {
           e.preventDefault()
@@ -121,7 +206,7 @@ export function TabBar({
           return (
           <div
             key={tab.id}
-            className={`tab-bar-tab ${tab.id === activeTabId ? 'active' : ''} ${isDragging ? 'tab-dragging' : ''} ${dropClass}`}
+            className={`tab-bar-tab ${tab.id === activeTabId ? 'active' : ''} ${tab.id === highlightedTabId ? 'tab-highlighted' : ''} ${isDragging ? 'tab-dragging' : ''} ${dropClass}`}
             draggable
             onDragStart={(e) => {
               setDragIndex(index)
@@ -132,15 +217,8 @@ export function TabBar({
             onDragOver={(e) => {
               e.preventDefault()
               e.dataTransfer.dropEffect = 'move'
-              // 같은 패널 내 드래그
-              if (dragIndex !== null && index !== dragIndex) {
-                setDropIndex(index)
-              }
-              // 다른 패널에서 드래그 들어옴
-              if (dragIndex === null) {
-                setDropIndex(index)
-                setCrossDrop(true)
-              }
+              if (dragIndex !== null && index !== dragIndex) setDropIndex(index)
+              if (dragIndex === null) { setDropIndex(index); setCrossDrop(true) }
             }}
             onDragLeave={() => { setDropIndex(null); setCrossDrop(false) }}
             onDrop={(e) => {
@@ -148,10 +226,8 @@ export function TabBar({
               try {
                 const data = JSON.parse(e.dataTransfer.getData('application/tab-drag'))
                 if (data.paneIndex !== paneIndex && onMoveTab) {
-                  // 크로스 패널 이동
                   onMoveTab(data.paneIndex, data.tabIndex, index)
                 } else if (data.paneIndex === paneIndex && data.tabIndex !== index && onReorder) {
-                  // 같은 패널 내 순서 변경
                   onReorder(data.tabIndex, index)
                 }
               } catch {}
@@ -177,6 +253,48 @@ export function TabBar({
           +
         </button>
       </div>
+
+      {/* 오른쪽 스크롤 화살표 */}
+      {canScrollRight && (
+        <button className="tab-scroll-btn tab-scroll-right" onClick={() => scrollBy(1)}>
+          <ChevronRight size={14} />
+        </button>
+      )}
+
+      {/* 전체 탭 리스트 드롭다운 */}
+      {tabListOpen && tabListRect && (
+        <div
+          ref={tabListRef}
+          className="tab-list-dropdown"
+          style={{
+            top: tabListRect.bottom + 4,
+            left: tabListRect.left,
+          }}
+        >
+          <div className="tab-list-dropdown-header">
+            탭 목록 ({tabs.length})
+          </div>
+          <div className="tab-list-dropdown-list">
+            {tabs.map(tab => (
+              <div
+                key={tab.id}
+                className={`tab-list-item ${tab.id === activeTabId ? 'active' : ''}`}
+                onClick={() => { onSwitch(tab.id); setTabListOpen(false) }}
+              >
+                <span className="tab-list-item-icon">{getTabInfo(tab).icon || '📄'}</span>
+                <span className="tab-list-item-name">{getTabInfo(tab).label}</span>
+                <button
+                  className="tab-list-item-close"
+                  onClick={(e) => { e.stopPropagation(); onRemove(tab.id) }}
+                  title="탭 닫기"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Breadcrumb 드롭다운 */}
       {dropdown && (

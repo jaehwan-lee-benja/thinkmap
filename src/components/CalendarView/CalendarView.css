@@ -69,6 +69,23 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+/* 월간 요약 */
+.calendar-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.calendar-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* 요일 헤더 */
 .calendar-weekdays {
   display: grid;
@@ -212,6 +229,27 @@
   cursor: default;
 }
 
+/* 셀 내 통계 */
+.calendar-cell-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 2px 4px;
+}
+
+.calendar-cell-stat {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.calendar-cell-stat.all-done {
+  color: rgba(76, 175, 80, 0.7);
+}
+
 /* 모바일 */
 @media (max-width: 768px) {
   .calendar-cell {
@@ -231,5 +269,19 @@
 
   .calendar-cell-add {
     opacity: 1;
+  }
+
+  .calendar-summary {
+    font-size: 11px;
+    gap: 10px;
+    padding: 6px 4px;
+  }
+
+  .calendar-cell-stats {
+    gap: 6px;
+  }
+
+  .calendar-cell-stat {
+    font-size: 9px;
   }
 }

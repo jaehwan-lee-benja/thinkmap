@@ -1,32 +1,34 @@
 /* =====================================================
-   탭 바 — Chrome 스타일
+   탭 바 — 구글 시트 스타일 (상단 배치)
    ===================================================== */
 
 .tab-bar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0;
-  padding: 6px 8px 0 8px;
-  min-height: 38px;
-  overflow-x: auto;
-  overflow-y: visible;
-  scrollbar-width: none;
+  padding: 0 4px;
+  height: 34px;
+  overflow: visible;
   flex-shrink: 0;
   background: var(--tab-strip-bg, #1a1a1e);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   position: relative;
 }
 
-.tab-bar::-webkit-scrollbar {
-  display: none;
-}
-
-
 .tab-bar-tabs {
   display: flex;
-  align-items: flex-end;
-  gap: 0;
+  align-items: center;
+  gap: 2px;
   min-width: 0;
   flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+
+.tab-bar-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 /* 개별 탭 */
@@ -34,70 +36,55 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 5px 14px;
   cursor: pointer;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
   background: transparent;
   white-space: nowrap;
-  max-width: 400px;
+  max-width: 260px;
   min-width: 0;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s, background 0.15s;
   user-select: none;
   position: relative;
-  border-radius: 8px 8px 0 0;
-  margin: 0 -1px;
-  z-index: 0;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid transparent;
 }
 
 .tab-bar-tab:hover {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.7);
   background: rgba(255, 255, 255, 0.04);
 }
 
 /* 활성 탭 */
 .tab-bar-tab.active {
   color: rgba(255, 255, 255, 0.95);
-  background: var(--color-bg-primary, #242424);
-  z-index: 2;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* 활성 탭 — 왼쪽 곡선 커넥터 */
-.tab-bar-tab.active::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: -8px;
-  width: 8px;
-  height: 8px;
-  background: radial-gradient(circle at 0 0, transparent 8px, var(--color-bg-primary, #242424) 8px);
-}
-
-/* 활성 탭 — 오른쪽 곡선 커넥터 */
+/* 활성 탭 하단 인디케이터 */
 .tab-bar-tab.active::after {
   content: '';
   position: absolute;
-  bottom: 0;
-  right: -8px;
-  width: 8px;
-  height: 8px;
-  background: radial-gradient(circle at 100% 0, transparent 8px, var(--color-bg-primary, #242424) 8px);
+  bottom: -1px;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: var(--color-primary, #646cff);
+  border-radius: 2px 2px 0 0;
 }
 
-/* 비활성 탭 사이 구분선 */
-.tab-bar-tab:not(.active) + .tab-bar-tab:not(.active)::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 25%;
-  height: 50%;
-  width: 1px;
-  background: rgba(255, 255, 255, 0.1);
+/* 이미 열린 탭 전환 시 펄스 피드백 */
+.tab-bar-tab.tab-highlighted {
+  animation: tab-pulse 0.5s ease;
 }
 
-/* 활성 탭 양옆의 비활성 탭 구분선 제거 */
-.tab-bar-tab.active + .tab-bar-tab::before {
-  display: none;
+@keyframes tab-pulse {
+  0% { border-color: rgba(100, 108, 255, 0); }
+  30% { border-color: rgba(100, 108, 255, 0.6); background: rgba(100, 108, 255, 0.1); }
+  100% { border-color: rgba(100, 108, 255, 0); }
 }
 
 /* 탭 드래그 앤 드롭 */
@@ -143,7 +130,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 120px;
+  max-width: 160px;
   color: inherit;
   opacity: 0.7;
   padding: 1px 4px;
@@ -302,42 +289,175 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* 추가 버튼 — 마지막 탭 옆 구분선 */
+/* 추가 버튼 */
 .tab-bar-add {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
+  width: 24px;
+  height: 24px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
   background: transparent;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 18px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 16px;
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: 4px;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: all 0.15s;
   padding: 0;
-  margin-left: 2px;
-  align-self: center;
-}
-
-.tab-bar-add::before {
-  content: '';
-  position: absolute;
-  left: -1px;
-  top: 25%;
-  height: 50%;
-  width: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  margin-left: 4px;
 }
 
 .tab-bar-add:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+
+/* =====================================================
+   탭 리스트 버튼 + 스크롤 화살표
+   ===================================================== */
+
+.tab-bar-list-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  border-radius: 4px;
+  flex-shrink: 0;
+  align-self: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.tab-bar-list-btn:hover,
+.tab-bar-list-btn.active {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.8);
 }
 
+.tab-scroll-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.tab-scroll-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* =====================================================
+   전체 탭 리스트 드롭다운
+   ===================================================== */
+
+.tab-list-dropdown {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  max-width: 300px;
+  background: #2a2a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.tab-list-dropdown-header {
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tab-list-dropdown-list {
+  padding: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.tab-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.tab-list-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.tab-list-item.active {
+  color: var(--color-primary, #646cff);
+  background: rgba(100, 108, 255, 0.08);
+}
+
+.tab-list-item-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.tab-list-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  text-align: left;
+}
+
+.tab-list-item-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.tab-list-item:hover .tab-list-item-close {
+  opacity: 1;
+}
+
+.tab-list-item-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+}
 
 /* =====================================================
    모바일 반응형
@@ -356,7 +476,7 @@
   }
 
   .tab-breadcrumb-part {
-    max-width: 70px;
+    max-width: 100px;
   }
 
   .tab-bar-close {

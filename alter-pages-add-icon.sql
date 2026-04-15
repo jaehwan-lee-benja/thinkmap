@@ -1,0 +1,2 @@
+-- 페이지 아이콘(이모지) 컬럼 추가
+ALTER TABLE pages ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT NULL;

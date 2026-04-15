@@ -298,9 +298,25 @@
   gap: 4px;
 }
 
-/* 왼쪽: 검색 영역 (향후) */
+/* 왼쪽: 오늘 업무일지 + 검색 영역 (향후) */
 .bookmark-bar-left {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.bookmark-today-worklog {
+  color: rgba(255, 255, 255, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px 0 0 4px;
+  padding-right: 10px;
+  max-width: none;
+}
+
+.bookmark-today-worklog:hover {
+  color: var(--color-primary, #646cff);
+  background: rgba(100, 108, 255, 0.08);
 }
 
 /* 가운데: 북마크 아이템 가로 정렬 */

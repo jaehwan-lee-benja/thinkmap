@@ -140,7 +140,23 @@ export const useTabs = (prefs) => {
     const pi = paneIndex ?? activePaneIndexRef.current
     setPanes(prev => {
       const pane = prev[pi]
-      if (!pane || pane.tabs.length >= MAX_TABS_PER_PANE) return prev
+      if (!pane) return prev
+
+      // 같은 pageId가 이미 열려있으면 해당 탭으로 전환 + 하이라이트
+      if (opts.pageId) {
+        const existing = pane.tabs.find(t => t.pageId === opts.pageId)
+        if (existing) {
+          setHighlightedTabId(existing.id)
+          if (pane.activeTabId === existing.id) return prev
+          const newPanes = prev.map((p, i) =>
+            i === pi ? { ...p, activeTabId: existing.id } : p
+          )
+          save(newPanes)
+          return newPanes
+        }
+      }
+
+      if (pane.tabs.length >= MAX_TABS_PER_PANE) return prev
       const current = pane.tabs.find(t => t.id === pane.activeTabId)
       const newTab = {
         id: generateTabId(),
@@ -336,6 +352,14 @@ export const useTabs = (prefs) => {
     setActivePaneIndex(toPaneIndex)
   }, [save])
 
+  // 중복 탭 전환 시 시각 피드백
+  const [highlightedTabId, setHighlightedTabId] = useState(null)
+  useEffect(() => {
+    if (!highlightedTabId) return
+    const timer = setTimeout(() => setHighlightedTabId(null), 600)
+    return () => clearTimeout(timer)
+  }, [highlightedTabId])
+
   const focusPane = useCallback((paneIndex) => {
     if (activePaneIndexRef.current === paneIndex) return
     setActivePaneIndex(paneIndex)
@@ -363,5 +387,6 @@ export const useTabs = (prefs) => {
     focusPane,
     reorderTab,
     moveTabToPane,
+    highlightedTabId,
   }
 }

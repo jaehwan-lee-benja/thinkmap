@@ -276,7 +276,7 @@ export function PageTree({
             />
           ) : (
             <>
-              <span className="page-icon">📄</span>
+              <span className="page-icon">{page.icon || '📄'}</span>
               <span className="page-name">{page.name}</span>
               {/* 즐겨찾기 별 (항상 표시 - favorited일 때) */}
               {isFavorite(page.id) && (

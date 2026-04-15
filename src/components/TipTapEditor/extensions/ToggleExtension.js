@@ -1056,12 +1056,33 @@ export const Toggle = Node.create({
         carryOverTag.style.display = 'none'
       }
 
+      // 코멘트 버튼 (h2 섹션 전용)
+      const commentButton = document.createElement('button')
+      commentButton.classList.add('toggle-comment-button')
+      commentButton.contentEditable = 'false'
+      commentButton.title = '섹션 코멘트'
+      commentButton.style.display = node.attrs.blockType === 'h2' ? '' : 'none'
+      commentButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+      commentButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        if (!currentNode) return
+        const title = currentNode.content?.firstChild?.textContent || ''
+        dom.dispatchEvent(new CustomEvent('section-comment-click', {
+          bubbles: true,
+          detail: { sectionTitle: title, toggleDom: dom }
+        }))
+      })
+
       dom.appendChild(dragHandle)
       dom.appendChild(pageLink)
       dom.appendChild(button)
       dom.appendChild(checkbox)
       dom.appendChild(carryOverTag)
       dom.appendChild(contentWrapper)
+      dom.appendChild(commentButton)
       dom.appendChild(pinButton)
       dom.appendChild(pageOverlay)
 
@@ -1129,6 +1150,9 @@ export const Toggle = Node.create({
             dom.removeAttribute('data-bg-color')
             dom.style.removeProperty('background-color')
           }
+
+          // 코멘트 버튼 상태 업데이트
+          commentButton.style.display = updatedNode.attrs.blockType === 'h2' ? '' : 'none'
 
           // Pin 버튼 상태 업데이트
           const showPin = updatedNode.attrs.blockType === 'h2' && !updatedNode.attrs.isFixedSection

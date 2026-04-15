@@ -2,7 +2,7 @@
 
 > 작성일: 2026-04-12
 > 최종 업데이트: 2026-04-14
-> 상태: Phase 1~4 완료, Phase 5 진행 예정
+> 상태: Phase 1~5 완료
 > 관련 페이지: CalendarView, daily 페이지 시스템, WorklogComments
 
 ---
@@ -387,12 +387,22 @@ const mentionableUsers = [
 - [x] 코멘트 입력 UI (페이지 하단 전체 코멘트 영역)
 - [x] @ 타이핑 시 멤버 드롭다운
 - [x] 코멘트 목록 표시 + 해결됨 토글
-- [ ] 섹션별/todo별 코멘트 (향후 확장)
-- [ ] 캘린더 뷰에 코멘트 배지 (Phase 5)
+- [x] 섹션별 코멘트 — h2 섹션 헤더에 💬 아이콘, 클릭 시 해당 섹션 코멘트 필터링
+- [ ] todo별 코멘트 (향후 확장)
+- [x] 캘린더 뷰에 코멘트 배지 (Phase 5에서 구현)
 
-### Phase 5: 캘린더 뷰 강화
-- [ ] 날짜 셀에 완료율/코멘트 수 표시
-- [ ] 월간 요약 통계
+### Phase 5: 캘린더 뷰 강화 — ✅ 완료 (2026-04-15)
+- [x] 날짜 셀에 완료율/코멘트 수 표시
+- [x] 월간 요약 통계 (완료율, 코멘트 수, 작성일 수)
+- [x] "오늘" 바로가기 버튼 (북마크 바 최좌측, 날짜 표시)
+  - 오늘자 daily 페이지 존재 시 → 바로 이동
+  - 없으면 → 이월/pin 포함 자동 생성 후 이동
+  - daily 페이지 생성 로직을 `worklogUtils.buildDailyPageTemplate()`로 통합 (캘린더 "+"와 동일 구조 보장)
+  - `fetchPages()` 호출로 로컬 상태 동기화 후 네비게이션
+
+### Phase 4 보충: 캘린더 코멘트 배지 — ✅ 완료 (2026-04-15)
+- [x] `useCalendarCommentCounts` 훅 — 배치 코멘트 수 조회 (`.in()` 단일 쿼리)
+- [x] 캘린더 셀에 코멘트 수 배지 표시
 
 ---
 
@@ -405,23 +415,39 @@ const mentionableUsers = [
 
 ---
 
-## 10. 기술 부채: RLS 마스터 bypass 하드코딩
+## 10. 기술 부채: RLS 마스터 bypass 하드코딩 — ✅ 해결 (2026-04-15)
 
-**현황**: 프로젝트 전체 SQL 파일에서 마스터 권한을 `auth.jwt() ->> 'email' = 'designerbenja@gmail.com'`으로 하드코딩 중.
+`is_master()` 함수(`migrate-dynamic-master.sql`에서 정의)로 일괄 교체 완료.
 
-**해당 파일**: `master-bypass-rls.sql`, `create-worklog-comments-table.sql`, 기타 RLS 정책 파일 전체
+**교체된 파일**: `master-bypass-rls.sql`, `create-app-users-table.sql`, `create-linked-accounts.sql`, `create-worklog-comments-table.sql`
 
-**개선 방향**: `app_users` 테이블의 `role = 'master'`를 기반으로 판단하는 함수로 일괄 교체
-```sql
--- 예시: 마스터 여부 판단 함수
-CREATE OR REPLACE FUNCTION is_master() RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM app_users
-    WHERE auth_uid = auth.uid() AND role = 'master'
-  );
-$$ LANGUAGE sql SECURITY DEFINER;
-```
-이렇게 하면 마스터 변경 시 DB 함수 하나만 수정하면 됨. **프로젝트 전체 변경이므로 별도 작업으로 진행.**
+마스터 변경 시 `app_users` 테이블의 `role` 컬럼만 수정하면 됨.
+
+---
+
+## 10-1. 미해결: 다른 계정에서 업무일지가 안 보이는 문제 (2026-04-15)
+
+**현상**: A 계정이 만든 calendar/daily 페이지가 B 계정에서 보이지 않음.
+
+**원인**: pages 테이블 RLS 정책이 `auth.uid() = user_id`로 제한되어 있어, 생성자 외 계정에서 접근 불가.
+
+**시도한 것**:
+1. RLS SELECT/UPDATE 정책에 calendar/daily 페이지 조건 추가 — 같은 프로젝트 멤버면 접근 허용
+2. 처음 시도: `pages` 테이블에서 자기 조회 → **infinite recursion** 오류 발생
+3. 수정: `projects` 테이블로 멤버십 확인하도록 변경 (`fix-rls-recursion.sql` 실행 완료)
+4. 하지만 여전히 다른 계정에서 안 보임 — **추가 디버깅 필요**
+
+**추정 원인**:
+- `projects.user_id = auth.uid()` 조건은 프로젝트 소유자만 통과 → B 계정이 프로젝트 소유자가 아니면 여전히 차단
+- B 계정이 프로젝트에 접근하는 경로가 shares/linked_accounts인 경우, calendar/daily 조건의 projects 서브쿼리를 통과하지 못함
+- **해결 방향**: projects 서브쿼리를 shares/linked_accounts도 포함하도록 확장하거나, app_users 기반으로 변경 필요
+
+**관련 파일**: `fix-rls-recursion.sql`, `migrate-dynamic-master.sql`
+
+**다음 작업 시 확인할 것**:
+1. B 계정이 프로젝트에 어떤 방식으로 접근하는지 확인 (shares? linked_accounts? 직접 소유?)
+2. RLS 정책의 calendar/daily 조건을 해당 접근 방식에 맞게 수정
+3. Supabase SQL Editor에서 `SELECT * FROM projects WHERE user_id = '<B계정 auth.uid>'` 실행하여 B 계정이 프로젝트를 소유하는지 확인
 
 ---
 
@@ -437,10 +463,45 @@ $$ LANGUAGE sql SECURITY DEFINER;
 | `src/hooks/usePages.js` | 페이지 CRUD + daily 페이지 생성 |
 | `src/hooks/useWorklogComments.js` | 코멘트 CRUD + 실시간 구독 |
 | `src/utils/worklogTemplate.js` | daily 페이지 초기 템플릿 (이월/pin 포함) |
+| `src/utils/worklogUtils.js` | todo 통계 파싱 + daily 페이지 생성 공유 유틸리티 |
+| `src/components/GlobalTopBar/GlobalTopBar.jsx` | "오늘" 바로가기 버튼 |
+| `src/hooks/useCalendarCommentCounts.js` | 캘린더용 배치 코멘트 수 조회 훅 |
 | `create-worklog-comments-table.sql` | 코멘트 테이블 + RLS |
 | `alter-pages-add-calendar.sql` | calendar/daily page_type 스키마 |
 | `docs/TOGGLE-BLOCK-SPEC.md` | 토글 블록 명세 (todo 속성 포함) |
 | `docs/DESIGN-PHILOSOPHY.md` | 건조한 스타일 디자인 철학 |
+
+---
+
+## 12. 리팩토링 기록 (2026-04-15)
+
+### 12.1 daily 페이지 생성 로직 통합
+- **이전**: TipTapTestPage(캘린더 "+")와 App.jsx("오늘" 버튼)에 이월/pinned 추출 로직이 30줄씩 복사
+- **이후**: `worklogUtils.js`의 `extractCarryOverData()` + `buildDailyPageTemplate()`로 통합
+- **효과**: 생성 경로와 무관하게 동일한 daily 페이지 구조 보장
+
+### 12.2 요일 이름 상수 통합
+- **이전**: `['일','월','화','수','목','금','토']` 배열이 4개 파일에 중복 정의
+- **이후**: `dateUtils.js`의 `DAY_NAMES` 상수를 export하여 GlobalTopBar, CalendarView, WorklogHeader, dateUtils 내부에서 재사용
+- **효과**: 단일 소스(single source of truth)
+
+### 12.3 fetchPages 불필요 참조 제거
+- **이전**: "오늘" 버튼이 `paneNavRef.fetchPages()`로 페이지 목록을 갱신한 뒤 이동하는 방식
+- **이후**: `addTab()`으로 새 탭을 열어 이동하도록 변경 → `fetchPages`가 `paneNavRef`와 `pageCtx`에서 불필요해짐
+- **효과**: PaneProvider의 pageCtx 축소, 불필요한 의존성 제거
+
+### 12.4 useMemo 의존성 안정화
+- **이전**: `calendarPageIds`의 useMemo 의존성이 `[calendarDailyPages.length, currentPageId]` (불완전)
+- **이후**: `calendarDailyPages` 자체를 useMemo로 안정화 → `calendarPageIds`는 `[calendarDailyPages]`에 의존
+- **효과**: 페이지 추가/삭제 시 정확한 재계산 보장
+
+### 12.5 RLS 하드코딩 제거
+- **이전**: 4개 SQL 파일에서 `auth.jwt() ->> 'email' = 'designerbenja@gmail.com'` 87회 사용
+- **이후**: 모든 RLS 정책에서 `is_master()` 함수 호출로 교체
+- **효과**: 마스터 계정 변경 시 `app_users.role` 수정만으로 전체 정책 반영
+
+### 12.6 일회용 마이그레이션 파일 정리
+- `fix-worklog-comments-rls.sql` 삭제 (Supabase에서 실행 완료된 일회용 스크립트)
 
 ---
 

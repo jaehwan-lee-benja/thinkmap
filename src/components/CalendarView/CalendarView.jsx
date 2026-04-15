@@ -1,16 +1,14 @@
-import React, { useState, useMemo, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, FileText } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { ChevronLeft, ChevronRight, Plus, FileText, CheckSquare, MessageSquare } from 'lucide-react'
+import { parseTodoStats } from '../../utils/worklogUtils'
+import { DAY_NAMES } from '../../utils/dateUtils'
 import './CalendarView.css'
 
 /**
  * 업무일지 달력 뷰
  * Notion 달력 DB와 유사한 월간 그리드
- *
- * [향후 확장]
- * - 계정별 개인 업무일지 분리 시, dailyPages를 owner_id로 필터링
- * - 접근 계정 관리 UI 추가 (달력 헤더에 설정 버튼)
  */
-export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage }) {
+export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage, commentCounts }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-indexed
@@ -71,6 +69,61 @@ export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage }) {
     return map
   }, [dailyPages])
 
+  // 날짜별 todo 통계
+  const statsByDate = useMemo(() => {
+    const map = {}
+    if (!dailyPages) return map
+    dailyPages.forEach(page => {
+      const dateKey = page.page_date || page.name
+      const stats = parseTodoStats(page.content_tiptap)
+      if (!map[dateKey]) map[dateKey] = { total: 0, completed: 0 }
+      map[dateKey].total += stats.total
+      map[dateKey].completed += stats.completed
+    })
+    return map
+  }, [dailyPages])
+
+  // 날짜별 코멘트 수
+  const commentsByDate = useMemo(() => {
+    const map = {}
+    if (!dailyPages || !commentCounts) return map
+    dailyPages.forEach(page => {
+      const dateKey = page.page_date || page.name
+      const counts = commentCounts[page.id]
+      if (counts) {
+        if (!map[dateKey]) map[dateKey] = { total: 0, unresolved: 0 }
+        map[dateKey].total += counts.total
+        map[dateKey].unresolved += counts.unresolved
+      }
+    })
+    return map
+  }, [dailyPages, commentCounts])
+
+  // 월간 요약 통계
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
+  const monthlySummary = useMemo(() => {
+    let totalTodos = 0, completedTodos = 0, totalComments = 0, daysWithEntries = 0
+
+    Object.entries(statsByDate).forEach(([dateKey, stats]) => {
+      if (dateKey.startsWith(monthPrefix)) {
+        totalTodos += stats.total
+        completedTodos += stats.completed
+        daysWithEntries++
+      }
+    })
+
+    Object.entries(commentsByDate).forEach(([dateKey, counts]) => {
+      if (dateKey.startsWith(monthPrefix)) {
+        totalComments += counts.total
+      }
+    })
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const completionRate = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0
+
+    return { totalTodos, completedTodos, completionRate, totalComments, daysWithEntries, daysInMonth }
+  }, [statsByDate, commentsByDate, monthPrefix, year, month])
+
   const formatDateKey = (date) => {
     const y = date.getFullYear()
     const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -79,7 +132,8 @@ export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage }) {
   }
 
   const monthLabel = `${year}년 ${month + 1}월`
-  const weekDays = ['일', '월', '화', '수', '목', '금', '토']
+  const weekDays = DAY_NAMES
+  const hasSummaryData = monthlySummary.totalTodos > 0 || monthlySummary.totalComments > 0
 
   return (
     <div className="calendar-view">
@@ -97,6 +151,27 @@ export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage }) {
         <button className="calendar-today-btn" onClick={goToToday}>오늘</button>
       </div>
 
+      {/* 월간 요약 */}
+      {hasSummaryData && (
+        <div className="calendar-summary">
+          {monthlySummary.totalTodos > 0 && (
+            <span className="calendar-summary-item">
+              <CheckSquare size={12} />
+              완료 {monthlySummary.completedTodos}/{monthlySummary.totalTodos} ({monthlySummary.completionRate}%)
+            </span>
+          )}
+          {monthlySummary.totalComments > 0 && (
+            <span className="calendar-summary-item">
+              <MessageSquare size={12} />
+              코멘트 {monthlySummary.totalComments}
+            </span>
+          )}
+          <span className="calendar-summary-item">
+            작성 {monthlySummary.daysWithEntries}/{monthlySummary.daysInMonth}일
+          </span>
+        </div>
+      )}
+
       {/* 요일 헤더 */}
       <div className="calendar-weekdays">
         {weekDays.map(day => (
@@ -110,6 +185,8 @@ export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage }) {
           const dateKey = formatDateKey(item.date)
           const isToday = dateKey === todayStr
           const entries = pagesByDate[dateKey] || []
+          const todoStats = statsByDate[dateKey]
+          const commentStats = commentsByDate[dateKey]
           const maxShow = 2
 
           return (
@@ -149,6 +226,23 @@ export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage }) {
                   </span>
                 )}
               </div>
+              {/* 셀 내 통계 */}
+              {(todoStats?.total > 0 || commentStats?.total > 0) && (
+                <div className="calendar-cell-stats">
+                  {todoStats?.total > 0 && (
+                    <span className={`calendar-cell-stat ${todoStats.completed === todoStats.total ? 'all-done' : ''}`}>
+                      <CheckSquare size={10} />
+                      {todoStats.completed}/{todoStats.total}
+                    </span>
+                  )}
+                  {commentStats?.total > 0 && (
+                    <span className="calendar-cell-stat">
+                      <MessageSquare size={10} />
+                      {commentStats.total}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}

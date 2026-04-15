@@ -244,6 +244,26 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }
 
+  const updatePageIcon = async (pageId, icon) => {
+    if (!session?.user?.id) return false
+    try {
+      const { error } = await supabase
+        .from('pages')
+        .update({ icon: icon || null, updated_at: new Date().toISOString() })
+        .eq('id', pageId)
+
+      if (logError('페이지 아이콘 변경', error)) return false
+
+      setPages(pages.map(p =>
+        p.id === pageId ? { ...p, icon: icon || null } : p
+      ))
+      return true
+    } catch (error) {
+      logError('페이지 아이콘 변경', error)
+      return false
+    }
+  }
+
   // undo용 삭제 정보 ref + 타이머 (undo 유효 시간)
   const pendingDeleteRef = useRef(null)
   const undoTimerRef = useRef(null)
@@ -432,6 +452,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
     fetchPages,
     createPage,
     renamePage,
+    updatePageIcon,
     deletePage,
     undoDeletePage,
     reorderPages,

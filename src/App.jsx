@@ -20,6 +20,9 @@ import { useProjectContext } from './contexts/ProjectContext'
 import DeleteToast from './components/Common/DeleteToast'
 import AuthContext from './contexts/AuthContext'
 import FavoritesContext from './contexts/FavoritesContext'
+import { supabase } from './supabaseClient'
+import { buildDailyPageTemplate } from './utils/worklogUtils'
+import { generateUUID } from './utils/uuid'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -56,6 +59,7 @@ function PaneInner({
   moveTabToPane,
   tabsInitialized,
   paneNavRef,
+  highlightedTabId,
 }) {
   const {
     effectiveSession, isImpersonating, projectsLoading, pagesLoading,
@@ -105,6 +109,7 @@ function PaneInner({
             handleBreadcrumbNavigate(type, id)
           }}
           paneIndex={paneIndex}
+          highlightedTabId={highlightedTabId}
         />
       )}
       <div className="pane-content-area">
@@ -183,6 +188,7 @@ function App() {
     focusPane,
     reorderTab,
     moveTabToPane,
+    highlightedTabId,
   } = useTabs(prefs)
 
   // 사용자 관리 (마스터 전용 — 실제 session)
@@ -206,6 +212,75 @@ function App() {
     // 새 탭을 열어서 즐겨찾기 페이지로 이동
     addTab(activePaneIndex, { projectId: fav.projectId, pageId: fav.pageId })
   }, [addTab, activePaneIndex])
+
+  // 오늘 업무일지 바로가기 — 현재 탭에서 직접 이동
+  const handleNavigateTodayWorklog = useCallback(async () => {
+    const todayStr = new Date().toISOString().slice(0, 10)
+
+    // 1. calendar 페이지 찾기
+    const { data: calendarPages, error: e1 } = await supabase
+      .from('pages')
+      .select('id, project_id')
+      .eq('page_type', 'calendar')
+      .is('deleted_at', null)
+      .limit(1)
+
+    if (e1) { console.error('업무일지 캘린더 조회 실패:', e1); return }
+    if (!calendarPages?.length) { console.warn('calendar 페이지 없음'); return }
+
+    const calendarPage = calendarPages[0]
+
+    const navigateTo = (pageId) => {
+      addTab(activePaneIndex, { projectId: calendarPage.project_id, pageId })
+    }
+
+    // 2. 오늘 daily 페이지 확인
+    const { data: todayPages, error: e2 } = await supabase
+      .from('pages')
+      .select('id')
+      .eq('parent_id', calendarPage.id)
+      .eq('page_date', todayStr)
+      .eq('page_type', 'daily')
+      .is('deleted_at', null)
+      .limit(1)
+
+    if (e2) { console.error('오늘 daily 페이지 조회 실패:', e2); return }
+
+    if (todayPages?.length > 0) {
+      navigateTo(todayPages[0].id)
+      return
+    }
+
+    // 3. 없으면 새로 생성 — 이월/pinned 추출 (공유 유틸리티 사용)
+    const { data: recentPages } = await supabase
+      .from('pages')
+      .select('page_date, content_tiptap')
+      .eq('parent_id', calendarPage.id)
+      .eq('page_type', 'daily')
+      .is('deleted_at', null)
+      .order('page_date', { ascending: false })
+      .limit(1)
+
+    const template = buildDailyPageTemplate(recentPages || [])
+    const newPageData = {
+      id: generateUUID(),
+      user_id: session.user.id,
+      name: todayStr,
+      parent_id: calendarPage.id,
+      content_tiptap: template,
+      project_id: calendarPage.project_id,
+      page_type: 'daily',
+      page_date: todayStr,
+      position: 0,
+    }
+    const { error: e3 } = await supabase
+      .from('pages')
+      .insert([newPageData])
+
+    if (e3) { console.error('daily 페이지 생성 실패:', e3); return }
+
+    navigateTo(newPageData.id)
+  }, [addTab, activePaneIndex, session])
 
   // 삭제 토스트 상태
   const [deleteToast, setDeleteToast] = useState(null)
@@ -364,6 +439,7 @@ function App() {
             moveTabToPane={moveTabToPane}
             tabsInitialized={tabsInitialized}
             paneNavRef={paneNavRef}
+            highlightedTabId={highlightedTabId}
           />
         </div>
       </PaneProvider>
@@ -380,6 +456,7 @@ function App() {
           favorites={favoritesHook.favorites}
           onFavoriteNavigate={handleFavoriteNavigate}
           onRemoveFavorite={favoritesHook.removeFavorite}
+          onTodayWorklog={handleNavigateTodayWorklog}
         />
 
         <div className="app-body">

@@ -19,7 +19,7 @@ export const useFavorites = (session) => {
 
       const { data, error } = await supabase
         .from('user_favorites')
-        .select('*')
+        .select('*, pages:page_id(icon)')
         .eq('user_id', userId)
         .order('position', { ascending: true })
 
@@ -32,6 +32,7 @@ export const useFavorites = (session) => {
         projectId: row.project_id,
         pageName: row.page_name,
         projectName: row.project_name,
+        pageIcon: row.pages?.icon || null,
       })))
     }
 

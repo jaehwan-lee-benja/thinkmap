@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Shield, ChevronDown, Star, X } from 'lucide-react'
+import { Shield, ChevronDown, Star, X, CalendarDays } from 'lucide-react'
 import AdminModal from '../Admin/AdminModal'
 import { useAuthContext } from '../../contexts/AuthContext'
+import { DAY_NAMES } from '../../utils/dateUtils'
 import './GlobalTopBar.css'
 
-export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite }) {
+export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite, onTodayWorklog }) {
   const {
     userEmail, ownEmail, userAvatarUrl, handleLogout, isMaster,
     isImpersonating, impersonatedEmail, stopImpersonation,
@@ -34,6 +35,9 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
     return () => document.removeEventListener('mousedown', handleClick)
   }, [accountDropdownOpen, favListOpen])
 
+  const now = new Date()
+  const todayLabel = `${now.getMonth() + 1}/${now.getDate()}(${DAY_NAMES[now.getDay()]})`
+
   const hasLinkedAccounts = linkedAccounts && linkedAccounts.length > 0
   // 최상단 바에는 항상 실제 로그인 계정 표시 (탭별 전환 무관)
   const displayEmail = ownEmail || 'User'
@@ -54,6 +58,14 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
       {!isImpersonating && (
         <div className="bookmark-bar">
           <div className="bookmark-bar-left">
+            <button
+              className="bookmark-item bookmark-today-worklog"
+              onClick={() => onTodayWorklog?.()}
+              title="오늘 업무일지"
+            >
+              <CalendarDays size={12} />
+              <span>오늘 - {todayLabel}</span>
+            </button>
             {/* TODO: 검색 기능 (향후 추가 예정) */}
           </div>
 
@@ -65,7 +77,7 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
                 onClick={() => onFavoriteNavigate?.(fav)}
                 title={fav.pageName}
               >
-                <span className="bookmark-item-icon">📄</span>
+                <span className="bookmark-item-icon">{fav.pageIcon || '📄'}</span>
                 <span className="bookmark-item-name">{fav.pageName}</span>
               </button>
             ))}
@@ -97,7 +109,7 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
                         className="bookmark-dropdown-item"
                         onClick={() => { onFavoriteNavigate?.(fav); setFavListOpen(false) }}
                       >
-                        <span className="bookmark-dropdown-icon">📄</span>
+                        <span className="bookmark-dropdown-icon">{fav.pageIcon || '📄'}</span>
                         <div className="bookmark-dropdown-text">
                           <span className="bookmark-dropdown-name">{fav.pageName}</span>
                           {fav.projectName && (

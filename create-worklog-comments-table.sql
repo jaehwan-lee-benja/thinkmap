@@ -37,7 +37,7 @@ DROP POLICY IF EXISTS "Project members can view comments" ON worklog_comments;
 CREATE POLICY "Project members can view comments"
   ON worklog_comments FOR SELECT
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR EXISTS (
       SELECT 1 FROM pages p
@@ -59,7 +59,7 @@ DROP POLICY IF EXISTS "Users can insert own comments" ON worklog_comments;
 CREATE POLICY "Users can insert own comments"
   ON worklog_comments FOR INSERT
   WITH CHECK (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
   );
 
@@ -68,7 +68,7 @@ DROP POLICY IF EXISTS "Users can update own comments" ON worklog_comments;
 CREATE POLICY "Users can update own comments"
   ON worklog_comments FOR UPDATE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
   );
 
@@ -77,7 +77,7 @@ DROP POLICY IF EXISTS "Users can delete own comments" ON worklog_comments;
 CREATE POLICY "Users can delete own comments"
   ON worklog_comments FOR DELETE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
   );
 

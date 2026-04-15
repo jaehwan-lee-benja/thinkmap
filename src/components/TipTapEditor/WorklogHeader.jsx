@@ -1,7 +1,6 @@
 import React from 'react'
 import { Calendar, User, Trash2 } from 'lucide-react'
-
-const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
+import { DAY_NAMES } from '../../utils/dateUtils'
 
 function formatPageDate(dateStr) {
   if (!dateStr) return ''

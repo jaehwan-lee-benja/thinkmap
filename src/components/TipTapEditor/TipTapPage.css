@@ -92,6 +92,49 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+.tiptap-page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.tiptap-page-icon-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tiptap-page-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.tiptap-page-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tiptap-page-icon-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .tiptap-page-title {
   margin: 0;
   color: var(--color-text-primary, #e5e7eb);
@@ -1027,6 +1070,46 @@
 /* ── 업무일지 코멘트 ── */
 .worklog-comments {
   margin-top: 0.75rem;
+}
+
+/* 섹션 인라인 코멘트 패널 */
+.worklog-inline-comments {
+  margin-top: 4px;
+  padding: 0 8px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.worklog-inline-comments .worklog-comments {
+  margin-top: 0;
+}
+
+.worklog-inline-comments .worklog-comments-body {
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+}
+
+.worklog-comments-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.worklog-comments-clear-target {
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.worklog-comments-clear-target:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .worklog-comments-toggle {

@@ -25,7 +25,7 @@ CREATE POLICY "Master can view all users"
 ON app_users FOR SELECT
 TO authenticated
 USING (
-  auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+  is_master()
 );
 
 -- 마스터만 사용자 추가 가능
@@ -33,7 +33,7 @@ CREATE POLICY "Master can insert users"
 ON app_users FOR INSERT
 TO authenticated
 WITH CHECK (
-  auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+  is_master()
 );
 
 -- 마스터만 사용자 수정 가능
@@ -41,10 +41,10 @@ CREATE POLICY "Master can update users"
 ON app_users FOR UPDATE
 TO authenticated
 USING (
-  auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+  is_master()
 )
 WITH CHECK (
-  auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+  is_master()
 );
 
 -- 마스터만 사용자 삭제 가능
@@ -52,7 +52,7 @@ CREATE POLICY "Master can delete users"
 ON app_users FOR DELETE
 TO authenticated
 USING (
-  auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+  is_master()
 );
 
 -- 마스터 계정을 앱 사용자로 등록 (첫 번째 마스터)

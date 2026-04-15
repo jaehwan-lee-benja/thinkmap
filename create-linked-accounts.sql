@@ -23,8 +23,8 @@ ALTER TABLE linked_accounts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Master can manage linked_accounts"
   ON linked_accounts FOR ALL
   TO authenticated
-  USING (auth.jwt() ->> 'email' = 'designerbenja@gmail.com')
-  WITH CHECK (auth.jwt() ->> 'email' = 'designerbenja@gmail.com');
+  USING (is_master())
+  WITH CHECK (is_master());
 
 -- 본인의 연결 계정 조회 허용
 CREATE POLICY "Users can view own linked accounts"
@@ -95,7 +95,7 @@ DROP POLICY IF EXISTS "Users can view own or shared projects" ON projects;
 CREATE POLICY "Users can view own or shared projects"
   ON projects FOR SELECT
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account_viewer(user_id)
     OR EXISTS (
@@ -110,7 +110,7 @@ DROP POLICY IF EXISTS "Users can insert own projects" ON projects;
 CREATE POLICY "Users can insert own projects"
   ON projects FOR INSERT
   WITH CHECK (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -119,7 +119,7 @@ DROP POLICY IF EXISTS "Users can update own or shared projects" ON projects;
 CREATE POLICY "Users can update own or shared projects"
   ON projects FOR UPDATE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
     OR EXISTS (
@@ -135,7 +135,7 @@ DROP POLICY IF EXISTS "Users can delete own projects" ON projects;
 CREATE POLICY "Users can delete own projects"
   ON projects FOR DELETE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -145,7 +145,7 @@ DROP POLICY IF EXISTS "Users can view own or shared pages" ON pages;
 CREATE POLICY "Users can view own or shared pages"
   ON pages FOR SELECT
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account_viewer(user_id)
     OR EXISTS (
@@ -162,7 +162,7 @@ DROP POLICY IF EXISTS "Users can insert own pages" ON pages;
 CREATE POLICY "Users can insert own pages"
   ON pages FOR INSERT
   WITH CHECK (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -171,7 +171,7 @@ DROP POLICY IF EXISTS "Users can update own or shared pages" ON pages;
 CREATE POLICY "Users can update own or shared pages"
   ON pages FOR UPDATE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
     OR EXISTS (
@@ -189,7 +189,7 @@ DROP POLICY IF EXISTS "Users can delete own pages" ON pages;
 CREATE POLICY "Users can delete own pages"
   ON pages FOR DELETE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -199,7 +199,7 @@ DROP POLICY IF EXISTS "Users can read own blocks" ON blocks;
 CREATE POLICY "Users can read own blocks"
   ON blocks FOR SELECT
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account_viewer(user_id)
   );
@@ -208,7 +208,7 @@ DROP POLICY IF EXISTS "Users can insert own blocks" ON blocks;
 CREATE POLICY "Users can insert own blocks"
   ON blocks FOR INSERT
   WITH CHECK (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -217,7 +217,7 @@ DROP POLICY IF EXISTS "Users can update own blocks" ON blocks;
 CREATE POLICY "Users can update own blocks"
   ON blocks FOR UPDATE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -226,7 +226,7 @@ DROP POLICY IF EXISTS "Users can delete own blocks" ON blocks;
 CREATE POLICY "Users can delete own blocks"
   ON blocks FOR DELETE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -236,7 +236,7 @@ DROP POLICY IF EXISTS "Users can read own block_history" ON block_history;
 CREATE POLICY "Users can read own block_history"
   ON block_history FOR SELECT
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account_viewer(user_id)
   );
@@ -245,7 +245,7 @@ DROP POLICY IF EXISTS "Users can insert own block_history" ON block_history;
 CREATE POLICY "Users can insert own block_history"
   ON block_history FOR INSERT
   WITH CHECK (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -254,7 +254,7 @@ DROP POLICY IF EXISTS "Users can delete own block_history" ON block_history;
 CREATE POLICY "Users can delete own block_history"
   ON block_history FOR DELETE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -264,7 +264,7 @@ DROP POLICY IF EXISTS "Users can view own backups" ON backups;
 CREATE POLICY "Users can view own backups"
   ON backups FOR SELECT
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account_viewer(user_id)
   );
@@ -273,7 +273,7 @@ DROP POLICY IF EXISTS "Users can insert own backups" ON backups;
 CREATE POLICY "Users can insert own backups"
   ON backups FOR INSERT
   WITH CHECK (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
@@ -282,7 +282,7 @@ DROP POLICY IF EXISTS "Users can delete own backups" ON backups;
 CREATE POLICY "Users can delete own backups"
   ON backups FOR DELETE
   USING (
-    auth.jwt() ->> 'email' = 'designerbenja@gmail.com'
+    is_master()
     OR auth.uid() = user_id
     OR is_linked_account(user_id)
   );
