@@ -1,7 +1,7 @@
 # 업무일지 기획서 (WorkLog Specification)
 
 > 작성일: 2026-04-12
-> 최종 업데이트: 2026-04-14
+> 최종 업데이트: 2026-04-16
 > 상태: Phase 1~5 완료
 > 관련 페이지: CalendarView, daily 페이지 시스템, WorklogComments
 
@@ -425,29 +425,60 @@ const mentionableUsers = [
 
 ---
 
-## 10-1. 미해결: 다른 계정에서 업무일지가 안 보이는 문제 (2026-04-15)
+## 10-1. 진행 중: 다른 계정에서 업무일지가 안 보이는 문제 (2026-04-16)
 
-**현상**: A 계정이 만든 calendar/daily 페이지가 B 계정에서 보이지 않음.
+**현상**: A 계정이 만든 calendar/daily 페이지가 B(연결 계정) 계정에서 보이지 않음.
 
-**원인**: pages 테이블 RLS 정책이 `auth.uid() = user_id`로 제한되어 있어, 생성자 외 계정에서 접근 불가.
+### 1차 원인 (해결 완료)
 
-**시도한 것**:
-1. RLS SELECT/UPDATE 정책에 calendar/daily 페이지 조건 추가 — 같은 프로젝트 멤버면 접근 허용
-2. 처음 시도: `pages` 테이블에서 자기 조회 → **infinite recursion** 오류 발생
-3. 수정: `projects` 테이블로 멤버십 확인하도록 변경 (`fix-rls-recursion.sql` 실행 완료)
-4. 하지만 여전히 다른 계정에서 안 보임 — **추가 디버깅 필요**
+RLS 함수(`is_linked_account_viewer`, `is_linked_account`, `get_linked_accounts`)가 `app_users.auth_uid` 컬럼을 통해 소유자 이메일을 역조회하는데, 이 컬럼이 NULL 인 레코드가 존재했음.
+- `add-auth-uid-to-app-users.sql` 은 **일회성** 백필만 수행
+- `useAuth.ensureAppUser()` 가 로그인 시 자동 갱신을 시도하지만, `app_users` INSERT/UPDATE 는 마스터 전용이라 **비마스터 계정은 자가 보정 불가**
+- `get_linked_accounts()` 도 `au.auth_uid IS NOT NULL` 필터 때문에 B 에게 A 가 노출되지 않아 임퍼소네이션조차 불가능
 
-**추정 원인**:
-- `projects.user_id = auth.uid()` 조건은 프로젝트 소유자만 통과 → B 계정이 프로젝트 소유자가 아니면 여전히 차단
-- B 계정이 프로젝트에 접근하는 경로가 shares/linked_accounts인 경우, calendar/daily 조건의 projects 서브쿼리를 통과하지 못함
-- **해결 방향**: projects 서브쿼리를 shares/linked_accounts도 포함하도록 확장하거나, app_users 기반으로 변경 필요
+**조치**: `fix-linked-account-rls.sql` 작성 + 2026-04-16 Supabase SQL Editor 실행 완료.
+1. 세 함수를 `auth.users` 직접 JOIN 방식으로 재정의 → `app_users.auth_uid` 의존 제거
+2. `app_users` self-insert / self-update 정책 추가 (비마스터도 본인 이메일 레코드 갱신 가능)
+3. 기존 레코드의 `auth_uid` 누락분 idempotent 하게 일괄 보정
 
-**관련 파일**: `fix-rls-recursion.sql`, `migrate-dynamic-master.sql`
+`create-linked-accounts.sql` 의 함수 정의도 동일하게 동기화.
+
+### 2차 원인 (미해결 — 다음 작업)
+
+SQL 실행 성공 확인했지만 **캘린더 뷰에 여전히 daily 페이지가 보이지 않음**.
+
+**추가 분석**: RLS 는 뚫렸지만 클라이언트 쿼리가 여전히 본인 스코프만 가져오고 있음.
+
+`src/hooks/useProjects.js:45`
+```js
+.from('projects')
+.select('*')
+.eq('user_id', session.user.id)  // ← 세션 사용자 소유만
+```
+
+`src/components/TipTapEditor/TipTapTestPage.jsx:114-117`
+```js
+const calendarDailyPages = pages.filter(p => p.parent_id === currentPageId)
+```
+→ `pages` 자체는 `useProjects` 가 고른 프로젝트 하위 페이지만 담겨 있음.
+
+**따라서 현재 구조는 다음 중 하나로만 A 의 daily 페이지에 접근 가능**:
+1. **B 가 상단 브레드크럼에서 A 로 임퍼소네이션** → `effectiveSession.user.id = A` → useProjects 가 A 소유 프로젝트를 조회, RLS(`is_linked_account_viewer`)가 통과 → A 의 캘린더/페이지 보임
+2. **B 가 프로젝트 공유(shares)로 접근** → shares 에 row 가 있어야 함
 
 **다음 작업 시 확인할 것**:
-1. B 계정이 프로젝트에 어떤 방식으로 접근하는지 확인 (shares? linked_accounts? 직접 소유?)
-2. RLS 정책의 calendar/daily 조건을 해당 접근 방식에 맞게 수정
-3. Supabase SQL Editor에서 `SELECT * FROM projects WHERE user_id = '<B계정 auth.uid>'` 실행하여 B 계정이 프로젝트를 소유하는지 확인
+1. 사용자가 어떤 시나리오로 접근하려 했는지 확인 (임퍼소네이션? 그냥 로그인?)
+2. 만약 "B 가 로그인한 상태에서도 A 의 calendar 가 자동으로 보여야 한다"면 클라이언트 쿼리 구조 변경 필요:
+   - `useProjects` 의 `.eq('user_id', session.user.id)` 제거 → RLS 가 알아서 필터링 (linked_account_viewer, shares 포함)
+   - 프로젝트 목록에 여러 소유자의 프로젝트가 섞여 표시되는 UX 검토 (소유자 라벨 등)
+3. 임퍼소네이션 경로라면, 브레드크럼의 계정 드롭다운에 A 가 정상 노출되는지 먼저 확인 (get_linked_accounts RPC 결과 브라우저 콘솔에서 확인 가능)
+
+**관련 파일**:
+- `fix-linked-account-rls.sql` (신규, 실행 완료)
+- `create-linked-accounts.sql` (함수 정의 동기화 완료)
+- `fix-rls-recursion.sql` (선행 조치)
+- `src/hooks/useProjects.js:45` (다음 작업 후보)
+- `src/components/PaneProvider.jsx:353-399` (임퍼소네이션 브레드크럼 로직)
 
 ---
 

@@ -38,15 +38,16 @@ CREATE POLICY "Users can view own linked accounts"
 -- 2. 연결 계정 여부를 확인하는 함수 (RLS에서 사용)
 -- owner_user_id: 데이터 소유자의 auth.users.id
 -- 현재 로그인 사용자가 해당 소유자와 연결 계정 관계인지 확인
+-- auth.users 를 직접 조회해 app_users.auth_uid 누락에 영향받지 않도록 함
 CREATE OR REPLACE FUNCTION is_linked_account(owner_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
-    SELECT 1 FROM linked_accounts la
-    WHERE la.primary_email = auth.jwt() ->> 'email'
-      AND la.linked_email = (
-        SELECT email FROM app_users WHERE auth_uid = owner_user_id LIMIT 1
-      )
+    SELECT 1
+    FROM linked_accounts la
+    JOIN auth.users u ON LOWER(u.email) = LOWER(la.linked_email)
+    WHERE LOWER(la.primary_email) = LOWER(auth.jwt() ->> 'email')
+      AND u.id = owner_user_id
       AND la.permission = 'editor'
   );
 END;
@@ -57,11 +58,11 @@ CREATE OR REPLACE FUNCTION is_linked_account_viewer(owner_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
-    SELECT 1 FROM linked_accounts la
-    WHERE la.primary_email = auth.jwt() ->> 'email'
-      AND la.linked_email = (
-        SELECT email FROM app_users WHERE auth_uid = owner_user_id LIMIT 1
-      )
+    SELECT 1
+    FROM linked_accounts la
+    JOIN auth.users u ON LOWER(u.email) = LOWER(la.linked_email)
+    WHERE LOWER(la.primary_email) = LOWER(auth.jwt() ->> 'email')
+      AND u.id = owner_user_id
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
@@ -71,11 +72,10 @@ CREATE OR REPLACE FUNCTION get_linked_accounts()
 RETURNS TABLE(linked_email TEXT, linked_auth_uid UUID, permission TEXT) AS $$
 BEGIN
   RETURN QUERY
-  SELECT la.linked_email, au.auth_uid, la.permission
+  SELECT la.linked_email, u.id AS linked_auth_uid, la.permission
   FROM linked_accounts la
-  JOIN app_users au ON au.email = la.linked_email
-  WHERE la.primary_email = auth.jwt() ->> 'email'
-    AND au.auth_uid IS NOT NULL;
+  JOIN auth.users u ON LOWER(u.email) = LOWER(la.linked_email)
+  WHERE LOWER(la.primary_email) = LOWER(auth.jwt() ->> 'email');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
