@@ -119,12 +119,13 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .is('deleted_at', null)
         .order('position', { ascending: true })
 
-      // 프로젝트가 있으면 프로젝트 소속 페이지도 로드
+      // 프로젝트가 있으면 프로젝트 소속 페이지도 로드 (calendar/daily는 독립 엔티티이므로 제외)
       const projectQuery = currentProjectId
         ? supabase
             .from('pages')
             .select('*')
             .eq('project_id', currentProjectId)
+            .not('page_type', 'in', '("calendar","daily")')
             .is('deleted_at', null)
             .order('position', { ascending: true })
         : Promise.resolve({ data: [], error: null })
@@ -132,10 +133,17 @@ export const usePages = (session, currentProjectId, options = {}) => {
       const [projectResult, worklogResult] = await Promise.all([projectQuery, worklogQuery])
 
       const error = projectResult.error || worklogResult.error
-      const data = [
+      // 중복 제거 (calendar/daily가 양쪽 쿼리에 걸릴 수 있음)
+      const merged = [
         ...(projectResult.data || []),
         ...(worklogResult.data || []),
       ]
+      const seen = new Set()
+      const data = merged.filter(p => {
+        if (seen.has(p.id)) return false
+        seen.add(p.id)
+        return true
+      })
 
       // 더 최신 fetch가 시작됐으면 이 응답은 무시 (경쟁 조건 방지)
       if (myFetchId !== fetchCountRef.current) return

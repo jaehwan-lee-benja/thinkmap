@@ -134,11 +134,14 @@ function AdminModal({
   const getStatusLabel = (status) => {
     switch (status) {
       case 'active': return '활성'
+      case 'pending': return '승인 대기'
       case 'invited': return '초대됨'
       case 'inactive': return '비활성'
       default: return status
     }
   }
+
+  const pendingUsers = (users || []).filter(u => u.status === 'pending')
 
   const getPermissionLabel = (perm) => {
     switch (perm) {
@@ -179,6 +182,47 @@ function AdminModal({
             <button type="submit" className="add-user-button">추가</button>
           </form>
         </div>
+
+        {/* 승인 대기 */}
+        {pendingUsers.length > 0 && (
+          <div className="admin-section admin-section-pending">
+            <div className="admin-section-header">
+              <span style={{ fontSize: 14 }}>⏳</span>
+              <span>승인 대기 ({pendingUsers.length})</span>
+            </div>
+            <div className="users-list">
+              {pendingUsers.map(user => (
+                <div key={user.id} className="user-item pending-item">
+                  <div className="user-info">
+                    <div className="user-email">{user.email}</div>
+                    <div className="user-meta">
+                      <span className="user-status pending">{getStatusLabel('pending')}</span>
+                      {user.created_at && (
+                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
+                          {new Date(user.created_at).toLocaleDateString('ko-KR')} 가입
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="user-actions">
+                    <button
+                      className="approve-button"
+                      onClick={() => onUpdateUserStatus(user.id, 'active')}
+                    >
+                      승인
+                    </button>
+                    <button
+                      className="reject-button"
+                      onClick={() => onUpdateUserStatus(user.id, 'inactive')}
+                    >
+                      거절
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 사용자 목록 */}
         <div className="admin-section">
@@ -235,6 +279,7 @@ function AdminModal({
                             disabled={isSelf}
                           >
                             <option value="active">활성</option>
+                            <option value="pending">승인 대기</option>
                             <option value="inactive">비활성</option>
                           </select>
                           {!isSelf && (

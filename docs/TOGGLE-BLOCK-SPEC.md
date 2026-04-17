@@ -334,11 +334,22 @@ dragoverDebounceTimer = setTimeout(() => clearDropTimers(), 100)
 
 `dragend` 핸들러에서 `window.__crossPaneDrag = null`과 `editor.view.dragging = null`을 명시적으로 정리. 이전에는 cancelled drag 후 stale state가 남아 다음 텍스트 드래그가 블록 드래그로 오인되는 버그가 있었음.
 
-#### 다음 세션 진단 필요 사항
+#### 시도 4 (2026-04-17): closestToggle 체크를 좌표 기반으로 전환
 
-1. 시도 3 (debounce 방식)이 실제로 동작하는지 확인 — 아직 시각효과 검증되지 않음
-2. 만약 debounce도 실패하면, dragover가 어디까지 도달하는지 글로벌 capture-phase 리스너로 다시 추적
-3. 위 모든 것이 실패하면, NodeView 자체를 재구성 — 헤더 영역만 별도 div로 감싸서 그 위에서만 드롭 처리
+시도 3의 debounce는 유지하되, `e.target.closest('.toggle-block')` 비교를 제거하고 **좌표 기반 중첩 판단**으로 교체:
+
+```js
+// dom의 자식 토글들의 rect를 확인하여 커서가 자식 내부인지 판단
+const childToggles = dom.querySelectorAll(':scope > .toggle-content .toggle-block')
+for (const child of childToggles) {
+  const childRect = child.getBoundingClientRect()
+  if (커서가 childRect 내부) { insideChild = true; break }
+}
+if (insideChild) return
+```
+
+- **이론**: `e.target`은 드래그 중 자식 요소를 가리킬 수 있어 `closest()` 결과가 불안정. 좌표 기반은 DOM 이벤트 타겟과 무관하게 정확한 위치 판단 가능.
+- **debounce와 조합**: 헤더 영역(36px) + 좌표 중첩 필터 + 100ms debounce로 3중 안정화.
 
 ### 11.5 drop 위치 RangeError 및 스코프 버그 — Issue C (2026-04-10, 해결)
 
@@ -376,7 +387,7 @@ ProseMirror에서 콘텐츠가 에디터에 삽입되는 경로는 **3가지**�
 | Cmd+V 붙여넣기 | `handlePaste` | 해결됨 (2026-04-02) |
 | 텍스트 드래그 드롭 | `handleDrop` plugin prop | 해결됨 (2026-04-02) |
 | 블록 드래그 드롭 (D, C: 데이터/RangeError) | NodeView `drop` + Plugin `handleDrop` 폴백 + `appendTransaction` 정규화 | 해결됨 (2026-04-10) — 섹션 11.3, 11.5 |
-| 블록 드래그 드롭 (A: 시각 피드백) | dragover debounce 방식 (시도 3) | **미해결** — 섹션 11.4 |
+| 블록 드래그 드롭 (A: 시각 피드백) | dragover debounce + 좌표 기반 중첩 판단 (시도 4) | **수정 적용** — 섹션 11.4 |
 
 **원칙:**
 - 콘텐츠 삽입 문제는 반드시 **ProseMirror가 제공하는 표준 plugin prop**(`handlePaste`, `handleDrop`, `transformPasted` 등)으로 해결한다.

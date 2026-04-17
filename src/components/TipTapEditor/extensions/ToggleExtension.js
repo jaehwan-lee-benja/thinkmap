@@ -241,7 +241,7 @@ export const Toggle = Node.create({
   defining: false,
 
   addStorage() {
-    return { viewerMode: false }
+    return { viewerMode: false, isMaster: false }
   },
 
   addAttributes() {
@@ -314,6 +314,11 @@ export const Toggle = Node.create({
         parseHTML: element => element.getAttribute('data-carry-over-from') || null,
         renderHTML: attributes => attributes.carryOverFrom ? { 'data-carry-over-from': attributes.carryOverFrom } : {},
       },
+      visibility: {
+        default: 'all',
+        parseHTML: element => element.getAttribute('data-visibility') || 'all',
+        renderHTML: attributes => attributes.visibility && attributes.visibility !== 'all' ? { 'data-visibility': attributes.visibility } : {},
+      },
     }
   },
 
@@ -364,6 +369,11 @@ export const Toggle = Node.create({
       dom.setAttribute('data-type', 'toggle')
       dom.setAttribute('data-is-open', node.attrs.isOpen)
       dom.setAttribute('data-block-type', node.attrs.blockType || 'paragraph')
+
+      // master-only 섹션 초기 클래스
+      if (node.attrs.visibility === 'master' && node.attrs.blockType === 'h2') {
+        dom.classList.add('toggle-master-only')
+      }
 
       // 배경색 적용
       if (node.attrs.backgroundColor) {
@@ -872,7 +882,7 @@ export const Toggle = Node.create({
           || window.__crossPaneDrag
         if (!isBlockDrag) return
 
-        // 토글 블록의 header 영역 위에 호버 중인지 확인
+        // 토글 블록의 header 영역 위에 호버 중인지 확인 (좌표 기반 — 자식 이벤트에 영향 안 받음)
         const rect = dom.getBoundingClientRect()
         const yInBlock = e.clientY - rect.top
         const headerHeight = 36
@@ -881,9 +891,19 @@ export const Toggle = Node.create({
           return
         }
 
-        // 하위 토글 내부에서 발생한 이벤트는 무시 (가장 가까운 토글이 자신인 경우만)
-        const closestToggle = e.target.closest?.('.toggle-block')
-        if (closestToggle !== dom) return
+        // 중첩 토글 확인: 이 dom의 직접 헤더 영역인지 좌표로 판단
+        // (e.target.closest 대신 — 자식 요소가 target일 때도 정확히 동작)
+        const childToggles = dom.querySelectorAll(':scope > .toggle-content .toggle-block')
+        let insideChild = false
+        for (const child of childToggles) {
+          const childRect = child.getBoundingClientRect()
+          if (e.clientX >= childRect.left && e.clientX <= childRect.right &&
+              e.clientY >= childRect.top && e.clientY <= childRect.bottom) {
+            insideChild = true
+            break
+          }
+        }
+        if (insideChild) return
 
         e.preventDefault()
         e.stopPropagation()
@@ -1056,12 +1076,39 @@ export const Toggle = Node.create({
         carryOverTag.style.display = 'none'
       }
 
-      // 코멘트 버튼 (h2 섹션 전용)
+      // Visibility 버튼 (h2 섹션 전용, 마스터만 조작)
+      const visibilityButton = document.createElement('button')
+      visibilityButton.classList.add('toggle-visibility-button')
+      visibilityButton.contentEditable = 'false'
+      const isVisibilityMaster = node.attrs.visibility === 'master'
+      visibilityButton.title = isVisibilityMaster ? '마스터 전용 (클릭하여 전체 공개)' : '전체 공개 (클릭하여 마스터 전용)'
+      if (isVisibilityMaster) visibilityButton.classList.add('master-only')
+      // h2 섹션에서만 표시, 마스터만 클릭 가능
+      const showVisBtn = node.attrs.blockType === 'h2' && editor.storage.toggle?.isMaster
+      visibilityButton.style.display = showVisBtn ? '' : 'none'
+      visibilityButton.innerHTML = isVisibilityMaster
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+      visibilityButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!editor.storage.toggle?.isMaster) return
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        if (!currentNode) return
+        const newVisibility = currentNode.attrs.visibility === 'master' ? 'all' : 'master'
+        editor.view.dispatch(
+          editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, visibility: newVisibility })
+        )
+      })
+
+      // 코멘트 버튼 (h2 섹션 + todo 항목)
       const commentButton = document.createElement('button')
       commentButton.classList.add('toggle-comment-button')
       commentButton.contentEditable = 'false'
-      commentButton.title = '섹션 코멘트'
-      commentButton.style.display = node.attrs.blockType === 'h2' ? '' : 'none'
+      const showComment = node.attrs.blockType === 'h2' || node.attrs.isTodo
+      commentButton.title = node.attrs.isTodo ? 'todo 코멘트' : '섹션 코멘트'
+      commentButton.style.display = showComment ? '' : 'none'
       commentButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
       commentButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
@@ -1070,9 +1117,10 @@ export const Toggle = Node.create({
         const currentNode = editor.state.doc.nodeAt(pos)
         if (!currentNode) return
         const title = currentNode.content?.firstChild?.textContent || ''
+        const targetType = currentNode.attrs.isTodo ? 'todo' : 'section'
         dom.dispatchEvent(new CustomEvent('section-comment-click', {
           bubbles: true,
-          detail: { sectionTitle: title, toggleDom: dom }
+          detail: { sectionTitle: title, targetType, toggleDom: dom }
         }))
       })
 
@@ -1082,6 +1130,7 @@ export const Toggle = Node.create({
       dom.appendChild(checkbox)
       dom.appendChild(carryOverTag)
       dom.appendChild(contentWrapper)
+      dom.appendChild(visibilityButton)
       dom.appendChild(commentButton)
       dom.appendChild(pinButton)
       dom.appendChild(pageOverlay)
@@ -1151,8 +1200,21 @@ export const Toggle = Node.create({
             dom.style.removeProperty('background-color')
           }
 
+          // Visibility 버튼 상태 업데이트
+          const showVis = updatedNode.attrs.blockType === 'h2' && editor.storage.toggle?.isMaster
+          visibilityButton.style.display = showVis ? '' : 'none'
+          const isMasterVis = updatedNode.attrs.visibility === 'master'
+          visibilityButton.classList.toggle('master-only', isMasterVis)
+          visibilityButton.title = isMasterVis ? '마스터 전용 (클릭하여 전체 공개)' : '전체 공개 (클릭하여 마스터 전용)'
+          visibilityButton.innerHTML = isMasterVis
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+            : '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+          // master-only 섹션에 시각적 표시
+          dom.classList.toggle('toggle-master-only', isMasterVis && updatedNode.attrs.blockType === 'h2')
+
           // 코멘트 버튼 상태 업데이트
-          commentButton.style.display = updatedNode.attrs.blockType === 'h2' ? '' : 'none'
+          const showCmt = updatedNode.attrs.blockType === 'h2' || updatedNode.attrs.isTodo
+          commentButton.style.display = showCmt ? '' : 'none'
 
           // Pin 버튼 상태 업데이트
           const showPin = updatedNode.attrs.blockType === 'h2' && !updatedNode.attrs.isFixedSection

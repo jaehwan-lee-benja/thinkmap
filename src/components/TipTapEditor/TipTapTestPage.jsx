@@ -71,6 +71,7 @@ import WorklogHeader from './WorklogHeader'
 import WorklogComments from './WorklogComments'
 import EmojiPicker from '../Common/EmojiPicker'
 import '../Common/EmojiPicker.css'
+import { useAuthContext } from '../../contexts/AuthContext'
 import { useWorklogComments } from '../../hooks/useWorklogComments'
 import { useCalendarCommentCounts } from '../../hooks/useCalendarCommentCounts'
 import './TipTapPage.css'
@@ -83,7 +84,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const [content, setContent] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(null)
-  const [commentTarget, setCommentTarget] = useState(null) // null=전체, string=섹션명
+  const [commentTarget, setCommentTarget] = useState(null) // null=전체, { type, id } = 섹션/todo
   const [commentAnchorEl, setCommentAnchorEl] = useState(null) // 코멘트 패널 위치 기준 DOM
   const [showIconPicker, setShowIconPicker] = useState(false)
 
@@ -99,6 +100,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const imageInputRef = useRef(null)
   const pageRef = useRef(null)
   const { isTablet } = useIsMobile()
+  const authCtx = useAuthContext()
+  const isMaster = authCtx?.isMaster ?? false
   const { pages, setCurrentPageId, createPage, deletePage, updatePageIcon, goBack, goForward, canGoBack, canGoForward } = usePageContext()
   const { projects, currentProjectId } = useProjectContext()
   const { toggleFavorite, isFavorite } = useFavoritesContext()
@@ -423,10 +426,16 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           const injected = pageType !== 'calendar'
             ? injectChildPageBlocks(data.content_tiptap, childPages)
             : data.content_tiptap
+          // 비마스터: visibility='master' 섹션 필터링 (daily 페이지만)
+          const filtered = (!isMaster && pageType === 'daily' && injected?.content)
+            ? { ...injected, content: injected.content.filter(n =>
+                !(n.type === 'toggle' && n.attrs?.blockType === 'h2' && n.attrs?.visibility === 'master')
+              )}
+            : injected
           // 뷰어 모드: 토글 오버라이드 적용
           const finalContent = isImpersonating
-            ? applyToggleOverrides(injected, viewerToggleOverrides[currentPageId])
-            : injected
+            ? applyToggleOverrides(filtered, viewerToggleOverrides[currentPageId])
+            : filtered
           setContent(finalContent)
           lastHistoryContentRef.current = data.content_tiptap
           // 로드 완료 후 prevPageRef를 올바른 페이지+콘텐츠로 설정
@@ -945,19 +954,20 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     )
   }
 
-  // 섹션 코멘트 이벤트 리스너 (DOM 이벤트 — 타이밍/클로저 문제 없음)
+  // 섹션/todo 코멘트 이벤트 리스너 (DOM 이벤트 — 타이밍/클로저 문제 없음)
   useEffect(() => {
     const el = pageRef.current
     if (!el) return
     const handler = (e) => {
-      const { sectionTitle, toggleDom } = e.detail
+      const { sectionTitle, targetType = 'section', toggleDom } = e.detail
+      const newTarget = { type: targetType, id: sectionTitle }
       setCommentTarget(prev => {
-        if (prev === sectionTitle) {
+        if (prev && prev.type === newTarget.type && prev.id === newTarget.id) {
           setCommentAnchorEl(null)
           return null
         }
         setCommentAnchorEl(toggleDom)
-        return sectionTitle
+        return newTarget
       })
     }
     el.addEventListener('section-comment-click', handler)
@@ -1255,6 +1265,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               editorRef={editorRef}
               isViewerMode={isImpersonating}
               onViewerEditAttempt={showViewerToast}
+              isMaster={isMaster}
             />
           ) : (
             <div className="tiptap-loading">로딩 중...</div>
@@ -1291,13 +1302,13 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         {currentPage?.page_type === 'daily' && commentTarget && commentAnchorEl && createPortal(
           <div className="worklog-inline-comments">
             <WorklogComments
-              comments={comments.filter(c => c.target_type === 'section' && c.target_id === commentTarget)}
+              comments={comments.filter(c => c.target_type === commentTarget.type && c.target_id === commentTarget.id)}
               mentionableUsers={mentionableUsers}
               currentUserEmail={session?.user?.email}
-              onAdd={(content, mentions) => addComment(content, mentions, 'section', commentTarget)}
+              onAdd={(content, mentions) => addComment(content, mentions, commentTarget.type, commentTarget.id)}
               onToggleResolved={toggleResolved}
               onDelete={deleteComment}
-              commentTarget={commentTarget}
+              commentTarget={commentTarget.id}
               onClearTarget={() => { setCommentTarget(null); setCommentAnchorEl(null) }}
               defaultOpen
             />

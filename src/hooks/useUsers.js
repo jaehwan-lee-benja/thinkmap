@@ -58,7 +58,7 @@ export const useUsers = (session, isMaster) => {
         .insert({
           email: email.toLowerCase(),
           role: role,
-          status: 'invited',
+          status: 'active',
           invited_by: session?.user?.id,
         })
         .select()

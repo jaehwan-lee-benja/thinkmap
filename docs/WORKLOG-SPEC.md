@@ -2,7 +2,7 @@
 
 > 작성일: 2026-04-12
 > 최종 업데이트: 2026-04-17
-> 상태: Phase 1~5 완료, Phase 6 기획
+> 상태: Phase 1~6 완료
 > 관련 페이지: CalendarView, daily 페이지 시스템, WorklogComments
 
 ---
@@ -405,15 +405,15 @@ const mentionableUsers = [
   - daily 페이지 생성 로직을 `worklogUtils.buildDailyPageTemplate()`로 통합 (캘린더 "+"와 동일 구조 보장)
   - `fetchPages()` 호출로 로컬 상태 동기화 후 네비게이션
 
-### Phase 6: 섹션별 권한 (Visibility) — 기획 중
-- [ ] 섹션 attrs에 `visibility` 속성 추가 (`"all"` | `"master"`)
-- [ ] `visibility: "master"` 섹션은 마스터 계정에게만 표시
-- [ ] `visibility: "all"` 섹션은 모든 접근 계정에게 표시 (기본값)
-- [ ] 섹션 헤더 UI에 권한 설정 토글/드롭다운 (마스터만 조작 가능)
-- [ ] 고정 섹션·자유 섹션 모두 권한 설정 가능
-- [ ] daily 페이지 렌더링 시 현재 사용자 역할에 따라 섹션 필터링
-- [ ] 이월 시 권한 속성 보존 (원본 섹션의 visibility를 그대로 복사)
-- [ ] worklog_templates의 sections JSON에 visibility 필드 포함
+### Phase 6: 섹션별 권한 (Visibility) — ✅ 완료 (2026-04-17)
+- [x] 섹션 attrs에 `visibility` 속성 추가 (`"all"` | `"master"`)
+- [x] `visibility: "master"` 섹션은 마스터 계정에게만 표시
+- [x] `visibility: "all"` 섹션은 모든 접근 계정에게 표시 (기본값)
+- [x] 섹션 헤더 UI에 잠금 아이콘 버튼 (마스터만 표시/조작, all↔master 토글)
+- [x] 고정 섹션·자유 섹션 모두 권한 설정 가능
+- [x] daily 페이지 렌더링 시 현재 사용자 역할에 따라 섹션 필터링
+- [x] 이월 시 권한 속성 보존 (pinned 섹션의 visibility 그대로 복사)
+- [ ] worklog_templates DB 테이블에 visibility 필드 포함 (향후)
 
 ### Phase 4 보충: 캘린더 코멘트 배지 — ✅ 완료 (2026-04-15)
 - [x] `useCalendarCommentCounts` 훅 — 배치 코멘트 수 조회 (`.in()` 단일 쿼리)

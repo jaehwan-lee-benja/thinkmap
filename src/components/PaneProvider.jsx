@@ -337,6 +337,7 @@ export function PaneProvider({
       return projects.map(p => ({ id: p.id, name: p.name }))
     }
     if (part.type === 'page') {
+      const seen = new Set()
       return pages
         .filter(p => (p.parent_id || null) === (part.parentId || null))
         .sort((a, b) => {
@@ -344,6 +345,14 @@ export function PaneProvider({
           if (a.page_type === 'calendar' && b.page_type !== 'calendar') return -1
           if (b.page_type === 'calendar' && a.page_type !== 'calendar') return 1
           return a.position - b.position
+        })
+        .filter(p => {
+          // calendar 페이지 중복 방지 (1개만 표시)
+          if (p.page_type === 'calendar') {
+            if (seen.has('calendar')) return false
+            seen.add('calendar')
+          }
+          return true
         })
         .map(p => ({ id: p.id, name: p.name, pageType: p.page_type || 'normal' }))
     }

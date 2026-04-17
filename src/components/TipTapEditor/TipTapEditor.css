@@ -1360,6 +1360,51 @@ th .paragraph-drag-handle {
   user-select: none;
 }
 
+/* ── 섹션 Visibility 버튼 ── */
+.toggle-visibility-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.toggle-block:hover > .toggle-visibility-button {
+  opacity: 1;
+}
+
+.toggle-visibility-button:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.toggle-visibility-button.master-only {
+  opacity: 1;
+  color: #a78bfa;
+}
+
+.toggle-visibility-button.master-only:hover {
+  color: #c4b5fd;
+  background: rgba(167, 139, 250, 0.1);
+}
+
+/* ── 마스터 전용 섹션 시각 표시 ── */
+.tiptap-page--daily .tiptap-editor > .toggle-block.toggle-master-only {
+  border-color: rgba(167, 139, 250, 0.3);
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.04) 0%, rgba(124, 58, 237, 0.06) 100%) !important;
+  box-shadow: inset 3px 0 0 rgba(167, 139, 250, 0.5);
+}
+
 /* ── 섹션 코멘트 버튼 ── */
 .toggle-comment-button {
   flex-shrink: 0;

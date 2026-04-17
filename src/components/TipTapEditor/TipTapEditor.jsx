@@ -112,7 +112,7 @@ const ViewerModeExtension = Extension.create({
   },
 })
 
-function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef, isViewerMode = false, onViewerEditAttempt }) {
+function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세요...', editorRef, isViewerMode = false, onViewerEditAttempt, isMaster = false }) {
   // 키보드 높이 감지 (CSS 변수 --keyboard-height 자동 설정)
   useKeyboardHeight()
   const pageContext = usePageContext()
@@ -592,12 +592,13 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     return <div>에디터 로딩 중...</div>
   }
 
-  // 뷰어 모드 스토리지 설정
+  // 뷰어 모드 + 마스터 여부 스토리지 설정
   useEffect(() => {
     if (editor && editor.storage.toggle) {
       editor.storage.toggle.viewerMode = isViewerMode
+      editor.storage.toggle.isMaster = isMaster
     }
-  }, [editor, isViewerMode])
+  }, [editor, isViewerMode, isMaster])
 
   // 여백 더블클릭 시 토글 블록이 없으면 첫 줄에 토글 생성
   const handleWrapperDoubleClick = (e) => {

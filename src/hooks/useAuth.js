@@ -9,19 +9,23 @@ export const useAuth = () => {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [isMaster, setIsMaster] = useState(false)
+  const [userStatus, setUserStatus] = useState(null) // 'active' | 'pending' | 'inactive' | 'invited' | null
 
-  // DB에서 마스터 여부 확인 (app_users 테이블 직접 조회)
-  const checkIsMaster = async (session) => {
-    if (!session?.user?.email) return false
+  // DB에서 역할 + 상태 확인
+  const checkUserInfo = async (session) => {
+    if (!session?.user?.email) return { isMaster: false, status: null }
     try {
       const { data } = await supabase
         .from('app_users')
-        .select('role')
+        .select('role, status')
         .eq('email', session.user.email.toLowerCase())
         .single()
-      return data?.role === 'master'
+      return {
+        isMaster: data?.role === 'master',
+        status: data?.status || null,
+      }
     } catch (e) { /* ignore */ }
-    return false
+    return { isMaster: false, status: null }
   }
 
   // 로그인 시 app_users에 자동 등록 + auth_uid 동기화
@@ -32,16 +36,17 @@ export const useAuth = () => {
 
     const { data } = await supabase
       .from('app_users')
-      .select('id, auth_uid')
+      .select('id, auth_uid, status')
       .eq('email', email)
       .single()
 
     if (!data) {
+      // 신규 가입: pending 상태로 생성 (마스터 승인 필요)
       await supabase.from('app_users').insert([{
         email,
         auth_uid: authUid,
         role: 'user',
-        status: 'active',
+        status: 'pending',
       }])
     } else if (!data.auth_uid || data.auth_uid !== authUid) {
       await supabase.from('app_users')
@@ -50,31 +55,32 @@ export const useAuth = () => {
     }
   }
 
+  // 세션 변경 시 사용자 정보 로드
+  const handleSessionChange = async (session) => {
+    if (session) {
+      ensureAppUser(session).catch(() => {})
+      const info = await checkUserInfo(session).catch(() => ({ isMaster: false, status: null }))
+      setIsMaster(info.isMaster)
+      setUserStatus(info.status)
+    } else {
+      setIsMaster(false)
+      setUserStatus(null)
+    }
+  }
+
   // 인증 상태 확인
   useEffect(() => {
-    // 현재 세션 가져오기
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setAuthLoading(false)
-
-      if (session) {
-        // 비차단: 백그라운드에서 처리
-        ensureAppUser(session).catch(() => {})
-        checkIsMaster(session).then(setIsMaster).catch(() => {})
-      }
+      handleSessionChange(session)
     })
 
-    // 인증 상태 변경 리스너
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session) {
-        ensureAppUser(session).catch(() => {})
-        checkIsMaster(session).then(setIsMaster).catch(() => {})
-      } else {
-        setIsMaster(false)
-      }
+      handleSessionChange(session)
     })
 
     return () => subscription.unsubscribe()
@@ -125,6 +131,7 @@ export const useAuth = () => {
     session,
     authLoading,
     isMaster,
+    userStatus,
     handleGoogleLogin,
     handleLogout
   }

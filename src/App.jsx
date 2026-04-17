@@ -168,7 +168,7 @@ function PaneInner({
 
 // ─── App ───
 function App() {
-  const { session, authLoading, isMaster, handleGoogleLogin, handleLogout } = useAuth()
+  const { session, authLoading, isMaster, userStatus, handleGoogleLogin, handleLogout } = useAuth()
 
   // 환경설정 (항상 실제 session 기준)
   const prefs = useUserPreferences(session)
@@ -396,6 +396,48 @@ function App() {
     return (
       <div className="app loading">
         <div className="loading-spinner">로딩 중...</div>
+      </div>
+    )
+  }
+
+  // 승인 대기 게이트 (마스터는 항상 통과)
+  if (!isMaster && userStatus && userStatus !== 'active') {
+    const statusMessages = {
+      pending: { title: '승인 대기 중', desc: '관리자의 승인을 기다리고 있습니다. 승인 후 서비스를 이용할 수 있습니다.' },
+      inactive: { title: '계정 비활성화', desc: '계정이 비활성화되었습니다. 관리자에게 문의해주세요.' },
+      invited: { title: '초대 확인 중', desc: '초대가 확인되고 있습니다. 잠시만 기다려주세요.' },
+    }
+    const msg = statusMessages[userStatus] || statusMessages.pending
+    return (
+      <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{
+          textAlign: 'center', maxWidth: 400, padding: '2rem',
+          background: 'var(--color-surface, #1e1e2e)', borderRadius: 12,
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>
+            {userStatus === 'inactive' ? '🔒' : '⏳'}
+          </div>
+          <h2 style={{ margin: '0 0 8px', fontSize: '1.2rem', color: 'var(--color-text, #e0e0e0)' }}>
+            {msg.title}
+          </h2>
+          <p style={{ margin: '0 0 24px', fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
+            {msg.desc}
+          </p>
+          <p style={{ margin: '0 0 20px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
+            {session?.user?.email}
+          </p>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '8px 24px', border: 'none', borderRadius: 6,
+              background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)',
+              cursor: 'pointer', fontSize: '0.85rem',
+            }}
+          >
+            로그아웃
+          </button>
+        </div>
       </div>
     )
   }
