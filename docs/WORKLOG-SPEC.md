@@ -1,8 +1,8 @@
 # 업무일지 기획서 (WorkLog Specification)
 
 > 작성일: 2026-04-12
-> 최종 업데이트: 2026-04-16
-> 상태: Phase 1~5 완료
+> 최종 업데이트: 2026-04-17
+> 상태: Phase 1~5 완료, Phase 6 기획
 > 관련 페이지: CalendarView, daily 페이지 시스템, WorklogComments
 
 ---
@@ -73,11 +73,12 @@ CREATE TABLE worklog_templates (
   -- 섹션 구성
   sections JSONB NOT NULL DEFAULT '[]',
   -- [
-  --   { "id": "todos", "type": "fixed", "title": "할 일", "order": 0 },
-  --   { "id": "notices", "type": "fixed", "title": "전달사항", "order": 1 },
-  --   { "id": "custom_abc", "type": "custom", "title": "구매 목록", "order": 2 },
-  --   { "id": "closing", "type": "fixed", "title": "마무리 기록", "order": 99 }
+  --   { "id": "todos", "type": "fixed", "title": "할 일", "order": 0, "visibility": "all" },
+  --   { "id": "notices", "type": "fixed", "title": "전달사항", "order": 1, "visibility": "all" },
+  --   { "id": "custom_abc", "type": "custom", "title": "구매 목록", "order": 2, "visibility": "all" },
+  --   { "id": "closing", "type": "fixed", "title": "마무리 기록", "order": 99, "visibility": "master" }
   -- ]
+  -- visibility: "all" (모든 접근 계정에게 표시, 기본값) | "master" (마스터만 표시)
   
   version INT DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -122,11 +123,11 @@ CREATE TABLE worklog_templates (
     ▶ ...
 ```
 
-| 섹션 | 설명 | 특징 |
-|---|---|---|
-| **할 일** | todo 체크리스트 | 이월 자동, 체크박스, 하위 토글 지원 |
-| **전달사항** | 직원/이사 간 전달 메모 | 일반 토글 블록 |
-| **마무리 기록** | 하루 마감 시 작성 | "당일 이슈" 하위 섹션 포함 |
+| 섹션 | 설명 | 특징 | 기본 권한 |
+|---|---|---|---|
+| **할 일** | todo 체크리스트 | 이월 자동, 체크박스, 하위 토글 지원 | all |
+| **전달사항** | 직원/이사 간 전달 메모 | 일반 토글 블록 | all |
+| **마무리 기록** | 하루 마감 시 작성 | "당일 이슈" 하위 섹션 포함 | all |
 
 #### B. 자유 섹션 (사용자 추가/삭제 가능)
 
@@ -157,7 +158,8 @@ CREATE TABLE worklog_templates (
         "sectionId": "todos",
         "sectionType": "fixed",
         "title": "할 일",
-        "order": 0
+        "order": 0,
+        "visibility": "all"
       },
       "content": [
         {
@@ -187,7 +189,8 @@ CREATE TABLE worklog_templates (
         "sectionId": "notices",
         "sectionType": "fixed",
         "title": "전달사항",
-        "order": 1
+        "order": 1,
+        "visibility": "all"
       },
       "content": [...]
     },
@@ -197,7 +200,8 @@ CREATE TABLE worklog_templates (
         "sectionId": "custom_abc123",
         "sectionType": "custom",
         "title": "구매 목록",
-        "order": 2
+        "order": 2,
+        "visibility": "all"
       },
       "content": [...]
     },
@@ -207,7 +211,8 @@ CREATE TABLE worklog_templates (
         "sectionId": "closing",
         "sectionType": "fixed",
         "title": "마무리 기록",
-        "order": 99
+        "order": 99,
+        "visibility": "master"
       },
       "content": [...]
     }
@@ -400,6 +405,16 @@ const mentionableUsers = [
   - daily 페이지 생성 로직을 `worklogUtils.buildDailyPageTemplate()`로 통합 (캘린더 "+"와 동일 구조 보장)
   - `fetchPages()` 호출로 로컬 상태 동기화 후 네비게이션
 
+### Phase 6: 섹션별 권한 (Visibility) — 기획 중
+- [ ] 섹션 attrs에 `visibility` 속성 추가 (`"all"` | `"master"`)
+- [ ] `visibility: "master"` 섹션은 마스터 계정에게만 표시
+- [ ] `visibility: "all"` 섹션은 모든 접근 계정에게 표시 (기본값)
+- [ ] 섹션 헤더 UI에 권한 설정 토글/드롭다운 (마스터만 조작 가능)
+- [ ] 고정 섹션·자유 섹션 모두 권한 설정 가능
+- [ ] daily 페이지 렌더링 시 현재 사용자 역할에 따라 섹션 필터링
+- [ ] 이월 시 권한 속성 보존 (원본 섹션의 visibility를 그대로 복사)
+- [ ] worklog_templates의 sections JSON에 visibility 필드 포함
+
 ### Phase 4 보충: 캘린더 코멘트 배지 — ✅ 완료 (2026-04-15)
 - [x] `useCalendarCommentCounts` 훅 — 배치 코멘트 수 조회 (`.in()` 단일 쿼리)
 - [x] 캘린더 셀에 코멘트 수 배지 표시
@@ -425,60 +440,76 @@ const mentionableUsers = [
 
 ---
 
-## 10-1. 진행 중: 다른 계정에서 업무일지가 안 보이는 문제 (2026-04-16)
+## 10-1. 임퍼소네이션 체계
 
-**현상**: A 계정이 만든 calendar/daily 페이지가 B(연결 계정) 계정에서 보이지 않음.
+임퍼소네이션은 업무일지와 **별도의 체계**이다. 상세 명세는 [IMPERSONATION-SPEC.md](./IMPERSONATION-SPEC.md) 참조.
 
-### 1차 원인 (해결 완료)
+---
 
-RLS 함수(`is_linked_account_viewer`, `is_linked_account`, `get_linked_accounts`)가 `app_users.auth_uid` 컬럼을 통해 소유자 이메일을 역조회하는데, 이 컬럼이 NULL 인 레코드가 존재했음.
-- `add-auth-uid-to-app-users.sql` 은 **일회성** 백필만 수행
-- `useAuth.ensureAppUser()` 가 로그인 시 자동 갱신을 시도하지만, `app_users` INSERT/UPDATE 는 마스터 전용이라 **비마스터 계정은 자가 보정 불가**
-- `get_linked_accounts()` 도 `au.auth_uid IS NOT NULL` 필터 때문에 B 에게 A 가 노출되지 않아 임퍼소네이션조차 불가능
+## 10-2. 업무일지 통합 접근 문제 (2026-04-16 ~ 진행 중)
 
-**조치**: `fix-linked-account-rls.sql` 작성 + 2026-04-16 Supabase SQL Editor 실행 완료.
-1. 세 함수를 `auth.users` 직접 JOIN 방식으로 재정의 → `app_users.auth_uid` 의존 제거
-2. `app_users` self-insert / self-update 정책 추가 (비마스터도 본인 이메일 레코드 갱신 가능)
-3. 기존 레코드의 `auth_uid` 누락분 idempotent 하게 일괄 보정
+**목표**: 모든 승인된 계정이 **임퍼소네이션 없이** 동일한 업무일지(calendar + daily 페이지)를 보고 편집할 수 있어야 함.
 
-`create-linked-accounts.sql` 의 함수 정의도 동일하게 동기화.
+**원칙**:
+1. 업무일지는 통합된 1개만 존재 (뷰어, 편집 모두 동일)
+2. 섹션별 권한은 별도 Phase 6에서 처리 (마스터 전용 섹션 등)
+3. 임퍼소네이션은 별도 체계 — 업무일지 접근에 영향을 주지 않아야 함
 
-### 2차 원인 (미해결 — 다음 작업)
+### 1차 원인 (해결 완료 — 2026-04-16)
 
-SQL 실행 성공 확인했지만 **캘린더 뷰에 여전히 daily 페이지가 보이지 않음**.
+RLS 함수(`is_linked_account_viewer` 등)가 `app_users.auth_uid` NULL 레코드 때문에 실패.
 
-**추가 분석**: RLS 는 뚫렸지만 클라이언트 쿼리가 여전히 본인 스코프만 가져오고 있음.
+**조치**: `fix-linked-account-rls.sql` — `auth.users` 직접 JOIN 방식으로 전환, self-insert/update 정책 추가.
 
-`src/hooks/useProjects.js:45`
-```js
-.from('projects')
-.select('*')
-.eq('user_id', session.user.id)  // ← 세션 사용자 소유만
+### 2차 원인 (미해결 — 핵심 문제)
+
+RLS는 통과하지만 **클라이언트 쿼리가 본인 프로젝트만 가져옴**.
+
+```
+문제 지점: useProjects.js:45
+  .eq('user_id', session.user.id)  ← B 로그인 시 B의 프로젝트만
 ```
 
-`src/components/TipTapEditor/TipTapTestPage.jsx:114-117`
-```js
-const calendarDailyPages = pages.filter(p => p.parent_id === currentPageId)
-```
-→ `pages` 자체는 `useProjects` 가 고른 프로젝트 하위 페이지만 담겨 있음.
+업무일지(calendar 페이지)는 A의 프로젝트 하위에 존재 → B는 A의 프로젝트를 로드하지 않으므로 업무일지 자체가 안 보임.
 
-**따라서 현재 구조는 다음 중 하나로만 A 의 daily 페이지에 접근 가능**:
-1. **B 가 상단 브레드크럼에서 A 로 임퍼소네이션** → `effectiveSession.user.id = A` → useProjects 가 A 소유 프로젝트를 조회, RLS(`is_linked_account_viewer`)가 통과 → A 의 캘린더/페이지 보임
-2. **B 가 프로젝트 공유(shares)로 접근** → shares 에 row 가 있어야 함
+### 해결 방향: 방안 C 확정 — calendar 페이지를 프로젝트에서 분리
 
-**다음 작업 시 확인할 것**:
-1. 사용자가 어떤 시나리오로 접근하려 했는지 확인 (임퍼소네이션? 그냥 로그인?)
-2. 만약 "B 가 로그인한 상태에서도 A 의 calendar 가 자동으로 보여야 한다"면 클라이언트 쿼리 구조 변경 필요:
-   - `useProjects` 의 `.eq('user_id', session.user.id)` 제거 → RLS 가 알아서 필터링 (linked_account_viewer, shares 포함)
-   - 프로젝트 목록에 여러 소유자의 프로젝트가 섞여 표시되는 UX 검토 (소유자 라벨 등)
-3. 임퍼소네이션 경로라면, 브레드크럼의 계정 드롭다운에 A 가 정상 노출되는지 먼저 확인 (get_linked_accounts RPC 결과 브라우저 콘솔에서 확인 가능)
+프로젝트는 계정에 귀속되는 구조이므로, 업무일지(calendar/daily)를 프로젝트에서 독립시킨다.
+
+**핵심 변경**:
+1. `pages.project_id` NOT NULL 제약 해제 (calendar/daily 페이지만 NULL 허용)
+2. calendar/daily 페이지 조회를 프로젝트 스코프 밖에서 수행
+3. 사이드바 "업무일지" 버튼이 `page_type='calendar'`를 직접 조회 (RLS 기반)
+4. 기존 프로젝트 귀속 페이지는 변경 없음
+
+**구현 작업**:
+- [x] DB: `pages.project_id` NOT NULL 해제 (ALTER TABLE) — 2026-04-17 실행 완료
+- [x] DB: calendar/daily 페이지 RLS — 모든 인증 사용자 접근 가능 — 2026-04-17 실행 완료
+- [x] DB: 기존 calendar/daily 페이지의 `project_id`를 NULL로 마이그레이션 — 2026-04-17 실행 완료
+- [x] 클라이언트: 사이드바 "업무일지" 클릭 시 `page_type='calendar'` 직접 조회 (project_id 필터 제거)
+- [x] 클라이언트: daily 페이지 생성 시 `project_id=NULL`로 생성
+- [x] 클라이언트: `usePages` — calendar/daily 페이지는 프로젝트 필터 우회하여 병합 로드
+- [x] 마이그레이션 SQL: `migrate-worklog-independent.sql`
 
 **관련 파일**:
-- `fix-linked-account-rls.sql` (신규, 실행 완료)
-- `create-linked-accounts.sql` (함수 정의 동기화 완료)
-- `fix-rls-recursion.sql` (선행 조치)
-- `src/hooks/useProjects.js:45` (다음 작업 후보)
-- `src/components/PaneProvider.jsx:353-399` (임퍼소네이션 브레드크럼 로직)
+- `fix-linked-account-rls.sql` (실행 완료)
+- `create-linked-accounts.sql` (함수 동기화 완료)
+- `src/hooks/useProjects.js:45` (프로젝트 조회 — 변경 불필요)
+- `src/hooks/usePages.js` (calendar/daily 분리 조회 추가)
+- `src/components/Sidebar/Sidebar.jsx:77-114` (업무일지 버튼 — 직접 조회로 변경)
+
+### 향후: 가입 승인 시스템
+
+현재는 연결 계정(linked_accounts)으로 접근을 관리하지만, 향후 **계정 가입 시 승인 절차**가 필요하다.
+
+**배경**: 누구나 회원가입하면 업무일지에 접근할 수 있는 것은 보안상 문제. 마스터가 승인한 계정만 서비스를 사용할 수 있어야 한다.
+
+**기본 구상**:
+- 회원가입 후 `app_users.status = 'pending'` 상태로 대기
+- 마스터가 관리자 패널에서 승인 → `status = 'approved'`
+- `pending` 상태의 사용자는 로그인 후 "승인 대기 중" 화면만 표시
+- RLS 정책에 `status = 'approved'` 조건 추가
+- 업무일지(calendar/daily) 접근도 승인된 계정에만 허용
 
 ---
 

@@ -101,23 +101,41 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }, [onPageChange])
 
-  // 페이지 목록 로드 (현재 프로젝트)
+  // 페이지 목록 로드 (현재 프로젝트 + 업무일지)
   const fetchPages = useCallback(async () => {
-    if (!session?.user?.id || !currentProjectId) return
+    if (!session?.user?.id) return
 
     const myFetchId = ++fetchCountRef.current
 
     try {
       setPagesLoading(true)
 
-      // RLS 정책이 공유된 페이지도 허용하므로 user_id 필터 제거
-      // soft-delete된 페이지는 제외
-      const { data, error } = await supabase
+      // 업무일지(project_id=NULL) 페이지는 항상 로드
+      const worklogQuery = supabase
         .from('pages')
         .select('*')
-        .eq('project_id', currentProjectId)
+        .is('project_id', null)
+        .in('page_type', ['calendar', 'daily'])
         .is('deleted_at', null)
         .order('position', { ascending: true })
+
+      // 프로젝트가 있으면 프로젝트 소속 페이지도 로드
+      const projectQuery = currentProjectId
+        ? supabase
+            .from('pages')
+            .select('*')
+            .eq('project_id', currentProjectId)
+            .is('deleted_at', null)
+            .order('position', { ascending: true })
+        : Promise.resolve({ data: [], error: null })
+
+      const [projectResult, worklogResult] = await Promise.all([projectQuery, worklogQuery])
+
+      const error = projectResult.error || worklogResult.error
+      const data = [
+        ...(projectResult.data || []),
+        ...(worklogResult.data || []),
+      ]
 
       // 더 최신 fetch가 시작됐으면 이 응답은 무시 (경쟁 조건 방지)
       if (myFetchId !== fetchCountRef.current) return
@@ -192,7 +210,9 @@ export const usePages = (session, currentProjectId, options = {}) => {
 
   // 새 페이지 생성 (parentId 지원, 양식 content 지원, extraFields로 page_type/page_date 등 추가 필드 전달)
   const createPage = async (name = 'Untitled', parentId = null, contentTiptap = null, extraFields = {}) => {
-    if (!session?.user?.id || !currentProjectId) return null
+    // calendar/daily 페이지는 project_id=null 허용
+    const isWorklogPage = extraFields.page_type === 'calendar' || extraFields.page_type === 'daily'
+    if (!session?.user?.id || (!currentProjectId && !isWorklogPage)) return null
 
     try {
       // 같은 parent를 가진 형제 페이지 수 기반으로 position 결정

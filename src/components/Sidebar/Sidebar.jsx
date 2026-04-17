@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
+import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
@@ -11,6 +12,7 @@ import { useProjectContext } from '../../contexts/ProjectContext'
 import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
+import { usePaneData } from '../PaneProvider'
 import './Sidebar.css'
 
 /**
@@ -20,6 +22,7 @@ import './Sidebar.css'
  */
 function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, onMobileViewChange }) {
   const { isTablet } = useIsMobile()
+  const { effectiveSession } = usePaneData()
   const { projects, currentProjectId, createProject, renameProject, deleteProject } = useProjectContext()
   const { pages, pageTree, currentPageId, createPage, renamePage, deletePage, reorderPages, getDescendantCount, expandedPages, saveExpandedPages } = usePageContext()
   const { sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource } = useSharingContext()
@@ -78,16 +81,16 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             <button
               className={`sidebar-worklog-btn ${currentPageId && pages.find(p => p.id === currentPageId)?.page_type === 'calendar' ? 'active' : ''}`}
               onClick={async () => {
-                // page_type='calendar'인 페이지 찾기
+                // page_type='calendar'인 페이지 찾기 (프로젝트 무관 — 업무일지는 독립 엔티티)
                 let calendarPage = pages.find(p => p.page_type === 'calendar')
 
                 if (!calendarPage) {
-                  // DB에서 page_type='calendar' 확인
+                  // DB에서 page_type='calendar' 확인 (project_id 필터 없음)
                   const { data } = await supabase
                     .from('pages')
                     .select('id')
-                    .eq('project_id', currentProjectId)
                     .eq('page_type', 'calendar')
+                    .is('deleted_at', null)
                     .limit(1)
                     .single()
 
@@ -97,15 +100,21 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
                     return
                   }
 
-                  // calendar 페이지가 없으면 새로 생성 (기존 페이지를 변환하지 않음)
-                  const newPage = await createPage('업무일지', null, null)
-                  if (newPage) {
-                    await supabase
-                      .from('pages')
-                      .update({ page_type: 'calendar' })
-                      .eq('id', newPage.id)
-                    // 로컬 상태에 page_type 반영을 위해 리로드
-                    handlePageSelect(newPage.id)
+                  // calendar 페이지가 없으면 새로 생성 (project_id = null)
+                  const newPageId = generateUUID()
+                  const { error } = await supabase
+                    .from('pages')
+                    .insert([{
+                      id: newPageId,
+                      user_id: effectiveSession.user.id,
+                      name: '업무일지',
+                      page_type: 'calendar',
+                      project_id: null,
+                      parent_id: null,
+                      position: 0,
+                    }])
+                  if (!error) {
+                    handlePageSelect(newPageId)
                     window.location.reload()
                     return
                   }

@@ -905,6 +905,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       const newPage = await createPage(dateKey, currentPageId, template, {
         page_type: 'daily',
         page_date: dateKey,
+        project_id: null,
       })
       if (newPage) {
         setCurrentPageId(newPage.id)

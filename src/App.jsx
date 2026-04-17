@@ -231,7 +231,7 @@ function App() {
     const calendarPage = calendarPages[0]
 
     const navigateTo = (pageId) => {
-      addTab(activePaneIndex, { projectId: calendarPage.project_id, pageId })
+      addTab(activePaneIndex, { projectId: null, pageId })
     }
 
     // 2. 오늘 daily 페이지 확인
@@ -268,7 +268,7 @@ function App() {
       name: todayStr,
       parent_id: calendarPage.id,
       content_tiptap: template,
-      project_id: calendarPage.project_id,
+      project_id: null,
       page_type: 'daily',
       page_date: todayStr,
       position: 0,
