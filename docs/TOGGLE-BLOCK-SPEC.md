@@ -175,9 +175,10 @@ priority: 200
 | 단계 | 구현 위치 | 동작 |
 |------|----------|------|
 | dragstart | 드래그 핸들 DOM 이벤트 | NodeSelection 설정, JSON을 `application/x-thinkmap-block`에 저장, `window.__crossPaneDrag` 설정, `view.dragging` 설정 |
-| dragover | NodeView DOM 이벤트 | 블록 드래그 감지 → 헤더 36px 영역 위일 때 `toggle-drop-target` 클래스 추가 (시각적 피드백) |
-| 호버링 600ms | dragover 내 setTimeout | 닫힌 토글 자동 열기 |
-| drop | NodeView DOM 이벤트 | 소스 블록 삭제 → 대상 토글의 마지막 자식으로 삽입. 크로스 패널 지원 |
+| dragover | NodeView DOM 이벤트 | 블록 드래그 감지 → 헤더 상단 35% = `toggle-drop-before` (형제 삽입 인디케이터), 나머지 = `toggle-drop-target` (내부 삽입 피드백) |
+| 호버링 600ms | dragover 내 setTimeout | inside 모드에서 닫힌 토글 자동 열기 |
+| drop | NodeView DOM 이벤트 | before 모드: 대상 토글 앞에 형제로 삽입. inside 모드: 대상 토글의 마지막 자식으로 삽입. 크로스 패널 지원 |
+| drop fallback | Plugin handleDrop | NodeView가 잡지 못한 드롭 처리. posAtCoords 실패 시 문서 끝에 삽입 |
 | dragend | 드래그 핸들 DOM 이벤트 | `block-dragging` 클래스 제거, 플러그인 상태 초기화 |
 
 ### 6.3 블록 드래그 vs 텍스트 드래그 구분

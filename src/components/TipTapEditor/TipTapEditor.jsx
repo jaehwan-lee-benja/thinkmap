@@ -138,6 +138,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         heading: {
           levels: [1, 2, 3],
         },
+        dropcursor: false, // 글로벌 Plugin 인디케이터 사용 — 브라우저 기본 흰색 선 제거
         paragraph: false, // ParagraphWithHandle로 대체
         blockquote: false, // "> " 입력 시 토글로 변환하기 위해 비활성화
         codeBlock: false, // CodeBlockLowlight 사용을 위해 비활성화
