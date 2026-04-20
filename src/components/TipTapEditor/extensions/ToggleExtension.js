@@ -1043,7 +1043,7 @@ export const Toggle = Node.create({
   addProseMirrorPlugins() {
     const extensionThis = this
     // 글로벌 드롭 인디케이터 상태 (Plugin view ↔ handleDrop 공유)
-    const _dropState = { target: null, highlightedDom: null }
+    const _dropState = { target: null }
 
     return [
       // ── 글로벌 블록 드래그 인디케이터 ──
@@ -1052,7 +1052,7 @@ export const Toggle = Node.create({
         key: new PluginKey('blockDropIndicator'),
         view(editorView) {
           const indicator = document.createElement('div')
-          indicator.className = 'block-drop-indicator-line'
+          indicator.className = 'block-drop-indicator'
           document.body.appendChild(indicator)
 
           let debounceTimer = null
@@ -1064,11 +1064,9 @@ export const Toggle = Node.create({
           }
 
           const clearIndicator = () => {
+            indicator.className = 'block-drop-indicator'
             indicator.style.display = 'none'
-            if (_dropState.highlightedDom) {
-              _dropState.highlightedDom.classList.remove('toggle-drop-target')
-              _dropState.highlightedDom = null
-            }
+            indicator.style.height = ''
             _dropState.target = null
             if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null }
             if (autoOpenTimer) { clearTimeout(autoOpenTimer); autoOpenTimer = null }
@@ -1118,16 +1116,13 @@ export const Toggle = Node.create({
             else if (yInBlock >= rect.height - EDGE) mode = 'after'
             else mode = 'inside'
 
-            // 이전 하이라이트 정리
-            if (_dropState.highlightedDom && _dropState.highlightedDom !== targetDom) {
-              _dropState.highlightedDom.classList.remove('toggle-drop-target')
-              _dropState.highlightedDom = null
-            }
-
             if (mode === 'inside') {
-              indicator.style.display = 'none'
-              targetDom.classList.add('toggle-drop-target')
-              _dropState.highlightedDom = targetDom
+              indicator.className = 'block-drop-indicator drop-box'
+              indicator.style.top = rect.top + 'px'
+              indicator.style.left = rect.left + 'px'
+              indicator.style.width = rect.width + 'px'
+              indicator.style.height = rect.height + 'px'
+              indicator.style.display = 'block'
 
               // 닫힌 토글 자동 열기 (600ms 호버)
               if (!autoOpenTimer && toggleNode && !toggleNode.attrs.isOpen) {
@@ -1145,19 +1140,14 @@ export const Toggle = Node.create({
             } else {
               // before/after: 파란 줄 표시
               if (autoOpenTimer) { clearTimeout(autoOpenTimer); autoOpenTimer = null }
-              if (_dropState.highlightedDom) {
-                _dropState.highlightedDom.classList.remove('toggle-drop-target')
-                _dropState.highlightedDom = null
-              }
 
               const lineY = mode === 'before' ? rect.top : rect.bottom
-              indicator.style.cssText = `
-                display:block; position:fixed; z-index:10000; pointer-events:none;
-                height:3px; border-radius:2px;
-                background:rgba(100,108,255,0.8);
-                box-shadow:0 0 6px rgba(100,108,255,0.4);
-                top:${lineY - 1}px; left:${rect.left}px; width:${rect.width}px;
-              `
+              indicator.className = 'block-drop-indicator drop-line'
+              indicator.style.top = (lineY - 1) + 'px'
+              indicator.style.left = rect.left + 'px'
+              indicator.style.width = rect.width + 'px'
+              indicator.style.height = ''
+              indicator.style.display = 'block'
             }
 
             _dropState.target = {

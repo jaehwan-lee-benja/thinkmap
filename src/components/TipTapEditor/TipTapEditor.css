@@ -1478,11 +1478,10 @@ th .paragraph-drag-handle {
 
 /* 드래그 드롭: 토글 안으로 삽입 타겟 피드백 (inside 모드) */
 .toggle-block.toggle-drop-target {
-  outline: 2px solid rgba(100, 108, 255, 0.6) !important;
-  outline-offset: -1px;
+  outline: 2px solid rgba(100, 108, 255, 0.7) !important;
+  outline-offset: 2px;
   border-radius: 6px;
-  background: rgba(100, 108, 255, 0.08) !important;
-  box-shadow: inset 0 0 0 1px rgba(100, 108, 255, 0.15), 0 0 12px rgba(100, 108, 255, 0.12);
+  box-shadow: 0 0 0 4px rgba(100, 108, 255, 0.15), 0 0 16px rgba(100, 108, 255, 0.1) !important;
 }
 
 .toggle-block.toggle-drop-target > .toggle-button {
@@ -1493,7 +1492,26 @@ th .paragraph-drag-handle {
   color: rgba(100, 108, 255, 0.6) !important;
 }
 
-/* 드래그 드롭 인디케이터 라인은 글로벌 Plugin에서 position:fixed로 관리 (별도 CSS 불필요) */
+/* 드래그 드롭: 글로벌 인디케이터 (position:fixed, document.body에 붙음) */
+.block-drop-indicator {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  display: none;
+}
+
+.block-drop-indicator.drop-line {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(100, 108, 255, 0.8);
+  box-shadow: 0 0 6px rgba(100, 108, 255, 0.4);
+}
+
+.block-drop-indicator.drop-box {
+  border: 2px solid rgba(100, 108, 255, 0.6);
+  border-radius: 6px;
+  background: rgba(100, 108, 255, 0.06);
+}
 
 /* 모든 토글 관련 요소 배경 제거 (App.css 오버라이드) */
 .tiptap-editor .toggle-block:not([data-bg-color]),

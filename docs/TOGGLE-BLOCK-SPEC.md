@@ -170,27 +170,32 @@ priority: 200
 
 바탕화면에서 **파일을 폴더에 넣듯이**, 드래그 핸들(⠿)을 잡고 다른 토글 블록 위에 호버링 후 드롭하면 해당 토글의 **하위 자식**으로 들어간다. 이 경험은 블록을 Tab 키로 들여쓰기하는 것과 동일한 결과를 내지만, 마우스로 직관적으로 조작할 수 있다.
 
-### 6.2 구현 흐름
+### 6.2 구현 흐름 (2026-04-20 리팩토링)
+
+**아키텍처: 글로벌 Plugin 방식** — NodeView별 dragover/drop을 제거하고, ProseMirror Plugin(`blockDropIndicator`)에서 전역 관리.
 
 | 단계 | 구현 위치 | 동작 |
 |------|----------|------|
-| dragstart | 드래그 핸들 DOM 이벤트 | NodeSelection 설정, JSON을 `application/x-thinkmap-block`에 저장, `window.__crossPaneDrag` 설정, `view.dragging` 설정 |
-| dragover | NodeView DOM 이벤트 | 블록 드래그 감지 → 헤더 상단 35% = `toggle-drop-before` (형제 삽입 인디케이터), 나머지 = `toggle-drop-target` (내부 삽입 피드백) |
+| dragstart | NodeView 드래그 핸들 DOM 이벤트 | `e.stopPropagation()`(PM dragstart 차단), JSON을 `application/x-thinkmap-block`에 저장, `window.__crossPaneDrag` 설정, `view.dragging` 설정. **DOM/스타일 변경 없음** (브라우저가 드래그를 취소하지 않도록) |
+| dragover | Plugin `view()` — 에디터 DOM 이벤트 | `posAtCoords()`로 커서 위치의 토글 해석 → 상단/하단 8px = before/after(파란 줄), 가운데 = inside(파란 박스). position:fixed 오버레이 div 1개로 표시 |
 | 호버링 600ms | dragover 내 setTimeout | inside 모드에서 닫힌 토글 자동 열기 |
-| drop | NodeView DOM 이벤트 | before 모드: 대상 토글 앞에 형제로 삽입. inside 모드: 대상 토글의 마지막 자식으로 삽입. 크로스 패널 지원 |
-| drop fallback | Plugin handleDrop | NodeView가 잡지 못한 드롭 처리. posAtCoords 실패 시 문서 끝에 삽입 |
-| dragend | 드래그 핸들 DOM 이벤트 | `block-dragging` 클래스 제거, 플러그인 상태 초기화 |
+| drop | Plugin `handleDrop` prop | `_dropState.target`에서 위치/모드 읽기. JSON에서 토글 복원(PM이 paragraph로 분해하는 문제 방지). before/after: 형제 삽입, inside: 마지막 자식 삽입. 크로스 패널 지원 |
+| dragend | NodeView 드래그 핸들 DOM 이벤트 | `window.__crossPaneDrag`, `view.dragging` 정리 |
+
+**드롭 인디케이터**: `document.body`에 붙은 단일 div (`block-drop-indicator`). 시각 스타일은 CSS(`.drop-line`, `.drop-box`), JS는 위치(`top/left/width/height`)만 설정.
 
 ### 6.3 블록 드래그 vs 텍스트 드래그 구분
 
 | 조건 | 블록 드래그 (핸들) | 텍스트 드래그 (브라우저) |
 |------|-------------------|----------------------|
 | `application/x-thinkmap-block` | 설정됨 (dragstart에서) | 없음 |
-| `editor.state.selection` | `NodeSelection` | `TextSelection` |
 | `window.__crossPaneDrag` | 설정됨 | null |
-| 처리 경로 | NodeView `drop` 이벤트 | Plugin `handleDrop` prop |
+| 처리 경로 | Plugin `handleDrop` (블록 분기) | Plugin `handleDrop` (텍스트 분기) |
 
-**주의:** ProseMirror의 dragstart 핸들러가 dataTransfer를 덮어쓰기 때문에 `application/x-thinkmap-block`이 types에서 사라질 수 있다. 따라서 `NodeSelection` 타입 체크를 병행해야 한다.
+**주의사항:**
+- ProseMirror의 dragstart 핸들러가 `dispatch`하면 DOM 재구성으로 브라우저가 드래그를 즉시 취소한다. 따라서 NodeView dragstart에서 `e.stopPropagation()`으로 PM 핸들러를 차단하고, `dispatch`를 하지 않는다.
+- PM이 drop 시 토글을 paragraph로 분해하여 slice를 전달하므로, handleDrop에서 `application/x-thinkmap-block` JSON 데이터로 토글을 복원한다.
+- 같은 에디터 판정: `crossDrag.sourceEditor.view === view` (TipTap Editor ≠ PM EditorView이므로 `.view` 비교 필요).
 
 ### 6.4 알려진 이슈 및 디버깅 기록
 
@@ -386,9 +391,9 @@ ProseMirror에서 콘텐츠가 에디터에 삽입되는 경로는 **3가지**�
 | 경로 | ProseMirror prop | 현재 상태 |
 |------|-----------------|-----------|
 | Cmd+V 붙여넣기 | `handlePaste` | 해결됨 (2026-04-02) |
-| 텍스트 드래그 드롭 | `handleDrop` plugin prop | 해결됨 (2026-04-02) |
-| 블록 드래그 드롭 (D, C: 데이터/RangeError) | NodeView `drop` + Plugin `handleDrop` 폴백 + `appendTransaction` 정규화 | 해결됨 (2026-04-10) — 섹션 11.3, 11.5 |
-| 블록 드래그 드롭 (A: 시각 피드백) | dragover debounce + 좌표 기반 중첩 판단 (시도 4) | **수정 적용** — 섹션 11.4 |
+| 텍스트 드래그 드롭 | `handleDrop` plugin prop (텍스트 분기) | 해결됨 (2026-04-02) |
+| 블록 드래그 드롭 | Plugin `handleDrop` (블록 분기) + 글로벌 `blockDropIndicator` Plugin | **리팩토링 완료** (2026-04-20) — 섹션 6.2 |
+| 블록 드래그 시각 피드백 | 글로벌 position:fixed 오버레이 (CSS `.drop-line` / `.drop-box`) | **해결됨** (2026-04-20) |
 
 **원칙:**
 - 콘텐츠 삽입 문제는 반드시 **ProseMirror가 제공하는 표준 plugin prop**(`handlePaste`, `handleDrop`, `transformPasted` 등)으로 해결한다.
@@ -418,7 +423,10 @@ ProseMirror에서 콘텐츠가 에디터에 삽입되는 경로는 **3가지**�
 - [ ] 외부(브라우저 등)에서 복사한 텍스트 → 토글 안에서 Cmd+V → 정상 삽입
 - [ ] 텍스트 드래그 → 다른 토글에 드롭 → 인라인 삽입 (중첩 없음)
 - [ ] 같은 토글 안에서 텍스트 드래그 이동 → 원본 삭제 + 드롭 위치에 삽입
-- [ ] 블록 드래그 핸들(⠿) → 다른 블록 헤더 위 호버링 → 하이라이트 표시
-- [ ] 블록 드래그 핸들(⠿) → 다른 블록에 드롭 → 하위 토글로 삽입 + 원본 삭제
+- [ ] 블록 드래그 핸들(⠿) → 다른 블록 가운데 호버링 → 파란 박스(inside) 표시
+- [ ] 블록 드래그 핸들(⠿) → 블록 사이 경계 호버링 → 파란 줄(before/after) 표시
+- [ ] 블록 드래그 → inside 드롭 → 하위 토글로 삽입 + 원본 삭제
+- [ ] 블록 드래그 → before/after 드롭 → 형제로 삽입 + 원본 삭제
 - [ ] 블록 드래그 → 자기 자신에 드롭 → 무시 (아무 변화 없음)
 - [ ] 블록 드래그 실패 시 → 토글이 일반 텍스트로 분해되지 않을 것
+- [ ] 블록 드래그 → 펼쳐진 토글 내 자식 사이에서도 파란 줄 표시
