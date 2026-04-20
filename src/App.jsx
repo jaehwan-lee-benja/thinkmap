@@ -499,6 +499,7 @@ function App() {
           onFavoriteNavigate={handleFavoriteNavigate}
           onRemoveFavorite={favoritesHook.removeFavorite}
           onTodayWorklog={handleNavigateTodayWorklog}
+          session={session}
         />
 
         <div className="app-body">

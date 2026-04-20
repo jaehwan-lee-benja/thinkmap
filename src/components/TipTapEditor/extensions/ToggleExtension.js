@@ -319,6 +319,11 @@ export const Toggle = Node.create({
         parseHTML: element => element.getAttribute('data-visibility') || 'all',
         renderHTML: attributes => attributes.visibility && attributes.visibility !== 'all' ? { 'data-visibility': attributes.visibility } : {},
       },
+      sectionId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-section-id') || null,
+        renderHTML: attributes => attributes.sectionId ? { 'data-section-id': attributes.sectionId } : {},
+      },
     }
   },
 
@@ -1128,13 +1133,15 @@ export const Toggle = Node.create({
               if (!autoOpenTimer && toggleNode && !toggleNode.attrs.isOpen) {
                 autoOpenTimer = setTimeout(() => {
                   autoOpenTimer = null
-                  const n = editorView.state.doc.nodeAt(togglePos)
-                  if (n && !n.attrs.isOpen) {
-                    const { tr } = editorView.state
-                    tr.setNodeMarkup(togglePos, null, { ...n.attrs, isOpen: true })
-                    tr.setMeta('toggleButtonClick', true)
-                    editorView.dispatch(tr)
-                  }
+                  try {
+                    const n = editorView.state.doc.nodeAt(togglePos)
+                    if (n && n.type.name === 'toggle' && !n.attrs.isOpen) {
+                      const { tr } = editorView.state
+                      tr.setNodeMarkup(togglePos, null, { ...n.attrs, isOpen: true })
+                      tr.setMeta('toggleButtonClick', true)
+                      editorView.dispatch(tr)
+                    }
+                  } catch { /* 위치가 stale할 수 있음 */ }
                 }, 600)
               }
             } else {
@@ -1501,6 +1508,27 @@ export const Toggle = Node.create({
             tr.replaceWith(pos, pos + paragraph.nodeSize, wrapped)
           }
           tr.setMeta('toggleNormalize', true)
+          return tr
+        },
+      }),
+      // h2 섹션에 sectionId가 없으면 자동 부여 (기존 데이터 마이그레이션)
+      new Plugin({
+        appendTransaction(transactions, _oldState, newState) {
+          if (!transactions.some(tr => tr.docChanged)) return null
+          const fixes = []
+          newState.doc.forEach((node, offset) => {
+            if (node.type.name === 'toggle' && node.attrs.blockType === 'h2' && !node.attrs.sectionId) {
+              fixes.push({ pos: offset, attrs: node.attrs })
+            }
+          })
+          if (fixes.length === 0) return null
+          const tr = newState.tr
+          for (let i = fixes.length - 1; i >= 0; i--) {
+            const { pos, attrs } = fixes[i]
+            const id = 'sec_' + Math.random().toString(36).slice(2, 10)
+            tr.setNodeMarkup(pos, null, { ...attrs, sectionId: id })
+          }
+          tr.setMeta('sectionIdAssign', true)
           return tr
         },
       }),

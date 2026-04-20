@@ -526,6 +526,16 @@
    모바일
    ===================================================== */
 
+@media (max-width: 768px) {
+  .topbar-button span {
+    display: none;
+  }
+
+  .topbar-app-name {
+    font-size: 12px;
+  }
+}
+
 @media (max-width: 600px) {
   .topbar-email {
     display: none;
@@ -533,6 +543,7 @@
 
   .global-topbar {
     padding: 0 8px;
+    height: 36px;
   }
 
   .topbar-split span {
@@ -541,5 +552,36 @@
 
   .bookmark-bar {
     padding: 0 6px;
+    height: 30px;
+  }
+
+  .bookmark-item {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  .bookmark-bar-items {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 400px) {
+  .topbar-app-name {
+    display: none;
+  }
+
+  .bookmark-today-worklog span {
+    font-size: 10px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .topbar-button {
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  .bookmark-item {
+    min-height: 32px;
   }
 }

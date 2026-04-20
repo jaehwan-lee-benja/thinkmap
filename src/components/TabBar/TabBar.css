@@ -465,31 +465,49 @@
 
 @media (max-width: 600px) {
   .tab-bar {
-    min-height: 34px;
-    padding: 4px 6px 0 6px;
+    min-height: 32px;
+    padding: 3px 4px 0 4px;
   }
 
   .tab-bar-tab {
-    padding: 5px 10px;
-    font-size: 12px;
-    max-width: 250px;
+    padding: 4px 8px;
+    font-size: 11px;
+    max-width: 200px;
   }
 
   .tab-breadcrumb-part {
-    max-width: 100px;
+    max-width: 80px;
+  }
+
+  .tab-breadcrumb-sep {
+    margin: 0 1px;
   }
 
   .tab-bar-close {
     opacity: 1;
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
   }
 
   .tab-bar-add {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
   }
 
   .breadcrumb-dropdown {
     max-width: 240px;
+  }
+}
+
+@media (max-width: 400px) {
+  .tab-bar-tab {
+    max-width: 140px;
+  }
+
+  .tab-breadcrumb-part {
+    max-width: 60px;
+    font-size: 10px;
   }
 }
 
@@ -501,5 +519,10 @@
 
   .tab-bar-tab {
     padding: 8px 10px;
+  }
+
+  .tab-bar-add {
+    min-height: 36px;
+    min-width: 36px;
   }
 }

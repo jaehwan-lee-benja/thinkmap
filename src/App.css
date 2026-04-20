@@ -230,6 +230,21 @@
     padding: 0.5rem 0 calc(16px + var(--safe-area-bottom)) 0;
     scrollbar-gutter: auto;
   }
+
+  /* 분할 뷰 비활성화 */
+  .split-container {
+    grid-template-columns: 1fr !important;
+  }
+
+  .no-page-selected p {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 400px) {
+  .content-scrollable {
+    padding: 0.25rem 0 calc(16px + var(--safe-area-bottom)) 0;
+  }
 }
 
 /* =====================================================

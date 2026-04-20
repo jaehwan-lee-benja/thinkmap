@@ -21,10 +21,14 @@ export function extractCarryOverData(contentTiptap, pageDate) {
   for (const node of contentTiptap.content) {
     if (node.type !== 'toggle') continue
 
-    // pinned 섹션 추출 (visibility 보존)
+    // pinned 섹션 추출 (visibility + sectionId 보존)
     if (node.attrs?.isPinned && node.attrs?.blockType === 'h2') {
       const titleText = node.content?.[0]?.content?.[0]?.text
-      if (titleText) pinnedSections.push({ title: titleText, visibility: node.attrs.visibility || 'all' })
+      if (titleText) pinnedSections.push({
+        title: titleText,
+        visibility: node.attrs.visibility || 'all',
+        sectionId: node.attrs.sectionId || null,
+      })
     }
 
     // "할 일" 섹션에서 미완료 todo 추출

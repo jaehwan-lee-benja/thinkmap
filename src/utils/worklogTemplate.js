@@ -3,7 +3,11 @@
  * CalendarView에서 "+" 클릭 시 이 구조로 daily 페이지가 생성됨
  */
 
-function sectionToggle(title, blockType, children, isFixed = false, visibility = 'all') {
+function genSectionId() {
+  return 'sec_' + Math.random().toString(36).slice(2, 10)
+}
+
+function sectionToggle(title, blockType, children, isFixed = false, visibility = 'all', sectionId = null) {
   return {
     type: 'toggle',
     attrs: {
@@ -17,6 +21,7 @@ function sectionToggle(title, blockType, children, isFixed = false, visibility =
       backgroundColor: null,
       isFixedSection: isFixed,
       visibility,
+      sectionId: sectionId || genSectionId(),
     },
     content: [
       {
@@ -79,7 +84,8 @@ export function createWorklogTemplate(pinnedSections = [], carryOverTodos = []) 
   const pinnedNodes = pinnedSections.map(s => {
     const title = typeof s === 'string' ? s : s.title
     const visibility = typeof s === 'string' ? 'all' : (s.visibility || 'all')
-    return pinnedSectionToggle(title, 'h2', [emptyToggle(false)], visibility)
+    const sectionId = typeof s === 'string' ? null : (s.sectionId || null)
+    return pinnedSectionToggle(title, 'h2', [emptyToggle(false)], visibility, sectionId)
   })
 
   const carryOverNodes = carryOverTodos.map(t => carryOverToggle(t.text, t.fromDate))
@@ -111,7 +117,7 @@ export function createWorklogTemplate(pinnedSections = [], carryOverTodos = []) 
   }
 }
 
-function pinnedSectionToggle(title, blockType, children, visibility = 'all') {
+function pinnedSectionToggle(title, blockType, children, visibility = 'all', sectionId = null) {
   return {
     type: 'toggle',
     attrs: {
@@ -126,6 +132,7 @@ function pinnedSectionToggle(title, blockType, children, visibility = 'all') {
       isFixedSection: false,
       isPinned: true,
       visibility,
+      sectionId: sectionId || genSectionId(),
     },
     content: [
       {

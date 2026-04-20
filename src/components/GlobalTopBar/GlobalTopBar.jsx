@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Shield, ChevronDown, Star, X, CalendarDays } from 'lucide-react'
 import AdminModal from '../Admin/AdminModal'
+import QuickTodo from '../QuickTodo/QuickTodo'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { DAY_NAMES } from '../../utils/dateUtils'
 import './GlobalTopBar.css'
 
-export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite, onTodayWorklog }) {
+export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite, onTodayWorklog, session }) {
   const {
     userEmail, ownEmail, userAvatarUrl, handleLogout, isMaster,
     isImpersonating, impersonatedEmail, stopImpersonation,
@@ -158,6 +159,7 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
       <div className={`global-topbar ${isImpersonating ? 'topbar-viewer-bar' : ''}`}>
         <div className="topbar-left">
           {!isImpersonating && <span className="topbar-app-name">ThinkMap</span>}
+          {!isImpersonating && session && <QuickTodo session={session} />}
           {isImpersonating && (
             <div className="topbar-impersonation">
               <span className="topbar-viewer-badge">뷰어 모드</span>

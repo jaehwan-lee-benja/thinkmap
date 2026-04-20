@@ -954,10 +954,18 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* 모바일 반응형 */
+/* 태블릿 반응형 */
 @media (max-width: 768px) {
   .pane-sidebar {
-    width: 280px;
+    width: 240px;
+  }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 600px) {
+  .pane-sidebar {
+    width: 85vw;
+    max-width: 280px;
   }
 }
 

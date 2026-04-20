@@ -1003,6 +1003,31 @@
   gap: 0.35rem;
 }
 
+.worklog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.worklog-calendar-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.worklog-calendar-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .worklog-delete-btn {
   display: flex;
   align-items: center;
@@ -1305,6 +1330,44 @@
   color: rgba(255, 255, 255, 0.3);
   font-size: 0.7rem;
   margin-left: auto;
+}
+
+/* 모바일: 업무일지 헤더 */
+@media (max-width: 600px) {
+  .worklog-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .worklog-header-meta {
+    font-size: 12px;
+  }
+
+  .worklog-calendar-btn {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  .worklog-section-add-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  .worklog-comment-list,
+  .worklog-inline-comments {
+    font-size: 12px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .worklog-calendar-btn {
+    min-height: 36px;
+  }
+
+  .worklog-delete-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
 }
 
 /* dropdown-appear -> _animations.css (dropdownAppear) */

@@ -236,8 +236,8 @@ export function PaneProvider({
     if (activeTab.projectId !== currentProjectId) {
       setCurrentProjectId(activeTab.projectId || null)
     }
-    // 페이지 동기화 (프로젝트가 같으면; 프로젝트 변경 시 usePages가 자동 refetch)
-    if (activeTab.projectId === currentProjectId && activeTab.pageId !== currentPageId) {
+    // 페이지 동기화 — 프로젝트 변경과 무관하게 항상 동기화
+    if (activeTab.pageId !== currentPageId) {
       setCurrentPageId(activeTab.pageId || null)
     }
   }, [activeTab?.id])

@@ -485,6 +485,24 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     loadContent()
   }, [session, currentPageId])
 
+  // Quick Todo 삽입 이벤트 수신 → 현재 페이지면 콘텐츠 다시 로드
+  useEffect(() => {
+    const handler = async (e) => {
+      if (e.detail?.pageId !== currentPageId) return
+      const { data } = await supabase
+        .from('pages')
+        .select('content_tiptap')
+        .eq('id', currentPageId)
+        .single()
+      if (data?.content_tiptap) {
+        setContent(data.content_tiptap)
+        prevPageRef.current = { pageId: currentPageId, content: data.content_tiptap }
+      }
+    }
+    window.addEventListener('quicktodo-inserted', handler)
+    return () => window.removeEventListener('quicktodo-inserted', handler)
+  }, [currentPageId])
+
   // 에디터 내용 변경 시 (사용자 편집)
   const handleUpdate = (newContent) => {
     if (isImpersonating) {
@@ -1157,6 +1175,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           <WorklogHeader
             pageDate={currentPage.page_date}
             authorEmail={session?.user?.email}
+            onGoToCalendar={currentPage.parent_id ? () => setCurrentPageId(currentPage.parent_id) : null}
             onDelete={!isImpersonating ? async () => {
               if (!confirm(`${currentPage.page_date} 업무일지를 삭제하시겠습니까?`)) return
               const parentId = currentPage.parent_id
