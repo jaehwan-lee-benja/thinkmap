@@ -493,6 +493,11 @@
   margin-bottom: 0.75rem;
 }
 
+/* daily 페이지: ProseMirror가 자동 생성하는 trailing paragraph 숨김 */
+.tiptap-page--daily .tiptap-editor > p:has(.ProseMirror-trailingBreak) {
+  display: none;
+}
+
 /* 카드 내부 중첩 토글 간격 조정 */
 .tiptap-page--daily .tiptap-editor > [data-block-type="h2"] > .toggle-content > .toggle-block {
   margin-left: -24px;

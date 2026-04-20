@@ -37,6 +37,25 @@ function extractToggleStates(docJSON) {
   docJSON.content.forEach(walk)
   return states
 }
+// daily 페이지: h2 섹션만 추출하여 sectionOrder 순서로 정렬, 비-섹션 노드(빈 p 등)는 제거
+import { isH2Section } from '../../utils/sectionUtils'
+
+function applySectionOrder(contentArray, sectionOrder) {
+  const sections = contentArray.filter(isH2Section)
+  if (sectionOrder?.length) {
+    sections.sort((a, b) => {
+      const idA = a.attrs?.sectionId || ''
+      const idB = b.attrs?.sectionId || ''
+      const indexA = sectionOrder.indexOf(idA)
+      const indexB = sectionOrder.indexOf(idB)
+      const posA = indexA === -1 ? sectionOrder.length : indexA
+      const posB = indexB === -1 ? sectionOrder.length : indexB
+      return posA - posB
+    })
+  }
+  return sections
+}
+
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
 import { supabase } from '../../supabaseClient'
@@ -74,6 +93,7 @@ import '../Common/EmojiPicker.css'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { useWorklogComments } from '../../hooks/useWorklogComments'
 import { useCalendarCommentCounts } from '../../hooks/useCalendarCommentCounts'
+import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
 import './TipTapPage.css'
 
 /**
@@ -120,6 +140,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   )
   const calendarPageIds = useMemo(() => calendarDailyPages.map(p => p.id), [calendarDailyPages])
   const { commentCounts } = useCalendarCommentCounts(session, calendarPageIds)
+
+  // 업무일지 계정별 섹션 순서
+  const { sectionOrder, updateSectionOrder } = useWorklogUserSettings(session)
 
   // 형제 페이지 드롭다운
   const [showPageNav, setShowPageNav] = useState(false)
@@ -429,13 +452,17 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           // 비마스터: visibility='master' 섹션 필터링 (daily 페이지만)
           const filtered = (!isMaster && pageType === 'daily' && injected?.content)
             ? { ...injected, content: injected.content.filter(n =>
-                !(n.type === 'toggle' && n.attrs?.blockType === 'h2' && n.attrs?.visibility === 'master')
+                !(isH2Section(n) && n.attrs?.visibility === 'master')
               )}
             : injected
+          // daily 페이지: 비-섹션 노드 하단 이동 + 계정별 섹션 순서 적용
+          const ordered = (pageType === 'daily' && filtered?.content)
+            ? { ...filtered, content: applySectionOrder(filtered.content, sectionOrder) }
+            : filtered
           // 뷰어 모드: 토글 오버라이드 적용
           const finalContent = isImpersonating
-            ? applyToggleOverrides(filtered, viewerToggleOverrides[currentPageId])
-            : filtered
+            ? applyToggleOverrides(ordered, viewerToggleOverrides[currentPageId])
+            : ordered
           setContent(finalContent)
           lastHistoryContentRef.current = data.content_tiptap
           // 로드 완료 후 prevPageRef를 올바른 페이지+콘텐츠로 설정
@@ -483,7 +510,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     }
 
     loadContent()
-  }, [session, currentPageId])
+  }, [session, currentPageId, sectionOrder])
 
   // Quick Todo 삽입 이벤트 수신 → 현재 페이지면 콘텐츠 다시 로드
   useEffect(() => {
@@ -928,7 +955,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     const dailyPages = calendarDailyPages
 
     const handleCreateDailyPage = async (dateKey) => {
-      const template = buildDailyPageTemplate(dailyPages)
+      const template = await buildDailyPageTemplate(dailyPages, supabase)
       const newPage = await createPage(dateKey, currentPageId, template, {
         page_type: 'daily',
         page_date: dateKey,
@@ -991,6 +1018,35 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     el.addEventListener('section-comment-click', handler)
     return () => el.removeEventListener('section-comment-click', handler)
   }, [])
+
+  // 섹션 이동 이벤트 핸들러
+  useEffect(() => {
+    const el = pageRef.current
+    if (!el) return
+    const handler = (e) => {
+      const { sectionId, direction } = e.detail
+      if (!sectionId || !content?.content) return
+
+      // 현재 h2 섹션 순서 추출
+      const currentIds = content.content
+        .filter(isH2Section)
+        .map(n => n.attrs?.sectionId)
+        .filter(Boolean)
+
+      const idx = currentIds.indexOf(sectionId)
+      if (idx === -1) return
+      if (direction === 'up' && idx === 0) return
+      if (direction === 'down' && idx === currentIds.length - 1) return
+
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+      const newOrder = [...currentIds]
+      ;[newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]]
+
+      updateSectionOrder(newOrder)
+    }
+    el.addEventListener('section-move', handler)
+    return () => el.removeEventListener('section-move', handler)
+  }, [content, updateSectionOrder])
 
   return (
     <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''} ${currentPage?.page_type === 'daily' ? 'tiptap-page--daily' : ''}`}>
@@ -1285,6 +1341,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               isViewerMode={isImpersonating}
               onViewerEditAttempt={showViewerToast}
               isMaster={isMaster}
+              isDailyPage={currentPage?.page_type === 'daily'}
             />
           ) : (
             <div className="tiptap-loading">로딩 중...</div>

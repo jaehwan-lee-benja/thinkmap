@@ -931,12 +931,49 @@ export const Toggle = Node.create({
         }))
       })
 
+      // 섹션 이동 버튼 (h2 섹션 전용, daily 페이지에서만)
+      const moveUpButton = document.createElement('button')
+      moveUpButton.classList.add('toggle-move-button', 'move-up')
+      moveUpButton.contentEditable = 'false'
+      moveUpButton.title = '섹션 위로 이동'
+      moveUpButton.style.display = (node.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage) ? '' : 'none'
+      moveUpButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>'
+      moveUpButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const currentNode = editor.state.doc.nodeAt(getPos())
+        if (!currentNode) return
+        dom.dispatchEvent(new CustomEvent('section-move', {
+          bubbles: true,
+          detail: { sectionId: currentNode.attrs.sectionId, direction: 'up' }
+        }))
+      })
+
+      const moveDownButton = document.createElement('button')
+      moveDownButton.classList.add('toggle-move-button', 'move-down')
+      moveDownButton.contentEditable = 'false'
+      moveDownButton.title = '섹션 아래로 이동'
+      moveDownButton.style.display = (node.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage) ? '' : 'none'
+      moveDownButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
+      moveDownButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const currentNode = editor.state.doc.nodeAt(getPos())
+        if (!currentNode) return
+        dom.dispatchEvent(new CustomEvent('section-move', {
+          bubbles: true,
+          detail: { sectionId: currentNode.attrs.sectionId, direction: 'down' }
+        }))
+      })
+
       dom.appendChild(dragHandle)
       dom.appendChild(pageLink)
       dom.appendChild(button)
       dom.appendChild(checkbox)
       dom.appendChild(carryOverTag)
       dom.appendChild(contentWrapper)
+      dom.appendChild(moveUpButton)
+      dom.appendChild(moveDownButton)
       dom.appendChild(visibilityButton)
       dom.appendChild(commentButton)
       dom.appendChild(pinButton)
@@ -1018,6 +1055,11 @@ export const Toggle = Node.create({
             : '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
           // master-only 섹션에 시각적 표시
           dom.classList.toggle('toggle-master-only', isMasterVis && updatedNode.attrs.blockType === 'h2')
+
+          // 섹션 이동 버튼 상태 업데이트
+          const showMove = updatedNode.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage
+          moveUpButton.style.display = showMove ? '' : 'none'
+          moveDownButton.style.display = showMove ? '' : 'none'
 
           // 코멘트 버튼 상태 업데이트
           const showCmt = updatedNode.attrs.blockType === 'h2' || updatedNode.attrs.isTodo

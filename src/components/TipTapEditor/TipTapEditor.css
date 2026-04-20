@@ -1440,6 +1440,34 @@ th .paragraph-drag-handle {
 }
 
 /* ── 섹션 pin 버튼 ── */
+/* 섹션 이동 버튼 (h2 전용) */
+.toggle-move-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.toggle-block:hover > .toggle-move-button {
+  opacity: 1;
+}
+
+.toggle-move-button:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .toggle-pin-button {
   flex-shrink: 0;
   display: flex;

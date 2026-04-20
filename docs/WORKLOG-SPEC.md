@@ -62,29 +62,53 @@ CREATE INDEX idx_worklog_comments_page ON worklog_comments(page_id, created_at D
 CREATE INDEX idx_worklog_comments_mentions ON worklog_comments USING GIN(mentions);
 ```
 
-### 2.3 신규 테이블: worklog_templates
+### 2.3 신규 테이블: worklog_sections (2026-04-20 추가)
 ```sql
--- 업무일지 전용 섹션 템플릿 (page_templates와 별도)
+-- 업무일지 섹션 정의 테이블
+-- 고정/pinned 섹션의 ID를 중앙 관리하여 이월 시 섹션 매칭에 사용
+CREATE TABLE worklog_sections (
+  id            text PRIMARY KEY,          -- 'fixed_todo', 'fixed_notice', 'sec_xxx...'
+  title         text NOT NULL,
+  section_type  text NOT NULL DEFAULT 'fixed',  -- 'fixed' | 'pinned'
+  is_default    boolean NOT NULL DEFAULT true,   -- 새 daily 생성 시 자동 포함
+  sort_order    int NOT NULL DEFAULT 0,
+  visibility    text NOT NULL DEFAULT 'all',     -- 'all' | 'master'
+  parent_id     text REFERENCES worklog_sections(id) ON DELETE SET NULL,
+  created_by    uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- 고정 섹션 시드 데이터
+-- fixed_todo, fixed_notice, fixed_wrapup, fixed_daily_issue
+```
+
+**설계 원칙**: 섹션 이름이 아닌 **ID로 식별**. 이전에는 `sectionTitle === '할 일'` 같은 이름 매칭이었으나, `worklog_sections` 테이블의 안정적인 ID로 전환.
+
+### 2.4 신규 테이블: worklog_templates (향후)
+```sql
+-- 업무일지 전용 섹션 템플릿 (page_templates와 별도, 향후 구현)
 CREATE TABLE worklog_templates (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  
-  -- 섹션 구성
   sections JSONB NOT NULL DEFAULT '[]',
-  -- [
-  --   { "id": "todos", "type": "fixed", "title": "할 일", "order": 0, "visibility": "all" },
-  --   { "id": "notices", "type": "fixed", "title": "전달사항", "order": 1, "visibility": "all" },
-  --   { "id": "custom_abc", "type": "custom", "title": "구매 목록", "order": 2, "visibility": "all" },
-  --   { "id": "closing", "type": "fixed", "title": "마무리 기록", "order": 99, "visibility": "master" }
-  -- ]
-  -- visibility: "all" (모든 접근 계정에게 표시, 기본값) | "master" (마스터만 표시)
-  
   version INT DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+
+### 2.5 신규 테이블: worklog_user_settings (2026-04-20 추가)
+```sql
+-- 업무일지 계정별 설정 (섹션 순서 등)
+CREATE TABLE worklog_user_settings (
+  user_id        uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  section_order  jsonb DEFAULT '[]',   -- worklog_sections.id 배열
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+```
+
+계정별 섹션 표시 순서를 저장. `section_order`가 빈 배열이면 `worklog_sections.sort_order` 기본값 사용.
 
 ---
 
@@ -245,10 +269,12 @@ CREATE TABLE worklog_templates (
 ```
 1. 새 daily 페이지 생성 요청
 2. 같은 calendar 하위의 가장 최근 daily 페이지 조회
-3. 해당 페이지의 "할 일" 섹션에서 미완료 todo 추출
-4. 새 페이지의 "할 일" 섹션 상단에 [이월] 태그와 함께 삽입
+3. 해당 페이지의 모든 섹션에서 미완료 todo 추출 (sectionId와 함께)
+4. 새 페이지에서 동일 sectionId의 섹션에 [이월] 태그와 함께 삽입
 5. 원본에는 carryOverTo: "새_페이지_날짜" 표시 (추적용)
 ```
+
+> **변경 이력 (2026-04-20)**: 이전에는 "할 일" 섹션에서만 이월했으나, 모든 섹션(고정/pinned)의 미완료 투두를 원래 섹션으로 이월하도록 수정. 섹션 매칭은 이름이 아닌 `worklog_sections.id` 기반.
 
 ### 4.4 이월 데이터 구조
 
@@ -329,7 +355,7 @@ const mentionableUsers = [
 
 ### 6.2 섹션 편집
 - **제목 변경**: 섹션 헤더 클릭하여 인라인 편집
-- **순서 변경**: 섹션 드래그 핸들로 이동 (마무리 기록은 항상 최하단 고정)
+- **순서 변경**: 섹션 헤더의 ▲/▼ 버튼으로 이동, 순서는 `worklog_user_settings.section_order`에 계정별 저장 (2026-04-20)
 - **삭제**: 자유 섹션만 삭제 가능, 확인 다이얼로그
 
 ### 6.3 템플릿 저장/적용
@@ -379,12 +405,14 @@ const mentionableUsers = [
 - [x] 섹션 순서 드래그 — 기존 토글 드래그 핸들로 동작
 - [ ] 섹션 구성을 worklog_templates에 저장 (향후)
 
-### Phase 3: 이월 기능 — ✅ 완료 (2026-04-14)
+### Phase 3: 이월 기능 — ✅ 완료 (2026-04-14, 2026-04-20 보강)
 - [x] `isCarryOver`, `carryOverFrom` 속성 추가 (toggle 노드)
 - [x] 이전 daily 페이지 미완료 todo 스캔
 - [x] 새 페이지 생성 시 이월 항목 자동 삽입
 - [x] [이월 MM/DD] 태그 UI 표시
 - [x] 이월 원본 추적 — 최초 출처 날짜 유지 (반복 이월 시에도 원본 날짜 보존)
+- [x] **모든 섹션 이월** — "할 일" 섹션뿐 아니라 모든 고정/pinned 섹션의 미완료 투두를 원래 섹션으로 이월 (2026-04-20)
+- [x] **섹션 ID 기반 매칭** — `worklog_sections` 테이블의 안정적 ID로 섹션 식별, 이름 하드코딩 제거 (2026-04-20)
 
 ### Phase 4: @멘션 코멘트 — ✅ 기본 완료 (2026-04-14)
 - [x] worklog_comments 테이블 생성 + RLS (`create-worklog-comments-table.sql`)
@@ -524,11 +552,17 @@ RLS는 통과하지만 **클라이언트 쿼리가 본인 프로젝트만 가져
 | `src/components/TipTapEditor/extensions/ToggleExtension.js` | 토글 블록 (todo, pin, 이월 포함) |
 | `src/hooks/usePages.js` | 페이지 CRUD + daily 페이지 생성 |
 | `src/hooks/useWorklogComments.js` | 코멘트 CRUD + 실시간 구독 |
+| `src/utils/worklogConstants.js` | 섹션 ID 상수, 기본 섹션 정의 (SECTION_IDS, FALLBACK_SECTIONS) |
+| `src/utils/toggleNodeFactory.js` | TipTap 토글 노드 생성 팩토리 (섹션/투두/이월 등) |
+| `src/utils/sectionUtils.js` | 섹션 추출/필터/매칭 공통 유틸리티 (isH2Section 등) |
 | `src/utils/worklogTemplate.js` | daily 페이지 초기 템플릿 (이월/pin 포함) |
 | `src/utils/worklogUtils.js` | todo 통계 파싱 + daily 페이지 생성 공유 유틸리티 |
 | `src/components/GlobalTopBar/GlobalTopBar.jsx` | "오늘" 바로가기 버튼 |
 | `src/hooks/useCalendarCommentCounts.js` | 캘린더용 배치 코멘트 수 조회 훅 |
 | `create-worklog-comments-table.sql` | 코멘트 테이블 + RLS |
+| `migrate-worklog-sections.sql` | 섹션 정의 테이블 + 고정 섹션 시드 + RLS |
+| `migrate-worklog-user-settings.sql` | 계정별 업무일지 설정 테이블 + RLS |
+| `src/hooks/useWorklogUserSettings.js` | 계정별 섹션 순서 조회/저장 훅 |
 | `alter-pages-add-calendar.sql` | calendar/daily page_type 스키마 |
 | `docs/TOGGLE-BLOCK-SPEC.md` | 토글 블록 명세 (todo 속성 포함) |
 | `docs/DESIGN-PHILOSOPHY.md` | 건조한 스타일 디자인 철학 |

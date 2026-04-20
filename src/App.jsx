@@ -261,7 +261,7 @@ function App() {
       .order('page_date', { ascending: false })
       .limit(1)
 
-    const template = buildDailyPageTemplate(recentPages || [])
+    const template = await buildDailyPageTemplate(recentPages || [], supabase)
     const newPageData = {
       id: generateUUID(),
       user_id: session.user.id,
@@ -391,12 +391,21 @@ function App() {
   const authScreen = GoogleAuthButton({ authLoading, session, handleGoogleLogin })
   if (authScreen) return authScreen
 
-  // 환경설정 로딩 중
+  // 환경설정 로딩 중 — GlobalTopBar(QuickTodo)는 먼저 표시, 본문은 빈 상태
   if (preferencesLoading) {
     return (
-      <div className="app loading">
-        <div className="loading-spinner">로딩 중...</div>
+      <AuthContext.Provider value={authCtx}>
+      <div className="app app-main">
+        <GlobalTopBar
+          favorites={[]}
+          onTodayWorklog={() => {}}
+          session={session}
+        />
+        <div className="app-body">
+          <div className="container" />
+        </div>
       </div>
+      </AuthContext.Provider>
     )
   }
 
