@@ -32,6 +32,13 @@ export const formatDate = (dateString) => {
   return `${year}.${month}.${day}(${weekday}) ${hours}:${minutes}`
 }
 
+// daily 페이지 이름 (예: "업무일지_2026-04-21(월)")
+export const dailyPageName = (dateStr) => {
+  const d = new Date(dateStr + 'T00:00:00')
+  if (isNaN(d.getTime())) return `업무일지_${dateStr}`
+  return `업무일지_${dateStr}(${DAY_NAMES[d.getDay()]})`
+}
+
 // 오늘 날짜인지 체크
 export const isToday = (date) => {
   const today = new Date()

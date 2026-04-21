@@ -498,9 +498,9 @@
   display: none;
 }
 
-/* 카드 내부 중첩 토글 간격 조정 */
+/* 카드 내부 중첩 토글 간격 조정 — 들여쓰기 최소화 */
 .tiptap-page--daily .tiptap-editor > [data-block-type="h2"] > .toggle-content > .toggle-block {
-  margin-left: -24px;
+  margin-left: -32px;
 }
 
 /* 로딩 상태 */
@@ -995,23 +995,36 @@
 /* ── 업무일지 헤더 (WorklogHeader) ── */
 .worklog-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 0.5rem 0 0.75rem 0;
-  margin-bottom: 0.5rem;
-  font-size: 0.85rem;
-}
-
-.worklog-header-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.25rem 0 0.5rem 0;
+  margin-bottom: 0.25rem;
 }
 
 .worklog-header-actions {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.worklog-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.worklog-nav-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .worklog-calendar-btn {
@@ -1051,27 +1064,6 @@
 .worklog-delete-btn:hover {
   color: #ff5050;
   background: rgba(255, 80, 80, 0.1);
-}
-
-.worklog-header-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.worklog-header-icon {
-  color: rgba(255, 255, 255, 0.35);
-  flex-shrink: 0;
-}
-
-.worklog-header-label {
-  min-width: 42px;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.8rem;
-}
-
-.worklog-header-value {
-  color: rgba(255, 255, 255, 0.85);
 }
 
 /* ── 업무일지: 섹션 추가 버튼 ── */
@@ -1344,9 +1336,6 @@
     gap: 6px;
   }
 
-  .worklog-header-meta {
-    font-size: 12px;
-  }
 
   .worklog-calendar-btn {
     font-size: 11px;

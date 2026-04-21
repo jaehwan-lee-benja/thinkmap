@@ -23,6 +23,7 @@ import FavoritesContext from './contexts/FavoritesContext'
 import { supabase } from './supabaseClient'
 import { buildDailyPageTemplate } from './utils/worklogUtils'
 import { generateUUID } from './utils/uuid'
+import { dailyPageName } from './utils/dateUtils'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -209,8 +210,14 @@ function App() {
   const paneNavRef = useRef({})
 
   const handleFavoriteNavigate = useCallback((fav) => {
-    // 새 탭을 열어서 즐겨찾기 페이지로 이동
     addTab(activePaneIndex, { projectId: fav.projectId, pageId: fav.pageId })
+    setTimeout(() => {
+      const nav = paneNavRef.current[activePaneIndex]
+      if (nav) {
+        if (fav.projectId) nav.setCurrentProjectId(fav.projectId)
+        nav.setCurrentPageId(fav.pageId)
+      }
+    }, 0)
   }, [addTab, activePaneIndex])
 
   // 오늘 업무일지 바로가기 — 현재 탭에서 직접 이동
@@ -232,6 +239,11 @@ function App() {
 
     const navigateTo = (pageId) => {
       addTab(activePaneIndex, { projectId: null, pageId })
+      // 새 탭 생성 후 paneNavRef로 페이지 직접 설정 (PaneProvider 동기화 보장)
+      setTimeout(() => {
+        const nav = paneNavRef.current[activePaneIndex]
+        if (nav) nav.setCurrentPageId(pageId)
+      }, 0)
     }
 
     // 2. 오늘 daily 페이지 확인
@@ -265,7 +277,7 @@ function App() {
     const newPageData = {
       id: generateUUID(),
       user_id: session.user.id,
-      name: todayStr,
+      name: dailyPageName(todayStr),
       parent_id: calendarPage.id,
       content_tiptap: template,
       project_id: null,
@@ -279,8 +291,10 @@ function App() {
 
     if (e3) { console.error('daily 페이지 생성 실패:', e3); return }
 
+    // pages 배열 갱신을 트리거하여 page_type='daily'이 인식되도록 함
+    window.dispatchEvent(new CustomEvent('pages-refresh'))
     navigateTo(newPageData.id)
-  }, [addTab, activePaneIndex, session])
+  }, [addTab, updateTabInPane, activePaneIndex, session])
 
   // 삭제 토스트 상태
   const [deleteToast, setDeleteToast] = useState(null)

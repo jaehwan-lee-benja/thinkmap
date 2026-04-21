@@ -64,6 +64,16 @@ priority: 200
 | `backgroundColor` | string\|null | `null` | 배경색 |
 | `blockType` | string | `'paragraph'` | `'paragraph'`, `'ordered'`, `'bullet'`, `'h1'`~`'h3'`, `'page'` |
 | `pageId` | string\|null | `null` | 페이지 블록일 때 연결된 페이지 ID |
+| `isPinned` | boolean | `false` | 고정 블록 — h2: 섹션 고정, 블록: 다음 날 이월 |
+| `isStarred` | boolean | `false` | 중요 표시 (별표) — 좌측 노란 바 시각 표시 |
+| `isCarryOver` | boolean | `false` | 이월된 항목 표시 |
+| `carryOverFrom` | string\|null | `null` | 이월 출처 날짜 (YYYY-MM-DD) |
+| `visibility` | string | `'all'` | `'all'` (전체) 또는 `'master'` (마스터 전용) |
+| `sectionId` | string\|null | `null` | 섹션 고유 ID (worklog_sections 테이블 PK) |
+| `isFixedSection` | boolean | `false` | 고정 섹션 (삭제 불가) |
+| `blockId` | string\|null | `null` | 블록 고유 ID (`blk_xxx`) — daily 페이지 모든 블록에 자동 부여 |
+| `originBlockId` | string\|null | `null` | 이월 원본의 blockId — thread 동기화 + 중복 방지 |
+| `maybeDuplicate` | false\|true\|'original' | `false` | 중복 감지 표시 — `'original'` (원본), `true` (이월 중복) |
 
 ---
 

@@ -7,7 +7,52 @@
  */
 
 import { SECTION_IDS, DEFAULT_SECTION_ID, FALLBACK_SECTIONS } from './worklogConstants'
-import { sectionToggle, pinnedSectionToggle, emptyToggle, carryOverToggle } from './toggleNodeFactory'
+import { sectionToggle, pinnedSectionToggle, emptyToggle } from './toggleNodeFactory'
+import { genSectionId } from './toggleNodeFactory'
+
+function genBlockId() {
+  return 'blk_' + Math.random().toString(36).slice(2, 10)
+}
+
+/**
+ * 이월 블록: 원본 노드를 deep clone하되
+ * - isCarryOver/carryOverFrom 설정
+ * - blockId 새로 부여, originBlockId로 원본 ��적
+ * - 완료된 상위 todo (하위에 미완료가 있어서 이월됨) → 완료 상태 유지
+ */
+function toCarryOverNode(block) {
+  const node = JSON.parse(JSON.stringify(block.node))
+  const originalTodoId = node.attrs.blockId || node.attrs.originBlockId || null
+
+  // 완료된 상위 (하위에 미완료가 있어서 이월) → todoChecked 유지
+  const keepChecked = block.type === 'todo-with-unfinished'
+
+  node.attrs = {
+    ...node.attrs,
+    isCarryOver: true,
+    carryOverFrom: block.fromDate,
+    todoChecked: keepChecked ? node.attrs.todoChecked : false,
+    blockId: genBlockId(),
+    originBlockId: originalTodoId,
+  }
+
+  // 하위 블록���도 재귀적으로 blockId/originBlockId 부여
+  assignBlockIds(node)
+  return node
+}
+
+/** 하위 ��글에 blockId/originBlockId 재귀 부여 */
+function assignBlockIds(node) {
+  if (!node.content) return
+  for (const child of node.content) {
+    if (child.type === 'toggle' && child.attrs?.isTodo) {
+      const origId = child.attrs.blockId || child.attrs.originBlockId || null
+      child.attrs.blockId = genBlockId()
+      child.attrs.originBlockId = origId
+    }
+    assignBlockIds(child)
+  }
+}
 
 /**
  * @param {Array} sections - worklog_sections 테이블에서 조회한 섹션 정의 (빈 배열이면 fallback 사용)
@@ -42,12 +87,12 @@ export function createWorklogTemplate(sections = [], pinnedSections = [], carryO
   const childSections = effectiveSections.filter(s => s.parent_id)
 
   const sectionNodes = topLevelSections.map(section => {
-    const carryOvers = (carryOverBySectionId[section.id] || []).map(t => carryOverToggle(t.text, t.fromDate))
+    const carryOvers = (carryOverBySectionId[section.id] || []).map(toCarryOverNode)
 
     const childNodes = childSections
       .filter(c => c.parent_id === section.id)
       .map(child => {
-        const childCarryOvers = (carryOverBySectionId[child.id] || []).map(t => carryOverToggle(t.text, t.fromDate))
+        const childCarryOvers = (carryOverBySectionId[child.id] || []).map(toCarryOverNode)
         return sectionToggle(child.title, 'h3', [...childCarryOvers, emptyToggle(false)], {
           isFixed: child.section_type === 'fixed', visibility: child.visibility || 'all', sectionId: child.id,
         })
@@ -65,7 +110,7 @@ export function createWorklogTemplate(sections = [], pinnedSections = [], carryO
     const title = typeof s === 'string' ? s : s.title
     const visibility = typeof s === 'string' ? 'all' : (s.visibility || 'all')
     const sectionId = typeof s === 'string' ? null : (s.sectionId || null)
-    const carryOvers = sectionId ? (carryOverBySectionId[sectionId] || []).map(t => carryOverToggle(t.text, t.fromDate)) : []
+    const carryOvers = sectionId ? (carryOverBySectionId[sectionId] || []).map(toCarryOverNode) : []
 
     return pinnedSectionToggle(title, 'h2', [...carryOvers, emptyToggle(false)], { visibility, sectionId })
   })

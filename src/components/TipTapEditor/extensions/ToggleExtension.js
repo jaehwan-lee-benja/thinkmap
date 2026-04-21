@@ -7,6 +7,66 @@ export const multiSelectPluginKey = new PluginKey('multiSelect')
 export const focusHighlightPluginKey = new PluginKey('toggleFocusHighlight')
 const blockDragPluginKey = new PluginKey('blockDrag')
 
+// --- Todo thread 동기화 ---
+// 체크박스 완료/해제 시 같은 originBlockId를 가진 이월본을 교차 페이지 동기화
+async function syncBlockAcrossPages(supabase, blockId, checked) {
+  try {
+    // 최근 daily 페이지 조회 (최근 7개만 — 성능)
+    const { data: pages } = await supabase
+      .from('pages')
+      .select('id, content_tiptap')
+      .eq('page_type', 'daily')
+      .is('deleted_at', null)
+      .order('page_date', { ascending: false })
+      .limit(7)
+
+    if (!pages?.length) return
+
+    for (const page of pages) {
+      // 클라이언트에서 blockId 매칭 확인
+      const json = JSON.stringify(page.content_tiptap)
+      if (!json.includes(blockId)) continue
+
+      let changed = false
+      const updated = updateBlockInContent(page.content_tiptap, blockId, checked, () => { changed = true })
+      if (changed) {
+        await supabase.from('pages').update({ content_tiptap: updated }).eq('id', page.id)
+        window.dispatchEvent(new CustomEvent('quicktodo-inserted', { detail: { pageId: page.id } }))
+      }
+    }
+  } catch (err) {
+    console.warn('Block 동기화 오류:', err)
+  }
+}
+
+function updateBlockInContent(content, blockId, checked, onChanged) {
+  if (!content?.content) return content
+  return {
+    ...content,
+    content: content.content.map(node => updateBlockInNode(node, blockId, checked, onChanged))
+  }
+}
+
+function updateBlockInNode(node, blockId, checked, onChanged) {
+  if (node.type === 'toggle' && node.attrs?.isTodo) {
+    // originBlockId 또는 blockId가 매칭되면 동기화
+    if (node.attrs.originBlockId === blockId || node.attrs.blockId === blockId) {
+      if (node.attrs.todoChecked !== checked) {
+        onChanged()
+        return {
+          ...node,
+          attrs: { ...node.attrs, todoChecked: checked },
+          content: node.content ? node.content.map(c => updateBlockInNode(c, blockId, checked, onChanged)) : node.content,
+        }
+      }
+    }
+  }
+  if (node.content) {
+    return { ...node, content: node.content.map(c => updateBlockInNode(c, blockId, checked, onChanged)) }
+  }
+  return node
+}
+
 // --- 멀티셀렉트 삭제 헬퍼 ---
 function deleteMultiSelected(state, dispatch) {
   const pluginState = multiSelectPluginKey.getState(state)
@@ -324,6 +384,31 @@ export const Toggle = Node.create({
         parseHTML: element => element.getAttribute('data-section-id') || null,
         renderHTML: attributes => attributes.sectionId ? { 'data-section-id': attributes.sectionId } : {},
       },
+      isStarred: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-starred') === 'true',
+        renderHTML: attributes => attributes.isStarred ? { 'data-starred': 'true' } : {},
+      },
+      blockId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-block-id') || null,
+        renderHTML: attributes => attributes.blockId ? { 'data-block-id': attributes.blockId } : {},
+      },
+      originBlockId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-origin-block-id') || null,
+        renderHTML: attributes => attributes.originBlockId ? { 'data-origin-block-id': attributes.originBlockId } : {},
+      },
+      maybeDuplicate: {
+        default: false,
+        parseHTML: element => {
+          const v = element.getAttribute('data-maybe-duplicate')
+          if (v === 'original') return 'original'
+          if (v === 'true') return true
+          return false
+        },
+        renderHTML: attributes => attributes.maybeDuplicate ? { 'data-maybe-duplicate': String(attributes.maybeDuplicate) } : {},
+      },
     }
   },
 
@@ -375,9 +460,12 @@ export const Toggle = Node.create({
       dom.setAttribute('data-is-open', node.attrs.isOpen)
       dom.setAttribute('data-block-type', node.attrs.blockType || 'paragraph')
 
-      // master-only 섹션 초기 클래스
+      // 초기 클래스
       if (node.attrs.visibility === 'master' && node.attrs.blockType === 'h2') {
         dom.classList.add('toggle-master-only')
+      }
+      if (node.attrs.isStarred) {
+        dom.classList.add('toggle-starred')
       }
 
       // 배경색 적용
@@ -770,9 +858,19 @@ export const Toggle = Node.create({
           checkbox.classList.add('just-checked')
           setTimeout(() => checkbox.classList.remove('just-checked'), 700)
         }
+        // blockId가 없으면 자동 부여
+        const blockId = currentNode.attrs.blockId || ('blk_' + Math.random().toString(36).slice(2, 10))
         const { tr } = editor.state
-        tr.setNodeMarkup(pos, null, { ...currentNode.attrs, todoChecked: willCheck })
+        tr.setNodeMarkup(pos, null, { ...currentNode.attrs, todoChecked: willCheck, blockId })
         editor.view.dispatch(tr)
+
+        // 교차 페이지 동기화: 같은 originBlockId를 가진 이월본 완료 상태 동기화
+        const syncTodoId = currentNode.attrs.originBlockId || blockId
+        if (syncTodoId && editor.storage.toggle?.isDailyPage) {
+          import('../../../supabaseClient').then(({ supabase }) => {
+            syncBlockAcrossPages(supabase, syncTodoId, willCheck)
+          })
+        }
 
         if (!willCheck) {
           checkbox.animate([
@@ -850,25 +948,79 @@ export const Toggle = Node.create({
       // dragover/drop은 글로벌 Plugin(blockDropIndicatorPlugin)에서 처리
       // NodeView에서는 dragstart/dragend만 관리
 
-      // Pin 버튼 (자유 섹션 h2 전용)
+      // Pin 버튼 — h2 자유 섹션: "섹션 고정" 텍스트, 비-h2 블록: 핀 아이콘 (daily에서만)
       const pinButton = document.createElement('button')
       pinButton.classList.add('toggle-pin-button')
       pinButton.contentEditable = 'false'
-      pinButton.title = node.attrs.isPinned ? '고정 해제' : '섹션 고정'
+      const isH2Free = node.attrs.blockType === 'h2' && !node.attrs.isFixedSection
+      const isBlockInDaily = node.attrs.blockType !== 'h2' && editor.storage.toggle?.isDailyPage
       if (node.attrs.isPinned) pinButton.classList.add('pinned')
-      // h2 자유 섹션에서만 표시
-      pinButton.style.display = (node.attrs.blockType === 'h2' && !node.attrs.isFixedSection) ? '' : 'none'
-      pinButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>'
+      if (isH2Free) {
+        pinButton.title = node.attrs.isPinned ? '섹션 고정 해제' : '섹션 고정'
+        pinButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg><span>섹션 고정</span>`
+        pinButton.style.display = ''
+      } else if (isBlockInDaily) {
+        pinButton.title = node.attrs.isPinned ? '고정 해제' : '고정 (다음 날에도 유지)'
+        pinButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>'
+        pinButton.style.display = ''
+      } else {
+        pinButton.style.display = 'none'
+      }
       pinButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
         const pos = getPos()
         const currentNode = editor.state.doc.nodeAt(pos)
         if (!currentNode) return
-        const newPinned = !currentNode.attrs.isPinned
         editor.view.dispatch(
-          editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, isPinned: newPinned })
+          editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, isPinned: !currentNode.attrs.isPinned })
         )
+      })
+
+      // 별표 (중요 표시) 버튼 — daily 페이지 비-h2 블록에서만
+      const starButton = document.createElement('button')
+      starButton.classList.add('toggle-star-button')
+      starButton.contentEditable = 'false'
+      starButton.title = node.attrs.isStarred ? '중요 해제' : '중요 표시'
+      if (node.attrs.isStarred) starButton.classList.add('starred')
+      starButton.style.display = isBlockInDaily ? '' : 'none'
+      starButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+      starButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        if (!currentNode) return
+        editor.view.dispatch(
+          editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, isStarred: !currentNode.attrs.isStarred })
+        )
+      })
+
+      // 블록 삭제 버튼 — daily 페이지 비-h2 블록에서만
+      const deleteButton = document.createElement('button')
+      deleteButton.classList.add('toggle-delete-button')
+      deleteButton.contentEditable = 'false'
+      deleteButton.title = '블록 삭제'
+      deleteButton.style.display = isBlockInDaily ? '' : 'none'
+      deleteButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>'
+      deleteButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        if (!currentNode) return
+
+        // 이월 항목 삭제 시 _dismissed에 기록 (재이월 방지)
+        const blockId = currentNode.attrs.blockId || currentNode.attrs.originBlockId
+        if (blockId && (currentNode.attrs.isCarryOver || currentNode.attrs.isPinned)) {
+          // 커스텀 이벤트로 dismiss 알림
+          dom.dispatchEvent(new CustomEvent('block-dismissed', {
+            bubbles: true,
+            detail: { blockId, originBlockId: currentNode.attrs.originBlockId }
+          }))
+        }
+
+        editor.view.dispatch(editor.state.tr.delete(pos, pos + currentNode.nodeSize))
       })
 
       // 이월 태그
@@ -883,19 +1035,34 @@ export const Toggle = Node.create({
         carryOverTag.style.display = 'none'
       }
 
+      // 중복 가능 태그
+      const duplicateTag = document.createElement('span')
+      duplicateTag.classList.add('toggle-duplicate-tag')
+      duplicateTag.contentEditable = 'false'
+      duplicateTag.title = '같은 내용의 항목이 이미 있을 수 있습니다'
+      if (node.attrs.maybeDuplicate === 'original') {
+        duplicateTag.textContent = '원본 · 중복?'
+        duplicateTag.classList.add('original')
+        duplicateTag.style.display = ''
+      } else if (node.attrs.maybeDuplicate) {
+        duplicateTag.textContent = '중복?'
+        duplicateTag.style.display = ''
+      } else {
+        duplicateTag.style.display = 'none'
+      }
+
       // Visibility 버튼 (h2 섹션 전용, 마스터만 조작)
       const visibilityButton = document.createElement('button')
       visibilityButton.classList.add('toggle-visibility-button')
       visibilityButton.contentEditable = 'false'
       const isVisibilityMaster = node.attrs.visibility === 'master'
-      visibilityButton.title = isVisibilityMaster ? '마스터 전용 (클릭하여 전체 공개)' : '전체 공개 (클릭하여 마스터 전용)'
+      visibilityButton.title = isVisibilityMaster ? '마스터 섹션 해제' : '마스터 섹션으로 설정'
       if (isVisibilityMaster) visibilityButton.classList.add('master-only')
-      // h2 섹션에서만 표시, 마스터만 클릭 가능
       const showVisBtn = node.attrs.blockType === 'h2' && editor.storage.toggle?.isMaster
       visibilityButton.style.display = showVisBtn ? '' : 'none'
       visibilityButton.innerHTML = isVisibilityMaster
-        ? '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
-        : '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>마스터 섹션</span>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
       visibilityButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -966,17 +1133,26 @@ export const Toggle = Node.create({
         }))
       })
 
+      // 오른쪽 액션 그룹 — 하위 토글이어도 항상 오른쪽 끝에 정렬
+      const actionsGroup = document.createElement('div')
+      actionsGroup.classList.add('toggle-actions-group')
+      actionsGroup.contentEditable = 'false'
+      actionsGroup.appendChild(duplicateTag)
+      actionsGroup.appendChild(carryOverTag)
+      actionsGroup.appendChild(moveUpButton)
+      actionsGroup.appendChild(moveDownButton)
+      actionsGroup.appendChild(visibilityButton)
+      actionsGroup.appendChild(commentButton)
+      actionsGroup.appendChild(starButton)
+      actionsGroup.appendChild(pinButton)
+      actionsGroup.appendChild(deleteButton)
+
       dom.appendChild(dragHandle)
       dom.appendChild(pageLink)
       dom.appendChild(button)
       dom.appendChild(checkbox)
-      dom.appendChild(carryOverTag)
       dom.appendChild(contentWrapper)
-      dom.appendChild(moveUpButton)
-      dom.appendChild(moveDownButton)
-      dom.appendChild(visibilityButton)
-      dom.appendChild(commentButton)
-      dom.appendChild(pinButton)
+      dom.appendChild(actionsGroup)
       dom.appendChild(pageOverlay)
 
       return {
@@ -1035,6 +1211,20 @@ export const Toggle = Node.create({
             carryOverTag.style.display = 'none'
           }
 
+          // 중복 태그 업데이트
+          if (updatedNode.attrs.maybeDuplicate === 'original') {
+            duplicateTag.textContent = '원본 · 중복?'
+            duplicateTag.classList.add('original')
+            duplicateTag.style.display = ''
+          } else if (updatedNode.attrs.maybeDuplicate) {
+            duplicateTag.textContent = '중복?'
+            duplicateTag.classList.remove('original')
+            duplicateTag.style.display = ''
+          } else {
+            duplicateTag.style.display = 'none'
+            duplicateTag.classList.remove('original')
+          }
+
           // 배경색 업데이트
           if (updatedNode.attrs.backgroundColor) {
             dom.setAttribute('data-bg-color', updatedNode.attrs.backgroundColor)
@@ -1066,10 +1256,18 @@ export const Toggle = Node.create({
           commentButton.style.display = showCmt ? '' : 'none'
 
           // Pin 버튼 상태 업데이트
-          const showPin = updatedNode.attrs.blockType === 'h2' && !updatedNode.attrs.isFixedSection
-          pinButton.style.display = showPin ? '' : 'none'
+          const isH2FreeUpd = updatedNode.attrs.blockType === 'h2' && !updatedNode.attrs.isFixedSection
+          const isBlockInDailyUpd = updatedNode.attrs.blockType !== 'h2' && editor.storage.toggle?.isDailyPage
+          pinButton.style.display = (isH2FreeUpd || isBlockInDailyUpd) ? '' : 'none'
           pinButton.classList.toggle('pinned', !!updatedNode.attrs.isPinned)
-          pinButton.title = updatedNode.attrs.isPinned ? '고정 해제' : '섹션 고정'
+
+          // 별표 버튼 상태 업데이트
+          starButton.style.display = isBlockInDailyUpd ? '' : 'none'
+          starButton.classList.toggle('starred', !!updatedNode.attrs.isStarred)
+          dom.classList.toggle('toggle-starred', !!updatedNode.attrs.isStarred)
+
+          // 삭제 버튼 상태 업데이트
+          deleteButton.style.display = isBlockInDailyUpd ? '' : 'none'
 
           // Decoration 반영 (Plugin이 전달한 포커스 상태)
           dom.classList.toggle('toggle-block-focused', hasFocusClass(outerDecorations))
@@ -1312,7 +1510,7 @@ export const Toggle = Node.create({
 
             const schema = state.schema
             const todoAttrs = toggleNode.attrs.isTodo
-              ? { isTodo: true, todoChecked: false }
+              ? { isTodo: true, todoChecked: false, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) }
               : {}
 
             const wrapInToggle = (node) => {
@@ -1571,6 +1769,30 @@ export const Toggle = Node.create({
             tr.setNodeMarkup(pos, null, { ...attrs, sectionId: id })
           }
           tr.setMeta('sectionIdAssign', true)
+          return tr
+        },
+      }),
+      // daily 페이지: blockId가 없는 모든 토글에 자동 부여
+      new Plugin({
+        appendTransaction(transactions, _oldState, newState) {
+          if (!transactions.some(tr => tr.docChanged)) return null
+          if (!extensionThis.storage.isDailyPage) return null
+          const fixes = []
+          newState.doc.descendants((node, pos) => {
+            if (node.type.name === 'toggle' && !node.attrs.blockId) {
+              // h2 섹션은 sectionId가 있으므로 제외
+              if (node.attrs.blockType === 'h2' || node.attrs.blockType === 'h3') return true
+              fixes.push({ pos, attrs: node.attrs })
+            }
+            return true
+          })
+          if (fixes.length === 0) return null
+          const tr = newState.tr
+          for (let i = fixes.length - 1; i >= 0; i--) {
+            const { pos, attrs } = fixes[i]
+            tr.setNodeMarkup(pos, null, { ...attrs, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) })
+          }
+          tr.setMeta('blockIdAssign', true)
           return tr
         },
       }),
@@ -1909,7 +2131,7 @@ export const Toggle = Node.create({
   addKeyboardShortcuts() {
     // 커서가 paragraph 끝에 있을 때: 열린 토글이면 하위 첫 위치에, 아니면 형제 위치에 새 토글 삽입
     function handleEnterAtEnd(editor, $from, toggleDepth, toggleNode, togglePos, afterTogglePos) {
-      const newAttrs = toggleNode.attrs.isTodo ? { isTodo: true, todoChecked: false } : {}
+      const newAttrs = toggleNode.attrs.isTodo ? { isTodo: true, todoChecked: false, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) } : {}
       if (toggleNode.attrs.isOpen && hasChildToggles(toggleNode)) {
         const paragraphNode = $from.node(toggleDepth + 1)
         const firstChildPos = togglePos + 1 + paragraphNode.nodeSize
@@ -1937,6 +2159,7 @@ export const Toggle = Node.create({
       if (toggleNode.attrs.isTodo) {
         newAttrs.isTodo = true
         newAttrs.todoChecked = false
+        newAttrs.blockId = 'blk_' + Math.random().toString(36).slice(2, 10)
       }
 
       const { tr } = state
@@ -2013,7 +2236,7 @@ export const Toggle = Node.create({
 
         // paragraph 맨 앞에서 Enter → 현재 토글 앞에 빈 토글 삽입, 커서는 원래 텍스트에 유지
         if ($from.pos === paragraphStart) {
-          const newAttrs = toggleNode.attrs.isTodo ? { isTodo: true, todoChecked: false } : {}
+          const newAttrs = toggleNode.attrs.isTodo ? { isTodo: true, todoChecked: false, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) } : {}
           const emptyNode = state.schema.nodeFromJSON(emptyToggleJSON(true, false, newAttrs))
           const { tr } = state
           tr.insert(togglePos, emptyNode)
@@ -2517,8 +2740,13 @@ export const Toggle = Node.create({
 
           // "[] " 텍스트 삭제
           tr.delete(range.from, range.to)
-          // 토글을 투두로 변환
-          tr.setNodeMarkup(togglePos, null, { ...toggleNode.attrs, isTodo: true, todoChecked: false })
+          // 토글을 투두로 변환 (blockId 즉시 부여)
+          tr.setNodeMarkup(togglePos, null, {
+            ...toggleNode.attrs,
+            isTodo: true,
+            todoChecked: false,
+            blockId: toggleNode.attrs.blockId || ('blk_' + Math.random().toString(36).slice(2, 10)),
+          })
         },
       }),
       // "> " 입력 시 토글 블록으로 변환 (토글 안에서는 차단)

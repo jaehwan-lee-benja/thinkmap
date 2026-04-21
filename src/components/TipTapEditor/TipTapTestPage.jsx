@@ -37,23 +37,31 @@ function extractToggleStates(docJSON) {
   docJSON.content.forEach(walk)
   return states
 }
-// daily 페이지: h2 섹션만 추출하여 sectionOrder 순서로 정렬, 비-섹션 노드(빈 p 등)는 제거
+// daily 페이지: h2 섹션만 추출하여 sectionOrder 순서로 정렬
+// sectionOrder에 있는 섹션은 그 순서대로, 없는 섹션은 원래 content 순서 유지 (뒤에 붙음)
 import { isH2Section } from '../../utils/sectionUtils'
 
 function applySectionOrder(contentArray, sectionOrder) {
   const sections = contentArray.filter(isH2Section)
-  if (sectionOrder?.length) {
-    sections.sort((a, b) => {
-      const idA = a.attrs?.sectionId || ''
-      const idB = b.attrs?.sectionId || ''
-      const indexA = sectionOrder.indexOf(idA)
-      const indexB = sectionOrder.indexOf(idB)
-      const posA = indexA === -1 ? sectionOrder.length : indexA
-      const posB = indexB === -1 ? sectionOrder.length : indexB
-      return posA - posB
-    })
+  if (!sectionOrder?.length) return sections
+
+  // sectionOrder에 있는 것과 없는 것 분리
+  const ordered = []
+  const unordered = []
+  const orderMap = new Map(sectionOrder.map((id, idx) => [id, idx]))
+
+  for (const s of sections) {
+    const id = s.attrs?.sectionId || ''
+    if (orderMap.has(id)) {
+      ordered.push({ section: s, idx: orderMap.get(id) })
+    } else {
+      unordered.push(s)
+    }
   }
-  return sections
+
+  // 순서가 있는 것은 sectionOrder 순서, 없는 것은 원래 순서 유지하여 뒤에
+  ordered.sort((a, b) => a.idx - b.idx)
+  return [...ordered.map(o => o.section), ...unordered]
 }
 
 import ColumnView from './ColumnView'
@@ -420,79 +428,260 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     return { ...contentDoc, content: [...newBlocks, ...contentDoc.content] }
   }, [])
 
-  // 페이지 로드 시 데이터 가져오기
-  useEffect(() => {
-    if (!session || !currentPageId) return
+  /**
+   * 중복 블록 마킹: 같은 텍스트가 2개 이상이면 maybeDuplicate 표시
+   * 첫 번째 = 'original', 나머지 = true, 중복 아닌 것 = false
+   */
+  /**
+   * 중복 블록 마킹: 같은 섹션 내에서 같은 텍스트가 2개 이상이면 표시
+   * 원본(첫 번째) = 'original', 나머지 = true
+   * 원본을 섹션 최상단으로 정렬
+   */
+  function markDuplicateBlocks(content) {
+    if (!content?.content) return content
 
-    // 페이지 전환: 이전 콘텐츠가 새 페이지에 저장되지 않도록 즉시 플래그 설정
-    isInitialLoadRef.current = true
-    setContent(null)
+    return { ...content, content: content.content.map(section => {
+      if (!isH2Section(section) || !section.content) return clearFlags(section)
 
-    const loadContent = async () => {
-      try {
-        // 1. pages 테이블에서 content_tiptap 확인
-        const { data, error } = await supabase
-          .from('pages')
-          .select('content_tiptap')
-          .eq('id', currentPageId)
-          .single()
+      // 섹션 내 블록의 텍스트 카운트
+      const textCount = {}
+      const blocks = section.content.filter(n => n.type === 'toggle' && n.attrs?.blockType !== 'h3')
+      for (const b of blocks) {
+        const text = b.content?.[0]?.content?.[0]?.text
+        if (text) textCount[text] = (textCount[text] || 0) + 1
+      }
 
-        if (error) {
-          console.error('콘텐츠 로드 실패:', error)
-          return
+      const dupTexts = new Set(Object.keys(textCount).filter(t => textCount[t] > 1))
+      if (dupTexts.size === 0) return clearFlags(section)
+
+      // 마킹: isCarryOver가 아닌 것 = 원본, isCarryOver인 것 = 중복
+      const marked = section.content.map(n => {
+        if (n.type !== 'toggle' || n.attrs?.blockType === 'h3') return n
+        const text = n.content?.[0]?.content?.[0]?.text
+        if (text && dupTexts.has(text)) {
+          const flag = n.attrs?.isCarryOver ? true : 'original'
+          return { ...n, attrs: { ...n.attrs, maybeDuplicate: flag } }
         }
+        return n.attrs?.maybeDuplicate ? { ...n, attrs: { ...n.attrs, maybeDuplicate: false } } : n
+      })
 
-        // 2. content_tiptap이 있으면 사용
-        if (data?.content_tiptap) {
-          // 하위 페이지를 content에 page 블록으로 주입 (calendar 페이지는 CalendarView로 렌더링되므로 제외)
-          const pageType = pages.find(p => p.id === currentPageId)?.page_type
-          const injected = pageType !== 'calendar'
-            ? injectChildPageBlocks(data.content_tiptap, childPages)
-            : data.content_tiptap
-          // 비마스터: visibility='master' 섹션 필터링 (daily 페이지만)
-          const filtered = (!isMaster && pageType === 'daily' && injected?.content)
-            ? { ...injected, content: injected.content.filter(n =>
-                !(isH2Section(n) && n.attrs?.visibility === 'master')
-              )}
-            : injected
-          // daily 페이지: 비-섹션 노드 하단 이동 + 계정별 섹션 순서 적용
-          const ordered = (pageType === 'daily' && filtered?.content)
-            ? { ...filtered, content: applySectionOrder(filtered.content, sectionOrder) }
-            : filtered
-          // 뷰어 모드: 토글 오버라이드 적용
-          const finalContent = isImpersonating
-            ? applyToggleOverrides(ordered, viewerToggleOverrides[currentPageId])
-            : ordered
-          setContent(finalContent)
-          lastHistoryContentRef.current = data.content_tiptap
-          // 로드 완료 후 prevPageRef를 올바른 페이지+콘텐츠로 설정
-          prevPageRef.current = { pageId: currentPageId, content: data.content_tiptap }
-          return
+      // 원본을 중복본 위로 정렬: 헤더(0번) 유지, 나머지에서 original을 해당 텍스트 그룹 최상단으로
+      const header = marked[0] // 헤더 paragraph
+      const rest = marked.slice(1)
+      const sorted = []
+      const processed = new Set()
+      for (const item of rest) {
+        const text = item.content?.[0]?.content?.[0]?.text
+        if (text && dupTexts.has(text) && !processed.has(text)) {
+          processed.add(text)
+          // 원본 먼저, 나머지 순서대로
+          const group = rest.filter(r => r.content?.[0]?.content?.[0]?.text === text)
+          const original = group.find(r => r.attrs?.maybeDuplicate === 'original')
+          const others = group.filter(r => r !== original)
+          if (original) sorted.push(original)
+          sorted.push(...others)
+        } else if (!text || !dupTexts.has(text)) {
+          sorted.push(item)
         }
+      }
 
-        // 3. content_tiptap이 없으면 기존 blocks 테이블에서 마이그레이션 시도
-        const { data: blocks, error: blocksError } = await supabase
-          .from('blocks')
-          .select('*')
-          .eq('page_id', currentPageId)
-          .eq('user_id', session.user.id)
-          .order('position', { ascending: true })
+      return { ...section, content: [header, ...sorted] }
+    })}
+  }
 
-        if (blocksError) {
-          console.error('블록 로드 실패:', blocksError)
+  function clearFlags(node) {
+    if (!node.content) return node
+    return { ...node, content: node.content.map(n => {
+      const cleared = n.attrs?.maybeDuplicate ? { ...n, attrs: { ...n.attrs, maybeDuplicate: false } } : n
+      return cleared.content ? clearFlags(cleared) : cleared
+    })}
+  }
+
+  /**
+   * 이월 동기화: daily 페이지 로드 시 이전 날짜의 미이월 todo를 자동 삽입
+   * blockId로 중복 방지 — 이미 존재하는 blockId/originBlockId는 건너뜀
+   */
+  const syncCarryOver = useCallback(async (pageId, contentTiptap) => {
+    const page = pages.find(p => p.id === pageId)
+    if (!page || page.page_type !== 'daily' || !page.parent_id) return contentTiptap
+
+    // 이전 daily 페이지에서 이월 대상 추출
+    const { data: prevPages } = await supabase
+      .from('pages')
+      .select('id, page_date, content_tiptap')
+      .eq('parent_id', page.parent_id)
+      .eq('page_type', 'daily')
+      .is('deleted_at', null)
+      .lt('page_date', page.page_date)
+      .order('page_date', { ascending: false })
+      .limit(1)
+
+    if (!prevPages?.length || !prevPages[0].content_tiptap) return contentTiptap
+
+    // 이전 페이지에 blockId가 없는 블록이 있으면 backfill (1회)
+    const prevContent = prevPages[0].content_tiptap
+    let prevChanged = false
+    const backfillIds = (nodes) => {
+      if (!nodes) return nodes
+      return nodes.map(n => {
+        let node = n
+        if (n.type === 'toggle' && !n.attrs?.blockId && n.attrs?.blockType !== 'h2' && n.attrs?.blockType !== 'h3') {
+          prevChanged = true
+          node = { ...n, attrs: { ...n.attrs, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) } }
         }
+        if (node.content) return { ...node, content: backfillIds(node.content) }
+        return node
+      })
+    }
+    const backfilledPrev = { ...prevContent, content: backfillIds(prevContent.content) }
+    if (prevChanged && prevPages[0].id) {
+      await supabase.from('pages').update({ content_tiptap: backfilledPrev }).eq('id', prevPages[0].id)
+    }
 
-        if (blocks && blocks.length > 0) {
-          const tiptapContent = convertFlatBlocksToTiptap(blocks)
-          setContent(tiptapContent)
-          lastHistoryContentRef.current = tiptapContent
-          prevPageRef.current = { pageId: currentPageId, content: tiptapContent }
+    const { extractCarryOverData } = await import('../../utils/worklogUtils')
+    const { carryOverTodos } = extractCarryOverData(backfilledPrev, prevPages[0].page_date)
+    if (carryOverTodos.length === 0) return contentTiptap
 
-          await supabase
-            .from('pages')
-            .update({ content_tiptap: tiptapContent })
-            .eq('id', currentPageId)
+    const dismissedIds = new Set(contentTiptap._dismissed || [])
 
+    // 현재 페이지의 모든 blockId/originBlockId + 텍스트 수집
+    const existingIds = new Set()
+    const existingTexts = new Set()
+    const collectIds = (nodes) => {
+      if (!nodes) return
+      for (const n of nodes) {
+        if (n.attrs?.blockId) existingIds.add(n.attrs.blockId)
+        if (n.attrs?.originBlockId) existingIds.add(n.attrs.originBlockId)
+        const text = n.content?.[0]?.content?.[0]?.text || ''
+        if (text) existingTexts.add(text)
+        if (n.content) collectIds(n.content)
+      }
+    }
+    collectIds(contentTiptap.content)
+
+    const newItems = carryOverTodos
+      .filter(t => {
+        const origId = t.node?.attrs?.blockId
+        // blockId 기반 중복 → 확실히 건너뜀
+        if (origId && existingIds.has(origId)) return false
+        // 의도적으로 삭제된 항목 → 건너뜀
+        if (origId && dismissedIds.has(origId)) return false
+        // blockId가 없는 레거시 데이터 → 텍스트로 차단 (중복 삽입 방지)
+        if (!origId) {
+          const text = t.node?.content?.[0]?.content?.[0]?.text || ''
+          if (text && existingTexts.has(text)) return false
+        }
+        return true
+      })
+      .map(t => {
+        const text = t.node?.content?.[0]?.content?.[0]?.text || ''
+        return { ...t, maybeDuplicate: text && existingTexts.has(text) }
+      })
+
+    if (newItems.length === 0) return contentTiptap
+
+    // sectionId별로 그룹핑하여 해당 섹션에 삽입
+    const { SECTION_IDS } = await import('../../utils/worklogConstants')
+    const bySection = {}
+    for (const item of newItems) {
+      const key = item.sectionId || SECTION_IDS.TODO
+      if (!bySection[key]) bySection[key] = []
+
+      // 이월 노드 생성 (deep clone + carryOver 속성)
+      const node = JSON.parse(JSON.stringify(item.node))
+      const origTodoId = node.attrs?.blockId
+      node.attrs = {
+        ...node.attrs,
+        isCarryOver: true,
+        carryOverFrom: item.fromDate,
+        todoChecked: item.type === 'todo-with-unfinished' ? node.attrs.todoChecked : false,
+        blockId: 'blk_' + Math.random().toString(36).slice(2, 10),
+        originBlockId: origTodoId,
+        maybeDuplicate: item.maybeDuplicate || false,
+      }
+      bySection[key].push(node)
+    }
+
+    // 각 섹션에 삽입
+    let changed = false
+    const updatedContent = { ...contentTiptap, content: contentTiptap.content.map(section => {
+      if (!isH2Section(section) || !section.attrs?.sectionId) return section
+      const items = bySection[section.attrs.sectionId]
+      if (!items?.length) return section
+      changed = true
+      const children = [...(section.content || [])]
+      // 헤더 paragraph(0번) 다음에 삽입
+      children.splice(1, 0, ...items)
+      return { ...section, content: children }
+    })}
+
+    if (changed) {
+      await supabase.from('pages').update({ content_tiptap: updatedContent }).eq('id', pageId)
+    }
+
+    return changed ? updatedContent : contentTiptap
+  }, [pages])
+
+  // 페이지 콘텐츠 로드 (유일한 진입점 — 모든 트리거가 이 함수를 호출)
+  const loadContent = useCallback(async (targetPageId) => {
+    const pid = targetPageId || currentPageId
+    if (!session || !pid) return
+
+    try {
+      const { data, error } = await supabase
+        .from('pages')
+        .select('content_tiptap')
+        .eq('id', pid)
+        .single()
+
+      if (error) { console.error('콘텐츠 로드 실패:', error); return }
+
+      if (data?.content_tiptap) {
+        const pageType = pages.find(p => p.id === pid)?.page_type
+        const injected = pageType !== 'calendar'
+          ? injectChildPageBlocks(data.content_tiptap, childPages)
+          : data.content_tiptap
+
+        // daily 페이지: 이월 동기화
+        const synced = pageType === 'daily'
+          ? await syncCarryOver(pid, injected)
+          : injected
+
+        const filtered = (!isMaster && pageType === 'daily' && synced?.content)
+          ? { ...synced, content: synced.content.filter(n =>
+              !(isH2Section(n) && n.attrs?.visibility === 'master')
+            )}
+          : synced
+        const ordered = (pageType === 'daily' && filtered?.content)
+          ? { ...filtered, content: applySectionOrder(filtered.content, sectionOrder) }
+          : filtered
+        // daily 페이지: 중복 블록 마킹
+        const marked = pageType === 'daily' ? markDuplicateBlocks(ordered) : ordered
+        const finalContent = isImpersonating
+          ? applyToggleOverrides(marked, viewerToggleOverrides[pid])
+          : marked
+        setContent(finalContent)
+        lastHistoryContentRef.current = data.content_tiptap
+        prevPageRef.current = { pageId: pid, content: data.content_tiptap }
+        return
+      }
+
+      // legacy: blocks 테이블 마이그레이션
+      const { data: blocks, error: blocksError } = await supabase
+        .from('blocks')
+        .select('*')
+        .eq('page_id', pid)
+        .eq('user_id', session.user.id)
+        .order('position', { ascending: true })
+
+      if (blocksError) console.error('블록 로드 실패:', blocksError)
+
+      if (blocks && blocks.length > 0) {
+        const tiptapContent = convertFlatBlocksToTiptap(blocks)
+        setContent(tiptapContent)
+        lastHistoryContentRef.current = tiptapContent
+          prevPageRef.current = { pageId: pid, content: tiptapContent }
+          await supabase.from('pages').update({ content_tiptap: tiptapContent }).eq('id', pid)
           return
         }
 
@@ -503,32 +692,42 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         }
         setContent(emptyContent)
         lastHistoryContentRef.current = emptyContent
-        prevPageRef.current = { pageId: currentPageId, content: emptyContent }
-      } catch (err) {
-        console.error('예상치 못한 오류:', err)
-      }
+        prevPageRef.current = { pageId: pid, content: emptyContent }
+    } catch (err) {
+      console.error('예상치 못한 오류:', err)
     }
+  }, [session, currentPageId, pages, childPages, isMaster, sectionOrder, isImpersonating, syncCarryOver])
 
+  // ── 트리거 A: 페이지 전환 시 로드 ──
+  useEffect(() => {
+    if (!session || !currentPageId) return
+    isInitialLoadRef.current = true
+    setContent(null)
     loadContent()
   }, [session, currentPageId, sectionOrder])
 
-  // Quick Todo 삽입 이벤트 수신 → 현재 페이지면 콘텐츠 다시 로드
+  // ── 트리거 B: 브라우저 탭 복귀 시 DB에서 최신 로드 ──
   useEffect(() => {
-    const handler = async (e) => {
-      if (e.detail?.pageId !== currentPageId) return
-      const { data } = await supabase
-        .from('pages')
-        .select('content_tiptap')
-        .eq('id', currentPageId)
-        .single()
-      if (data?.content_tiptap) {
-        setContent(data.content_tiptap)
-        prevPageRef.current = { pageId: currentPageId, content: data.content_tiptap }
+    const handler = () => {
+      if (document.visibilityState === 'visible' && currentPageId) {
+        loadContent()
       }
+    }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [loadContent, currentPageId])
+
+  // ── 트리거 C: Quick Todo 삽입 / Todo 동기화 이벤트 ──
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.pageId === currentPageId) loadContent()
     }
     window.addEventListener('quicktodo-inserted', handler)
     return () => window.removeEventListener('quicktodo-inserted', handler)
-  }, [currentPageId])
+  }, [loadContent, currentPageId])
+
+  // 블록 수 변경 감지용 ref
+  const blockCountRef = useRef(0)
 
   // 에디터 내용 변경 시 (사용자 편집)
   const handleUpdate = (newContent) => {
@@ -542,6 +741,19 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       return
     }
     isInitialLoadRef.current = false  // 사용자가 편집 시작
+
+    // daily 페이지: 블록 수 변경 시 중복 마킹 재계산 (삭제 즉시 반영)
+    if (currentPage?.page_type === 'daily' && newContent?.content) {
+      let count = 0
+      const countBlocks = (nodes) => { for (const n of nodes) { if (n.type === 'toggle') count++; if (n.content) countBlocks(n.content) } }
+      countBlocks(newContent.content)
+      if (count !== blockCountRef.current) {
+        blockCountRef.current = count
+        setContent(markDuplicateBlocks(newContent))
+        return
+      }
+    }
+
     setContent(newContent)
   }
 
@@ -654,6 +866,22 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         hasUnsavedChanges.current = false
         // 5분마다 자동 히스토리 백업
         saveAutoHistory(content, currentPageId)
+        // daily 페이지: 섹션 타이틀이 변경되었으면 worklog_sections DB에 동기화
+        if (currentPage?.page_type === 'daily' && content?.content) {
+          for (const node of content.content) {
+            if (node.type === 'toggle' && node.attrs?.blockType === 'h2' && node.attrs?.sectionId) {
+              const title = node.content?.[0]?.content?.[0]?.text
+              if (title) {
+                supabase.from('worklog_sections')
+                  .update({ title })
+                  .eq('id', node.attrs.sectionId)
+                  .then(({ error }) => {
+                    if (error) console.warn('섹션 타이틀 동기화 실패:', node.attrs.sectionId, error.message)
+                  })
+              }
+            }
+          }
+        }
       }
       setIsSaving(false)
     }, 500)
@@ -955,8 +1183,18 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     const dailyPages = calendarDailyPages
 
     const handleCreateDailyPage = async (dateKey) => {
-      const template = await buildDailyPageTemplate(dailyPages, supabase)
-      const newPage = await createPage(dateKey, currentPageId, template, {
+      // DB에서 최신 daily 페이지를 직접 조회 (메모리의 pages 배열은 stale할 수 있음)
+      const { data: freshPages } = await supabase
+        .from('pages')
+        .select('page_date, content_tiptap')
+        .eq('parent_id', currentPageId)
+        .eq('page_type', 'daily')
+        .is('deleted_at', null)
+        .order('page_date', { ascending: false })
+        .limit(3)
+      const template = await buildDailyPageTemplate(freshPages || [], supabase)
+      const { dailyPageName } = await import('../../utils/dateUtils')
+      const newPage = await createPage(dailyPageName(dateKey), currentPageId, template, {
         page_type: 'daily',
         page_date: dateKey,
         project_id: null,
@@ -994,6 +1232,192 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             onCreateDailyPage={handleCreateDailyPage}
             commentCounts={commentCounts}
           />
+
+          {/* ── 이월 테스트 패널 (개발용) ──
+              활성화: 아래 주석의 {false &&를 {isMaster &&로 변경
+              사용법: WORKLOG-SPEC.md 섹션 "이월 디버깅 도구" 참조
+          */}
+          {false && isMaster && (
+            <div style={{ margin: '1rem 0', padding: '1rem', background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.2)', borderRadius: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'rgba(255,200,0,0.8)' }}>이월 테스트 패널 (개발용)</div>
+
+              {/* 1. 더미 어제 페이지 생성 */}
+              <button
+                style={{ padding: '6px 12px', marginRight: 6, fontSize: 12, borderRadius: 4, border: 'none', background: 'rgba(100,108,255,0.2)', color: '#818cf8', cursor: 'pointer' }}
+                onClick={async () => {
+                  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+
+                  // calendar 페이지 ID
+                  const calId = currentPageId
+
+                  // 기존 어제 페이지 삭제
+                  const { data: existing } = await supabase.from('pages').select('id')
+                    .eq('parent_id', calId).eq('page_date', yesterday).eq('page_type', 'daily').is('deleted_at', null)
+                  if (existing?.length) {
+                    for (const p of existing) await supabase.from('pages').delete().eq('id', p.id)
+                  }
+
+                  // 섹션 정의 가져오기
+                  const { data: sectionsData } = await supabase.from('worklog_sections').select('*').eq('is_default', true).order('sort_order')
+                  const { SECTION_IDS } = await import('../../utils/worklogConstants')
+                  const { sectionToggle, emptyToggle } = await import('../../utils/toggleNodeFactory')
+
+                  const topSections = (sectionsData || []).filter(s => !s.parent_id)
+                  const childSections = (sectionsData || []).filter(s => s.parent_id)
+
+                  const makeTodo = (text, checked = false) => ({
+                    type: 'toggle',
+                    attrs: {
+                      isOpen: true, isTodo: true, todoChecked: checked,
+                      blockType: 'paragraph', pageId: null, todoStatus: null,
+                      autoGenerated: false, backgroundColor: null,
+                      isFixedSection: false, isPinned: false,
+                      isCarryOver: false, carryOverFrom: null, visibility: 'all',
+                      sectionId: null,
+                    },
+                    content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+                  })
+
+                  const sectionNodes = topSections.map(section => {
+                    const children = childSections.filter(c => c.parent_id === section.id).map(child =>
+                      sectionToggle(child.title, 'h3', [
+                        makeTodo(`[${child.title}] 미완료 하위`, false),
+                        makeTodo(`[${child.title}] 완료됨 하위`, true),
+                      ], { isFixed: true, sectionId: child.id })
+                    )
+
+                    let todos = []
+                    if (section.id === SECTION_IDS.TODO) {
+                      todos = [
+                        makeTodo('할일 미완료 A', false),
+                        makeTodo('할일 미완료 B', false),
+                        makeTodo('할일 완료됨 C', true),
+                      ]
+                    } else if (section.id === SECTION_IDS.NOTICE) {
+                      todos = [
+                        makeTodo('전달사항 미완료 D', false),
+                        makeTodo('전달사항 완료됨 E', true),
+                      ]
+                    } else if (section.id === SECTION_IDS.WRAPUP) {
+                      todos = [
+                        makeTodo('마무리 미완료 F', false),
+                      ]
+                    }
+
+                    return sectionToggle(section.title, 'h2', [
+                      ...todos, ...children, emptyToggle(section.id === SECTION_IDS.TODO),
+                    ], { isFixed: true, sectionId: section.id, visibility: section.visibility || 'all' })
+                  })
+
+                  const dummyContent = { type: 'doc', content: sectionNodes }
+
+                  const { generateUUID } = await import('../../utils/uuid')
+                  await supabase.from('pages').insert([{
+                    id: generateUUID(),
+                    user_id: session.user.id,
+                    name: yesterday,
+                    parent_id: calId,
+                    content_tiptap: dummyContent,
+                    project_id: null,
+                    page_type: 'daily',
+                    page_date: yesterday,
+                    position: 0,
+                  }])
+
+                  alert(`어제(${yesterday}) 더미 페이지 생성 완료!\n\n미완료 todo:\n- 할일: A, B\n- 전달사항: D\n- 마무리: F\n- 하위 섹션: 각 1개`)
+                }}
+              >
+                1. 어제 더미 데이터 생성
+              </button>
+
+              {/* 2. 이월 테스트 (오늘 페이지 생성) */}
+              <button
+                style={{ padding: '6px 12px', marginRight: 6, fontSize: 12, borderRadius: 4, border: 'none', background: 'rgba(34,197,94,0.2)', color: '#22c55e', cursor: 'pointer' }}
+                onClick={async () => {
+                  const todayStr = new Date().toISOString().slice(0, 10)
+                  const calId = currentPageId
+
+                  // 기존 오늘 페이지 삭제
+                  const { data: existing } = await supabase.from('pages').select('id')
+                    .eq('parent_id', calId).eq('page_date', todayStr).eq('page_type', 'daily').is('deleted_at', null)
+                  if (existing?.length) {
+                    for (const p of existing) await supabase.from('pages').delete().eq('id', p.id)
+                  }
+
+                  // 이월 포함 오늘 페이지 생성
+                  const template = await buildDailyPageTemplate(dailyPages, supabase)
+
+                  const { generateUUID } = await import('../../utils/uuid')
+                  const newId = generateUUID()
+                  await supabase.from('pages').insert([{
+                    id: newId,
+                    user_id: session.user.id,
+                    name: '업무일지_' + todayStr,
+                    parent_id: calId,
+                    content_tiptap: template,
+                    project_id: null,
+                    page_type: 'daily',
+                    page_date: todayStr,
+                    position: 0,
+                  }])
+
+                  // 결과 분석
+                  const { extractCarryOverData } = await import('../../utils/worklogUtils')
+                  const { data: yesterdayPages } = await supabase.from('pages')
+                    .select('content_tiptap, page_date')
+                    .eq('parent_id', calId).eq('page_type', 'daily').is('deleted_at', null)
+                    .order('page_date', { ascending: false }).limit(2)
+
+                  const prevPage = yesterdayPages?.find(p => p.page_date !== todayStr)
+                  const extracted = prevPage ? extractCarryOverData(prevPage.content_tiptap, prevPage.page_date) : { carryOverTodos: [] }
+
+                  const todosBySec = {}
+                  for (const t of extracted.carryOverTodos) {
+                    const key = t.sectionId || '(없음)'
+                    if (!todosBySec[key]) todosBySec[key] = []
+                    todosBySec[key].push(t.text)
+                  }
+
+                  let msg = `오늘(${todayStr}) 이월 페이지 생성 완료!\n\n추출된 이월 대상:\n`
+                  for (const [sec, texts] of Object.entries(todosBySec)) {
+                    msg += `\n[${sec}]\n${texts.map(t => '  - ' + t).join('\n')}`
+                  }
+                  if (extracted.carryOverTodos.length === 0) msg += '(이월 대상 없음)'
+
+                  alert(msg)
+                  setCurrentPageId(newId)
+                }}
+              >
+                2. 이월 실행 (오늘 페이지 생성)
+              </button>
+
+              {/* 3. 추출 결과만 확인 */}
+              <button
+                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 4, border: 'none', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}
+                onClick={async () => {
+                  const { extractCarryOverData } = await import('../../utils/worklogUtils')
+                  const sorted = [...dailyPages].sort((a, b) => b.page_date.localeCompare(a.page_date))
+                  if (!sorted.length) { alert('daily 페이지 없음'); return }
+
+                  const latest = sorted[0]
+                  const result = extractCarryOverData(latest.content_tiptap, latest.page_date)
+
+                  let msg = `최신 daily: ${latest.page_date}\n\n`
+                  msg += `pinned 섹션: ${result.pinnedSections.length}개\n`
+                  for (const s of result.pinnedSections) msg += `  - ${s.title} (${s.sectionId})\n`
+
+                  msg += `\n이월 대상 todo: ${result.carryOverTodos.length}개\n`
+                  for (const t of result.carryOverTodos) {
+                    msg += `  - [${t.sectionId || '?'}] ${t.text} (from ${t.fromDate})\n`
+                  }
+
+                  alert(msg)
+                }}
+              >
+                3. 추출 결과 확인
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -1047,6 +1471,55 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     el.addEventListener('section-move', handler)
     return () => el.removeEventListener('section-move', handler)
   }, [content, updateSectionOrder])
+
+  // daily 페이지 전날/다음날 이동 (DB 확인 → 없으면 생성)
+  const navigateToDailyPage = useCallback(async (dateKey) => {
+    if (!currentPage?.parent_id) return
+    // DB에서 해당 날짜 페이지 확인
+    const { data: existing } = await supabase.from('pages')
+      .select('id').eq('parent_id', currentPage.parent_id)
+      .eq('page_date', dateKey).eq('page_type', 'daily').is('deleted_at', null).limit(1)
+    if (existing?.length) {
+      setCurrentPageId(existing[0].id)
+      return
+    }
+    // 없으면 생성
+    const { dailyPageName } = await import('../../utils/dateUtils')
+    const { data: freshPages } = await supabase.from('pages').select('page_date, content_tiptap')
+      .eq('parent_id', currentPage.parent_id).eq('page_type', 'daily').is('deleted_at', null)
+      .order('page_date', { ascending: false }).limit(3)
+    const template = await buildDailyPageTemplate(freshPages || [], supabase)
+    const newPage = await createPage(dailyPageName(dateKey), currentPage.parent_id, template, {
+      page_type: 'daily', page_date: dateKey, project_id: null,
+    })
+    if (newPage) {
+      window.dispatchEvent(new CustomEvent('pages-refresh'))
+      setCurrentPageId(newPage.id)
+    }
+  }, [currentPage?.parent_id, createPage, setCurrentPageId])
+
+  // 블록 삭제 시 _dismissed에 기록 (이월 재삽입 방지)
+  useEffect(() => {
+    const el = pageRef.current
+    if (!el || currentPage?.page_type !== 'daily') return
+    const handler = async (e) => {
+      const { blockId, originBlockId } = e.detail
+      if (!blockId || !currentPageId) return
+      const { data } = await supabase
+        .from('pages')
+        .select('content_tiptap')
+        .eq('id', currentPageId)
+        .single()
+      if (!data?.content_tiptap) return
+      const dismissed = new Set(data.content_tiptap._dismissed || [])
+      dismissed.add(blockId)
+      if (originBlockId) dismissed.add(originBlockId)
+      const updated = { ...data.content_tiptap, _dismissed: [...dismissed] }
+      await supabase.from('pages').update({ content_tiptap: updated }).eq('id', currentPageId)
+    }
+    el.addEventListener('block-dismissed', handler)
+    return () => el.removeEventListener('block-dismissed', handler)
+  }, [currentPageId, currentPage?.page_type])
 
   return (
     <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''} ${currentPage?.page_type === 'daily' ? 'tiptap-page--daily' : ''}`}>
@@ -1226,12 +1699,22 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           </div>
         </div>
 
-        {/* 업무일지 헤더 (daily 페이지 전용) */}
         {currentPage?.page_type === 'daily' && (
           <WorklogHeader
             pageDate={currentPage.page_date}
-            authorEmail={session?.user?.email}
             onGoToCalendar={currentPage.parent_id ? () => setCurrentPageId(currentPage.parent_id) : null}
+            onPrevDay={async () => {
+              const d = new Date(currentPage.page_date + 'T00:00:00')
+              d.setDate(d.getDate() - 1)
+              const dateKey = d.toISOString().slice(0, 10)
+              await navigateToDailyPage(dateKey)
+            }}
+            onNextDay={async () => {
+              const d = new Date(currentPage.page_date + 'T00:00:00')
+              d.setDate(d.getDate() + 1)
+              const dateKey = d.toISOString().slice(0, 10)
+              await navigateToDailyPage(dateKey)
+            }}
             onDelete={!isImpersonating ? async () => {
               if (!confirm(`${currentPage.page_date} 업무일지를 삭제하시겠습니까?`)) return
               const parentId = currentPage.parent_id

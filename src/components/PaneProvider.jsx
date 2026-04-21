@@ -232,15 +232,13 @@ export function PaneProvider({
     if (prevActiveTabIdRef.current === activeTab.id) return
     prevActiveTabIdRef.current = activeTab.id
 
-    // 프로젝트 동기화
     if (activeTab.projectId !== currentProjectId) {
       setCurrentProjectId(activeTab.projectId || null)
     }
-    // 페이지 동기화 — 프로젝트 변경과 무관하게 항상 동기화
     if (activeTab.pageId !== currentPageId) {
       setCurrentPageId(activeTab.pageId || null)
     }
-  }, [activeTab?.id])
+  }, [activeTab?.id, activeTab?.pageId, activeTab?.projectId])
 
   // ─── 프로젝트가 1개인 경우 빈 탭에 자동 선택 ───
   useEffect(() => {

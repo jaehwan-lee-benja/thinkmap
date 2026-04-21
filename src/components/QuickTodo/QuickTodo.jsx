@@ -7,6 +7,7 @@ import { DEFAULT_SECTION_ID } from '../../utils/worklogConstants'
 import { todoToggle } from '../../utils/toggleNodeFactory'
 import { extractH2Sections, filterByVisibility, findSectionMatcher as findMatcher } from '../../utils/sectionUtils'
 import { useAuthContext } from '../../contexts/AuthContext'
+import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
 import './QuickTodo.css'
 
 /**
@@ -14,26 +15,23 @@ import './QuickTodo.css'
  */
 export default function QuickTodo({ session }) {
   const { isMaster } = useAuthContext()
+  const { quicktodoPinned, updateQuicktodoPinned } = useWorklogUserSettings(session)
   const [text, setText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [availableSections, setAvailableSections] = useState([])
 
-  // 고정 섹션 (sectionId + 표시용 이름)
-  const [pinnedSection, setPinnedSection] = useState(() => {
-    try { return localStorage.getItem('quicktodo_pinned_section') } catch { return null }
-  })
-  const [pinnedSectionName, setPinnedSectionName] = useState(() => {
-    try { return localStorage.getItem('quicktodo_pinned_section_name') } catch { return null }
-  })
+  // Supabase 기반 고정 섹션
+  const pinnedSection = quicktodoPinned?.id || null
+  const pinnedSectionName = quicktodoPinned?.name || null
 
   const inputRef = useRef(null)
   const wrapperRef = useRef(null)
   // 마지막 삽입 정보 (섹션 이동용)
   const lastInsertRef = useRef(null) // { pageId, todoText, fromSectionId }
   // 기본 섹션 이름 (DB에서 조회)
-  const [defaultSectionName, setDefaultSectionName] = useState('할 일')
+  const [defaultSectionName, setDefaultSectionName] = useState('')
   useEffect(() => {
     supabase.from('worklog_sections').select('title').eq('id', DEFAULT_SECTION_ID).maybeSingle()
       .then(({ data }) => { if (data?.title) setDefaultSectionName(data.title) })
@@ -79,7 +77,7 @@ export default function QuickTodo({ session }) {
 
     const template = await buildDailyPageTemplate(recentPages || [], supabase)
     const newPage = {
-      id: generateUUID(), user_id: session.user.id, name: todayStr,
+      id: generateUUID(), user_id: session.user.id, name: `업무일지_${todayStr}`,
       parent_id: calendarId, content_tiptap: template, project_id: null,
       page_type: 'daily', page_date: todayStr, position: 0,
     }
@@ -161,22 +159,12 @@ export default function QuickTodo({ session }) {
   }, [])
 
   const pinSection = (section) => {
-    const key = section.id || section.title
-    setPinnedSection(key)
-    setPinnedSectionName(section.title)
-    try {
-      localStorage.setItem('quicktodo_pinned_section', key)
-      localStorage.setItem('quicktodo_pinned_section_name', section.title)
-    } catch {}
+    updateQuicktodoPinned({ id: section.id || section.title, name: section.title })
   }
 
   const handleUnpin = () => {
-    setPinnedSection(null)
-    setPinnedSectionName(null)
-    try {
-      localStorage.removeItem('quicktodo_pinned_section')
-      localStorage.removeItem('quicktodo_pinned_section_name')
-    } catch {}
+    updateQuicktodoPinned(null)
+    setResult(prev => prev ? { ...prev, pinnedTo: null } : null)
   }
 
   const handleSubmit = async (e) => {
@@ -244,7 +232,7 @@ export default function QuickTodo({ session }) {
           ref={inputRef}
           type="text"
           className="quick-todo-input"
-          placeholder={pinnedSectionName ? `${pinnedSectionName}에 추가...` : `${defaultSectionName} 입력...`}
+          placeholder={pinnedSectionName ? `${pinnedSectionName}에 추가...` : defaultSectionName ? `${defaultSectionName} 입력...` : '할 일 입력...'}
           value={text}
           onChange={e => setText(e.target.value)}
           disabled={submitting}

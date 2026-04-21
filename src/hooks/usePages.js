@@ -471,6 +471,13 @@ export const usePages = (session, currentProjectId, options = {}) => {
     }
   }, [session?.user?.id, currentProjectId, preferencesLoaded])
 
+  // 외부에서 페이지 갱신 요청 (App.jsx의 "오늘" 버튼 등)
+  useEffect(() => {
+    const handler = () => fetchPages()
+    window.addEventListener('pages-refresh', handler)
+    return () => window.removeEventListener('pages-refresh', handler)
+  }, [fetchPages])
+
   return {
     pages,
     pageTree,

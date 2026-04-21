@@ -5,30 +5,56 @@
 import { createWorklogTemplate } from './worklogTemplate'
 
 /**
- * 섹션 내부에서 미완료 todo를 재귀적으로 추출
- * h2 섹션 안의 직접 todo + h3 하위 섹션 안의 todo 모두 수집
+ * 블록 내부에 미완료 todo가 있는지 재귀 확인
  */
-function extractTodosFromSection(node, pageDate) {
-  const todos = []
+function hasUnfinishedTodo(node) {
+  if (node.type === 'toggle' && node.attrs?.isTodo && !node.attrs?.todoChecked) return true
+  if (node.content) {
+    for (const child of node.content) {
+      if (hasUnfinishedTodo(child)) return true
+    }
+  }
+  return false
+}
+
+/**
+ * 섹션 내부에서 이월 대상 블록을 추출
+ * - 미완료 todo: 하위 블록 포함 전체 노드 복사
+ * - 완료 todo이지만 하위에 미완료가 있으면: 완료 상태 유지한 채 이월
+ * - pinned 블록: 투두가 아닌 고정 텍스트도 이월
+ * h3 하위 섹션 안의 블록도 재귀 수집
+ */
+function extractCarryOverBlocks(node, pageDate) {
+  const blocks = []
   const sectionId = node.attrs?.sectionId || null
 
-  if (!node.content) return todos
+  if (!node.content) return blocks
 
   for (const child of node.content) {
-    if (child.type === 'toggle' && child.attrs?.isTodo && !child.attrs?.todoChecked) {
-      const todoText = child.content?.[0]?.content?.[0]?.text
-      if (todoText) {
-        const fromDate = child.attrs?.carryOverFrom || pageDate
-        todos.push({ text: todoText, fromDate, sectionId })
-      }
+    if (child.type !== 'toggle') continue
+
+    // 미완료 todo → 전체 노드 복사 (하위 블록 포함)
+    if (child.attrs?.isTodo && !child.attrs?.todoChecked) {
+      const fromDate = child.attrs?.carryOverFrom || pageDate
+      blocks.push({ node: child, fromDate, sectionId, type: 'todo' })
     }
-    // h3 하위 섹션 안의 todo도 추출 (해당 h3의 sectionId 사용)
-    if (child.type === 'toggle' && child.attrs?.blockType === 'h3') {
-      todos.push(...extractTodosFromSection(child, pageDate))
+    // 완료 todo이지만 하위에 미완료가 있으면 → 완료 상태 유지한 채 이월
+    else if (child.attrs?.isTodo && child.attrs?.todoChecked && hasUnfinishedTodo(child)) {
+      const fromDate = child.attrs?.carryOverFrom || pageDate
+      blocks.push({ node: child, fromDate, sectionId, type: 'todo-with-unfinished' })
+    }
+    // pinned 블록 (투두 아닌 고정 텍스트) → 전체 노드 복사
+    else if (child.attrs?.isPinned && !child.attrs?.isTodo) {
+      blocks.push({ node: child, fromDate: pageDate, sectionId, type: 'pinned' })
+    }
+
+    // h3 하위 섹션 안의 블록도 추출
+    if (child.attrs?.blockType === 'h3') {
+      blocks.push(...extractCarryOverBlocks(child, pageDate))
     }
   }
 
-  return todos
+  return blocks
 }
 
 /**
@@ -58,9 +84,9 @@ export function extractCarryOverData(contentTiptap, pageDate) {
       })
     }
 
-    // 모든 h2 섹션에서 미완료 todo 추출 (sectionId 포함)
+    // 모든 h2 섹션에서 이월 대상 추출 (미완료 todo + pinned 텍스트, 전체 노드)
     if (node.attrs?.blockType === 'h2' && node.content) {
-      carryOverTodos.push(...extractTodosFromSection(node, pageDate))
+      carryOverTodos.push(...extractCarryOverBlocks(node, pageDate))
     }
   }
 

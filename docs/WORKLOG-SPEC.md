@@ -1,7 +1,7 @@
 # 업무일지 기획서 (WorkLog Specification)
 
 > 작성일: 2026-04-12
-> 최종 업데이트: 2026-04-17
+> 최종 업데이트: 2026-04-21
 > 상태: Phase 1~6 완료
 > 관련 페이지: CalendarView, daily 페이지 시스템, WorklogComments
 
@@ -114,20 +114,11 @@ CREATE TABLE worklog_user_settings (
 
 ## 3. Daily 페이지 구조
 
-### 3.1 페이지 헤더 (메타 정보)
+### 3.1 페이지 헤더
 
-캘린더에서 날짜 클릭 → daily 페이지 생성 시 자동 세팅:
-
-```
-┌─────────────────────────────────────┐
-│  업무일지                            │
-│  📅 2026-04-12(토)    ✏️ 작성자: 김매니저  │
-└─────────────────────────────────────┘
-```
-
-- **날짜**: `page_date` 기반, 수정 가능 (수정 시 캘린더 위치도 이동)
-- **작성자**: 로그인 사용자 자동 표시, `app_users.email` 기반
-- **요일**: 날짜에서 자동 계산 표시
+- **페이지 이름**: `업무일지_2026-04-21(월)` — `dailyPageName()` 유틸로 생성
+- **헤더 버튼**: ◁(전날) ▷(다음날) 캘린더 삭제
+- 날짜/작성자 메타 정보는 표시하지 않음 (페이지 이름에 포함)
 
 ### 3.2 섹션 구성
 
@@ -258,8 +249,12 @@ CREATE TABLE worklog_user_settings (
 - B 방식(별도 todo 테이블에서 공유 참조)은 현재 구조와 맞지 않아 보류. 향후 필요 시 마이그레이션 가능
 
 ### 4.1 이월 대상
-- 전날(또는 가장 최근) daily 페이지에서 `isTodo: true && todoChecked: false` 인 항목
+- **미완료 todo**: `isTodo: true && todoChecked: false` — 하위 블록 포함 전체 노드 복사
+- **고정(pinned) 블록**: `isPinned: true` — 투두가 아닌 일반 텍스트도 고정하면 다음 날에 이월
 - `todoStatus: "hold"` 항목은 이월하되 별도 표시
+- 이월 시 하위 블록(들여쓰기된 자식 토글)이 모두 함께 복사됨
+
+> **변경 이력 (2026-04-21)**: 이전에는 텍스트만 추출했으나, 전체 노드(하위 블록 포함)를 deep clone하여 이월. pinned 텍스트 블록도 이월 대상에 추가.
 
 ### 4.2 이월 타이밍
 - **새 daily 페이지 생성 시** 자동 실행
@@ -276,19 +271,61 @@ CREATE TABLE worklog_user_settings (
 
 > **변경 이력 (2026-04-20)**: 이전에는 "할 일" 섹션에서만 이월했으나, 모든 섹션(고정/pinned)의 미완료 투두를 원래 섹션으로 이월하도록 수정. 섹션 매칭은 이름이 아닌 `worklog_sections.id` 기반.
 
+> **변경 이력 (2026-04-21)**: 이월 �� 전체 노드(하위 블록 포함) deep clone. 완료된 상위 todo라도 하위에 미완료가 있으면 완료 상태 ���지한 채 이월. `todoId`/`originTodoId` 기반 thread 동기화 추가 — 원본 완료 시 이월본도 자동 완료.
+
 ### 4.4 이월 데이터 구조
 
 toggle 노드에 추가되는 속성:
 ```json
 {
   "isCarryOver": true,
-  "carryOverFrom": "2026-04-11"
+  "carryOverFrom": "2026-04-11",
+  "todoId": "td_abc12345",
+  "originTodoId": "td_xyz67890"
 }
 ```
 - `isCarryOver` (boolean) — 이 항목이 이월된 사본인지
 - `carryOverFrom` (string, YYYY-MM-DD) — 어느 날짜에서 이월되었는지
+- `todoId` (string) — 각 todo의 고유 ID (자동 부여)
+- `originTodoId` (string) — 이월 원본의 todoId (thread 추적, 교차 페이지 동기화에 사용)
 
-### 4.5 이월 표시 UI
+### 4.5 교차 페이지 완료 동기화 (Thread 방식)
+
+원본 todo 완료/해제 시 같은 `originTodoId`를 가진 이월본도 자동 동기화.
+
+```
+21일: todoId: 'td_abc' (원본) → 완료 처리
+22일: todoId: 'td_xyz', originTodoId: 'td_abc' (이월본) → 자동 완료
+```
+
+- 최근 7개 daily 페이지를 조회하여 `todoId` 문자열 매칭
+- 매칭된 페이지의 content_tiptap을 업데이트 후 실시간 반영 이벤트 발행
+- 하위 블록의 todo도 각각 독립적 todoId를 가지며 개별 동기화
+
+### 4.6 페이지 열 때 이월 동기화 (Lazy Carry-Over)
+
+이미 생성된 daily 페이지를 열 때, 이전 날짜에 새로 추가된 미완료 todo를 자동 삽입.
+
+**동작 원리:**
+1. daily 페이지 로드 시 `syncCarryOver()` 실행
+2. 이전 daily 페이지(가장 최근 1개)의 미완료 todo/pinned 블록 추출
+3. 현재 페이지에 있는 모든 `todoId`/`originTodoId` 수집
+4. 원본 `todoId`가 현재 페이지에 **없는** 항목만 해당 섹션에 삽입
+5. 삽입 시 DB에도 자동 저장
+
+**중복 방지:** `todoId` 기반 — 이미 이월된 항목의 원본 `todoId`가 `existingIds`에 있으면 건너뜀.
+
+**트리거:**
+| 트리거 | 설명 |
+|---|---|
+| **페이지 전환** | `currentPageId` 변경 → `loadContent()` |
+| **브라우저 탭 복귀** | `visibilitychange` → `loadContent()` |
+| **Quick Todo 삽입** | `quicktodo-inserted` 이벤트 → `loadContent()` |
+| **Todo 완료 동기화** | `quicktodo-inserted` 이벤트 → `loadContent()` |
+
+**설계 원칙:** `loadContent`가 유일한 콘텐츠 로드 진입점. 모든 트리거가 이 함수를 호출하므로 이월 동기화도 자동으로 실행됨.
+
+### 4.7 이월 표시 UI
 ```
 [이월 04/11] ☐ 오픈 시점 루틴 비치하기
 ```
@@ -391,7 +428,7 @@ const mentionableUsers = [
 ### Phase 1: 기본 구조 (MVP) — ✅ 완료 (2026-04-14)
 - [x] ~~`worklogSection` TipTap 커스텀 노드~~ → 기존 toggle 노드 + `blockType` 속성으로 대체 (별도 노드 불필요)
 - [x] daily 페이지 생성 시 고정 섹션 3개 자동 삽입
-- [x] 페이지 헤더에 날짜/작성자 표시
+- [x] 페이지 헤더에 전날/다음날/캘린더/삭제 버튼
 - [x] 캘린더 뷰에서 daily 페이지 생성/열기 연동
 - [x] 기존 양식(page_templates) 관련 UI 제거
 - [x] 섹션 카드 레이아웃 (구글 설문지 스타일, daily 페이지 전용)
@@ -541,13 +578,48 @@ RLS는 통과하지만 **클라이언트 쿼리가 본인 프로젝트만 가져
 
 ---
 
+## 10-3. 이월 디버깅 도구
+
+캘린더 뷰 하단에 **이월 테스트 패널**이 내장되어 있다 (마스터 전용, 기본 비활성).
+
+### 활성화 방법
+
+`TipTapTestPage.jsx`에서 `{false && isMaster &&`를 `{isMaster &&`로 변경.
+
+### 버튼 3개
+
+| 버튼 | 기능 |
+|---|---|
+| **1. 어제 더미 데이터 생성** | 어제 날짜로 daily 페이지 생성. 각 섹션(할 일/전달사항/마무리/당일이슈)에 미완료+완료 todo 포함 |
+| **2. 이월 실행** | 오늘 daily 페이지를 이월 포함해서 생성 → 추출 결과를 alert로 표시 → 해당 페이지로 이동 |
+| **3. 추출 결과 확인** | 가장 최신 daily에서 `extractCarryOverData()`로 이월 대상만 추출하여 alert (실제 생성 없음) |
+
+### 더미 데이터 구성
+
+```
+할 일 (fixed_todo):        미완료 A, B / 완료 C
+전달사항 (fixed_notice):    미완료 D / 완료 E
+마무리 기록 (fixed_wrapup): 미완료 F
+  └ 당일 이슈 (h3 하위):   미완료 하위 / 완료 하위
+```
+
+### 기대 이월 결과
+
+A, B → fixed_todo / D → fixed_notice / F → fixed_wrapup / 당일이슈 미완료 → fixed_daily_issue
+
+### 테스트 순서
+
+1번(더미 생성) → 3번(추출 확인) → 2번(이월 실행) → 오늘 페이지에서 각 섹션 확인
+
+---
+
 ## 11. 관련 파일 (구현 시 참고)
 
 | 파일 | 역할 |
 |---|---|
 | `src/components/CalendarView/CalendarView.jsx` | 캘린더 뷰 메인 |
 | `src/components/TipTapEditor/TipTapTestPage.jsx` | 페이지 에디터 (daily 페이지 렌더링) |
-| `src/components/TipTapEditor/WorklogHeader.jsx` | daily 페이지 헤더 (날짜/작성자/삭제) |
+| `src/components/TipTapEditor/WorklogHeader.jsx` | daily 페이지 헤더 (전날/다음날/캘린더/삭제) |
 | `src/components/TipTapEditor/WorklogComments.jsx` | 코멘트 UI (목록/입력/@멘션) |
 | `src/components/TipTapEditor/extensions/ToggleExtension.js` | 토글 블록 (todo, pin, 이월 포함) |
 | `src/hooks/usePages.js` | 페이지 CRUD + daily 페이지 생성 |
@@ -557,7 +629,11 @@ RLS는 통과하지만 **클라이언트 쿼리가 본인 프로젝트만 가져
 | `src/utils/sectionUtils.js` | 섹션 추출/필터/매칭 공통 유틸리티 (isH2Section 등) |
 | `src/utils/worklogTemplate.js` | daily 페이지 초기 템플릿 (이월/pin 포함) |
 | `src/utils/worklogUtils.js` | todo 통계 파싱 + daily 페이지 생성 공유 유틸리티 |
+| `src/components/QuickTodo/QuickTodo.jsx` | Quick Todo 인라인 입력 (상단바) |
 | `src/components/GlobalTopBar/GlobalTopBar.jsx` | "오늘" 바로가기 버튼 |
+| `src/utils/dateUtils.js` | 날짜 유틸 (dailyPageName 등) |
+| `migrate-quicktodo-pinned.sql` | Quick Todo 고정 섹션 컬럼 |
+| `migrate-approval-system.sql` | 가입 승인 시스템 + RLS |
 | `src/hooks/useCalendarCommentCounts.js` | 캘린더용 배치 코멘트 수 조회 훅 |
 | `create-worklog-comments-table.sql` | 코멘트 테이블 + RLS |
 | `migrate-worklog-sections.sql` | 섹션 정의 테이블 + 고정 섹션 시드 + RLS |
@@ -569,7 +645,37 @@ RLS는 통과하지만 **클라이언트 쿼리가 본인 프로젝트만 가져
 
 ---
 
-## 12. 리팩토링 기록 (2026-04-15)
+## 12. 리팩토링 기록 (2026-04-21 업데이트)
+
+### 12.0 주요 변경 (2026-04-21)
+
+#### blockId 도입 (todoId → blockId 리네이밍)
+- 모든 daily 페이지 블록(h2/h3 섹션 제외)에 `blockId` 자동 부여
+- 이월 시 `originBlockId`로 원본 추적
+- 체크박스 완료 시 교차 페이지 동기화 (`syncBlockAcrossPages`)
+
+#### 이월 동기화 (Lazy Carry-Over)
+- 이미 생성된 daily 페이지를 열 때 이전 날짜의 신규 미완료 todo를 자동 삽입
+- blockId 기반 중복 방지 + 텍스트 시그니처 fallback
+- `_dismissed` 배열: 사용자가 의도적으로 삭제한 이월 항목은 재삽입 안 함
+- 이전 페이지에 blockId가 없으면 자동 backfill
+
+#### 중복 감지
+- 같은 섹션 내에서 동일 텍스트 → "중복?" (노란 태그) / "원본 · 중복?" (파란 태그)
+- 원본 판정: `isCarryOver: false` = 원본, `isCarryOver: true` = 이월본
+- 블록 삭제 시 즉시 재계산 (반응형)
+
+#### 페이지 이름 형식
+- daily 페이지: `업무일지_2026-04-21(월)` (기존: `2026-04-21`)
+- `dailyPageName()` 유틸 함수로 통일
+
+#### 페이지 활성화 시 최신 로드
+- 트리거 A: `currentPageId` 변경 (탭 전환)
+- 트리거 B: `visibilitychange` (다른 브라우저 탭에서 복귀)
+- 트리거 C: `quicktodo-inserted` 이벤트 (Quick Todo / Block 동기화)
+- `loadContent`가 유일한 진입점 — 이월 동기화도 자동 실행
+
+---
 
 ### 12.1 daily 페이지 생성 로직 통합
 - **이전**: TipTapTestPage(캘린더 "+")와 App.jsx("오늘" 버튼)에 이월/pinned 추출 로직이 30줄씩 복사
