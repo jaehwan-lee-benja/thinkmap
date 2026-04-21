@@ -39,7 +39,7 @@ function extractToggleStates(docJSON) {
 }
 // daily 페이지: h2 섹션만 추출하여 sectionOrder 순서로 정렬
 // sectionOrder에 있는 섹션은 그 순서대로, 없는 섹션은 원래 content 순서 유지 (뒤에 붙음)
-import { isH2Section } from '../../utils/sectionUtils'
+import { isH2Section, insertIntoH2Sections } from '../../utils/sectionUtils'
 
 function applySectionOrder(contentArray, sectionOrder) {
   const sections = contentArray.filter(isH2Section)
@@ -93,7 +93,16 @@ import { useProjectContext } from '../../contexts/ProjectContext'
 import { useFavoritesContext } from '../../contexts/FavoritesContext'
 import { FileText, Star, ChevronDown, X, CalendarDays } from 'lucide-react'
 import { CalendarView } from '../CalendarView/CalendarView'
-import { buildDailyPageTemplate } from '../../utils/worklogUtils'
+import { buildDailyPageTemplate, extractCarryOverData } from '../../utils/worklogUtils'
+import {
+  backfillBlockIds,
+  filterNewCarryOvers,
+  buildCarryOverNodes,
+  readDismissedIds,
+  writeDismissedIds,
+  stripDismissed,
+} from '../../utils/carryOverPipeline'
+import { SECTION_IDS } from '../../utils/worklogConstants'
 import WorklogHeader from './WorklogHeader'
 import WorklogComments from './WorklogComments'
 import EmojiPicker from '../Common/EmojiPicker'
@@ -499,13 +508,13 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
   /**
    * 이월 동기화: daily 페이지 로드 시 이전 날짜의 미이월 todo를 자동 삽입
-   * blockId로 중복 방지 — 이미 존재하는 blockId/originBlockId는 건너뜀
+   * carryOverPipeline의 단일 파이프라인을 통해 중복 방지/노드 생성/섹션 삽입 수행
    */
   const syncCarryOver = useCallback(async (pageId, contentTiptap) => {
     const page = pages.find(p => p.id === pageId)
     if (!page || page.page_type !== 'daily' || !page.parent_id) return contentTiptap
 
-    // 이전 daily 페이지에서 이월 대상 추출
+    // 1. 이전 daily 페이지 조회
     const { data: prevPages } = await supabase
       .from('pages')
       .select('id, page_date, content_tiptap')
@@ -518,107 +527,34 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
     if (!prevPages?.length || !prevPages[0].content_tiptap) return contentTiptap
 
-    // 이전 페이지에 blockId가 없는 블록이 있으면 backfill (1회)
-    const prevContent = prevPages[0].content_tiptap
-    let prevChanged = false
-    const backfillIds = (nodes) => {
-      if (!nodes) return nodes
-      return nodes.map(n => {
-        let node = n
-        if (n.type === 'toggle' && !n.attrs?.blockId && n.attrs?.blockType !== 'h2' && n.attrs?.blockType !== 'h3') {
-          prevChanged = true
-          node = { ...n, attrs: { ...n.attrs, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) } }
-        }
-        if (node.content) return { ...node, content: backfillIds(node.content) }
-        return node
-      })
-    }
-    const backfilledPrev = { ...prevContent, content: backfillIds(prevContent.content) }
-    if (prevChanged && prevPages[0].id) {
+    // 2. legacy 블록 backfill (blockId 없는 블록에 ID 부여)
+    const { content: backfilledPrev, changed: prevChanged } = backfillBlockIds(prevPages[0].content_tiptap)
+    if (prevChanged) {
       await supabase.from('pages').update({ content_tiptap: backfilledPrev }).eq('id', prevPages[0].id)
     }
 
-    const { extractCarryOverData } = await import('../../utils/worklogUtils')
+    // 3. 이월 후보 추출 → 신규 항목만 필터 → 노드 생성
     const { carryOverTodos } = extractCarryOverData(backfilledPrev, prevPages[0].page_date)
     if (carryOverTodos.length === 0) return contentTiptap
 
-    const dismissedIds = new Set(contentTiptap._dismissed || [])
+    const dismissedIds = readDismissedIds(contentTiptap)
+    const newCandidates = filterNewCarryOvers(carryOverTodos, contentTiptap, dismissedIds)
+    if (newCandidates.length === 0) return contentTiptap
 
-    // 현재 페이지의 모든 blockId/originBlockId + 텍스트 수집
-    const existingIds = new Set()
-    const existingTexts = new Set()
-    const collectIds = (nodes) => {
-      if (!nodes) return
-      for (const n of nodes) {
-        if (n.attrs?.blockId) existingIds.add(n.attrs.blockId)
-        if (n.attrs?.originBlockId) existingIds.add(n.attrs.originBlockId)
-        const text = n.content?.[0]?.content?.[0]?.text || ''
-        if (text) existingTexts.add(text)
-        if (n.content) collectIds(n.content)
-      }
-    }
-    collectIds(contentTiptap.content)
+    const nodes = buildCarryOverNodes(newCandidates)
 
-    const newItems = carryOverTodos
-      .filter(t => {
-        const origId = t.node?.attrs?.blockId
-        // blockId 기반 중복 → 확실히 건너뜀
-        if (origId && existingIds.has(origId)) return false
-        // 의도적으로 삭제된 항목 → 건너뜀
-        if (origId && dismissedIds.has(origId)) return false
-        // blockId가 없는 레거시 데이터 → 텍스트로 차단 (중복 삽입 방지)
-        if (!origId) {
-          const text = t.node?.content?.[0]?.content?.[0]?.text || ''
-          if (text && existingTexts.has(text)) return false
-        }
-        return true
-      })
-      .map(t => {
-        const text = t.node?.content?.[0]?.content?.[0]?.text || ''
-        return { ...t, maybeDuplicate: text && existingTexts.has(text) }
-      })
-
-    if (newItems.length === 0) return contentTiptap
-
-    // sectionId별로 그룹핑하여 해당 섹션에 삽입
-    const { SECTION_IDS } = await import('../../utils/worklogConstants')
+    // 4. sectionId별로 그룹핑하여 해당 h2 섹션에 삽입
     const bySection = {}
-    for (const item of newItems) {
-      const key = item.sectionId || SECTION_IDS.TODO
+    nodes.forEach((node, idx) => {
+      const key = newCandidates[idx].sectionId || SECTION_IDS.TODO
       if (!bySection[key]) bySection[key] = []
-
-      // 이월 노드 생성 (deep clone + carryOver 속성)
-      const node = JSON.parse(JSON.stringify(item.node))
-      const origTodoId = node.attrs?.blockId
-      node.attrs = {
-        ...node.attrs,
-        isCarryOver: true,
-        carryOverFrom: item.fromDate,
-        todoChecked: item.type === 'todo-with-unfinished' ? node.attrs.todoChecked : false,
-        blockId: 'blk_' + Math.random().toString(36).slice(2, 10),
-        originBlockId: origTodoId,
-        maybeDuplicate: item.maybeDuplicate || false,
-      }
       bySection[key].push(node)
-    }
+    })
 
-    // 각 섹션에 삽입
-    let changed = false
-    const updatedContent = { ...contentTiptap, content: contentTiptap.content.map(section => {
-      if (!isH2Section(section) || !section.attrs?.sectionId) return section
-      const items = bySection[section.attrs.sectionId]
-      if (!items?.length) return section
-      changed = true
-      const children = [...(section.content || [])]
-      // 헤더 paragraph(0번) 다음에 삽입
-      children.splice(1, 0, ...items)
-      return { ...section, content: children }
-    })}
-
+    const { content: updatedContent, changed } = insertIntoH2Sections(contentTiptap, bySection)
     if (changed) {
       await supabase.from('pages').update({ content_tiptap: updatedContent }).eq('id', pageId)
     }
-
     return changed ? updatedContent : contentTiptap
   }, [pages])
 
@@ -730,10 +666,16 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const blockCountRef = useRef(0)
 
   // 에디터 내용 변경 시 (사용자 편집)
+  // editor.getJSON()은 _dismissed 같은 비표준 루트 키를 포함하지 않으므로
+  // 기존 state의 _dismissed를 수동으로 병합해 보존한다.
+  // block-dismissed 핸들러가 setContent(prev => ...)로 큐에 쌓은 dismissed 업데이트를
+  // 덮어쓰지 않도록 반드시 functional form으로 설정한다.
   const handleUpdate = (newContent) => {
     if (isImpersonating) {
-      // 뷰어 모드: 토글 isOpen 변경만 로컬 반영 + 오버라이드 저장
-      setContent(newContent)
+      setContent(prev => {
+        const preserved = prev?._dismissed
+        return preserved ? { ...newContent, _dismissed: preserved } : newContent
+      })
       if (saveViewerToggleOverrides && currentPageId) {
         const states = extractToggleStates(newContent)
         saveViewerToggleOverrides(currentPageId, states)
@@ -742,19 +684,22 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     }
     isInitialLoadRef.current = false  // 사용자가 편집 시작
 
-    // daily 페이지: 블록 수 변경 시 중복 마킹 재계산 (삭제 즉시 반영)
-    if (currentPage?.page_type === 'daily' && newContent?.content) {
-      let count = 0
-      const countBlocks = (nodes) => { for (const n of nodes) { if (n.type === 'toggle') count++; if (n.content) countBlocks(n.content) } }
-      countBlocks(newContent.content)
-      if (count !== blockCountRef.current) {
-        blockCountRef.current = count
-        setContent(markDuplicateBlocks(newContent))
-        return
-      }
-    }
+    setContent(prev => {
+      const preserved = prev?._dismissed
+      const merged = preserved ? { ...newContent, _dismissed: preserved } : newContent
 
-    setContent(newContent)
+      // daily 페이지: 블록 수 변경 시 중복 마킹 재계산 (삭제 즉시 반영)
+      if (currentPage?.page_type === 'daily' && merged?.content) {
+        let count = 0
+        const countBlocks = (nodes) => { for (const n of nodes) { if (n.type === 'toggle') count++; if (n.content) countBlocks(n.content) } }
+        countBlocks(merged.content)
+        if (count !== blockCountRef.current) {
+          blockCountRef.current = count
+          return markDuplicateBlocks(merged)
+        }
+      }
+      return merged
+    })
   }
 
 
@@ -1472,18 +1417,40 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     return () => el.removeEventListener('section-move', handler)
   }, [content, updateSectionOrder])
 
-  // daily 페이지 전날/다음날 이동 (DB 확인 → 없으면 생성)
-  const navigateToDailyPage = useCallback(async (dateKey) => {
-    if (!currentPage?.parent_id) return
-    // DB에서 해당 날짜 페이지 확인
-    const { data: existing } = await supabase.from('pages')
+  // 이전 업무일지로 이동: 현재보다 과거 daily 중 가장 최근 페이지로 점프
+  // 절대 신규 페이지를 생성하지 않음. 이전 daily가 없으면 알림.
+  const goToPrevWorklog = useCallback(async () => {
+    if (!currentPage?.parent_id || !currentPage?.page_date) return
+    const { data: prev } = await supabase.from('pages')
       .select('id').eq('parent_id', currentPage.parent_id)
-      .eq('page_date', dateKey).eq('page_type', 'daily').is('deleted_at', null).limit(1)
-    if (existing?.length) {
-      setCurrentPageId(existing[0].id)
+      .eq('page_type', 'daily').is('deleted_at', null)
+      .lt('page_date', currentPage.page_date)
+      .order('page_date', { ascending: false }).limit(1)
+    if (prev?.length) {
+      setCurrentPageId(prev[0].id)
+    } else {
+      alert('이전 업무일지는 없습니다.')
+    }
+  }, [currentPage?.parent_id, currentPage?.page_date, setCurrentPageId])
+
+  // 다음 업무일지로 이동: 다음 daily가 있으면 점프, 없으면 다음날로 confirm 후 생성
+  const goToNextWorklog = useCallback(async () => {
+    if (!currentPage?.parent_id || !currentPage?.page_date) return
+    const { data: next } = await supabase.from('pages')
+      .select('id').eq('parent_id', currentPage.parent_id)
+      .eq('page_type', 'daily').is('deleted_at', null)
+      .gt('page_date', currentPage.page_date)
+      .order('page_date', { ascending: true }).limit(1)
+    if (next?.length) {
+      setCurrentPageId(next[0].id)
       return
     }
-    // 없으면 생성
+    // 이후 daily가 없으면 다음날 생성 confirm
+    const d = new Date(currentPage.page_date + 'T00:00:00')
+    d.setDate(d.getDate() + 1)
+    const dateKey = d.toISOString().slice(0, 10)
+    if (!confirm(`${dateKey} 업무일지가 없습니다. 새로 만들까요?`)) return
+
     const { dailyPageName } = await import('../../utils/dateUtils')
     const { data: freshPages } = await supabase.from('pages').select('page_date, content_tiptap')
       .eq('parent_id', currentPage.parent_id).eq('page_type', 'daily').is('deleted_at', null)
@@ -1496,30 +1463,30 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       window.dispatchEvent(new CustomEvent('pages-refresh'))
       setCurrentPageId(newPage.id)
     }
-  }, [currentPage?.parent_id, createPage, setCurrentPageId])
+  }, [currentPage?.parent_id, currentPage?.page_date, createPage, setCurrentPageId])
 
   // 블록 삭제 시 _dismissed에 기록 (이월 재삽입 방지)
+  // React state에 반영 → autosave가 DB에 저장. autosave와 별도 쓰기 경로로 race하지 않도록.
   useEffect(() => {
     const el = pageRef.current
     if (!el || currentPage?.page_type !== 'daily') return
-    const handler = async (e) => {
+    const handler = (e) => {
       const { blockId, originBlockId } = e.detail
-      if (!blockId || !currentPageId) return
-      const { data } = await supabase
-        .from('pages')
-        .select('content_tiptap')
-        .eq('id', currentPageId)
-        .single()
-      if (!data?.content_tiptap) return
-      const dismissed = new Set(data.content_tiptap._dismissed || [])
-      dismissed.add(blockId)
-      if (originBlockId) dismissed.add(originBlockId)
-      const updated = { ...data.content_tiptap, _dismissed: [...dismissed] }
-      await supabase.from('pages').update({ content_tiptap: updated }).eq('id', currentPageId)
+      if (!blockId) return
+      setContent(prev => {
+        if (!prev) return prev
+        const dismissed = readDismissedIds(prev)
+        const hadBlock = dismissed.has(blockId)
+        const hadOrigin = originBlockId ? dismissed.has(originBlockId) : true
+        if (hadBlock && hadOrigin) return prev
+        dismissed.add(blockId)
+        if (originBlockId) dismissed.add(originBlockId)
+        return writeDismissedIds(prev, dismissed)
+      })
     }
     el.addEventListener('block-dismissed', handler)
     return () => el.removeEventListener('block-dismissed', handler)
-  }, [currentPageId, currentPage?.page_type])
+  }, [currentPage?.page_type])
 
   return (
     <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''} ${currentPage?.page_type === 'daily' ? 'tiptap-page--daily' : ''}`}>
@@ -1703,18 +1670,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           <WorklogHeader
             pageDate={currentPage.page_date}
             onGoToCalendar={currentPage.parent_id ? () => setCurrentPageId(currentPage.parent_id) : null}
-            onPrevDay={async () => {
-              const d = new Date(currentPage.page_date + 'T00:00:00')
-              d.setDate(d.getDate() - 1)
-              const dateKey = d.toISOString().slice(0, 10)
-              await navigateToDailyPage(dateKey)
-            }}
-            onNextDay={async () => {
-              const d = new Date(currentPage.page_date + 'T00:00:00')
-              d.setDate(d.getDate() + 1)
-              const dateKey = d.toISOString().slice(0, 10)
-              await navigateToDailyPage(dateKey)
-            }}
+            onPrevDay={goToPrevWorklog}
+            onNextDay={goToNextWorklog}
             onDelete={!isImpersonating ? async () => {
               if (!confirm(`${currentPage.page_date} 업무일지를 삭제하시겠습니까?`)) return
               const parentId = currentPage.parent_id
@@ -1817,7 +1774,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         <div className={`tiptap-editor-wrapper ${currentPage?.page_type === 'daily' ? 'tiptap-editor-wrapper--daily' : ''}`}>
           {content ? (
             <TipTapEditor
-              content={content}
+              content={stripDismissed(content)}
               onUpdate={handleUpdate}
               placeholder="내용을 입력하세요..."
               editorRef={editorRef}

@@ -8,21 +8,21 @@
 
 import { SECTION_IDS, DEFAULT_SECTION_ID, FALLBACK_SECTIONS } from './worklogConstants'
 import { sectionToggle, pinnedSectionToggle, emptyToggle } from './toggleNodeFactory'
-import { genSectionId } from './toggleNodeFactory'
-
-function genBlockId() {
-  return 'blk_' + Math.random().toString(36).slice(2, 10)
-}
+import { genBlockId } from './blockId'
+import { groupBySectionId } from './sectionUtils'
 
 /**
  * 이월 블록: 원본 노드를 deep clone하되
  * - isCarryOver/carryOverFrom 설정
- * - blockId 새로 부여, originBlockId로 원본 ��적
+ * - blockId 새로 부여, originBlockId로 최초 원본 추적
+ *   (이월본의 이월도 최초 원본을 가리키도록 originBlockId 우선)
  * - 완료된 상위 todo (하위에 미완료가 있어서 이월됨) → 완료 상태 유지
+ * @param {object} block - { node, fromDate, sectionId, type }
+ * @param {object} [extraAttrs] - 추가로 덮어쓸 attrs (예: maybeDuplicate)
  */
-function toCarryOverNode(block) {
+export function toCarryOverNode(block, extraAttrs = {}) {
   const node = JSON.parse(JSON.stringify(block.node))
-  const originalTodoId = node.attrs.blockId || node.attrs.originBlockId || null
+  const originalTodoId = resolveOriginBlockId(node.attrs)
 
   // 완료된 상위 (하위에 미완료가 있어서 이월) → todoChecked 유지
   const keepChecked = block.type === 'todo-with-unfinished'
@@ -34,24 +34,29 @@ function toCarryOverNode(block) {
     todoChecked: keepChecked ? node.attrs.todoChecked : false,
     blockId: genBlockId(),
     originBlockId: originalTodoId,
+    ...extraAttrs,
   }
 
-  // 하위 블록���도 재귀적으로 blockId/originBlockId 부여
   assignBlockIds(node)
   return node
 }
 
-/** 하위 ��글에 blockId/originBlockId 재귀 부여 */
+/** 하위 토글에 blockId/originBlockId 재귀 부여 (최초 원본 추적 보존) */
 function assignBlockIds(node) {
   if (!node.content) return
   for (const child of node.content) {
     if (child.type === 'toggle' && child.attrs?.isTodo) {
-      const origId = child.attrs.blockId || child.attrs.originBlockId || null
+      const origId = resolveOriginBlockId(child.attrs)
       child.attrs.blockId = genBlockId()
       child.attrs.originBlockId = origId
     }
     assignBlockIds(child)
   }
+}
+
+/** 이월본의 이월에서도 최초 원본까지 거슬러 올라가도록 originBlockId를 우선 채택 */
+function resolveOriginBlockId(attrs) {
+  return attrs?.originBlockId || attrs?.blockId || null
 }
 
 /**
@@ -62,25 +67,10 @@ function assignBlockIds(node) {
 export function createWorklogTemplate(sections = [], pinnedSections = [], carryOverTodos = []) {
   const effectiveSections = sections.length > 0 ? sections : FALLBACK_SECTIONS
 
-  // 이월 투두를 sectionId별로 그룹핑
-  const carryOverBySectionId = {}
-  for (const t of carryOverTodos) {
-    const key = t.sectionId || DEFAULT_SECTION_ID
-    if (!carryOverBySectionId[key]) carryOverBySectionId[key] = []
-    carryOverBySectionId[key].push(t)
-  }
-
-  // 매칭되지 않는 sectionId의 이월 투두는 기본 섹션으로 이동 (기존 페이지 호환)
+  // 이월 투두를 sectionId별로 그룹핑 — 미지 sectionId는 기본 섹션으로 병합
   const allKnownIds = new Set(effectiveSections.map(s => s.id))
   pinnedSections.forEach(s => { if (s.sectionId) allKnownIds.add(s.sectionId) })
-
-  for (const sectionId of Object.keys(carryOverBySectionId)) {
-    if (!allKnownIds.has(sectionId)) {
-      if (!carryOverBySectionId[DEFAULT_SECTION_ID]) carryOverBySectionId[DEFAULT_SECTION_ID] = []
-      carryOverBySectionId[DEFAULT_SECTION_ID].push(...carryOverBySectionId[sectionId])
-      delete carryOverBySectionId[sectionId]
-    }
-  }
+  const carryOverBySectionId = groupBySectionId(carryOverTodos, allKnownIds, DEFAULT_SECTION_ID)
 
   // 섹션 노드 빌드
   const topLevelSections = effectiveSections.filter(s => !s.parent_id)

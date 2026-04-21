@@ -19,7 +19,7 @@
 - [8. 기능 명세 — 입력 규칙 (InputRule)](#8-기능-명세--입력-규칙-inputrule)
 - [9. 기능 명세 — 토글 열기/닫기](#9-기능-명세--토글-열기닫기)
 - [10. 콘텐츠 모델 제약사항](#10-콘텐츠-모델-제약사항)
-- [11. 해결된 이슈 기록](#11-해결된-이슈-기록)
+- [11. 해결된 이슈 기록](#11-해결된-이슈-기록) — 텍스트 붙여넣기 중첩, 드래그 분해, 이월 블록 재이월(11.6) 등
 - [12. 미해결 이슈 기록](#12-미해결-이슈-기록)
 - [13. 절대 깨뜨리면 안 되는 기능](#13-절대-깨뜨리면-안-되는-기능)
 - [14. 설계 원칙 — 콘텐츠 삽입 경로](#14-설계-원칙--콘텐츠-삽입-경로)
@@ -71,8 +71,8 @@ priority: 200
 | `visibility` | string | `'all'` | `'all'` (전체) 또는 `'master'` (마스터 전용) |
 | `sectionId` | string\|null | `null` | 섹션 고유 ID (worklog_sections 테이블 PK) |
 | `isFixedSection` | boolean | `false` | 고정 섹션 (삭제 불가) |
-| `blockId` | string\|null | `null` | 블록 고유 ID (`blk_xxx`) — daily 페이지 모든 블록에 자동 부여 |
-| `originBlockId` | string\|null | `null` | 이월 원본의 blockId — thread 동기화 + 중복 방지 |
+| `blockId` | string\|null | `null` | 블록 고유 ID (`blk_xxx`) — daily 페이지 모든 블록에 자동 부여. 생성은 `utils/blockId.js::genBlockId()` 단일 진입점 |
+| `originBlockId` | string\|null | `null` | **최초** 이월 원본의 blockId — thread 동기화 + 재이월 시 원본 추적 보존 (`originBlockId \|\| blockId` 우선순위로 승계) |
 | `maybeDuplicate` | false\|true\|'original' | `false` | 중복 감지 표시 — `'original'` (원본), `true` (이월 중복) |
 
 ---
@@ -379,6 +379,18 @@ if (insideChild) return
    - 매핑된 대상 위치 재검증
    - 소스 위치도 재검증 후 삭제
 3. **`finally`로 cleanup 보장** — `editor.view.dragging = null`을 finally에 옮겨 어떤 경로로든 정리 보장.
+
+### 11.6 이월/고정 블록 재이월 (2026-04-21, 해결)
+
+**현상:** `isCarryOver` 블록을 Backspace나 멀티셀렉트 Delete로 삭제해도 새로고침 시 다시 이월되어 나타남. 휴지통 버튼으로 지울 때만 `_dismissed`에 기록되고, 다른 경로는 빠져 있었음.
+
+**해결:**
+1. **삭제 감지 단일화** — ProseMirror plugin `carryOverDismissTracker`(ToggleExtension.js)를 추가. `view.update`에서 이전/현재 문서를 비교하여 사라진 `isCarryOver`/`isPinned` 블록을 자동 감지하고 `block-dismissed` DOM 이벤트 발행. 휴지통/Backspace/멀티셀렉트/드래그 모든 경로를 커버.
+2. **setContent 오탐지 방지** — `editor.storage.toggle.isReloading` 플래그. `editor.commands.setContent` 호출 직전 true로 세팅, `Promise.resolve().then(...)`으로 해제. plugin은 이 플래그가 켜진 동안 skip.
+3. **autosave race 해결** — React state `content`에 `_dismissed`를 유지하려면 `handleUpdate`가 **functional form** `setContent(prev => ...)` 를 사용해야 한다. direct form `setContent(merged)`는 `block-dismissed` 핸들러가 큐에 쌓은 업데이트를 덮어써 `_dismissed`가 유실된다 (실측 재현 후 확정). 에디터 prop으로 넘길 때는 `stripDismissed(content)`로 정제.
+4. **`_dismissed` I/O 봉인** — `content_tiptap._dismissed`는 비표준 루트 키이므로 접근은 반드시 `utils/carryOverPipeline.js`의 `readDismissedIds`/`writeDismissedIds`/`stripDismissed` 유틸로만.
+
+상세: `docs/WORKLOG-SPEC.md` §4.8.
 
 ---
 

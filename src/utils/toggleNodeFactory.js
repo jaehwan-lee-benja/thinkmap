@@ -3,6 +3,8 @@
  * 업무일지 템플릿, QuickTodo 등에서 공통 사용
  */
 
+import { genBlockId } from './blockId'
+
 export function genSectionId() {
   return 'sec_' + Math.random().toString(36).slice(2, 10)
 }
@@ -68,7 +70,7 @@ export function carryOverToggle(text, fromDate) {
 export function todoToggle(text) {
   return toggleNode(
     { isTodo: true, isCarryOver: false, carryOverFrom: null, visibility: 'all', isPinned: false,
-      blockId: 'blk_' + Math.random().toString(36).slice(2, 10) },
+      blockId: genBlockId() },
     [textParagraph(text)]
   )
 }

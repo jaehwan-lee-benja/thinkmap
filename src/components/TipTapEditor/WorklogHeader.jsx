@@ -6,12 +6,12 @@ export default function WorklogHeader({ pageDate, onDelete, onGoToCalendar, onPr
     <div className="worklog-header">
       <div className="worklog-header-actions">
         {onPrevDay && (
-          <button className="worklog-nav-btn" onClick={onPrevDay} title="전날">
+          <button className="worklog-nav-btn" onClick={onPrevDay} title="이전 업무일지로 가기">
             <ChevronLeft size={14} />
           </button>
         )}
         {onNextDay && (
-          <button className="worklog-nav-btn" onClick={onNextDay} title="다음날">
+          <button className="worklog-nav-btn" onClick={onNextDay} title="다음 업무일지로 가기">
             <ChevronRight size={14} />
           </button>
         )}

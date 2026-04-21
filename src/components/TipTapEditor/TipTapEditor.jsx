@@ -306,12 +306,18 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
         // isOpen 속성만 변경된 경우(사용자 편집 중 정규화) 커서 위치 보존
         const onlyIsOpenChanged = isOnlyIsOpenDiff(editor.getJSON(), normalized)
         const { from } = editor.state.selection
+        // 문서 교체 중에는 carryOverDismissTracker가 감지를 건너뛰도록 플래그
+        if (editor.storage.toggle) editor.storage.toggle.isReloading = true
         editor.commands.setContent(normalized)
         if (onlyIsOpenChanged) {
           try {
             editor.commands.setTextSelection(Math.min(from, editor.state.doc.content.size - 1))
           } catch(e) {}
         }
+        // setContent가 만드는 transaction들이 모두 처리된 뒤 해제
+        Promise.resolve().then(() => {
+          if (editor.storage.toggle) editor.storage.toggle.isReloading = false
+        })
       }
     }
   }, [content, editor])

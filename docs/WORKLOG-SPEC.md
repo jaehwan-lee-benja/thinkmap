@@ -280,40 +280,55 @@ toggle 노드에 추가되는 속성:
 {
   "isCarryOver": true,
   "carryOverFrom": "2026-04-11",
-  "todoId": "td_abc12345",
-  "originTodoId": "td_xyz67890"
+  "blockId": "blk_abc12345",
+  "originBlockId": "blk_xyz67890"
 }
 ```
 - `isCarryOver` (boolean) — 이 항목이 이월된 사본인지
 - `carryOverFrom` (string, YYYY-MM-DD) — 어느 날짜에서 이월되었는지
-- `todoId` (string) — 각 todo의 고유 ID (자동 부여)
-- `originTodoId` (string) — 이월 원본의 todoId (thread 추적, 교차 페이지 동기화에 사용)
+- `blockId` (string) — 각 블록의 고유 ID (`blk_` prefix). 생성은 `utils/blockId.js::genBlockId()` 단일 진입점으로 일원화
+- `originBlockId` (string) — 이월 원본의 blockId (thread 추적, 교차 페이지 동기화에 사용)
+
+> **변경 이력 (2026-04-21)**: `todoId`/`originTodoId` → `blockId`/`originBlockId` 리네이밍. pinned 텍스트 블록도 같은 구조로 관리.
+
+**최초 원본 추적 규칙:** 이월본을 다시 이월할 때 `originBlockId`는 **최초 원본**을 가리켜야 한다. 구현: `toCarryOverNode`/`syncCarryOver`에서 `originBlockId = node.attrs.originBlockId || node.attrs.blockId`로 결정. 즉 이전 이월본의 `originBlockId`가 있으면 그걸 그대로 승계.
 
 ### 4.5 교차 페이지 완료 동기화 (Thread 방식)
 
-원본 todo 완료/해제 시 같은 `originTodoId`를 가진 이월본도 자동 동기화.
+원본 todo 완료/해제 시 같은 `originBlockId`를 가진 이월본도 자동 동기화.
 
 ```
-21일: todoId: 'td_abc' (원본) → 완료 처리
-22일: todoId: 'td_xyz', originTodoId: 'td_abc' (이월본) → 자동 완료
+21일: blockId: 'blk_abc' (원본) → 완료 처리
+22일: blockId: 'blk_xyz', originBlockId: 'blk_abc' (이월본) → 자동 완료
 ```
 
-- 최근 7개 daily 페이지를 조회하여 `todoId` 문자열 매칭
-- 매칭된 페이지의 content_tiptap을 업데이트 후 실시간 반영 이벤트 발행
-- 하위 블록의 todo도 각각 독립적 todoId를 가지며 개별 동기화
+- 범위: 최근 `CARRY_OVER_SYNC_WINDOW_DAYS`(=90)일 이내의 daily 페이지. `ToggleExtension.js::syncBlockAcrossPages`
+- `blockId` 문자열 포함 여부로 관련 없는 페이지를 조기 컷
+- 매칭된 페이지의 content_tiptap을 업데이트 후 `quicktodo-inserted` 이벤트 발행
+- 하위 블록의 todo도 각각 독립적 `blockId`를 가지며 개별 동기화
+
+> **변경 이력 (2026-04-21)**: 기존 `limit(7)` 하드코딩 제거. 일자 갭이 7일 이상이면 동기화가 끊기던 문제 해결.
 
 ### 4.6 페이지 열 때 이월 동기화 (Lazy Carry-Over)
 
 이미 생성된 daily 페이지를 열 때, 이전 날짜에 새로 추가된 미완료 todo를 자동 삽입.
 
-**동작 원리:**
-1. daily 페이지 로드 시 `syncCarryOver()` 실행
-2. 이전 daily 페이지(가장 최근 1개)의 미완료 todo/pinned 블록 추출
-3. 현재 페이지에 있는 모든 `todoId`/`originTodoId` 수집
-4. 원본 `todoId`가 현재 페이지에 **없는** 항목만 해당 섹션에 삽입
-5. 삽입 시 DB에도 자동 저장
+**동작 원리 (2026-04-21: 파이프라인 단일화):**
 
-**중복 방지:** `todoId` 기반 — 이미 이월된 항목의 원본 `todoId`가 `existingIds`에 있으면 건너뜀.
+Eager(새 daily 생성)와 Lazy(기존 daily 열람) 양쪽 모두 `utils/carryOverPipeline.js`의 동일한 함수를 공유한다.
+
+1. daily 페이지 로드 시 `syncCarryOver()` 실행
+2. `backfillBlockIds(prev)` — 이전 페이지에 blockId 없는 legacy 블록에 부여 (1회)
+3. `extractCarryOverData(prev, prevDate)` — 이월 후보 추출
+4. `filterNewCarryOvers(candidates, current, dismissedIds)` — 신규만 필터
+5. `buildCarryOverNodes(candidates)` — `toCarryOverNode`로 노드 생성
+6. `insertIntoH2Sections(content, bySection)` — sectionId별 h2 섹션에 삽입
+7. DB 자동 저장
+
+**중복 방지 3단계** (`filterNewCarryOvers`):
+1. 원본 `blockId`가 현재 페이지의 blockId/originBlockId 집합에 이미 있으면 건너뜀
+2. 원본 `blockId`가 `_dismissed`에 있으면 건너뜀 (삭제 의사 존중)
+3. legacy 항목(blockId 없음)은 텍스트 중복으로 판정
 
 **트리거:**
 | 트리거 | 설명 |
@@ -331,6 +346,35 @@ toggle 노드에 추가되는 속성:
 ```
 - 연한 배경색 또는 태그로 이월 항목 구분
 - 이월 원본 날짜 표시 (클릭 시 해당 날짜로 이동 가능)
+
+### 4.8 재이월 차단 메커니즘 (_dismissed, 2026-04-21)
+
+**요구사항:** 사용자가 이월본을 **삭제 경로와 무관하게** 지우면 재이월되지 않아야 한다.
+
+**데이터 위치:** `content_tiptap._dismissed: string[]` — 삭제된 `blockId`/`originBlockId` 목록. 루트에 붙는 비표준 키이므로 접근은 반드시 `utils/carryOverPipeline.js`의 유틸로만:
+- `readDismissedIds(content)` — Set 반환
+- `writeDismissedIds(content, set)` — 새 content 반환
+- `stripDismissed(content)` — TipTap editor에 넘기기 전 제거
+
+**삭제 감지 (단일 진입점):** `ToggleExtension.js`의 ProseMirror plugin `carryOverDismissTracker`가 모든 transaction 후 `view.update`에서 이전/현재 문서를 비교. 사라진 `isCarryOver` 또는 `isPinned` 블록이 있으면 `block-dismissed` DOM 이벤트를 발행한다. 이로써 휴지통 버튼/Backspace/멀티셀렉트/드래그 모든 경로를 커버.
+
+**setContent로 인한 오탐지 방지:** `editor.commands.setContent` 호출 직전 `editor.storage.toggle.isReloading = true`로 플래그. plugin은 이 플래그가 켜진 동안 감지를 건너뛴다. `Promise.resolve().then(...)`으로 transaction 완료 후 해제.
+
+**저장 race 방지 (핵심 함정):**
+- React state `content`에 `_dismissed`를 유지해야 autosave가 보존한다. editor는 `_dismissed`를 모르므로 `editor.getJSON()` 결과에는 빠져 있다.
+- `handleUpdate(newContent)`는 반드시 **functional form** `setContent(prev => ...)`로 호출해야 `block-dismissed` 핸들러가 큐에 넣은 `_dismissed` 업데이트를 덮어쓰지 않는다. direct form `setContent(merged)`는 race를 유발해 `_dismissed`가 유실됨 (2026-04-21 재현/수정 완료).
+- 에디터에 전달하는 prop은 `stripDismissed(content)`로 정제 — 비교 로직이 오작동하지 않도록.
+
+### 4.9 이전/다음 업무일지 네비게이션 (2026-04-21)
+
+WorklogHeader의 좌/우 화살표 동작. `TipTapTestPage.jsx::goToPrevWorklog`, `goToNextWorklog`.
+
+| 버튼 | 툴팁 | 동작 |
+|---|---|---|
+| ← | "이전 업무일지로 가기" | **과거** daily 중 가장 최근 페이지로 점프. 없으면 `alert('이전 업무일지는 없습니다.')`. **신규 생성 절대 안 함** |
+| → | "다음 업무일지로 가기" | **미래** daily 중 가장 가까운 페이지로 점프. 없으면 다음날 날짜로 `confirm`, 확인 시만 생성 |
+
+> **변경 이유:** 기존 `navigateToDailyPage(dateKey)`는 "전날/다음날"을 확정 날짜로 계산 후 없으면 무조건 생성했다. 뒤로 가기에서 원치 않는 신규 페이지가 만들어지고 이월까지 동반되는 버그가 있었다. 좌/우 비대칭으로 재설계.
 
 ---
 
@@ -626,9 +670,11 @@ A, B → fixed_todo / D → fixed_notice / F → fixed_wrapup / 당일이슈 미
 | `src/hooks/useWorklogComments.js` | 코멘트 CRUD + 실시간 구독 |
 | `src/utils/worklogConstants.js` | 섹션 ID 상수, 기본 섹션 정의 (SECTION_IDS, FALLBACK_SECTIONS) |
 | `src/utils/toggleNodeFactory.js` | TipTap 토글 노드 생성 팩토리 (섹션/투두/이월 등) |
-| `src/utils/sectionUtils.js` | 섹션 추출/필터/매칭 공통 유틸리티 (isH2Section 등) |
-| `src/utils/worklogTemplate.js` | daily 페이지 초기 템플릿 (이월/pin 포함) |
+| `src/utils/sectionUtils.js` | 섹션 추출/필터/매칭/삽입 공통 유틸리티 (isH2Section, insertIntoH2Sections, groupBySectionId) |
+| `src/utils/worklogTemplate.js` | daily 페이지 초기 템플릿 + `toCarryOverNode` (이월/pin 포함) |
 | `src/utils/worklogUtils.js` | todo 통계 파싱 + daily 페이지 생성 공유 유틸리티 |
+| `src/utils/carryOverPipeline.js` | 이월 파이프라인 (backfill/filter/build + _dismissed I/O + stripDismissed) |
+| `src/utils/blockId.js` | blockId 생성 단일 진입점 (`genBlockId`, `BLOCK_ID_PREFIX`) |
 | `src/components/QuickTodo/QuickTodo.jsx` | Quick Todo 인라인 입력 (상단바) |
 | `src/components/GlobalTopBar/GlobalTopBar.jsx` | "오늘" 바로가기 버튼 |
 | `src/utils/dateUtils.js` | 날짜 유틸 (dailyPageName 등) |
@@ -704,6 +750,20 @@ A, B → fixed_todo / D → fixed_notice / F → fixed_wrapup / 당일이슈 미
 
 ### 12.6 일회용 마이그레이션 파일 정리
 - `fix-worklog-comments-rls.sql` 삭제 (Supabase에서 실행 완료된 일회용 스크립트)
+
+### 12.7 이월 파이프라인 정리 (2026-04-21)
+
+**배경:** 이월 로직이 여러 파일에 산재하고, `blockId` 생성·섹션 매칭·`_dismissed` 접근이 각 파일마다 다르게 구현되어 있었다. 삭제 경로에 따라 재이월 방지가 비일관적.
+
+- **blockId 생성 일원화**: `utils/blockId.js::genBlockId()`. 기존 `'blk_' + Math.random()...` 인라인 9곳 치환
+- **섹션 삽입/그룹핑**: `sectionUtils.js`에 `insertIntoH2Sections`, `groupBySectionId` 추가. Eager/Lazy 공용
+- **originBlockId 체인 버그 수정**: 이월본의 재이월 시 `originBlockId`가 이전 이월본을 가리키던 문제 → `originBlockId || blockId` 우선순위로 **최초 원본** 추적 보존
+- **이월 파이프라인 단일화**: `utils/carryOverPipeline.js` 신설. `backfillBlockIds` / `filterNewCarryOvers` / `buildCarryOverNodes` / `readDismissedIds` / `writeDismissedIds` / `stripDismissed`. Eager(`buildDailyPageTemplate`)와 Lazy(`syncCarryOver`) 공통
+- **체크박스 동기화 범위**: `limit(7)` → 최근 `CARRY_OVER_SYNC_WINDOW_DAYS`(=90)일 쿼리 (§4.5)
+- **재이월 구조적 차단**: `ToggleExtension.js`의 `carryOverDismissTracker` plugin이 `view.update`에서 이전/현재 문서 비교로 삭제된 `isCarryOver`/`isPinned` 블록을 감지 → 삭제 경로 무관하게 `block-dismissed` 이벤트 발행 (§4.8)
+- **setContent 오탐지 방지**: `editor.storage.toggle.isReloading` 플래그 + `Promise.resolve().then(...)` 해제
+- **autosave race 해결**: `handleUpdate`를 functional `setContent(prev => ...)`로 변경, 에디터에는 `stripDismissed(content)` 전달. direct form으로 호출하면 `block-dismissed` 핸들러의 `_dismissed` 업데이트를 덮어써 유실됨 (실측 재현 후 확정)
+- **이전/다음 네비게이션 재설계**: `goToPrevWorklog`(과거 최근, 없으면 alert) / `goToNextWorklog`(미래 최근, 없으면 confirm 후 생성) (§4.9)
 
 ---
 

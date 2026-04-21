@@ -2,6 +2,7 @@ import { Node, mergeAttributes, InputRule } from '@tiptap/core'
 import { NodeSelection, TextSelection, Selection, Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { Fragment, Slice } from '@tiptap/pm/model'
+import { genBlockId } from '../../../utils/blockId'
 
 export const multiSelectPluginKey = new PluginKey('multiSelect')
 export const focusHighlightPluginKey = new PluginKey('toggleFocusHighlight')
@@ -9,21 +10,26 @@ const blockDragPluginKey = new PluginKey('blockDrag')
 
 // --- Todo thread 동기화 ---
 // 체크박스 완료/해제 시 같은 originBlockId를 가진 이월본을 교차 페이지 동기화
+// 조회 범위: 최근 CARRY_OVER_SYNC_WINDOW_DAYS일 이내의 daily 페이지
+// (이월 체인의 실질 생존 기간을 커버하면서 과도한 I/O를 방지)
+const CARRY_OVER_SYNC_WINDOW_DAYS = 90
+
 async function syncBlockAcrossPages(supabase, blockId, checked) {
   try {
-    // 최근 daily 페이지 조회 (최근 7개만 — 성능)
+    const since = new Date(Date.now() - CARRY_OVER_SYNC_WINDOW_DAYS * 86400_000)
+      .toISOString().slice(0, 10)
     const { data: pages } = await supabase
       .from('pages')
       .select('id, content_tiptap')
       .eq('page_type', 'daily')
       .is('deleted_at', null)
+      .gte('page_date', since)
       .order('page_date', { ascending: false })
-      .limit(7)
 
     if (!pages?.length) return
 
     for (const page of pages) {
-      // 클라이언트에서 blockId 매칭 확인
+      // 클라이언트에서 blockId 매칭 확인 (관계없는 페이지는 조기 컷)
       const json = JSON.stringify(page.content_tiptap)
       if (!json.includes(blockId)) continue
 
@@ -301,7 +307,9 @@ export const Toggle = Node.create({
   defining: false,
 
   addStorage() {
-    return { viewerMode: false, isMaster: false }
+    // isReloading: setContent 등으로 문서 전체를 교체하는 동안 true
+    // 이월 블록 삭제 감지 plugin이 이 플래그를 보고 감지를 건너뛴다.
+    return { viewerMode: false, isMaster: false, isReloading: false }
   },
 
   addAttributes() {
@@ -859,7 +867,7 @@ export const Toggle = Node.create({
           setTimeout(() => checkbox.classList.remove('just-checked'), 700)
         }
         // blockId가 없으면 자동 부여
-        const blockId = currentNode.attrs.blockId || ('blk_' + Math.random().toString(36).slice(2, 10))
+        const blockId = currentNode.attrs.blockId || (genBlockId())
         const { tr } = editor.state
         tr.setNodeMarkup(pos, null, { ...currentNode.attrs, todoChecked: willCheck, blockId })
         editor.view.dispatch(tr)
@@ -1510,7 +1518,7 @@ export const Toggle = Node.create({
 
             const schema = state.schema
             const todoAttrs = toggleNode.attrs.isTodo
-              ? { isTodo: true, todoChecked: false, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) }
+              ? { isTodo: true, todoChecked: false, blockId: genBlockId() }
               : {}
 
             const wrapInToggle = (node) => {
@@ -1790,7 +1798,7 @@ export const Toggle = Node.create({
           const tr = newState.tr
           for (let i = fixes.length - 1; i >= 0; i--) {
             const { pos, attrs } = fixes[i]
-            tr.setNodeMarkup(pos, null, { ...attrs, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) })
+            tr.setNodeMarkup(pos, null, { ...attrs, blockId: genBlockId() })
           }
           tr.setMeta('blockIdAssign', true)
           return tr
@@ -2004,6 +2012,60 @@ export const Toggle = Node.create({
           }
         }
       }),
+
+      // ── 이월/고정 블록 삭제 감지: 삭제 경로 무관하게 block-dismissed 이벤트 발행 ──
+      // setContent로 인한 문서 교체는 storage.isReloading 플래그로 제외
+      new Plugin({
+        key: new PluginKey('carryOverDismissTracker'),
+        view(view) {
+          const collectTrackable = (doc) => {
+            const map = new Map()
+            doc.descendants((node) => {
+              if (
+                node.type.name === 'toggle' &&
+                node.attrs?.blockId &&
+                (node.attrs?.isCarryOver || node.attrs?.isPinned)
+              ) {
+                map.set(node.attrs.blockId, node.attrs.originBlockId || null)
+              }
+            })
+            return map
+          }
+          const collectBlockIds = (doc) => {
+            const set = new Set()
+            doc.descendants((node) => {
+              if (node.type.name === 'toggle' && node.attrs?.blockId) {
+                set.add(node.attrs.blockId)
+              }
+            })
+            return set
+          }
+
+          return {
+            update(view, prevState) {
+              if (extensionThis.storage?.isReloading) return
+              const newDoc = view.state.doc
+              if (newDoc === prevState.doc) return
+
+              const prevTracked = collectTrackable(prevState.doc)
+              if (prevTracked.size === 0) return
+
+              const newIds = collectBlockIds(newDoc)
+              const deleted = []
+              prevTracked.forEach((originBlockId, blockId) => {
+                if (!newIds.has(blockId)) deleted.push({ blockId, originBlockId })
+              })
+              if (deleted.length === 0) return
+
+              for (const detail of deleted) {
+                view.dom.dispatchEvent(new CustomEvent('block-dismissed', {
+                  bubbles: true, detail,
+                }))
+              }
+            },
+          }
+        },
+      }),
     ]
   },
 
@@ -2131,7 +2193,7 @@ export const Toggle = Node.create({
   addKeyboardShortcuts() {
     // 커서가 paragraph 끝에 있을 때: 열린 토글이면 하위 첫 위치에, 아니면 형제 위치에 새 토글 삽입
     function handleEnterAtEnd(editor, $from, toggleDepth, toggleNode, togglePos, afterTogglePos) {
-      const newAttrs = toggleNode.attrs.isTodo ? { isTodo: true, todoChecked: false, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) } : {}
+      const newAttrs = toggleNode.attrs.isTodo ? { isTodo: true, todoChecked: false, blockId: genBlockId() } : {}
       if (toggleNode.attrs.isOpen && hasChildToggles(toggleNode)) {
         const paragraphNode = $from.node(toggleDepth + 1)
         const firstChildPos = togglePos + 1 + paragraphNode.nodeSize
@@ -2159,7 +2221,7 @@ export const Toggle = Node.create({
       if (toggleNode.attrs.isTodo) {
         newAttrs.isTodo = true
         newAttrs.todoChecked = false
-        newAttrs.blockId = 'blk_' + Math.random().toString(36).slice(2, 10)
+        newAttrs.blockId = genBlockId()
       }
 
       const { tr } = state
@@ -2236,7 +2298,7 @@ export const Toggle = Node.create({
 
         // paragraph 맨 앞에서 Enter → 현재 토글 앞에 빈 토글 삽입, 커서는 원래 텍스트에 유지
         if ($from.pos === paragraphStart) {
-          const newAttrs = toggleNode.attrs.isTodo ? { isTodo: true, todoChecked: false, blockId: 'blk_' + Math.random().toString(36).slice(2, 10) } : {}
+          const newAttrs = toggleNode.attrs.isTodo ? { isTodo: true, todoChecked: false, blockId: genBlockId() } : {}
           const emptyNode = state.schema.nodeFromJSON(emptyToggleJSON(true, false, newAttrs))
           const { tr } = state
           tr.insert(togglePos, emptyNode)
@@ -2745,7 +2807,7 @@ export const Toggle = Node.create({
             ...toggleNode.attrs,
             isTodo: true,
             todoChecked: false,
-            blockId: toggleNode.attrs.blockId || ('blk_' + Math.random().toString(36).slice(2, 10)),
+            blockId: toggleNode.attrs.blockId || (genBlockId()),
           })
         },
       }),

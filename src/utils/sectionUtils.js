@@ -58,3 +58,45 @@ export function findSectionMatcher(content, targetId) {
   if (nodes.some(byName)) return { matcher: byName, found: true }
   return { matcher: byDefault, found: false }
 }
+
+/**
+ * 주어진 itemsBySectionId 맵을 content의 h2 섹션에 삽입
+ * 각 h2 섹션의 sectionId에 매칭되는 아이템을 헤더 paragraph(0번) 다음에 붙임
+ * @returns { content, changed }
+ */
+export function insertIntoH2Sections(content, itemsBySectionId) {
+  let changed = false
+  const nextContent = {
+    ...content,
+    content: (content?.content || []).map(section => {
+      if (!isH2Section(section) || !section.attrs?.sectionId) return section
+      const items = itemsBySectionId[section.attrs.sectionId]
+      if (!items?.length) return section
+      changed = true
+      const children = [...(section.content || [])]
+      children.splice(1, 0, ...items)
+      return { ...section, content: children }
+    }),
+  }
+  return { content: nextContent, changed }
+}
+
+/**
+ * items를 sectionId로 그룹핑
+ * 미지 sectionId는 fallbackSectionId 버킷으로 합침
+ * @param {Array} items - { sectionId, ... } 형태
+ * @param {Iterable<string>} knownSectionIds
+ * @param {string} fallbackSectionId
+ * @returns {Object<string, Array>}
+ */
+export function groupBySectionId(items, knownSectionIds, fallbackSectionId = DEFAULT_SECTION_ID) {
+  const known = new Set(knownSectionIds)
+  const result = {}
+  for (const item of items) {
+    const raw = item.sectionId || fallbackSectionId
+    const key = known.has(raw) ? raw : fallbackSectionId
+    if (!result[key]) result[key] = []
+    result[key].push(item)
+  }
+  return result
+}
