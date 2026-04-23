@@ -1,7 +1,7 @@
 # 업무일지 기획서 (WorkLog Specification)
 
 > 작성일: 2026-04-12
-> 최종 업데이트: 2026-04-21
+> 최종 업데이트: 2026-04-23
 > 상태: Phase 1~6 완료
 > 관련 페이지: CalendarView, daily 페이지 시스템, WorklogComments
 
@@ -691,7 +691,32 @@ A, B → fixed_todo / D → fixed_notice / F → fixed_wrapup / 당일이슈 미
 
 ---
 
-## 12. 리팩토링 기록 (2026-04-21 업데이트)
+## 12. 리팩토링 기록 (2026-04-23 업데이트)
+
+### 12.-1 주요 변경 (2026-04-23)
+
+#### master 섹션 DB 동기화 및 data loss 방지
+- **문제**: master 계정이 UI 자물쇠로 fixed 섹션 visibility 를 바꿔도 `worklog_sections` 테이블에 반영 안 됨 → 다음 daily 페이지 템플릿이 master 속성 유실. 또한 비관리자가 저장하면 load 시 필터된 content 가 그대로 DB에 덮어써져 master 섹션이 영구 삭제되는 **data loss** 위험.
+- **조치**:
+  - `migrate-worklog-sections-master-update.sql` — master 계정이 `worklog_sections` 테이블을 UPDATE 할 수 있는 RLS 정책 추가 (`is_master()` 기반).
+  - `TipTapTestPage.jsx` autosave 블록 — master 계정일 때 fixed 섹션의 title + visibility 를 `worklog_sections` 에 동기화.
+  - `TipTapTestPage.jsx::saveImmediately` — 비관리자가 daily 페이지 저장 시 DB 의 master 섹션을 원위치에 자동 merge.
+- **효과**: master 가 자물쇠 한 번 누르면 이후 생성되는 모든 daily 페이지에 master 속성 자동 반영. 비관리자 편집·저장해도 master 섹션 보존.
+
+#### daily 페이지 중복 생성 차단 (C 옵션)
+- **문제**: `goToNextWorklog` 의 날짜 계산이 `new Date(dateStr + 'T00:00:00').toISOString().slice(0, 10)` 패턴으로 KST(UTC+9) 환경에서 **같은 날짜**를 반환 → 오늘 페이지에서 → 버튼 누르면 오늘 날짜의 중복 페이지가 생성됨. 또한 어떤 경로에서도 DB 차원의 중복 방지 제약 없음.
+- **조치**:
+  - `dateUtils.js` — `shiftDateKey`, `nextDateKey`, `prevDateKey` 타임존 안전 유틸 추가 (문자열 파싱 기반).
+  - `goToNextWorklog` — 새 유틸로 교체 + insert 직전 `eq('page_date', dateKey)` existence 체크로 race 방지.
+  - `handleCreateDailyPage` (캘린더 "+" 버튼) — 동일 existence 체크 추가.
+  - `migrate-daily-page-unique.sql` — `(parent_id, page_date)` partial UNIQUE 인덱스 (`page_type='daily' AND deleted_at IS NULL`).
+- **효과**: 코드 2중 가드 + DB 제약 3중 방어로 어떤 경로로도 중복 생성 불가.
+
+#### 이월 시스템 시각화 문서
+- `docs/CARRY-OVER-MAP.md` — 이월 전체 동작을 한눈에 보는 마크다운 문서 (매트릭스 / 시간축 / 트리거 / 섹션 타입 / 시나리오 / 개선 로드맵)
+- `docs/carry-over-map.html` — 동일 내용의 인터랙티브 HTML 시각화 (SVG 플로우차트 + 다크 테마 + 색상 코딩)
+
+---
 
 ### 12.0 주요 변경 (2026-04-21)
 

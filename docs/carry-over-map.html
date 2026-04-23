@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>이월 시스템 한눈에 보기 · ThinkMap</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e0f13;
+    --panel: #161821;
+    --panel-2: #1d202c;
+    --border: #2a2e3d;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --dim: #6b7280;
+    --accent: #818cf8;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --info: #60a5fa;
+    --master: #c084fc;
+    --pin: #38bdf8;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Pretendard, 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+  h1 {
+    font-size: 24px; font-weight: 600; margin-bottom: 4px;
+    background: linear-gradient(90deg, #818cf8, #c084fc, #38bdf8);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+  h2 {
+    font-size: 18px; font-weight: 600; margin: 48px 0 16px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  h2 .tag {
+    font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px;
+    background: var(--panel-2); color: var(--muted);
+  }
+  h3 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; color: var(--muted); }
+  p, li { font-size: 13px; color: var(--text); }
+  ul { padding-left: 20px; }
+  code {
+    font-family: 'SF Mono', Menlo, monospace; font-size: 12px;
+    background: var(--panel-2); padding: 1px 6px; border-radius: 3px;
+    color: #fbbf24;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin: 8px 0;
+  }
+
+  /* Matrix */
+  .matrix {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .matrix .cell {
+    background: var(--panel); padding: 12px 14px; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .matrix .header {
+    background: var(--panel-2); font-weight: 600; color: var(--muted);
+    font-size: 12px;
+  }
+  .matrix .row-label { justify-content: flex-start; font-size: 13px; }
+  .matrix .ok { color: var(--success); font-size: 18px; font-weight: bold; }
+  .matrix .no { color: var(--danger); font-size: 18px; font-weight: bold; }
+  .matrix .na { color: var(--dim); font-size: 13px; }
+  .matrix .note { font-size: 11px; color: var(--muted); margin-left: 6px; }
+
+  /* Timeline */
+  .timeline {
+    display: flex; align-items: stretch; gap: 0;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px; margin: 16px 0;
+  }
+  .timeline-col {
+    flex: 1; padding: 0 16px; position: relative;
+    border-right: 1px dashed var(--border);
+  }
+  .timeline-col:last-child { border-right: none; }
+  .timeline-day {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .timeline-day.today { color: var(--accent); }
+  .block-box {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px; margin: 8px 0;
+    font-size: 12px;
+  }
+  .block-box.original { border-color: var(--info); }
+  .block-box.carryover { border-color: var(--warn); }
+  .block-box .type-badge {
+    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    font-size: 10px; font-weight: 600; margin-bottom: 6px;
+  }
+  .block-box.original .type-badge { background: rgba(96,165,250,0.15); color: var(--info); }
+  .block-box.carryover .type-badge { background: rgba(245,158,11,0.15); color: var(--warn); }
+  .block-box .attr { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .block-box .attr code { font-size: 10px; padding: 0 3px; }
+  .timeline-arrow {
+    position: absolute; top: 50%; right: -10px;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-size: 16px; font-weight: bold;
+  }
+
+  /* Flow diagram */
+  .flow-diagram {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px; margin: 16px 0;
+    overflow-x: auto;
+  }
+  .flow-svg { min-width: 100%; height: auto; }
+
+  /* Section cards */
+  .section-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; margin: 16px 0;
+  }
+  .section-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .section-card.fixed { border-left: 3px solid var(--info); }
+  .section-card.pinned { border-left: 3px solid var(--pin); }
+  .section-card.temp { border-left: 3px solid var(--dim); }
+  .section-card h4 { font-size: 14px; margin-bottom: 8px; }
+  .section-card .meta { font-size: 12px; color: var(--muted); margin: 4px 0; }
+  .section-card .meta strong { color: var(--text); font-weight: 500; }
+  .section-card .result {
+    margin-top: 10px; padding: 8px 10px; background: var(--panel-2);
+    border-radius: 4px; font-size: 11px; color: var(--muted);
+  }
+
+  /* Trigger flow */
+  .trigger-flow {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0;
+  }
+  .trigger-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px;
+  }
+  .trigger-card .title {
+    font-size: 13px; font-weight: 600; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .trigger-card .badge {
+    padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600;
+  }
+  .badge.eager { background: rgba(96,165,250,0.15); color: var(--info); }
+  .badge.lazy { background: rgba(245,158,11,0.15); color: var(--warn); }
+  .badge.thread { background: rgba(34,197,94,0.15); color: var(--success); }
+  .badge.dismiss { background: rgba(239,68,68,0.15); color: var(--danger); }
+  .trigger-card .when { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .trigger-card .what { font-size: 12px; color: var(--text); }
+  .trigger-card code { font-size: 11px; }
+
+  /* Visibility lanes */
+  .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .lane {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .lane.all { border-left: 3px solid var(--success); }
+  .lane.master { border-left: 3px solid var(--master); }
+  .lane h4 {
+    font-size: 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .icon-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 4px; font-size: 12px;
+  }
+  .icon-badge.all { background: rgba(34,197,94,0.15); color: var(--success); }
+  .icon-badge.master { background: rgba(192,132,252,0.15); color: var(--master); }
+  .lane ul { padding-left: 18px; font-size: 12px; }
+  .lane li { margin: 4px 0; color: var(--text); }
+
+  /* Legend */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0;
+    padding: 12px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* Scenario timeline */
+  .scenario {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin: 12px 0;
+  }
+  .scenario h4 { font-size: 13px; margin-bottom: 10px; }
+  .scenario-steps { display: flex; flex-direction: column; gap: 6px; }
+  .scenario-step {
+    display: flex; align-items: center; gap: 10px; font-size: 12px;
+    padding: 6px 8px; background: var(--panel-2); border-radius: 4px;
+  }
+  .scenario-step .date {
+    font-family: 'SF Mono', Menlo, monospace; font-weight: 600;
+    color: var(--accent); min-width: 50px;
+  }
+  .scenario-step .arrow { color: var(--muted); font-size: 11px; }
+
+  /* Roadmap */
+  .roadmap {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 16px 0;
+  }
+  .roadmap-cat {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .roadmap-cat h4 { font-size: 13px; margin-bottom: 10px; color: var(--accent); }
+  .roadmap-cat ul { padding-left: 16px; font-size: 12px; }
+  .roadmap-cat li { margin: 4px 0; }
+
+  .footer {
+    margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--dim); text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    .matrix { grid-template-columns: 2fr 1fr 1fr 1fr; }
+    .section-grid, .trigger-flow, .lanes, .roadmap { grid-template-columns: 1fr; }
+    .timeline { flex-direction: column; gap: 8px; }
+    .timeline-col { border-right: none; border-bottom: 1px dashed var(--border); padding: 8px 0; }
+    .timeline-col:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🔄 이월(Carry-Over) 시스템 한눈에 보기</h1>
+<div class="subtitle">ThinkMap 업무일지 · 2026-04-23 · 기능 개선 기준 문서</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div>이월됨</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>이월 안 됨</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--info)"></div>원본</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div>이월본</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--master)"></div>master 전용</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--pin)"></div>pinned</div>
+</div>
+
+<!-- ─────────── 1. 이월 매트릭스 ─────────── -->
+<h2>1. 이월 매트릭스 <span class="tag">한 장 요약</span></h2>
+
+<div class="matrix">
+  <div class="cell header row-label">블록 유형</div>
+  <div class="cell header">← 어제로</div>
+  <div class="cell header">↔ 오늘</div>
+  <div class="cell header">→ 내일로</div>
+
+  <div class="cell row-label">미완료 투두</div>
+  <div class="cell no">✗</div>
+  <div class="cell na">(원본)</div>
+  <div class="cell ok">✓</div>
+
+  <div class="cell row-label">완료 투두 (하위 미완료)</div>
+  <div class="cell no">✗</div>
+  <div class="cell na">(원본)</div>
+  <div class="cell ok">✓ <span class="note">완료유지</span></div>
+
+  <div class="cell row-label">완료 투두 (전부 완료)</div>
+  <div class="cell no">✗</div>
+  <div class="cell na">(원본)</div>
+  <div class="cell no">✗</div>
+
+  <div class="cell row-label">📌 pinned 섹션 (h2)</div>
+  <div class="cell no">✗</div>
+  <div class="cell na">(원본)</div>
+  <div class="cell ok">✓ <span class="note">섹션째</span></div>
+
+  <div class="cell row-label">📌 pinned 블록 (일반 텍스트)</div>
+  <div class="cell no">✗</div>
+  <div class="cell na">(원본)</div>
+  <div class="cell ok">✓</div>
+
+  <div class="cell row-label">일반 토글 / 텍스트</div>
+  <div class="cell no">✗</div>
+  <div class="cell na">(원본)</div>
+  <div class="cell no">✗</div>
+
+  <div class="cell row-label">고정 섹션 4종 (할 일/전달/마무리/이슈)</div>
+  <div class="cell na">별도 경로</div>
+  <div class="cell ok">매일 자동</div>
+  <div class="cell na">별도 경로</div>
+
+  <div class="cell row-label">🗑️ _dismissed 블록 (삭제됨)</div>
+  <div class="cell na">—</div>
+  <div class="cell na">—</div>
+  <div class="cell no">✗ <span class="note">재이월 차단</span></div>
+
+  <div class="cell row-label">🔒 visibility 'master' / 🔓 'all'</div>
+  <div class="cell na">속성 유지</div>
+  <div class="cell na">속성 유지</div>
+  <div class="cell na">속성 유지</div>
+</div>
+
+<!-- ─────────── 2. 시간축 모식도 ─────────── -->
+<h2>2. 시간축 원본·이월본 관계 <span class="tag">단방향 forward</span></h2>
+
+<div class="timeline">
+  <div class="timeline-col">
+    <div class="timeline-day">📅 어제 (−1)</div>
+    <div class="block-box original">
+      <span class="type-badge">원본</span>
+      <div><strong>todo: "구매 요청"</strong></div>
+      <div class="attr"><code>blockId: abc</code></div>
+      <div class="attr"><code>isCarryOver: false</code></div>
+      <div class="attr"><code>todoChecked: false</code></div>
+    </div>
+    <div class="timeline-arrow">→</div>
+  </div>
+
+  <div class="timeline-col">
+    <div class="timeline-day today">📅 오늘 (0)</div>
+    <div class="block-box carryover">
+      <span class="type-badge">이월본 #1</span>
+      <div><strong>todo: "구매 요청"</strong></div>
+      <div class="attr"><code>blockId: xyz</code> (새 ID)</div>
+      <div class="attr"><code>originBlockId: abc</code></div>
+      <div class="attr"><code>isCarryOver: true</code></div>
+      <div class="attr"><code>carryOverFrom: "−1"</code></div>
+    </div>
+    <div class="timeline-arrow">→</div>
+  </div>
+
+  <div class="timeline-col">
+    <div class="timeline-day">📅 내일 (+1)</div>
+    <div class="block-box carryover">
+      <span class="type-badge">이월본 #2</span>
+      <div><strong>todo: "구매 요청"</strong></div>
+      <div class="attr"><code>blockId: qwe</code> (새 ID)</div>
+      <div class="attr"><code>originBlockId: abc</code> ⭐</div>
+      <div class="attr"><code>isCarryOver: true</code></div>
+      <div class="attr" style="color:var(--master)">⭐ 최초 원본을 가리킴<br>(체인 무한 증식 방지)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────── 3. 판정 로직 플로우 ─────────── -->
+<h2>3. 이월 대상 판정 로직 <span class="tag">extractCarryOverBlocks</span></h2>
+
+<div class="flow-diagram">
+<svg class="flow-svg" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#818cf8"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/>
+    </marker>
+  </defs>
+
+  <!-- Start -->
+  <rect x="400" y="10" width="200" height="40" rx="8" fill="#1d202c" stroke="#818cf8" stroke-width="1.5"/>
+  <text x="500" y="35" text-anchor="middle" fill="#e5e7eb" font-size="13" font-weight="600">h2 섹션의 각 child 순회</text>
+  <line x1="500" y1="50" x2="500" y2="80" stroke="#818cf8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Decision 1 -->
+  <polygon points="500,80 600,130 500,180 400,130" fill="#1d202c" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="500" y="125" text-anchor="middle" fill="#e5e7eb" font-size="11">isTodo &amp;&amp;</text>
+  <text x="500" y="140" text-anchor="middle" fill="#e5e7eb" font-size="11">!todoChecked ?</text>
+
+  <!-- Yes -> 이월 -->
+  <line x1="600" y1="130" x2="700" y2="130" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <text x="650" y="123" text-anchor="middle" fill="#22c55e" font-size="10">YES</text>
+  <rect x="700" y="110" width="250" height="40" rx="6" fill="#1d202c" stroke="#22c55e"/>
+  <text x="825" y="130" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="600">이월 (type: 'todo')</text>
+  <text x="825" y="144" text-anchor="middle" fill="#9ca3af" font-size="10">하위 블록 전체 deep clone</text>
+
+  <!-- No -> next check -->
+  <line x1="500" y1="180" x2="500" y2="210" stroke="#818cf8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Decision 2 -->
+  <polygon points="500,210 600,250 500,290 400,250" fill="#1d202c" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="500" y="241" text-anchor="middle" fill="#e5e7eb" font-size="10">isTodo &amp;&amp; todoChecked</text>
+  <text x="500" y="255" text-anchor="middle" fill="#e5e7eb" font-size="10">&amp;&amp; hasUnfinished</text>
+  <text x="500" y="269" text-anchor="middle" fill="#e5e7eb" font-size="10">Todo(child) ?</text>
+
+  <!-- Yes -->
+  <line x1="600" y1="250" x2="700" y2="250" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="700" y="230" width="250" height="40" rx="6" fill="#1d202c" stroke="#22c55e"/>
+  <text x="825" y="250" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="600">이월 (type: 'todo-with-unfinished')</text>
+  <text x="825" y="264" text-anchor="middle" fill="#9ca3af" font-size="10">완료 상태 그대로 유지</text>
+
+  <!-- No -->
+  <line x1="500" y1="290" x2="500" y2="320" stroke="#818cf8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Decision 3 -->
+  <polygon points="500,320 600,360 500,400 400,360" fill="#1d202c" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="500" y="355" text-anchor="middle" fill="#e5e7eb" font-size="10">isPinned &amp;&amp; !isTodo ?</text>
+  <text x="500" y="369" text-anchor="middle" fill="#9ca3af" font-size="9">(pinned 일반 텍스트)</text>
+
+  <!-- Yes -->
+  <line x1="600" y1="360" x2="700" y2="360" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="700" y="340" width="250" height="40" rx="6" fill="#1d202c" stroke="#22c55e"/>
+  <text x="825" y="360" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="600">이월 (type: 'pinned')</text>
+  <text x="825" y="374" text-anchor="middle" fill="#9ca3af" font-size="10">전체 노드 복사</text>
+
+  <!-- No branches all -> skip -->
+  <line x1="400" y1="130" x2="50" y2="130" stroke="#ef4444" stroke-width="1"/>
+  <line x1="400" y1="250" x2="50" y2="250" stroke="#ef4444" stroke-width="1"/>
+  <line x1="400" y1="360" x2="50" y2="360" stroke="#ef4444" stroke-width="1"/>
+  <line x1="50" y1="130" x2="50" y2="380" stroke="#ef4444" stroke-width="1"/>
+  <line x1="50" y1="380" x2="180" y2="380" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+  <rect x="180" y="360" width="150" height="40" rx="6" fill="#1d202c" stroke="#ef4444"/>
+  <text x="255" y="385" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">이월 제외</text>
+
+  <text x="390" y="145" text-anchor="end" fill="#ef4444" font-size="10">NO</text>
+  <text x="390" y="265" text-anchor="end" fill="#ef4444" font-size="10">NO</text>
+  <text x="390" y="375" text-anchor="end" fill="#ef4444" font-size="10">NO</text>
+
+</svg>
+</div>
+<p style="font-size:12px;color:var(--muted)">※ child.blockType === 'h3' 인 경우 하위 섹션 내부도 재귀적으로 같은 로직 적용. (당일 이슈 등)</p>
+
+<!-- ─────────── 4. 트리거 4종 ─────────── -->
+<h2>4. 이월 트리거 (언제 실행되나) <span class="tag">4가지 경로</span></h2>
+
+<div class="trigger-flow">
+  <div class="trigger-card">
+    <div class="title">
+      <span class="badge eager">EAGER</span>
+      <span>새 daily 페이지 생성</span>
+    </div>
+    <div class="when">캘린더 "+" / "오늘" 버튼 / → 버튼</div>
+    <div class="what">어제 페이지의 모든 이월 대상을 <code>buildDailyPageTemplate()</code> 에서 일괄 삽입</div>
+  </div>
+
+  <div class="trigger-card">
+    <div class="title">
+      <span class="badge lazy">LAZY</span>
+      <span>기존 daily 페이지 열기</span>
+    </div>
+    <div class="when">페이지 전환, 브라우저 탭 복귀, QuickTodo 삽입</div>
+    <div class="what">어제 페이지와 비교해 <strong>신규 미이월</strong>만 <code>syncCarryOver()</code> 로 삽입</div>
+  </div>
+
+  <div class="trigger-card">
+    <div class="title">
+      <span class="badge thread">THREAD</span>
+      <span>체크박스 완료/해제 동기화</span>
+    </div>
+    <div class="when">어느 페이지에서든 todo 토글 시</div>
+    <div class="what">같은 <code>originBlockId</code> 을 공유하는 최근 <strong>90일</strong> 이내 이월본 모두 동기화 (<code>syncBlockAcrossPages</code>)</div>
+  </div>
+
+  <div class="trigger-card">
+    <div class="title">
+      <span class="badge dismiss">DISMISS</span>
+      <span>이월본 삭제 → 재이월 차단</span>
+    </div>
+    <div class="when">휴지통/Backspace/드래그/멀티셀렉트</div>
+    <div class="what"><code>block-dismissed</code> 이벤트 → <code>_dismissed</code> 리스트에 추가. Lazy/Eager 모두 이 리스트 항목은 건너뜀</div>
+  </div>
+</div>
+
+<!-- ─────────── 5. 섹션 타입 × 채널 ─────────── -->
+<h2>5. 섹션 3종 × 저장 채널 <span class="tag">혼동 주의</span></h2>
+
+<div class="section-grid">
+  <div class="section-card fixed">
+    <h4>🔷 고정 섹션 (fixed)</h4>
+    <div class="meta"><strong>식별:</strong> section_type='fixed'</div>
+    <div class="meta"><strong>ID:</strong> fixed_todo, fixed_notice, fixed_wrapup, fixed_daily_issue</div>
+    <div class="meta"><strong>저장:</strong> worklog_sections 테이블 행</div>
+    <div class="result">
+      매 daily 생성 시 템플릿에서 자동 시드.<br>
+      title·visibility 변경은 테이블에 반영 (master 한정 RLS).
+    </div>
+  </div>
+
+  <div class="section-card pinned">
+    <h4>📌 사용자 pinned 섹션</h4>
+    <div class="meta"><strong>식별:</strong> attrs.isPinned === true</div>
+    <div class="meta"><strong>ID:</strong> sec_xxxxxxxx (자동 생성)</div>
+    <div class="meta"><strong>저장:</strong> content_tiptap 내부만</div>
+    <div class="result">
+      어제 content_tiptap → 내일 content_tiptap 으로 복사.<br>
+      <strong>중간 하루라도 pinned 없으면 체인 끊김.</strong>
+    </div>
+  </div>
+
+  <div class="section-card temp">
+    <h4>⚪ 임시 섹션</h4>
+    <div class="meta"><strong>식별:</strong> attrs.isPinned === false</div>
+    <div class="meta"><strong>ID:</strong> sec_xxxxxxxx</div>
+    <div class="meta"><strong>저장:</strong> 해당 daily 페이지에만</div>
+    <div class="result">
+      이월 안 됨.<br>
+      핀 클릭하면 pinned 섹션으로 승격.
+    </div>
+  </div>
+</div>
+
+<!-- ─────────── 6. 권한 × 이월 ─────────── -->
+<h2>6. 권한 (visibility) × 이월 <span class="tag">자물쇠</span></h2>
+
+<div class="lanes">
+  <div class="lane all">
+    <h4><span class="icon-badge all">🔓</span> visibility = 'all' (기본)</h4>
+    <ul>
+      <li>모든 인증 계정이 열람·편집</li>
+      <li>이월 시 속성 그대로 복사 → 내일도 'all'</li>
+      <li>특별한 저장 경로 없음</li>
+    </ul>
+  </div>
+
+  <div class="lane master">
+    <h4><span class="icon-badge master">🔒</span> visibility = 'master' (마스터 전용)</h4>
+    <ul>
+      <li>master 계정만 보임 (load 시 비관리자에게 필터링)</li>
+      <li>비관리자 저장 시 master 섹션은 DB에서 merge 보존 (data loss 방지)</li>
+      <li>이월 시 속성 유지 → 다음 날도 master 전용</li>
+      <li><strong>fixed</strong> 섹션: worklog_sections.visibility='master' 저장</li>
+      <li><strong>pinned</strong> 섹션: content_tiptap 안 attrs.visibility='master' 저장</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ─────────── 7. 시나리오 ─────────── -->
+<h2>7. 실전 시나리오 <span class="tag">예시 타임라인</span></h2>
+
+<div class="scenario">
+  <h4>A. 미완료 투두 연쇄 이월 → Thread 동기화로 일괄 완료</h4>
+  <div class="scenario-steps">
+    <div class="scenario-step"><span class="date">04/21</span><span class="arrow">›</span>todo "구매 요청" 작성 (원본, blockId: abc)</div>
+    <div class="scenario-step"><span class="date">04/22</span><span class="arrow">›</span>[이월 04/21] "구매 요청" 이월본 #1 (originBlockId: abc)</div>
+    <div class="scenario-step"><span class="date">04/23</span><span class="arrow">›</span>[이월 04/21] "구매 요청" 이월본 #2 (originBlockId: abc) ← 최초 원본 추적</div>
+    <div class="scenario-step"><span class="date">04/24</span><span class="arrow">›</span>어느 페이지든 체크 → 90일 이내 같은 originId 모두 ✓</div>
+  </div>
+</div>
+
+<div class="scenario">
+  <h4>B. master + pinned 섹션 연쇄 계승</h4>
+  <div class="scenario-steps">
+    <div class="scenario-step"><span class="date">04/23</span><span class="arrow">›</span>"새 섹션" 추가 + 🔒(master) + 📌(pin)</div>
+    <div class="scenario-step"><span class="date">04/23</span><span class="arrow">›</span>content_tiptap 에 h2 attrs.visibility='master', isPinned=true 저장</div>
+    <div class="scenario-step"><span class="date">04/24</span><span class="arrow">›</span>→ 버튼으로 내일 생성 → pinned 섹션 이월 → 섹션 전체 복사</div>
+    <div class="scenario-step"><span class="date">04/25</span><span class="arrow">›</span>생성 시 04/24에서 또 이월 → 계속 유지</div>
+  </div>
+</div>
+
+<div class="scenario">
+  <h4>C. 이월본 삭제 후 재이월 차단</h4>
+  <div class="scenario-steps">
+    <div class="scenario-step"><span class="date">04/22</span><span class="arrow">›</span>"주문하기" todo 미완료</div>
+    <div class="scenario-step"><span class="date">04/23</span><span class="arrow">›</span>[이월 04/22] "주문하기" 생성</div>
+    <div class="scenario-step"><span class="date">04/23</span><span class="arrow">›</span>사용자 삭제 → _dismissed 에 blockId + originBlockId 추가</div>
+    <div class="scenario-step"><span class="date">04/23</span><span class="arrow">›</span>페이지 재방문 → Lazy 이월이 _dismissed 확인 후 재삽입 안 함</div>
+    <div class="scenario-step"><span class="date">04/24</span><span class="arrow">›</span>내일 생성 → 04/23 의 _dismissed 계승 → 04/22 원본 "주문하기" 재이월 차단</div>
+  </div>
+</div>
+
+<!-- ─────────── 8. 속성 사전 ─────────── -->
+<h2>8. 주요 속성 사전 <span class="tag">reference</span></h2>
+
+<div class="card">
+<div class="matrix" style="grid-template-columns: 1fr 2fr 1fr;">
+  <div class="cell header row-label">속성</div>
+  <div class="cell header row-label">의미</div>
+  <div class="cell header row-label">저장 위치</div>
+
+  <div class="cell row-label"><code>blockId</code></div>
+  <div class="cell row-label">블록 고유 ID (blk_ prefix)</div>
+  <div class="cell row-label">토글 attrs</div>
+
+  <div class="cell row-label"><code>originBlockId</code></div>
+  <div class="cell row-label">이월본이 가리키는 <strong>최초 원본</strong> blockId</div>
+  <div class="cell row-label">토글 attrs</div>
+
+  <div class="cell row-label"><code>isCarryOver</code></div>
+  <div class="cell row-label">이월본 여부</div>
+  <div class="cell row-label">토글 attrs</div>
+
+  <div class="cell row-label"><code>carryOverFrom</code></div>
+  <div class="cell row-label">이월 원본 날짜 (YYYY-MM-DD)</div>
+  <div class="cell row-label">토글 attrs</div>
+
+  <div class="cell row-label"><code>isPinned</code></div>
+  <div class="cell row-label">다음 날로 계승 여부</div>
+  <div class="cell row-label">토글 attrs</div>
+
+  <div class="cell row-label"><code>isTodo</code>, <code>todoChecked</code></div>
+  <div class="cell row-label">체크박스 / 완료 상태</div>
+  <div class="cell row-label">토글 attrs</div>
+
+  <div class="cell row-label"><code>visibility</code></div>
+  <div class="cell row-label">'all' / 'master'</div>
+  <div class="cell row-label">토글 attrs + worklog_sections</div>
+
+  <div class="cell row-label"><code>sectionId</code></div>
+  <div class="cell row-label">섹션 식별자 (fixed_xxx / sec_xxx)</div>
+  <div class="cell row-label">토글 attrs</div>
+
+  <div class="cell row-label"><code>section_type</code></div>
+  <div class="cell row-label">'fixed' / 'pinned'</div>
+  <div class="cell row-label">worklog_sections 행</div>
+
+  <div class="cell row-label"><code>_dismissed</code></div>
+  <div class="cell row-label">재이월 차단 blockId 리스트</div>
+  <div class="cell row-label">content_tiptap 루트</div>
+</div>
+</div>
+
+<!-- ─────────── 9. 로드맵 ─────────── -->
+<h2>9. 개선 후보 (토론 기준) <span class="tag">roadmap</span></h2>
+
+<div class="roadmap">
+  <div class="roadmap-cat">
+    <h4>⚡ 기능 확장</h4>
+    <ul>
+      <li>과거 방향 "어제 할 일 불러오기" 수동 버튼</li>
+      <li>_dismissed 항목 복원 UI</li>
+      <li>이월 범위 필터 (특정 섹션만)</li>
+      <li>주/월 단위 이월 사이클</li>
+      <li>이월 누적 통계 대시보드</li>
+    </ul>
+  </div>
+  <div class="roadmap-cat">
+    <h4>🛡️ 신뢰성</h4>
+    <ul>
+      <li>pinned 섹션 중앙 저장 (worklog_sections 활용)</li>
+      <li>이월 감사 로그 (언제·어디서 왔는지 추적)</li>
+      <li>_dismissed 만료 정책 (N일 후 자동 소거)</li>
+      <li>이월 무결성 자동 검증 스크립트</li>
+    </ul>
+  </div>
+  <div class="roadmap-cat">
+    <h4>🎨 UX</h4>
+    <ul>
+      <li>연쇄 이월 시각화 강화 (최초 원본 날짜 배지)</li>
+      <li>이월본→원본 네비게이션 (클릭 점프)</li>
+      <li>묵은 할일 경고 (N일 이상)</li>
+      <li>자물쇠 + 핀 원클릭 설정</li>
+      <li>섹션 순서 드래그 중 이월 블록 시각적 분리</li>
+    </ul>
+  </div>
+  <div class="roadmap-cat">
+    <h4>🔐 권한</h4>
+    <ul>
+      <li>섹션별 편집 권한 세분화</li>
+      <li>user-group 한정 섹션</li>
+      <li>변경 감사 로그 (누가·언제·무엇)</li>
+      <li>master 외 계정의 읽기 전용 모드</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ─────────── 10. 관련 파일 ─────────── -->
+<h2>10. 관련 파일 <span class="tag">진입점 매핑</span></h2>
+
+<div class="card">
+<div class="matrix" style="grid-template-columns: 2fr 3fr;">
+  <div class="cell header row-label">파일</div>
+  <div class="cell header row-label">역할</div>
+
+  <div class="cell row-label"><code>src/utils/worklogUtils.js</code></div>
+  <div class="cell row-label">extractCarryOverData / buildDailyPageTemplate</div>
+
+  <div class="cell row-label"><code>src/utils/worklogTemplate.js</code></div>
+  <div class="cell row-label">createWorklogTemplate / toCarryOverNode</div>
+
+  <div class="cell row-label"><code>src/utils/carryOverPipeline.js</code></div>
+  <div class="cell row-label">Eager/Lazy 공용 파이프라인, _dismissed I/O</div>
+
+  <div class="cell row-label"><code>src/utils/sectionUtils.js</code></div>
+  <div class="cell row-label">h2/h3 식별, 섹션 그룹핑/삽입</div>
+
+  <div class="cell row-label"><code>src/utils/blockId.js</code></div>
+  <div class="cell row-label">blockId 생성 단일 진입점</div>
+
+  <div class="cell row-label"><code>TipTapTestPage.jsx</code></div>
+  <div class="cell row-label">syncCarryOver, loadContent, saveImmediately, goToNextWorklog</div>
+
+  <div class="cell row-label"><code>ToggleExtension.js</code></div>
+  <div class="cell row-label">carryOverDismissTracker, syncBlockAcrossPages, 자물쇠/핀 버튼</div>
+
+  <div class="cell row-label"><code>dateUtils.js</code></div>
+  <div class="cell row-label">dailyPageName, nextDateKey, prevDateKey</div>
+
+  <div class="cell row-label"><code>migrate-worklog-sections.sql</code></div>
+  <div class="cell row-label">worklog_sections 정의 + 시드 + RLS</div>
+
+  <div class="cell row-label"><code>migrate-worklog-sections-master-update.sql</code></div>
+  <div class="cell row-label">master UPDATE 정책</div>
+
+  <div class="cell row-label"><code>migrate-daily-page-unique.sql</code></div>
+  <div class="cell row-label">(parent_id, page_date) UNIQUE 인덱스</div>
+</div>
+</div>
+
+<div class="footer">
+  📎 이 페이지는 <code>docs/carry-over-map.html</code> · 기준 문서: <code>docs/CARRY-OVER-MAP.md</code><br>
+  업데이트 시 양쪽을 함께 수정 권장
+</div>
+
+</div>
+</body>
+</html>

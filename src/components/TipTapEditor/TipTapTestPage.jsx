@@ -708,10 +708,38 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     if (!contentToSave || !pageIdToSave || !session) return false
 
     try {
+      // 비관리자가 daily 페이지 저장 시 DB의 master 전용 h2 섹션을 보존하여 data loss 방지
+      // 로드 시 master 섹션을 필터링해서 에디터에 넣기 때문에, 그대로 저장하면 master 섹션이 DB에서 사라짐
+      let finalContent = contentToSave
+      if (!isMaster && Array.isArray(contentToSave?.content)) {
+        const { data: dbPage } = await supabase
+          .from('pages')
+          .select('content_tiptap, page_type')
+          .eq('id', pageIdToSave)
+          .single()
+
+        if (dbPage?.page_type === 'daily' && Array.isArray(dbPage?.content_tiptap?.content)) {
+          const masterSections = []
+          dbPage.content_tiptap.content.forEach((n, i) => {
+            if (isH2Section(n) && n.attrs?.visibility === 'master') {
+              masterSections.push({ node: n, origIdx: i })
+            }
+          })
+          if (masterSections.length > 0) {
+            const merged = [...contentToSave.content]
+            // 원래 인덱스 순서로 재삽입 (뒤쪽부터 넣어도 origIdx 기준 위치 보존)
+            for (const { node, origIdx } of masterSections) {
+              merged.splice(Math.min(origIdx, merged.length), 0, node)
+            }
+            finalContent = { ...contentToSave, content: merged }
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('pages')
         .update({
-          content_tiptap: contentToSave,
+          content_tiptap: finalContent,
           updated_at: new Date().toISOString()
         })
         .eq('id', pageIdToSave)
@@ -725,7 +753,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       console.error('저장 오류:', err)
       return false
     }
-  }, [session])
+  }, [session, isMaster])
 
   // content가 변경될 때마다 ref 업데이트
   useEffect(() => {
@@ -811,17 +839,19 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         hasUnsavedChanges.current = false
         // 5분마다 자동 히스토리 백업
         saveAutoHistory(content, currentPageId)
-        // daily 페이지: 섹션 타이틀이 변경되었으면 worklog_sections DB에 동기화
-        if (currentPage?.page_type === 'daily' && content?.content) {
+        // daily 페이지 (master 전용): fixed 섹션의 title/visibility 를 worklog_sections DB 에 동기화
+        // RLS 로 master 만 UPDATE 가능. pinned 섹션(sec_*)은 테이블 행이 없어 UPDATE 가 no-op 이지만 에러는 아님
+        if (isMaster && currentPage?.page_type === 'daily' && content?.content) {
           for (const node of content.content) {
             if (node.type === 'toggle' && node.attrs?.blockType === 'h2' && node.attrs?.sectionId) {
               const title = node.content?.[0]?.content?.[0]?.text
+              const visibility = node.attrs?.visibility || 'all'
               if (title) {
                 supabase.from('worklog_sections')
-                  .update({ title })
+                  .update({ title, visibility })
                   .eq('id', node.attrs.sectionId)
                   .then(({ error }) => {
-                    if (error) console.warn('섹션 타이틀 동기화 실패:', node.attrs.sectionId, error.message)
+                    if (error) console.warn('섹션 동기화 실패:', node.attrs.sectionId, error.message)
                   })
               }
             }
@@ -832,7 +862,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [content, session, currentPageId, saveImmediately, saveAutoHistory])
+  }, [content, session, currentPageId, saveImmediately, saveAutoHistory, isMaster, currentPage])
 
   // 페이지 변경 시 이전 페이지 내용 저장 + 히스토리 백업
   useEffect(() => {
@@ -1128,6 +1158,19 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     const dailyPages = calendarDailyPages
 
     const handleCreateDailyPage = async (dateKey) => {
+      // 중복 방지: 해당 날짜에 이미 daily 페이지가 있으면 생성 대신 이동
+      const { data: dup } = await supabase
+        .from('pages')
+        .select('id')
+        .eq('parent_id', currentPageId)
+        .eq('page_date', dateKey)
+        .eq('page_type', 'daily')
+        .is('deleted_at', null)
+        .limit(1)
+      if (dup?.length) {
+        setCurrentPageId(dup[0].id)
+        return
+      }
       // DB에서 최신 daily 페이지를 직접 조회 (메모리의 pages 배열은 stale할 수 있음)
       const { data: freshPages } = await supabase
         .from('pages')
@@ -1445,13 +1488,20 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       setCurrentPageId(next[0].id)
       return
     }
-    // 이후 daily가 없으면 다음날 생성 confirm
-    const d = new Date(currentPage.page_date + 'T00:00:00')
-    d.setDate(d.getDate() + 1)
-    const dateKey = d.toISOString().slice(0, 10)
+    // 이후 daily가 없으면 다음날 생성 confirm (타임존 안전 유틸 사용)
+    const { dailyPageName, nextDateKey } = await import('../../utils/dateUtils')
+    const dateKey = nextDateKey(currentPage.page_date)
     if (!confirm(`${dateKey} 업무일지가 없습니다. 새로 만들까요?`)) return
 
-    const { dailyPageName } = await import('../../utils/dateUtils')
+    // race 방지: insert 직전에 해당 날짜 페이지가 이미 있는지 확인 (중복 생성 차단)
+    const { data: dup } = await supabase.from('pages').select('id')
+      .eq('parent_id', currentPage.parent_id).eq('page_date', dateKey)
+      .eq('page_type', 'daily').is('deleted_at', null).limit(1)
+    if (dup?.length) {
+      setCurrentPageId(dup[0].id)
+      return
+    }
+
     const { data: freshPages } = await supabase.from('pages').select('page_date, content_tiptap')
       .eq('parent_id', currentPage.parent_id).eq('page_type', 'daily').is('deleted_at', null)
       .order('page_date', { ascending: false }).limit(3)

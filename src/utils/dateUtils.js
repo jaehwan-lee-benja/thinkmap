@@ -44,3 +44,14 @@ export const isToday = (date) => {
   const today = new Date()
   return formatDateForDB(date) === formatDateForDB(today)
 }
+
+// YYYY-MM-DD 문자열에 days 만큼 더한 YYYY-MM-DD 반환 (타임존 무관)
+// toISOString을 쓰면 UTC 변환으로 날짜가 밀려 같은 날짜가 되는 버그가 있어 문자열 파싱 경로로 처리
+export const shiftDateKey = (dateStr, days) => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d + days)
+  return formatDateForDB(dt)
+}
+
+export const nextDateKey = (dateStr) => shiftDateKey(dateStr, 1)
+export const prevDateKey = (dateStr) => shiftDateKey(dateStr, -1)
