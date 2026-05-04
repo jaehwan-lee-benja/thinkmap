@@ -1,0 +1,166 @@
+{
+  "name": "자유 섹션 추가",
+  "description": "사용자가 [+ 섹션 추가] 로 '구매 목록' 섹션을 만들었다. worklog_sections 에 scope='user' row 1개 + daily_blocks 에 h2 섹션 row 1개 INSERT (§3.4). 변환 레이어는 daily_blocks 만 다루므로, 호출자가 worklog_sections INSERT 를 별도로 책임진다는 것이 명세. 본 픽스처는 daily_blocks 차원의 INSERT 만 검증.",
+  "spec": "WORKLOG-SPEC.md §3.7.4 시나리오 8",
+  "ctx": {
+    "pageId": "page-0001-0000-0000-0000-000000000000",
+    "pageDate": "2026-04-28",
+    "userId": "user-0001-0000-0000-0000-000000000000"
+  },
+  "initialRows": [
+    {
+      "blockId": "blk-1000-0000-0000-0000-000000000000",
+      "pageId": "page-0001-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "section",
+      "parentBlockId": null,
+      "sectionId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionMasterId": "fixed_todo",
+      "position": 1,
+      "textContent": "할 일",
+      "richContent": null,
+      "isTodo": false,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": true,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "prevDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1000-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1000-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "nextDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1000-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1000-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1500-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1500-0000-0000-0000-000000000000",
+          "sectionMasterId": "usr-1500-master-purchase-000000",
+          "isFixedSection": false,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "구매 목록"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expectedDiff": {
+    "insert": [
+      {
+        "blockId": "blk-1500-0000-0000-0000-000000000000",
+        "pageId": "page-0001-0000-0000-0000-000000000000",
+        "pageDate": "2026-04-28",
+        "userId": "user-0001-0000-0000-0000-000000000000",
+        "blockType": "section",
+        "parentBlockId": null,
+        "sectionId": "blk-1500-0000-0000-0000-000000000000",
+        "sectionMasterId": "usr-1500-master-purchase-000000",
+        "position": 2,
+        "textContent": "구매 목록",
+        "richContent": null,
+        "isTodo": false,
+        "todoChecked": false,
+        "todoStatus": "open",
+        "isCarryOver": false,
+        "carryOverFrom": null,
+        "originBlockId": null,
+        "isPinned": false,
+        "visibility": "all",
+        "isFixedSection": false
+      }
+    ],
+    "update": [],
+    "softDelete": []
+  },
+  "rules": [
+    "R1",
+    "R4",
+    "R5",
+    "R6",
+    "R7"
+  ],
+  "notes": [
+    "호출자(useDailyBlocks 훅 + 자유 섹션 추가 UI)는 본 INSERT 직전 worklog_sections 에 scope='user', id=blk-1500-..., title='구매 목록' row 를 INSERT 해야 한다. 변환 레이어 단위 테스트 범위 밖."
+  ]
+}

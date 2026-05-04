@@ -81,7 +81,7 @@ export function PaneProvider({
   const {
     pages, pageTree, currentPageId, setCurrentPageId: rawSetCurrentPageId,
     pagesLoading, createPage, renamePage, updatePageIcon, deletePage,
-    undoDeletePage, reorderPages, getDescendantCount,
+    undoDeletePage, reorderPages, getDescendantCount, fetchPages,
   } = usePages(effectiveSession, currentProjectId, {
     initialPageId: activeTab?.pageId || null,
     noAutoPage: !!activeTab?.noAutoPage,
@@ -414,9 +414,10 @@ export function PaneProvider({
   const pageCtx = useMemo(() => ({
     pages, pageTree, currentPageId, setCurrentPageId,
     createPage, renamePage, updatePageIcon, deletePage: handleDeletePage, reorderPages, getDescendantCount,
+    fetchPages,
     expandedPages: prefs.expandedPages, saveExpandedPages: prefs.saveExpandedPages,
     goBack, goForward, canGoBack, canGoForward,
-  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, updatePageIcon, handleDeletePage, reorderPages, getDescendantCount, prefs.expandedPages, prefs.saveExpandedPages, goBack, goForward, canGoBack, canGoForward])
+  }), [pages, pageTree, currentPageId, setCurrentPageId, createPage, renamePage, updatePageIcon, handleDeletePage, reorderPages, getDescendantCount, fetchPages, prefs.expandedPages, prefs.saveExpandedPages, goBack, goForward, canGoBack, canGoForward])
 
   const sharingCtx = useMemo(() => ({
     sharedWithMe, sharingLoading,

@@ -1,0 +1,199 @@
+{
+  "name": "Quick Todo 외부 INSERT 후 다음 마운트 시 doc 재조립",
+  "description": "사용자가 GlobalTopBar 의 Quick Todo 를 통해 오늘 페이지의 '할 일' 섹션에 새 row 를 INSERT (에디터 거치지 않음). 다음에 daily 페이지를 열거나 quicktodo-inserted 이벤트로 재조립할 때, blocksToDoc 이 새 row 를 포함한 doc 을 만들고, docToBlocks(prev=당시 doc, next=재조립 doc) 는 변경 없음 (R2) — 새 row 는 이미 DB 에 있으므로.",
+  "spec": "WORKLOG-SPEC.md §3.7.4 시나리오 7",
+  "ctx": {
+    "pageId": "page-0001-0000-0000-0000-000000000000",
+    "pageDate": "2026-04-28",
+    "userId": "user-0001-0000-0000-0000-000000000000"
+  },
+  "initialRows": [
+    {
+      "blockId": "blk-1000-0000-0000-0000-000000000000",
+      "pageId": "page-0001-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "section",
+      "parentBlockId": null,
+      "sectionId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionMasterId": "fixed_todo",
+      "position": 1,
+      "textContent": "할 일",
+      "richContent": null,
+      "isTodo": false,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": true,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    },
+    {
+      "blockId": "blk-2000-0000-0000-0000-000000000000",
+      "pageId": "page-0001-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "toggle",
+      "parentBlockId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionMasterId": null,
+      "position": 1,
+      "textContent": "기존 todo",
+      "richContent": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "기존 todo"
+            }
+          ]
+        }
+      ],
+      "isTodo": true,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": false,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    },
+    {
+      "blockId": "blk-2001-0000-0000-0000-000000000000",
+      "pageId": "page-0001-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "toggle",
+      "parentBlockId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionMasterId": null,
+      "position": 2,
+      "textContent": "Quick Todo 로 추가됨",
+      "richContent": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Quick Todo 로 추가됨"
+            }
+          ]
+        }
+      ],
+      "isTodo": true,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": false,
+      "createdAt": "2026-04-28T10:30:00.000Z",
+      "updatedAt": "2026-04-28T10:30:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "expectedDocFromBlocks": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1000-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1000-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          },
+          {
+            "type": "toggle",
+            "attrs": {
+              "blockId": "blk-2000-0000-0000-0000-000000000000",
+              "isTodo": true,
+              "todoChecked": false,
+              "isCarryOver": false,
+              "isPinned": false,
+              "visibility": "all",
+              "blockType": "paragraph"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "기존 todo"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "toggle",
+            "attrs": {
+              "blockId": "blk-2001-0000-0000-0000-000000000000",
+              "isTodo": true,
+              "todoChecked": false,
+              "isCarryOver": false,
+              "isPinned": false,
+              "visibility": "all",
+              "blockType": "paragraph"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Quick Todo 로 추가됨"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "prevDoc": "<<expectedDocFromBlocks>>",
+  "nextDoc": "<<expectedDocFromBlocks>>",
+  "expectedDiff": {
+    "insert": [],
+    "update": [],
+    "softDelete": []
+  },
+  "rules": [
+    "R1",
+    "R2",
+    "R4",
+    "R5",
+    "R7"
+  ]
+}

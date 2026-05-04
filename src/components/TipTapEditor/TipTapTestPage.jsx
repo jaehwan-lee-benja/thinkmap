@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import TipTapEditor from './TipTapEditor'
+import DailyPageV2 from './DailyPageV2'
 import { multiSelectPluginKey } from './extensions/ToggleExtension'
 
 // 뷰어 모드: 문서 JSON에서 토글 isOpen 오버라이드 적용/추출
@@ -94,15 +95,8 @@ import { useFavoritesContext } from '../../contexts/FavoritesContext'
 import { FileText, Star, ChevronDown, X, CalendarDays } from 'lucide-react'
 import { CalendarView } from '../CalendarView/CalendarView'
 import { buildDailyPageTemplate, extractCarryOverData } from '../../utils/worklogUtils'
-import {
-  backfillBlockIds,
-  filterNewCarryOvers,
-  buildCarryOverNodes,
-  readDismissedIds,
-  writeDismissedIds,
-  stripDismissed,
-} from '../../utils/carryOverPipeline'
-import { SECTION_IDS } from '../../utils/worklogConstants'
+// stripDismissed: normal 페이지의 TipTapEditor content prop 정제용 (v1 호환)
+import { stripDismissed } from '../../utils/carryOverPipeline'
 import WorklogHeader from './WorklogHeader'
 import WorklogComments from './WorklogComments'
 import EmojiPicker from '../Common/EmojiPicker'
@@ -139,7 +133,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const { isTablet } = useIsMobile()
   const authCtx = useAuthContext()
   const isMaster = authCtx?.isMaster ?? false
-  const { pages, setCurrentPageId, createPage, deletePage, updatePageIcon, goBack, goForward, canGoBack, canGoForward } = usePageContext()
+  const { pages, setCurrentPageId, createPage, deletePage, updatePageIcon, goBack, goForward, canGoBack, canGoForward, fetchPages } = usePageContext()
   const { projects, currentProjectId } = useProjectContext()
   const { toggleFavorite, isFavorite } = useFavoritesContext()
   const currentPage = pages.find(p => p.id === currentPageId)
@@ -506,62 +500,16 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     })}
   }
 
-  /**
-   * 이월 동기화: daily 페이지 로드 시 이전 날짜의 미이월 todo를 자동 삽입
-   * carryOverPipeline의 단일 파이프라인을 통해 중복 방지/노드 생성/섹션 삽입 수행
-   */
-  const syncCarryOver = useCallback(async (pageId, contentTiptap) => {
-    const page = pages.find(p => p.id === pageId)
-    if (!page || page.page_type !== 'daily' || !page.parent_id) return contentTiptap
-
-    // 1. 이전 daily 페이지 조회
-    const { data: prevPages } = await supabase
-      .from('pages')
-      .select('id, page_date, content_tiptap')
-      .eq('parent_id', page.parent_id)
-      .eq('page_type', 'daily')
-      .is('deleted_at', null)
-      .lt('page_date', page.page_date)
-      .order('page_date', { ascending: false })
-      .limit(1)
-
-    if (!prevPages?.length || !prevPages[0].content_tiptap) return contentTiptap
-
-    // 2. legacy 블록 backfill (blockId 없는 블록에 ID 부여)
-    const { content: backfilledPrev, changed: prevChanged } = backfillBlockIds(prevPages[0].content_tiptap)
-    if (prevChanged) {
-      await supabase.from('pages').update({ content_tiptap: backfilledPrev }).eq('id', prevPages[0].id)
-    }
-
-    // 3. 이월 후보 추출 → 신규 항목만 필터 → 노드 생성
-    const { carryOverTodos } = extractCarryOverData(backfilledPrev, prevPages[0].page_date)
-    if (carryOverTodos.length === 0) return contentTiptap
-
-    const dismissedIds = readDismissedIds(contentTiptap)
-    const newCandidates = filterNewCarryOvers(carryOverTodos, contentTiptap, dismissedIds)
-    if (newCandidates.length === 0) return contentTiptap
-
-    const nodes = buildCarryOverNodes(newCandidates)
-
-    // 4. sectionId별로 그룹핑하여 해당 h2 섹션에 삽입
-    const bySection = {}
-    nodes.forEach((node, idx) => {
-      const key = newCandidates[idx].sectionId || SECTION_IDS.TODO
-      if (!bySection[key]) bySection[key] = []
-      bySection[key].push(node)
-    })
-
-    const { content: updatedContent, changed } = insertIntoH2Sections(contentTiptap, bySection)
-    if (changed) {
-      await supabase.from('pages').update({ content_tiptap: updatedContent }).eq('id', pageId)
-    }
-    return changed ? updatedContent : contentTiptap
-  }, [pages])
-
   // 페이지 콘텐츠 로드 (유일한 진입점 — 모든 트리거가 이 함수를 호출)
+  // v2 (§10 Phase v2.2): daily 페이지는 DailyPageV2 가 자체 read/write/이월/동기화 책임.
+  // v1 syncCarryOver / extractCarryOverData / buildCarryOverNodes 흐름은 daily 에서 폐기됨 (2026-05-04).
   const loadContent = useCallback(async (targetPageId) => {
     const pid = targetPageId || currentPageId
     if (!session || !pid) return
+
+    // v2 (§10 Phase v2.2): daily 페이지는 DailyPageV2 가 자체 책임. v1 read 경로 차단.
+    const pageType = pages.find(p => p.id === pid)?.page_type
+    if (pageType === 'daily') return
 
     try {
       const { data, error } = await supabase
@@ -574,28 +522,13 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
       if (data?.content_tiptap) {
         const pageType = pages.find(p => p.id === pid)?.page_type
+        // daily 는 위 early return 으로 도달 안 함. normal/calendar 만.
         const injected = pageType !== 'calendar'
           ? injectChildPageBlocks(data.content_tiptap, childPages)
           : data.content_tiptap
-
-        // daily 페이지: 이월 동기화
-        const synced = pageType === 'daily'
-          ? await syncCarryOver(pid, injected)
-          : injected
-
-        const filtered = (!isMaster && pageType === 'daily' && synced?.content)
-          ? { ...synced, content: synced.content.filter(n =>
-              !(isH2Section(n) && n.attrs?.visibility === 'master')
-            )}
-          : synced
-        const ordered = (pageType === 'daily' && filtered?.content)
-          ? { ...filtered, content: applySectionOrder(filtered.content, sectionOrder) }
-          : filtered
-        // daily 페이지: 중복 블록 마킹
-        const marked = pageType === 'daily' ? markDuplicateBlocks(ordered) : ordered
         const finalContent = isImpersonating
-          ? applyToggleOverrides(marked, viewerToggleOverrides[pid])
-          : marked
+          ? applyToggleOverrides(injected, viewerToggleOverrides[pid])
+          : injected
         setContent(finalContent)
         lastHistoryContentRef.current = data.content_tiptap
         prevPageRef.current = { pageId: pid, content: data.content_tiptap }
@@ -632,7 +565,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     } catch (err) {
       console.error('예상치 못한 오류:', err)
     }
-  }, [session, currentPageId, pages, childPages, isMaster, sectionOrder, isImpersonating, syncCarryOver])
+  }, [session, currentPageId, pages, childPages, isMaster, sectionOrder, isImpersonating])
 
   // ── 트리거 A: 페이지 전환 시 로드 ──
   useEffect(() => {
@@ -671,6 +604,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   // block-dismissed 핸들러가 setContent(prev => ...)로 큐에 쌓은 dismissed 업데이트를
   // 덮어쓰지 않도록 반드시 functional form으로 설정한다.
   const handleUpdate = (newContent) => {
+    // v2: daily 는 DailyPageV2 가 별도 처리. v1 onUpdate 흐름 무시.
+    if (currentPage?.page_type === 'daily') return
+
     if (isImpersonating) {
       setContent(prev => {
         const preserved = prev?._dismissed
@@ -706,6 +642,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   // 즉시 저장 함수 (동기적으로 호출 가능)
   const saveImmediately = useCallback(async (contentToSave, pageIdToSave) => {
     if (!contentToSave || !pageIdToSave || !session) return false
+
+    // v2: daily 는 DailyPageV2 의 row 기반 저장. v1 content_tiptap 저장 차단.
+    const pageType = pages.find(p => p.id === pageIdToSave)?.page_type
+    if (pageType === 'daily') return false
 
     try {
       // 비관리자가 daily 페이지 저장 시 DB의 master 전용 h2 섹션을 보존하여 data loss 방지
@@ -753,7 +693,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       console.error('저장 오류:', err)
       return false
     }
-  }, [session, isMaster])
+  }, [session, isMaster, pages])
 
   // content가 변경될 때마다 ref 업데이트
   useEffect(() => {
@@ -1158,37 +1098,24 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     const dailyPages = calendarDailyPages
 
     const handleCreateDailyPage = async (dateKey) => {
-      // 중복 방지: 해당 날짜에 이미 daily 페이지가 있으면 생성 대신 이동
-      const { data: dup } = await supabase
-        .from('pages')
-        .select('id')
-        .eq('parent_id', currentPageId)
-        .eq('page_date', dateKey)
-        .eq('page_type', 'daily')
-        .is('deleted_at', null)
-        .limit(1)
-      if (dup?.length) {
-        setCurrentPageId(dup[0].id)
-        return
-      }
-      // DB에서 최신 daily 페이지를 직접 조회 (메모리의 pages 배열은 stale할 수 있음)
-      const { data: freshPages } = await supabase
-        .from('pages')
-        .select('page_date, content_tiptap')
-        .eq('parent_id', currentPageId)
-        .eq('page_type', 'daily')
-        .is('deleted_at', null)
-        .order('page_date', { ascending: false })
-        .limit(3)
-      const template = await buildDailyPageTemplate(freshPages || [], supabase)
-      const { dailyPageName } = await import('../../utils/dateUtils')
-      const newPage = await createPage(dailyPageName(dateKey), currentPageId, template, {
-        page_type: 'daily',
-        page_date: dateKey,
-        project_id: null,
-      })
-      if (newPage) {
-        setCurrentPageId(newPage.id)
+      // v2 (§10 Phase v2.2): row 기반 daily 페이지 생성
+      try {
+        const { createDailyPageV2 } = await import('../../utils/createDailyPageV2')
+        const { dailyPageName } = await import('../../utils/dateUtils')
+        const result = await createDailyPageV2({
+          supabase,
+          parentId: currentPageId,
+          dateKey,
+          userId: session.user.id,
+          dailyPageName,
+        })
+        if (result?.pageId) {
+          if (typeof fetchPages === 'function') await fetchPages()
+          else window.dispatchEvent(new CustomEvent('pages-refresh'))
+          setCurrentPageId(result.pageId)
+        }
+      } catch (err) {
+        console.error('daily 페이지 생성 실패 (v2):', err)
       }
     }
 
@@ -1493,50 +1420,28 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     const dateKey = nextDateKey(currentPage.page_date)
     if (!confirm(`${dateKey} 업무일지가 없습니다. 새로 만들까요?`)) return
 
-    // race 방지: insert 직전에 해당 날짜 페이지가 이미 있는지 확인 (중복 생성 차단)
-    const { data: dup } = await supabase.from('pages').select('id')
-      .eq('parent_id', currentPage.parent_id).eq('page_date', dateKey)
-      .eq('page_type', 'daily').is('deleted_at', null).limit(1)
-    if (dup?.length) {
-      setCurrentPageId(dup[0].id)
-      return
-    }
-
-    const { data: freshPages } = await supabase.from('pages').select('page_date, content_tiptap')
-      .eq('parent_id', currentPage.parent_id).eq('page_type', 'daily').is('deleted_at', null)
-      .order('page_date', { ascending: false }).limit(3)
-    const template = await buildDailyPageTemplate(freshPages || [], supabase)
-    const newPage = await createPage(dailyPageName(dateKey), currentPage.parent_id, template, {
-      page_type: 'daily', page_date: dateKey, project_id: null,
-    })
-    if (newPage) {
-      window.dispatchEvent(new CustomEvent('pages-refresh'))
-      setCurrentPageId(newPage.id)
-    }
-  }, [currentPage?.parent_id, currentPage?.page_date, createPage, setCurrentPageId])
-
-  // 블록 삭제 시 _dismissed에 기록 (이월 재삽입 방지)
-  // React state에 반영 → autosave가 DB에 저장. autosave와 별도 쓰기 경로로 race하지 않도록.
-  useEffect(() => {
-    const el = pageRef.current
-    if (!el || currentPage?.page_type !== 'daily') return
-    const handler = (e) => {
-      const { blockId, originBlockId } = e.detail
-      if (!blockId) return
-      setContent(prev => {
-        if (!prev) return prev
-        const dismissed = readDismissedIds(prev)
-        const hadBlock = dismissed.has(blockId)
-        const hadOrigin = originBlockId ? dismissed.has(originBlockId) : true
-        if (hadBlock && hadOrigin) return prev
-        dismissed.add(blockId)
-        if (originBlockId) dismissed.add(originBlockId)
-        return writeDismissedIds(prev, dismissed)
+    // v2: row 기반 생성 (중복 방지 + section row + 이월 모두 헬퍼 안에서)
+    try {
+      const { createDailyPageV2 } = await import('../../utils/createDailyPageV2')
+      const result = await createDailyPageV2({
+        supabase,
+        parentId: currentPage.parent_id,
+        dateKey,
+        userId: session.user.id,
+        dailyPageName,
       })
+      if (result?.pageId) {
+        if (typeof fetchPages === 'function') await fetchPages()
+        else window.dispatchEvent(new CustomEvent('pages-refresh'))
+        setCurrentPageId(result.pageId)
+      }
+    } catch (err) {
+      console.error('다음 업무일지 생성 실패 (v2):', err)
     }
-    el.addEventListener('block-dismissed', handler)
-    return () => el.removeEventListener('block-dismissed', handler)
-  }, [currentPage?.page_type])
+  }, [currentPage?.parent_id, currentPage?.page_date, session?.user?.id, setCurrentPageId, fetchPages])
+
+  // v2: daily 의 block-dismissed 처리는 DailyPageV2 의 onUpdate → docToBlocks 의 softDelete 로 통합됨.
+  // v1 의 _dismissed (content_tiptap 루트 키) 흐름 폐기 (2026-05-04).
 
   return (
     <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''} ${currentPage?.page_type === 'daily' ? 'tiptap-page--daily' : ''}`}>
@@ -1822,7 +1727,15 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         {/* 하위 페이지는 콘텐츠 내 page 블록으로 인라인 표시 (노션 스타일) */}
 
         <div className={`tiptap-editor-wrapper ${currentPage?.page_type === 'daily' ? 'tiptap-editor-wrapper--daily' : ''}`}>
-          {content ? (
+          {currentPage?.page_type === 'daily' ? (
+            <DailyPageV2
+              session={session}
+              pageId={currentPageId}
+              pageDate={currentPage.page_date}
+              isMaster={isMaster}
+              placeholder="내용을 입력하세요..."
+            />
+          ) : content ? (
             <TipTapEditor
               content={stripDismissed(content)}
               onUpdate={handleUpdate}
@@ -1831,7 +1744,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               isViewerMode={isImpersonating}
               onViewerEditAttempt={showViewerToast}
               isMaster={isMaster}
-              isDailyPage={currentPage?.page_type === 'daily'}
+              isDailyPage={false}
             />
           ) : (
             <div className="tiptap-loading">로딩 중...</div>

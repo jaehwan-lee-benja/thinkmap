@@ -1,0 +1,26 @@
+{
+  "name": "빈 doc 멱등성 (R2)",
+  "description": "rows = [] 인 페이지의 prevDoc=nextDoc 호출. 어떤 변경도 검출되지 않아야 함 (R2). 신규 daily 페이지 생성 직후 (templating 전) 의 가드 케이스.",
+  "spec": "WORKLOG-SPEC.md §3.7.4 시나리오 11",
+  "ctx": {
+    "pageId": "page-0099-0000-0000-0000-000000000000",
+    "pageDate": "2026-04-28",
+    "userId": "user-0001-0000-0000-0000-000000000000"
+  },
+  "initialRows": [],
+  "expectedDocFromBlocks": {
+    "type": "doc",
+    "content": []
+  },
+  "prevDoc": "<<expectedDocFromBlocks>>",
+  "nextDoc": "<<expectedDocFromBlocks>>",
+  "expectedDiff": {
+    "insert": [],
+    "update": [],
+    "softDelete": []
+  },
+  "rules": [
+    "R1",
+    "R2"
+  ]
+}

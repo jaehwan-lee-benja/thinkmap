@@ -1,0 +1,213 @@
+{
+  "name": "이월된 todo 의 textContent 수정",
+  "description": "이월된 todo 의 본문을 수정. blockId / originBlockId / isCarryOver / carryOverFrom 모두 보존(R7)되고 textContent 와 richContent 만 UPDATE.",
+  "spec": "WORKLOG-SPEC.md §3.7.4 시나리오 5",
+  "ctx": {
+    "pageId": "page-0002-0000-0000-0000-000000000000",
+    "pageDate": "2026-04-28",
+    "userId": "user-0001-0000-0000-0000-000000000000"
+  },
+  "initialRows": [
+    {
+      "blockId": "blk-1100-0000-0000-0000-000000000000",
+      "pageId": "page-0002-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "section",
+      "parentBlockId": null,
+      "sectionId": "blk-1100-0000-0000-0000-000000000000",
+      "sectionMasterId": "fixed_todo",
+      "position": 1,
+      "textContent": "할 일",
+      "richContent": null,
+      "isTodo": false,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": true,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    },
+    {
+      "blockId": "blk-2100-0000-0000-0000-000000000000",
+      "pageId": "page-0002-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "toggle",
+      "parentBlockId": "blk-1100-0000-0000-0000-000000000000",
+      "sectionId": "blk-1100-0000-0000-0000-000000000000",
+      "sectionMasterId": null,
+      "position": 1,
+      "textContent": "구급상자 약 정리",
+      "richContent": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "구급상자 약 정리"
+            }
+          ]
+        }
+      ],
+      "isTodo": true,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": true,
+      "carryOverFrom": "2026-04-27",
+      "originBlockId": "blk-2099-0000-0000-0000-000000000000",
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": false,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "prevDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1100-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1100-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          },
+          {
+            "type": "toggle",
+            "attrs": {
+              "blockId": "blk-2100-0000-0000-0000-000000000000",
+              "isTodo": true,
+              "todoChecked": false,
+              "isCarryOver": true,
+              "carryOverFrom": "2026-04-27",
+              "originBlockId": "blk-2099-0000-0000-0000-000000000000",
+              "isPinned": false,
+              "visibility": "all",
+              "blockType": "paragraph"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "구급상자 약 정리"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "nextDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1100-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1100-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          },
+          {
+            "type": "toggle",
+            "attrs": {
+              "blockId": "blk-2100-0000-0000-0000-000000000000",
+              "isTodo": true,
+              "todoChecked": false,
+              "isCarryOver": true,
+              "carryOverFrom": "2026-04-27",
+              "originBlockId": "blk-2099-0000-0000-0000-000000000000",
+              "isPinned": false,
+              "visibility": "all",
+              "blockType": "paragraph"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "구급상자 약 정리 + 유효기간 체크"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expectedDiff": {
+    "insert": [],
+    "update": [
+      {
+        "blockId": "blk-2100-0000-0000-0000-000000000000",
+        "patch": {
+          "textContent": "구급상자 약 정리 + 유효기간 체크",
+          "richContent": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "구급상자 약 정리 + 유효기간 체크"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "softDelete": []
+  },
+  "rules": [
+    "R1",
+    "R7"
+  ]
+}

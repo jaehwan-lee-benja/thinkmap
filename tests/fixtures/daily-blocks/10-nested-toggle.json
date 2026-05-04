@@ -1,0 +1,249 @@
+{
+  "name": "하위 todo (parent 가 있는 toggle) 추가",
+  "description": "기존 todo 아래로 들여쓰기된 하위 todo 를 추가. 새 row 의 parentBlockId 가 상위 todo 의 blockId 를 가리킨다 (R5 트리). 섹션 row 의 sectionId 와 parent_block_id 는 별개 — sectionId 는 어느 섹션 소속인지, parent 는 어느 노드의 자식인지.",
+  "spec": "WORKLOG-SPEC.md §3.7.4 시나리오 10",
+  "ctx": {
+    "pageId": "page-0001-0000-0000-0000-000000000000",
+    "pageDate": "2026-04-28",
+    "userId": "user-0001-0000-0000-0000-000000000000"
+  },
+  "initialRows": [
+    {
+      "blockId": "blk-1000-0000-0000-0000-000000000000",
+      "pageId": "page-0001-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "section",
+      "parentBlockId": null,
+      "sectionId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionMasterId": "fixed_todo",
+      "position": 1,
+      "textContent": "할 일",
+      "richContent": null,
+      "isTodo": false,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": true,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    },
+    {
+      "blockId": "blk-2000-0000-0000-0000-000000000000",
+      "pageId": "page-0001-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "toggle",
+      "parentBlockId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionMasterId": null,
+      "position": 1,
+      "textContent": "교육 진행",
+      "richContent": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "교육 진행"
+            }
+          ]
+        }
+      ],
+      "isTodo": true,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": false,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "prevDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1000-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1000-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          },
+          {
+            "type": "toggle",
+            "attrs": {
+              "blockId": "blk-2000-0000-0000-0000-000000000000",
+              "isTodo": true,
+              "todoChecked": false,
+              "isCarryOver": false,
+              "isPinned": false,
+              "visibility": "all",
+              "blockType": "paragraph"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "교육 진행"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "nextDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1000-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1000-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          },
+          {
+            "type": "toggle",
+            "attrs": {
+              "blockId": "blk-2000-0000-0000-0000-000000000000",
+              "isTodo": true,
+              "todoChecked": false,
+              "isCarryOver": false,
+              "isPinned": false,
+              "visibility": "all",
+              "blockType": "paragraph"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "교육 진행"
+                  }
+                ]
+              },
+              {
+                "type": "toggle",
+                "attrs": {
+                  "blockId": "blk-2010-0000-0000-0000-000000000000",
+                  "isTodo": true,
+                  "todoChecked": false,
+                  "isCarryOver": false,
+                  "isPinned": false,
+                  "visibility": "all",
+                  "blockType": "paragraph"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "1일차 - 오픈 절차"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expectedDiff": {
+    "insert": [
+      {
+        "blockId": "blk-2010-0000-0000-0000-000000000000",
+        "pageId": "page-0001-0000-0000-0000-000000000000",
+        "pageDate": "2026-04-28",
+        "userId": "user-0001-0000-0000-0000-000000000000",
+        "blockType": "toggle",
+        "parentBlockId": "blk-2000-0000-0000-0000-000000000000",
+        "sectionId": "blk-1000-0000-0000-0000-000000000000",
+        "sectionMasterId": null,
+        "position": 1,
+        "textContent": "1일차 - 오픈 절차",
+        "richContent": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "1일차 - 오픈 절차"
+              }
+            ]
+          }
+        ],
+        "isTodo": true,
+        "todoChecked": false,
+        "todoStatus": "open",
+        "isCarryOver": false,
+        "carryOverFrom": null,
+        "originBlockId": null,
+        "isPinned": false,
+        "visibility": "all",
+        "isFixedSection": false
+      }
+    ],
+    "update": [],
+    "softDelete": []
+  },
+  "rules": [
+    "R1",
+    "R4",
+    "R5",
+    "R7"
+  ]
+}

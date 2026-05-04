@@ -1,0 +1,117 @@
+{
+  "name": "섹션 visibility 'all' ↔ 'master' 토글",
+  "description": "마스터 계정이 섹션 자물쇠 아이콘을 눌러 visibility 를 'all' → 'master' 로 변경. h2 섹션 row 의 visibility UPDATE. (마스터 sync 로 worklog_sections 마스터 row 도 함께 변경되어야 하지만 변환 레이어 범위 밖.)",
+  "spec": "WORKLOG-SPEC.md §3.7.4 시나리오 9",
+  "ctx": {
+    "pageId": "page-0001-0000-0000-0000-000000000000",
+    "pageDate": "2026-04-28",
+    "userId": "user-0001-0000-0000-0000-000000000000"
+  },
+  "initialRows": [
+    {
+      "blockId": "blk-1002-0000-0000-0000-000000000000",
+      "pageId": "page-0001-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "section",
+      "parentBlockId": null,
+      "sectionId": "blk-1002-0000-0000-0000-000000000000",
+      "sectionMasterId": "fixed_wrapup",
+      "position": 3,
+      "textContent": "마무리 기록",
+      "richContent": null,
+      "isTodo": false,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": true,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "prevDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1002-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1002-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_wrapup",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "마무리 기록"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "nextDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1002-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1002-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_wrapup",
+          "isFixedSection": true,
+          "visibility": "master"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "마무리 기록"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expectedDiff": {
+    "insert": [],
+    "update": [
+      {
+        "blockId": "blk-1002-0000-0000-0000-000000000000",
+        "patch": {
+          "visibility": "master"
+        }
+      }
+    ],
+    "softDelete": []
+  },
+  "rules": [
+    "R1",
+    "R7"
+  ]
+}

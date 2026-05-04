@@ -220,11 +220,13 @@ function App() {
     }, 0)
   }, [addTab, activePaneIndex])
 
-  // 오늘 업무일지 바로가기 — 현재 탭에서 직접 이동
+  // 오늘 업무일지 바로가기 — 현재 탭에서 직접 이동 (v2)
   const handleNavigateTodayWorklog = useCallback(async () => {
-    const todayStr = new Date().toISOString().slice(0, 10)
+    // KST (UTC+9) 기준 오늘 dateKey — 자정 직후 UTC 전날로 어긋나지 않게
+    const now = new Date()
+    const kstMs = now.getTime() + (now.getTimezoneOffset() + 9 * 60) * 60000
+    const todayStr = new Date(kstMs).toISOString().slice(0, 10)
 
-    // 1. calendar 페이지 찾기
     const { data: calendarPages, error: e1 } = await supabase
       .from('pages')
       .select('id, project_id')
@@ -239,61 +241,29 @@ function App() {
 
     const navigateTo = (pageId) => {
       addTab(activePaneIndex, { projectId: null, pageId })
-      // 새 탭 생성 후 paneNavRef로 페이지 직접 설정 (PaneProvider 동기화 보장)
       setTimeout(() => {
         const nav = paneNavRef.current[activePaneIndex]
         if (nav) nav.setCurrentPageId(pageId)
       }, 0)
     }
 
-    // 2. 오늘 daily 페이지 확인
-    const { data: todayPages, error: e2 } = await supabase
-      .from('pages')
-      .select('id')
-      .eq('parent_id', calendarPage.id)
-      .eq('page_date', todayStr)
-      .eq('page_type', 'daily')
-      .is('deleted_at', null)
-      .limit(1)
-
-    if (e2) { console.error('오늘 daily 페이지 조회 실패:', e2); return }
-
-    if (todayPages?.length > 0) {
-      navigateTo(todayPages[0].id)
-      return
+    try {
+      const { createDailyPageV2 } = await import('./utils/createDailyPageV2')
+      const result = await createDailyPageV2({
+        supabase,
+        parentId: calendarPage.id,
+        dateKey: todayStr,
+        userId: session.user.id,
+        dailyPageName,
+      })
+      if (result?.pageId) {
+        // 중복 방지로 기존 페이지든 신규든 동일 경로
+        window.dispatchEvent(new CustomEvent('pages-refresh'))
+        navigateTo(result.pageId)
+      }
+    } catch (err) {
+      console.error('오늘 daily 페이지 생성 실패 (v2):', err)
     }
-
-    // 3. 없으면 새로 생성 — 이월/pinned 추출 (공유 유틸리티 사용)
-    const { data: recentPages } = await supabase
-      .from('pages')
-      .select('page_date, content_tiptap')
-      .eq('parent_id', calendarPage.id)
-      .eq('page_type', 'daily')
-      .is('deleted_at', null)
-      .order('page_date', { ascending: false })
-      .limit(1)
-
-    const template = await buildDailyPageTemplate(recentPages || [], supabase)
-    const newPageData = {
-      id: generateUUID(),
-      user_id: session.user.id,
-      name: dailyPageName(todayStr),
-      parent_id: calendarPage.id,
-      content_tiptap: template,
-      project_id: null,
-      page_type: 'daily',
-      page_date: todayStr,
-      position: 0,
-    }
-    const { error: e3 } = await supabase
-      .from('pages')
-      .insert([newPageData])
-
-    if (e3) { console.error('daily 페이지 생성 실패:', e3); return }
-
-    // pages 배열 갱신을 트리거하여 page_type='daily'이 인식되도록 함
-    window.dispatchEvent(new CustomEvent('pages-refresh'))
-    navigateTo(newPageData.id)
   }, [addTab, updateTabInPane, activePaneIndex, session])
 
   // 삭제 토스트 상태

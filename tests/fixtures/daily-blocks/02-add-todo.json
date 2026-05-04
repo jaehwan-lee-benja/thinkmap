@@ -1,0 +1,168 @@
+{
+  "name": "사용자가 todo 한 줄 추가",
+  "description": "고정 섹션이 박힌 페이지에서 '할 일' 섹션 안에 새 todo 한 줄을 작성. docToBlocks 가 INSERT 1건 만들고, 기존 섹션 row 들은 변경 없음.",
+  "spec": "WORKLOG-SPEC.md §3.7.4 시나리오 2",
+  "ctx": {
+    "pageId": "page-0001-0000-0000-0000-000000000000",
+    "pageDate": "2026-04-28",
+    "userId": "user-0001-0000-0000-0000-000000000000"
+  },
+  "initialRows": [
+    {
+      "blockId": "blk-1000-0000-0000-0000-000000000000",
+      "pageId": "page-0001-0000-0000-0000-000000000000",
+      "pageDate": "2026-04-28",
+      "userId": "user-0001-0000-0000-0000-000000000000",
+      "blockType": "section",
+      "parentBlockId": null,
+      "sectionId": "blk-1000-0000-0000-0000-000000000000",
+      "sectionMasterId": "fixed_todo",
+      "position": 1,
+      "textContent": "할 일",
+      "richContent": null,
+      "isTodo": false,
+      "todoChecked": false,
+      "todoStatus": "open",
+      "isCarryOver": false,
+      "carryOverFrom": null,
+      "originBlockId": null,
+      "isPinned": false,
+      "visibility": "all",
+      "isFixedSection": true,
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "prevDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1000-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1000-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "nextDoc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "toggle",
+        "attrs": {
+          "blockId": "blk-1000-0000-0000-0000-000000000000",
+          "blockType": "h2",
+          "sectionId": "blk-1000-0000-0000-0000-000000000000",
+          "sectionMasterId": "fixed_todo",
+          "isFixedSection": true,
+          "visibility": "all"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          },
+          {
+            "type": "toggle",
+            "attrs": {
+              "blockId": "blk-2000-0000-0000-0000-000000000000",
+              "isTodo": true,
+              "todoChecked": false,
+              "isCarryOver": false,
+              "isPinned": false,
+              "visibility": "all",
+              "blockType": "paragraph"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "오픈 매뉴얼 검토"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expectedDiff": {
+    "insert": [
+      {
+        "blockId": "blk-2000-0000-0000-0000-000000000000",
+        "pageId": "page-0001-0000-0000-0000-000000000000",
+        "pageDate": "2026-04-28",
+        "userId": "user-0001-0000-0000-0000-000000000000",
+        "blockType": "toggle",
+        "parentBlockId": "blk-1000-0000-0000-0000-000000000000",
+        "sectionId": "blk-1000-0000-0000-0000-000000000000",
+        "sectionMasterId": null,
+        "position": 1,
+        "textContent": "오픈 매뉴얼 검토",
+        "richContent": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "오픈 매뉴얼 검토"
+              }
+            ]
+          }
+        ],
+        "isTodo": true,
+        "todoChecked": false,
+        "todoStatus": "open",
+        "isCarryOver": false,
+        "carryOverFrom": null,
+        "originBlockId": null,
+        "isPinned": false,
+        "visibility": "all",
+        "isFixedSection": false
+      }
+    ],
+    "update": [],
+    "softDelete": []
+  },
+  "rules": [
+    "R1",
+    "R4",
+    "R5",
+    "R7"
+  ]
+}
