@@ -39,31 +39,9 @@ function extractToggleStates(docJSON) {
   return states
 }
 // daily 페이지: h2 섹션만 추출하여 sectionOrder 순서로 정렬
-// sectionOrder에 있는 섹션은 그 순서대로, 없는 섹션은 원래 content 순서 유지 (뒤에 붙음)
-import { isH2Section, insertIntoH2Sections } from '../../utils/sectionUtils'
-
-function applySectionOrder(contentArray, sectionOrder) {
-  const sections = contentArray.filter(isH2Section)
-  if (!sectionOrder?.length) return sections
-
-  // sectionOrder에 있는 것과 없는 것 분리
-  const ordered = []
-  const unordered = []
-  const orderMap = new Map(sectionOrder.map((id, idx) => [id, idx]))
-
-  for (const s of sections) {
-    const id = s.attrs?.sectionId || ''
-    if (orderMap.has(id)) {
-      ordered.push({ section: s, idx: orderMap.get(id) })
-    } else {
-      unordered.push(s)
-    }
-  }
-
-  // 순서가 있는 것은 sectionOrder 순서, 없는 것은 원래 순서 유지하여 뒤에
-  ordered.sort((a, b) => a.idx - b.idx)
-  return [...ordered.map(o => o.section), ...unordered]
-}
+// v2: section 순서는 worklogTemplateV2 (DailyPageV2 흐름) 가 처리.
+// v1 의 applySectionOrder 는 daily content_tiptap 모델 전용이라 폐기됨.
+import { isH2Section } from '../../utils/sectionUtils'
 
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
@@ -99,6 +77,7 @@ import { buildDailyPageTemplate, extractCarryOverData } from '../../utils/worklo
 import { stripDismissed } from '../../utils/carryOverPipeline'
 import WorklogHeader from './WorklogHeader'
 import WorklogComments from './WorklogComments'
+import CommentPopover from './CommentPopover'
 import EmojiPicker from '../Common/EmojiPicker'
 import '../Common/EmojiPicker.css'
 import { useAuthContext } from '../../contexts/AuthContext'
@@ -140,7 +119,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const { comments, mentionableUsers, addComment, toggleResolved, deleteComment } = useWorklogComments(
     session,
     currentPage?.page_type === 'daily' ? currentPageId : null,
-    currentProjectId
+    currentProjectId,
+    currentPage?.page_type === 'daily',
   )
 
   // 캘린더 뷰용 코멘트 수 배치 조회
@@ -435,70 +415,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
    * 중복 블록 마킹: 같은 텍스트가 2개 이상이면 maybeDuplicate 표시
    * 첫 번째 = 'original', 나머지 = true, 중복 아닌 것 = false
    */
-  /**
-   * 중복 블록 마킹: 같은 섹션 내에서 같은 텍스트가 2개 이상이면 표시
-   * 원본(첫 번째) = 'original', 나머지 = true
-   * 원본을 섹션 최상단으로 정렬
-   */
-  function markDuplicateBlocks(content) {
-    if (!content?.content) return content
-
-    return { ...content, content: content.content.map(section => {
-      if (!isH2Section(section) || !section.content) return clearFlags(section)
-
-      // 섹션 내 블록의 텍스트 카운트
-      const textCount = {}
-      const blocks = section.content.filter(n => n.type === 'toggle' && n.attrs?.blockType !== 'h3')
-      for (const b of blocks) {
-        const text = b.content?.[0]?.content?.[0]?.text
-        if (text) textCount[text] = (textCount[text] || 0) + 1
-      }
-
-      const dupTexts = new Set(Object.keys(textCount).filter(t => textCount[t] > 1))
-      if (dupTexts.size === 0) return clearFlags(section)
-
-      // 마킹: isCarryOver가 아닌 것 = 원본, isCarryOver인 것 = 중복
-      const marked = section.content.map(n => {
-        if (n.type !== 'toggle' || n.attrs?.blockType === 'h3') return n
-        const text = n.content?.[0]?.content?.[0]?.text
-        if (text && dupTexts.has(text)) {
-          const flag = n.attrs?.isCarryOver ? true : 'original'
-          return { ...n, attrs: { ...n.attrs, maybeDuplicate: flag } }
-        }
-        return n.attrs?.maybeDuplicate ? { ...n, attrs: { ...n.attrs, maybeDuplicate: false } } : n
-      })
-
-      // 원본을 중복본 위로 정렬: 헤더(0번) 유지, 나머지에서 original을 해당 텍스트 그룹 최상단으로
-      const header = marked[0] // 헤더 paragraph
-      const rest = marked.slice(1)
-      const sorted = []
-      const processed = new Set()
-      for (const item of rest) {
-        const text = item.content?.[0]?.content?.[0]?.text
-        if (text && dupTexts.has(text) && !processed.has(text)) {
-          processed.add(text)
-          // 원본 먼저, 나머지 순서대로
-          const group = rest.filter(r => r.content?.[0]?.content?.[0]?.text === text)
-          const original = group.find(r => r.attrs?.maybeDuplicate === 'original')
-          const others = group.filter(r => r !== original)
-          if (original) sorted.push(original)
-          sorted.push(...others)
-        } else if (!text || !dupTexts.has(text)) {
-          sorted.push(item)
-        }
-      }
-
-      return { ...section, content: [header, ...sorted] }
-    })}
-  }
-
-  function clearFlags(node) {
-    if (!node.content) return node
-    return { ...node, content: node.content.map(n => {
-      const cleared = n.attrs?.maybeDuplicate ? { ...n, attrs: { ...n.attrs, maybeDuplicate: false } } : n
-      return cleared.content ? clearFlags(cleared) : cleared
-    })}
-  }
+  // v1 의 markDuplicateBlocks / clearFlags 폐기 (2026-05-07).
+  // 같은 섹션 내 중복 텍스트 표시는 daily content_tiptap 흐름 전용. v2 row 모델에서는
+  // todo 가 thread 단위로 묶이므로 같은 텍스트 중복 자체가 의미 약함.
 
   // 페이지 콘텐츠 로드 (유일한 진입점 — 모든 트리거가 이 함수를 호출)
   // v2 (§10 Phase v2.2): daily 페이지는 DailyPageV2 가 자체 read/write/이월/동기화 책임.
@@ -595,9 +514,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     return () => window.removeEventListener('quicktodo-inserted', handler)
   }, [loadContent, currentPageId])
 
-  // 블록 수 변경 감지용 ref
-  const blockCountRef = useRef(0)
-
   // 에디터 내용 변경 시 (사용자 편집)
   // editor.getJSON()은 _dismissed 같은 비표준 루트 키를 포함하지 않으므로
   // 기존 state의 _dismissed를 수동으로 병합해 보존한다.
@@ -622,19 +538,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
     setContent(prev => {
       const preserved = prev?._dismissed
-      const merged = preserved ? { ...newContent, _dismissed: preserved } : newContent
-
-      // daily 페이지: 블록 수 변경 시 중복 마킹 재계산 (삭제 즉시 반영)
-      if (currentPage?.page_type === 'daily' && merged?.content) {
-        let count = 0
-        const countBlocks = (nodes) => { for (const n of nodes) { if (n.type === 'toggle') count++; if (n.content) countBlocks(n.content) } }
-        countBlocks(merged.content)
-        if (count !== blockCountRef.current) {
-          blockCountRef.current = count
-          return markDuplicateBlocks(merged)
-        }
-      }
-      return merged
+      return preserved ? { ...newContent, _dismissed: preserved } : newContent
     })
   }
 
@@ -1146,6 +1050,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             onPageSelect={(pageId) => setCurrentPageId(pageId)}
             onCreateDailyPage={handleCreateDailyPage}
             commentCounts={commentCounts}
+            session={session}
           />
 
           {/* ── 이월 테스트 패널 (개발용) ──
@@ -1338,13 +1243,18 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     )
   }
 
-  // 섹션/todo 코멘트 이벤트 리스너 (DOM 이벤트 — 타이밍/클로저 문제 없음)
+  // 섹션/todo 코멘트 이벤트 리스너 (DOM 이벤트 — 타이밍/클로저 문제 없음).
+  // v2: daily 페이지면 안정 식별자 (blockId / sectionId) 우선. fallback 으로 sectionTitle (v1 호환).
   useEffect(() => {
     const el = pageRef.current
     if (!el) return
+    const isDaily = currentPage?.page_type === 'daily'
     const handler = (e) => {
-      const { sectionTitle, targetType = 'section', toggleDom } = e.detail
-      const newTarget = { type: targetType, id: sectionTitle }
+      const { sectionTitle, targetType = 'section', toggleDom, blockId, sectionId, originBlockId } = e.detail
+      // todo 는 thread id (originBlockId || blockId) 로 귀속 — 이월 시 코멘트가 따라감.
+      const v2Id = targetType === 'todo' ? (originBlockId || blockId) : sectionId
+      const targetId = isDaily && v2Id ? v2Id : sectionTitle
+      const newTarget = { type: targetType, id: targetId, label: sectionTitle || '' }
       setCommentTarget(prev => {
         if (prev && prev.type === newTarget.type && prev.id === newTarget.id) {
           setCommentAnchorEl(null)
@@ -1356,7 +1266,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     }
     el.addEventListener('section-comment-click', handler)
     return () => el.removeEventListener('section-comment-click', handler)
-  }, [])
+  }, [currentPage?.page_type])
 
   // 섹션 이동 이벤트 핸들러
   useEffect(() => {
@@ -1777,9 +1687,12 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           </button>
         )}
 
-        {/* 업무일지: 섹션 인라인 코멘트 (Portal로 섹션 DOM에 붙임) */}
+        {/* todo/section 클릭 시 floating popover */}
         {currentPage?.page_type === 'daily' && commentTarget && commentAnchorEl && createPortal(
-          <div className="worklog-inline-comments">
+          <CommentPopover
+            anchorEl={commentAnchorEl}
+            onClose={() => { setCommentTarget(null); setCommentAnchorEl(null) }}
+          >
             <WorklogComments
               comments={comments.filter(c => c.target_type === commentTarget.type && c.target_id === commentTarget.id)}
               mentionableUsers={mentionableUsers}
@@ -1787,15 +1700,15 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               onAdd={(content, mentions) => addComment(content, mentions, commentTarget.type, commentTarget.id)}
               onToggleResolved={toggleResolved}
               onDelete={deleteComment}
-              commentTarget={commentTarget.id}
+              commentTarget={commentTarget.label || commentTarget.id}
               onClearTarget={() => { setCommentTarget(null); setCommentAnchorEl(null) }}
               defaultOpen
             />
-          </div>,
-          commentAnchorEl
+          </CommentPopover>,
+          document.body
         )}
 
-        {/* 업무일지: 하단 전체 코멘트 */}
+        {/* 페이지 하단 — 페이지 전체 코멘트 (commentTarget 무관) */}
         {currentPage?.page_type === 'daily' && (
           <WorklogComments
             comments={comments}

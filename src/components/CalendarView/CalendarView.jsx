@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Plus, FileText, CheckSquare, MessageSquare } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, FileText, CheckSquare, MessageSquare, Archive } from 'lucide-react'
 import { parseTodoStats } from '../../utils/worklogUtils'
 import { DAY_NAMES } from '../../utils/dateUtils'
+import LeftoverManager from '../Worklog/LeftoverManager'
 import './CalendarView.css'
 
 /**
  * 업무일지 달력 뷰
  * Notion 달력 DB와 유사한 월간 그리드
  */
-export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage, commentCounts }) {
+export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage, commentCounts, session }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-indexed
+  const [leftoverOpen, setLeftoverOpen] = useState(false)
 
   const todayStr = today.toISOString().slice(0, 10)
 
@@ -148,8 +150,25 @@ export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage, comm
             <ChevronRight size={18} />
           </button>
         </div>
-        <button className="calendar-today-btn" onClick={goToToday}>오늘</button>
+        <div className="calendar-header-actions">
+          <button
+            className="calendar-leftover-btn"
+            onClick={() => setLeftoverOpen(true)}
+            title="3년 이상 미완료 todo 정리"
+          >
+            <Archive size={14} />
+            <span>오래된 todo 정리</span>
+          </button>
+          <button className="calendar-today-btn" onClick={goToToday}>오늘</button>
+        </div>
       </div>
+
+      <LeftoverManager
+        isOpen={leftoverOpen}
+        onClose={() => setLeftoverOpen(false)}
+        session={session}
+        onJumpToPage={onPageSelect}
+      />
 
       {/* 월간 요약 */}
       {hasSummaryData && (

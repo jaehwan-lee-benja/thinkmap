@@ -396,8 +396,8 @@ function App() {
   // 승인 대기 게이트 (마스터는 항상 통과)
   if (!isMaster && userStatus && userStatus !== 'active') {
     const statusMessages = {
-      pending: { title: '승인 대기 중', desc: '관리자의 승인을 기다리고 있습니다. 승인 후 서비스를 이용할 수 있습니다.' },
-      inactive: { title: '계정 비활성화', desc: '계정이 비활성화되었습니다. 관리자에게 문의해주세요.' },
+      pending: { title: '승인 대기 중', desc: '마스터의 승인을 기다리고 있습니다. 승인 후 서비스를 이용할 수 있습니다.' },
+      inactive: { title: '계정 비활성화', desc: '계정이 비활성화되었습니다. 마스터에게 문의해주세요.' },
       invited: { title: '초대 확인 중', desc: '초대가 확인되고 있습니다. 잠시만 기다려주세요.' },
     }
     const msg = statusMessages[userStatus] || statusMessages.pending

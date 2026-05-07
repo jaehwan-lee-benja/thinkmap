@@ -1059,18 +1059,20 @@ export const Toggle = Node.create({
         duplicateTag.style.display = 'none'
       }
 
-      // Visibility 버튼 (h2 섹션 전용, 마스터만 조작)
+      // Visibility 버튼 (h2 섹션 전용, 마스터만 조작) — 왕관 아이콘으로 직관성 ↑
       const visibilityButton = document.createElement('button')
       visibilityButton.classList.add('toggle-visibility-button')
       visibilityButton.contentEditable = 'false'
       const isVisibilityMaster = node.attrs.visibility === 'master'
-      visibilityButton.title = isVisibilityMaster ? '마스터 섹션 해제' : '마스터 섹션으로 설정'
+      visibilityButton.title = isVisibilityMaster ? '마스터 전용 해제 (모두에게 공개)' : '마스터 전용으로 설정'
       if (isVisibilityMaster) visibilityButton.classList.add('master-only')
       const showVisBtn = node.attrs.blockType === 'h2' && editor.storage.toggle?.isMaster
       visibilityButton.style.display = showVisBtn ? '' : 'none'
+      // Lucide Crown — 왕관. master-only 일 때 강조, all 일 때 흐리게.
+      const crownSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg>'
       visibilityButton.innerHTML = isVisibilityMaster
-        ? '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>마스터 섹션</span>'
-        : '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+        ? `${crownSvg}<span>마스터 전용</span>`
+        : crownSvg
       visibilityButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -1100,9 +1102,12 @@ export const Toggle = Node.create({
         if (!currentNode) return
         const title = currentNode.content?.firstChild?.textContent || ''
         const targetType = currentNode.attrs.isTodo ? 'todo' : 'section'
+        const blockId = currentNode.attrs.blockId || null
+        const sectionId = currentNode.attrs.sectionId || null
+        const originBlockId = currentNode.attrs.originBlockId || null
         dom.dispatchEvent(new CustomEvent('section-comment-click', {
           bubbles: true,
-          detail: { sectionTitle: title, targetType, toggleDom: dom }
+          detail: { sectionTitle: title, targetType, toggleDom: dom, blockId, sectionId, originBlockId }
         }))
       })
 
@@ -1247,10 +1252,11 @@ export const Toggle = Node.create({
           visibilityButton.style.display = showVis ? '' : 'none'
           const isMasterVis = updatedNode.attrs.visibility === 'master'
           visibilityButton.classList.toggle('master-only', isMasterVis)
-          visibilityButton.title = isMasterVis ? '마스터 전용 (클릭하여 전체 공개)' : '전체 공개 (클릭하여 마스터 전용)'
+          visibilityButton.title = isMasterVis ? '마스터 전용 해제 (모두에게 공개)' : '마스터 전용으로 설정'
+          const crownSvg2 = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg>'
           visibilityButton.innerHTML = isMasterVis
-            ? '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
-            : '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+            ? `${crownSvg2}<span>마스터 전용</span>`
+            : crownSvg2
           // master-only 섹션에 시각적 표시
           dom.classList.toggle('toggle-master-only', isMasterVis && updatedNode.attrs.blockType === 'h2')
 

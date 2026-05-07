@@ -1094,6 +1094,21 @@
   margin-top: 0.75rem;
 }
 
+/* 코멘트 popover (todo/section 클릭 시 floating) */
+.comment-popover {
+  background: var(--bg-elevated, #1f2126);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  padding: 8px 12px 10px;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.comment-popover .worklog-comments {
+  margin-top: 0;
+}
+
 /* 섹션 인라인 코멘트 패널 */
 .worklog-inline-comments {
   margin-top: 4px;

@@ -830,6 +830,10 @@ C. **R6 약화**: section row 의 `sectionId === blockId` 등식을 자유 섹�
 | 2026-05-04 | **이월 통합 완료**: "오늘" 버튼이 v2 `createDailyPageV2` 사용 + KST 기준 dateKey, 빈 페이지 회복 모드 (이미 만들어진 v1-style 페이지 자동 row 채움), `buildSectionIdMap` textContent fallback (옛 NULL master 매핑), 이월 root 들 position 1,2,3 으로 매겨 빈 자식(999) 위 정렬, 빈 textContent todo 는 이월 후보 제외. carryOverEager / 카드 안 정렬 모두 정상 검증 | §10 Phase v2.2, §11 |
 | 2026-05-04 | **자유 섹션 빈 자식 토글 + 이월 태그 최초 원본 날짜 보존** — `handleAddSection` 이 섹션 row + 빈 자식 토글 동시 INSERT (입력 시작점). `toCarryOverRow` / `toCarryOverSubtree` 의 `carryOverFrom` 이 `src.carryOverFrom \|\| src.pageDate` 로 변경되어 재이월 시 최초 원본 날짜 유지 | §11 |
 | 2026-05-04 | **§10 Phase v2.3 출범 1단계 — v1 dead code 정리**: `daily_blocks` 의 옛 NULL `section_master_id` 102/109 backfill (textContent 매칭). TipTapTestPage 의 v1 `syncCarryOver` 함수 + 호출 + daily 분기 (filter master/order/markDuplicate) + `_dismissed` useEffect 모두 제거. import 정리 (`backfillBlockIds`/`filterNewCarryOvers`/`buildCarryOverNodes`/`readDismissedIds`/`writeDismissedIds`/`SECTION_IDS` 정적 import). 빌드 + 139 tests 통과 | §10 Phase v2.3, §11 |
+| 2026-05-07 | **B. todo 코멘트 (popover + thread 귀속)**: `CommentPopover.jsx` 추가 (anchor 옆 fixed positioning + 외부클릭/ESC 닫힘). `useWorklogComments` 가 daily 일 때 page 코멘트 + thread id 기반 다른 페이지 코멘트도 union fetch. `target_id = originBlockId \|\| blockId` 로 변경하여 코멘트가 이월 thread 따라감. ToggleExtension 의 `section-comment-click` detail 에 originBlockId 추가 | §11 |
+| 2026-05-07 | **A2. v1 dead code 추가 정리** — `markDuplicateBlocks` / `applySectionOrder` / `blockCountRef` 함수/ref 제거. handleUpdate 의 daily 중복 마킹 분기 폐기. v2 row 모델에서는 thread 단위라 같은 텍스트 중복 자체가 의미 약화. 빌드 + 139 tests 통과 | §10 Phase v2.3, §11 |
+| 2026-05-07 | **자물쇠 → 왕관** UI 변경 (마스터 전용 visibility 토글). UI 라벨 "관리자" → "마스터" 전체 통일. AdminModal 의 admin role 옵션 제거 (사용자 / 마스터 만). DB `migrate-merge-admin-into-master.sql` 으로 admin role 사용자 → master 변경 + CHECK constraint 갱신 | §11 |
+| 2026-05-07 | **C. §6.3 Leftover 관리 UI** 추가 — `useLeftoverTodos` 훅 (3년 초과 thread 조회 + completeThread / deleteThread). `LeftoverManager` 모달 + CSS. CalendarView 헤더에 "오래된 todo 정리" 버튼 진입점 | §6.3, §11 |
 
 ---
 

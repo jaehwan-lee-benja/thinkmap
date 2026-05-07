@@ -125,8 +125,8 @@ function AdminModal({
   const getRoleLabel = (role) => {
     switch (role) {
       case 'master': return '마스터'
-      case 'admin': return '관리자'
-      case 'user': return '사용자'
+      case 'admin':  return '마스터'  // admin 도 마스터로 표시 — 의미 동일 (legacy data 호환)
+      case 'user':   return '사용자'
       default: return role
     }
   }
@@ -153,7 +153,7 @@ function AdminModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="admin-modal">
-      <ModalHeader icon={Shield} title="관리자 패널" onClose={onClose} className="admin-modal-header" />
+      <ModalHeader icon={Shield} title="마스터 패널" onClose={onClose} className="admin-modal-header" />
 
       <ModalBody className="admin-modal-content">
         {/* 사용자 추가 폼 */}
@@ -176,7 +176,6 @@ function AdminModal({
               className="add-user-role"
             >
               <option value="user">사용자</option>
-              <option value="admin">관리자</option>
               <option value="master">마스터</option>
             </select>
             <button type="submit" className="add-user-button">추가</button>
@@ -269,7 +268,6 @@ function AdminModal({
                             disabled={isSelf}
                           >
                             <option value="user">사용자</option>
-                            <option value="admin">관리자</option>
                             <option value="master">마스터</option>
                           </select>
                           <select

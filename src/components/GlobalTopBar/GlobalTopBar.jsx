@@ -134,13 +134,13 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
         </div>
       )}
 
-      {/* 뷰어 모드일 때: 관리자 전용 상단 바 */}
+      {/* 뷰어 모드일 때: 마스터 전용 상단 바 */}
       {isImpersonating && (
         <div className="global-topbar topbar-admin-bar">
           <div className="topbar-left">
             <span className="topbar-app-name">ThinkMap</span>
             <div className="topbar-impersonation">
-              <span className="topbar-viewer-badge">관리자</span>
+              <span className="topbar-viewer-badge">마스터</span>
               <span>{ownEmail}</span>
             </div>
           </div>
@@ -187,10 +187,10 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
             <button
               className="topbar-button topbar-admin"
               onClick={() => setAdminModalOpen(true)}
-              title="관리자 패널"
+              title="마스터 패널"
             >
               <Shield size={15} />
-              <span>관리자</span>
+              <span>마스터</span>
             </button>
           )}
 
