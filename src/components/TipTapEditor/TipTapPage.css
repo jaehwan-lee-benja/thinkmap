@@ -19,6 +19,37 @@
   margin: 0 auto;
 }
 
+/* daily 페이지: 위아래 빈 공간 제거 — 페이지가 부모(.content-scrollable flex column)
+   의 가용 세로 전체 차지. inner 도 flex:1 로 그 안에서 stretch. */
+.tiptap-page--daily {
+  padding-top: 0;
+  padding-bottom: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tiptap-page--daily .tiptap-page-inner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 코멘트 영역이 inner 의 남은 세로 공간 흡수 → 카드 끝~페이지 바닥 사이 빈 공간 사라짐 */
+.tiptap-page--daily .tiptap-page-inner > .worklog-comments {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tiptap-page--daily .tiptap-page-inner > .worklog-comments > .worklog-comments-body {
+  flex: 1;
+  min-height: 0;
+}
+
 /* 페이지 헤더 */
 .tiptap-page-header {
   margin-bottom: 1rem;
@@ -1087,6 +1118,149 @@
   border-color: rgba(255, 255, 255, 0.25);
   color: rgba(255, 255, 255, 0.7);
   background: rgba(255, 255, 255, 0.03);
+}
+
+/* ============================================================================
+   DailyPageV2 — 뷰 모드 (list ↔ column) + 툴바
+   MOBILE-DESIGN.md §3.2 / §3.3 참고
+   ============================================================================ */
+.daily-page-v2--column {
+  /* 컬럼뷰: 콘텐츠(카드 70vh) 따라 컨테이너 높이 → 카드 아래 빈 공간 없음.
+     actions-row 가 카드 바로 아래 자연스레 붙음. */
+}
+
+.daily-page-v2-toolbar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+
+/* 하단 액션 버튼 행은 항상 보임 */
+.daily-page-v2 .worklog-actions-row {
+  flex-shrink: 0;
+}
+
+.view-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.view-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.view-mode-btn.active {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #93c5fd;
+}
+
+/* ── 컬럼뷰 (Trello 식 가로 정렬) ──
+   ProseMirror 컨테이너는 가용 세로 공간 전체 차지 (flex:1) → actions-row 가 페이지 바닥에 붙음.
+   카드 자체는 max-height 70vh 로 컴팩트. 카드 아래 빈 공간이 있어도 컨테이너가 점유. */
+.daily-page-v2--column .ProseMirror {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  overflow-x: auto;
+  overflow-y: visible;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.daily-page-v2--column .ProseMirror > .toggle-block {
+  flex: 0 0 300px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px;
+  margin: 0;
+}
+
+/* 컬럼 안 자식들은 다시 세로 흐름 */
+.daily-page-v2--column .ProseMirror > .toggle-block .toggle-content {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  /* 모바일 컬럼뷰: 카드 단위 scroll snap + 한 카드가 거의 전체 폭 */
+  .daily-page-v2--column .ProseMirror {
+    scroll-snap-type: x mandatory;
+    scroll-padding-left: 8px;
+    -webkit-overflow-scrolling: touch;  /* iOS 부드러운 스크롤 */
+    gap: 8px;
+  }
+  .daily-page-v2--column .ProseMirror > .toggle-block {
+    flex: 0 0 calc(100vw - 32px);
+    max-width: 360px;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    max-height: 75vh;
+  }
+}
+
+/* ── 업무일지: 액션 버튼 행 (섹션 추가 + 리프레시) ── */
+.worklog-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.worklog-actions-row .worklog-add-section-btn {
+  flex: 1;
+  min-width: 140px;
+  margin-top: 0;
+}
+
+.worklog-refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  border: 1.5px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 0.375rem;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.worklog-refresh-btn:hover:not(:disabled) {
+  border-color: rgba(96, 165, 250, 0.5);
+  color: rgba(147, 197, 253, 0.95);
+  background: rgba(96, 165, 250, 0.06);
+}
+
+.worklog-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+@media (max-width: 767px) {
+  .worklog-actions-row {
+    flex-direction: column;
+  }
+  .worklog-refresh-btn {
+    width: 100%;
+  }
 }
 
 /* ── 업무일지 코멘트 ── */

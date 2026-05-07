@@ -28,7 +28,7 @@ export function buildDailyTemplateRows(sections, ctx, opts = {}) {
   const sectionOrder = opts.sectionOrder || []
   const orderIndex = new Map(sectionOrder.map((id, i) => [id, i]))
 
-  // 정렬: section_order 우선 → sort_order → title 순
+  // 정렬: section_order 우선 → sort_order → created_at → title (모든 ties 결정적)
   const sorted = [...sections].sort((a, b) => {
     const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Number.MAX_SAFE_INTEGER
     const bi = orderIndex.has(b.id) ? orderIndex.get(b.id) : Number.MAX_SAFE_INTEGER
@@ -36,6 +36,9 @@ export function buildDailyTemplateRows(sections, ctx, opts = {}) {
     const as = read(a, 'sort_order', 'sortOrder') ?? 999
     const bs = read(b, 'sort_order', 'sortOrder') ?? 999
     if (as !== bs) return as - bs
+    const ac = read(a, 'created_at', 'createdAt') || ''
+    const bc = read(b, 'created_at', 'createdAt') || ''
+    if (ac !== bc) return ac.localeCompare(bc)
     return (a.title || '').localeCompare(b.title || '')
   })
 

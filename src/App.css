@@ -85,6 +85,10 @@
   box-sizing: border-box;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  /* flex column: 자식 .tiptap-page 가 flex:1 로 가용 세로 전체 차지 가능
+     (일반 페이지는 콘텐츠 길면 normal flow 로 늘어나고 .content-scrollable 자체가 스크롤) */
+  display: flex;
+  flex-direction: column;
 }
 
 .content-scrollable::-webkit-scrollbar {

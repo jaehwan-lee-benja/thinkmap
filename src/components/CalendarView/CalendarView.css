@@ -278,37 +278,99 @@
 }
 
 /* 모바일 */
-@media (max-width: 768px) {
+/* ============================================================================
+   모바일 (≤ 767 px) — 가로 스크롤 회피 + 셀이 viewport 안에 들어가게.
+   MOBILE-DESIGN.md §3.2 참고.
+   ============================================================================ */
+@media (max-width: 767px) {
+  /* 컨테이너: 가로 스크롤 차단 + 100% 폭 */
+  .calendar-view {
+    width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    padding: 6px;
+  }
+
+  /* grid 셀이 컨텐츠로 늘어나지 않게 min-width: 0 */
+  .calendar-weekdays,
+  .calendar-grid {
+    width: 100%;
+    min-width: 0;
+  }
+
   .calendar-cell {
-    min-height: 70px;
+    min-width: 0;
+    min-height: 60px;
     padding: 2px;
+    overflow: hidden;
   }
 
   .calendar-month-label {
-    font-size: 16px;
-    min-width: 100px;
+    font-size: 15px;
+    min-width: 80px;
   }
 
-  .calendar-entry {
-    font-size: 10px;
-    padding: 2px 4px;
-  }
-
-  .calendar-cell-add {
-    opacity: 1;
-  }
-
-  .calendar-summary {
-    font-size: 11px;
-    gap: 10px;
-    padding: 6px 4px;
-  }
-
-  .calendar-cell-stats {
+  .calendar-header {
+    flex-wrap: wrap;
     gap: 6px;
+  }
+
+  .calendar-header-actions {
+    gap: 4px;
+  }
+
+  .calendar-leftover-btn span {
+    display: none;  /* 아이콘만 */
+  }
+
+  /* 셀 안의 텍스트 미리보기는 모바일에서 숨김 — 셀 폭 부족 */
+  .calendar-entry {
+    display: none;
+  }
+
+  /* 통계 (완료수 / 코멘트수) 는 점/숫자만 작게 */
+  .calendar-cell-stats {
+    gap: 3px;
+    flex-wrap: wrap;
   }
 
   .calendar-cell-stat {
     font-size: 9px;
+  }
+
+  .calendar-cell-stat svg {
+    width: 8px;
+    height: 8px;
+  }
+
+  /* 날짜 번호 - today 표시 약간 축소 */
+  .calendar-day-number {
+    font-size: 11px;
+  }
+
+  .calendar-day-number.today-number {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+  }
+
+  /* 요일 헤더 폰트 축소 */
+  .calendar-weekday {
+    padding: 4px 0;
+    font-size: 10px;
+  }
+
+  /* + 버튼 항상 노출 (hover 회피) — 단 작게 */
+  .calendar-cell-add {
+    opacity: 1;
+    width: 16px;
+    height: 16px;
+  }
+
+  .calendar-summary {
+    font-size: 11px;
+    gap: 8px;
+    padding: 4px;
+    flex-wrap: wrap;
   }
 }

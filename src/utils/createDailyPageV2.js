@@ -113,6 +113,7 @@ export async function createDailyPageV2({
   const ctx = { pageId, pageDate: dateKey, userId }
 
   // 3. 섹션 마스터 + 사용자 순서 조회 — global + 본인 user scope. deleted_at 제외.
+  // user scope 는 sort_order 가 같으면 created_at (만든 순서) 로 결정적 정렬.
   const [globalRes, userRes, settingsRes] = await Promise.all([
     supabase
       .from('worklog_sections')
@@ -126,7 +127,8 @@ export async function createDailyPageV2({
       .eq('scope', 'user')
       .eq('created_by', userId)
       .is('deleted_at', null)
-      .order('sort_order', { ascending: true }),
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true }),
     supabase
       .from('worklog_user_settings')
       .select('section_order')

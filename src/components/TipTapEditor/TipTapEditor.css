@@ -2109,6 +2109,18 @@ th .paragraph-drag-handle {
     margin-left: -40px;
   }
 
+  /* 모바일에서 actions-group (이월/중복 태그 + 버튼들) 본문과 겹침 방지.
+     본문 영역에 우측 padding 으로 actions-group 을 위한 공간 확보. (MOBILE-DESIGN.md §3.4, §3.5) */
+  .toggle-block > .toggle-content {
+    padding-right: 80px;
+  }
+  /* 태그 (carry-over, duplicate) 폰트 한 단계 축소 */
+  .toggle-carry-over-tag,
+  .toggle-duplicate-tag {
+    font-size: 0.62rem;
+    padding: 0 3px;
+  }
+
   .toggle-drag-handle {
     opacity: 0.5;
     margin-top: 0;

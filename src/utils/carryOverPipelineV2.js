@@ -20,16 +20,26 @@ import { fetchAllBlocksIncludingDeleted, fetchBlocks } from './dailyBlockOps.js'
 // pure
 // ----------------------------------------------------------------------------
 
-// 이월 후보: 미완료 todo (텍스트 있는 것만) 또는 pinned. deleted_at 은 호출 전에 이미 필터됨.
-// textContent 가 빈 todo (= 사용자가 안 쓴 빈 자식 토글) 는 이월 안 함.
+// 이월 후보:
+//   - 미완료 todo (isTodo=true && !todoChecked + 텍스트 있음)
+//   - 일반 텍스트 토글 (isTodo=false + blockType='toggle' + 텍스트 있음)
+// 즉 daily 페이지 본문의 의미 있는 모든 토글이 다음 daily 에 자동 이월됨.
+//
+// 제외:
+//   - section row (블록 종류가 'section') — worklog_sections master 가 자동 등장
+//   - 빈 자식 토글 (textContent 비어있음)
+//   - 완료된 todo
+//   - deleted
+//
+// v2 (2026-05-07): 핀 (isPinned) 분기 폐기 + 일반 텍스트 토글도 이월 대상에 포함.
 export function selectCarryOverCandidates(rows) {
   return (rows || []).filter(r => {
     if (r.deletedAt) return false
-    if (r.isPinned) return true
-    if (r.isTodo && !r.todoChecked) {
-      return (r.textContent || '').trim().length > 0
-    }
-    return false
+    if (r.blockType !== 'toggle') return false
+    if ((r.textContent || '').trim().length === 0) return false
+    // 완료 todo 만 제외 — 미완료 todo + 일반 텍스트 모두 이월
+    if (r.isTodo && r.todoChecked) return false
+    return true
   })
 }
 
@@ -106,11 +116,13 @@ export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null
     const isRoot = i === 0
     const isTodo = !!r.isTodo
     const remappedSectionId = sectionIdMap?.get(r.sectionId)
-    // root 의 parentBlockId: 어제 section row 였으면 새 section row 로 매핑.
-    //   sectionIdMap 에 매핑 있으면 그 값 (= 새 섹션 자식으로 들어감)
-    //   매핑 없으면 null (= doc 최상위 sibling)
-    // 자손의 parentBlockId 는 idMap (subtree 안의 새 blockId) 로.
-    const rootParent = r.parentBlockId ? (sectionIdMap?.get(r.parentBlockId) ?? null) : null
+    // root 의 parentBlockId 결정:
+    //   - parentBlockId 있고 어제 section row 면 → 새 section row 로 매핑 (자식으로 들어감)
+    //   - parentBlockId null 이지만 sectionId 가 어제 섹션 blockId 면 → 새 섹션 row 자식으로 (root-level 텍스트도 카드 안으로)
+    //   - 둘 다 매핑 안 되면 null (doc 최상위)
+    const remappedParent = r.parentBlockId ? sectionIdMap?.get(r.parentBlockId) : null
+    const remappedSectionAsParent = !r.parentBlockId ? sectionIdMap?.get(r.sectionId) : null
+    const rootParent = remappedParent ?? remappedSectionAsParent ?? null
     return {
       blockId: idMap.get(r.blockId),
       pageId: ctx.pageId,
@@ -239,6 +251,8 @@ export async function carryOverEager(supabase, fromPageId, ctx) {
 }
 
 // Lazy 이월: 기존 daily 페이지 열 때, 직전 daily 의 신규 미완료 todo (트리) 를 추가.
+// position 정책: 섹션별로 현재 페이지의 max(position < 999) + 1 부터 매김 →
+//   빈 자식 토글 (position=999) 위로 자연 정렬. 이미 이월된 row 들 다음 순서로.
 export async function carryOverLazy(supabase, prevPageId, ctx) {
   if (!prevPageId || !ctx?.pageId) return { inserted: 0 }
 
@@ -253,9 +267,35 @@ export async function carryOverLazy(supabase, prevPageId, ctx) {
   if (newOnes.length === 0) return { inserted: 0 }
 
   const sectionIdMap = buildSectionIdMap(prevRows, currentRowsAll)
-  const carryRows = newOnes.flatMap(root =>
-    toCarryOverSubtree(root, prevRows, ctx, sectionIdMap)
-  )
+
+  // 섹션별로 현재 페이지의 max(position) 계산 — 빈 자식 (999+) 은 제외
+  const sectionMaxPos = new Map()
+  for (const r of (currentRowsAll || [])) {
+    if (!r.parentBlockId) continue
+    const pos = Number(r.position) || 0
+    if (pos >= 999) continue
+    const cur = sectionMaxPos.get(r.parentBlockId) || 0
+    if (pos > cur) sectionMaxPos.set(r.parentBlockId, pos)
+  }
+
+  // 섹션별로 그룹 후 root position 매김
+  const bySection = new Map()
+  for (const root of newOnes) {
+    const newSec = sectionIdMap.get(root.sectionId) || root.sectionId
+    if (!bySection.has(newSec)) bySection.set(newSec, [])
+    bySection.get(newSec).push(root)
+  }
+
+  const carryRows = []
+  for (const [secKey, rootsInSection] of bySection) {
+    let nextPos = (sectionMaxPos.get(secKey) || 0) + 1
+    rootsInSection.forEach(root => {
+      const subtree = toCarryOverSubtree(root, prevRows, ctx, sectionIdMap)
+      if (subtree[0]) subtree[0].position = nextPos++
+      carryRows.push(...subtree)
+    })
+  }
+
   const { error } = await supabase
     .from('daily_blocks')
     .insert(carryRows.map(rowToDb))

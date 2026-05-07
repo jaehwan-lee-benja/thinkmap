@@ -42,29 +42,30 @@ const ctx = {
 }
 
 describe('selectCarryOverCandidates', () => {
-  test('미완료 todo 만 추출', () => {
+  test('미완료 todo + 일반 텍스트 토글 모두 추출 (완료 todo 만 제외)', () => {
     const rows = [
-      { ...baseRow, blockId: 'a', isTodo: true, todoChecked: false },
-      { ...baseRow, blockId: 'b', isTodo: true, todoChecked: true },   // 완료
-      { ...baseRow, blockId: 'c', isTodo: false },                     // todo 아님
+      { ...baseRow, blockId: 'a', isTodo: true,  todoChecked: false },  // 미완료 todo
+      { ...baseRow, blockId: 'b', isTodo: true,  todoChecked: true },   // 완료 todo — 제외
+      { ...baseRow, blockId: 'c', isTodo: false },                      // 일반 텍스트
     ]
     const result = selectCarryOverCandidates(rows)
-    expect(result.map(r => r.blockId)).toEqual(['a'])
+    expect(result.map(r => r.blockId).sort()).toEqual(['a', 'c'])
   })
 
-  test('pinned 는 todo 가 아니어도 포함', () => {
+  test('isPinned 는 v2 에서 무시 — 일반 텍스트는 isPinned 와 무관하게 모두 이월', () => {
     const rows = [
       { ...baseRow, blockId: 'a', isTodo: false, isPinned: true },
       { ...baseRow, blockId: 'b', isTodo: false, isPinned: false },
     ]
-    expect(selectCarryOverCandidates(rows).map(r => r.blockId)).toEqual(['a'])
+    // 일반 텍스트 토글 둘 다 이월 (isPinned 와 무관)
+    expect(selectCarryOverCandidates(rows).map(r => r.blockId).sort()).toEqual(['a', 'b'])
   })
 
-  test('완료된 pinned todo 도 isPinned 면 포함 (다음 날 끌고 가기)', () => {
+  test('isPinned 가 true 여도 완료된 todo 는 후보 아님 (todoChecked 가 우선)', () => {
     const rows = [
       { ...baseRow, blockId: 'a', isTodo: true, todoChecked: true, isPinned: true },
     ]
-    expect(selectCarryOverCandidates(rows)).toHaveLength(1)
+    expect(selectCarryOverCandidates(rows)).toEqual([])
   })
 
   test('deleted_at 은 제외', () => {
@@ -87,11 +88,11 @@ describe('selectCarryOverCandidates', () => {
     expect(selectCarryOverCandidates(rows)).toEqual([])
   })
 
-  test('pinned row 는 textContent 비어도 후보 (자유 섹션 등)', () => {
+  test('isPinned 가 true 여도 todo 가 아니면 후보 아님', () => {
     const rows = [
       { ...baseRow, blockId: 'p', isTodo: false, isPinned: true, textContent: '' },
     ]
-    expect(selectCarryOverCandidates(rows)).toHaveLength(1)
+    expect(selectCarryOverCandidates(rows)).toEqual([])
   })
 })
 

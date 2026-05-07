@@ -1642,6 +1642,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               session={session}
               pageId={currentPageId}
               pageDate={currentPage.page_date}
+              parentId={currentPage.parent_id}
               isMaster={isMaster}
               placeholder="내용을 입력하세요..."
             />

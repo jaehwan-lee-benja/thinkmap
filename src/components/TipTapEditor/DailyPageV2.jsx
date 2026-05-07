@@ -11,6 +11,7 @@
 // 헤더 (WorklogHeader), 코멘트, 사이드 패널 등은 호출자 (TipTapTestPage) 가 wrap.
 
 import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react'
+import { LayoutList, Columns3 } from 'lucide-react'
 import TipTapEditor from './TipTapEditor'
 import { useDailyBlocks } from '../../hooks/useDailyBlocks'
 import { blocksToDoc } from '../../utils/blocksToDoc'
@@ -36,6 +37,21 @@ function findCheckboxToggleUpdates(diff) {
   )
 }
 
+// nextDoc 의 최상위 h2 섹션 토글에서 sectionMasterId 순서대로 추출 (드래그 후 새 순서).
+function extractSectionMasterOrder(doc) {
+  if (!doc || !Array.isArray(doc.content)) return []
+  return doc.content
+    .filter(n => n && n.type === 'toggle' && n.attrs?.blockType === 'h2')
+    .map(n => n.attrs?.sectionMasterId)
+    .filter(Boolean)
+}
+
+function arraysEqual(a, b) {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
+}
+
 // 자유 섹션 (scope='user') 의 master id 만 추출. fixed_* 는 절대 폐기 안 함.
 function userSectionMasterIdsBeingDeleted(diff, blocksMap) {
   const masters = new Set()
@@ -55,6 +71,7 @@ export default function DailyPageV2({
   pageId,
   pageDate,
   prevPageId,           // 직전 daily 페이지 id (있으면 마운트 시 lazy 이월)
+  parentId,             // calendar 페이지 id — 리프레시 시 직전 daily 검색용
   isMaster = false,
   placeholder,
 }) {
@@ -65,6 +82,20 @@ export default function DailyPageV2({
 
   // row → doc
   const sourceDoc = useMemo(() => blocksToDoc(blocks), [blocks])
+
+  // viewMode: 'list' (기본, 위→아래) | 'column' (Trello 식 가로 정렬)
+  // localStorage 에 사용자별 저장.
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window === 'undefined') return 'list'
+    return localStorage.getItem('thinkmap.dailyViewMode') === 'column' ? 'column' : 'list'
+  })
+  const toggleViewMode = useCallback(() => {
+    setViewMode(prev => {
+      const next = prev === 'list' ? 'column' : 'list'
+      try { localStorage.setItem('thinkmap.dailyViewMode', next) } catch {}
+      return next
+    })
+  }, [])
 
   // stableDoc: TipTapEditor 에 전달할 doc.
   //   - 마운트 / 외부 변경 (realtime, refetch) 시 sourceDoc 으로 갱신
@@ -112,6 +143,34 @@ export default function DailyPageV2({
     return () => window.removeEventListener('quicktodo-inserted', onQuickTodo)
   }, [pageId, refetch])
 
+  // 마스터 권한 (왕관) 토글 → worklog_sections + 모든 daily_blocks section row 동기화.
+  //   1) worklog_sections.visibility — 다음 daily 페이지 templating 시 반영
+  //   2) daily_blocks 의 그 master 의 모든 section row.visibility — 이미 만들어진 페이지에서도 즉시 반영
+  useEffect(() => {
+    const onVisibilityToggle = (e) => {
+      const { masterId, newVisibility } = e.detail || {}
+      if (!masterId || !newVisibility) return
+      supabase
+        .from('worklog_sections')
+        .update({ visibility: newVisibility })
+        .eq('id', masterId)
+        .then(({ error }) => {
+          if (error) logError('worklog_sections.visibility 동기화', error)
+        })
+      supabase
+        .from('daily_blocks')
+        .update({ visibility: newVisibility })
+        .eq('section_master_id', masterId)
+        .eq('block_type', 'section')
+        .is('deleted_at', null)
+        .then(({ error }) => {
+          if (error) logError('daily_blocks.visibility 동기화', error)
+        })
+    }
+    document.addEventListener('section-visibility-toggle', onVisibilityToggle)
+    return () => document.removeEventListener('section-visibility-toggle', onVisibilityToggle)
+  }, [])
+
   // 에디터 변경 → diff → applyDiff (debounce)
   const handleUpdate = useCallback((nextDoc) => {
     // 마운트 직후 TipTapEditor 의 setContent 부수효과로 onUpdate 가 호출될 수 있음.
@@ -141,8 +200,22 @@ export default function DailyPageV2({
         const blocksMap = new Map(blocks.map(b => [b.blockId, b]))
         const userMasters = userSectionMasterIdsBeingDeleted(diff, blocksMap)
 
+        // 드래그 등으로 섹션 순서가 변경되면 user_settings.section_order 도 갱신 → 다음 daily 페이지에 반영
+        const prevOrder = extractSectionMasterOrder(lastSavedDocRef.current)
+        const nextOrder = extractSectionMasterOrder(nextDoc)
+        const sectionOrderChanged = !arraysEqual(prevOrder, nextOrder) && nextOrder.length > 0
+
         await applyDiff(diff)
         lastSavedDocRef.current = nextDoc
+
+        if (sectionOrderChanged && userId) {
+          supabase
+            .from('worklog_user_settings')
+            .upsert({ user_id: userId, section_order: nextOrder, updated_at: new Date().toISOString() })
+            .then(({ error }) => {
+              if (error) logError('worklog_user_settings.section_order 동기화', error)
+            })
+        }
 
         if (userMasters.length > 0) {
           supabase
@@ -176,6 +249,117 @@ export default function DailyPageV2({
       }
     }
   }, [pageId])
+
+  // 이월 리프레시 — 직전 페이지의 새 자유 섹션 master 반영 + 신규 미완료 todo 추가
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefreshCarryOver = useCallback(async () => {
+    if (!pageId || !userId || !pageDate || !parentId) return
+    setRefreshing(true)
+    try {
+      // 1. 현재 페이지의 active section row 들 (fresh fetch — state stale 회피)
+      const { data: liveBlocks, error: lbErr } = await supabase
+        .from('daily_blocks')
+        .select('block_type, section_master_id, text_content, position, parent_block_id')
+        .eq('page_id', pageId)
+        .is('deleted_at', null)
+      if (lbErr) throw lbErr
+
+      // currentMasterIds: master 직접 매칭 + textContent 매칭 fallback
+      // (NULL master row 도 worklog_sections.title 과 같은 텍스트면 그 master 가 이미 페이지에 있는 것으로 간주 → 중복 INSERT 방지)
+      const currentMasterIds = new Set(
+        (liveBlocks || [])
+          .filter(b => b.block_type === 'section' && b.section_master_id)
+          .map(b => b.section_master_id)
+      )
+      const liveSectionTexts = new Set(
+        (liveBlocks || [])
+          .filter(b => b.block_type === 'section' && b.text_content)
+          .map(b => b.text_content)
+      )
+
+      const { data: userSections } = await supabase
+        .from('worklog_sections')
+        .select('*')
+        .eq('scope', 'user')
+        .eq('created_by', userId)
+        .is('deleted_at', null)
+
+      // textContent 매칭으로 currentMasterIds 보강
+      ;(userSections || []).forEach(s => {
+        if (s.title && liveSectionTexts.has(s.title)) currentMasterIds.add(s.id)
+      })
+
+      // 같은 title 의 master 가 worklog_sections 에 여러 개면 (사용자 중복 생성)
+      // 첫 번째만 missing 후보. 나머지는 현재 페이지에 같은 텍스트가 있으니 currentMasterIds 에 들어감.
+      // missing 결정: master id 가 currentMasterIds 에 없고, 그 title 도 liveSectionTexts 에 없는 것.
+      const missing = (userSections || []).filter(s =>
+        s.id && !currentMasterIds.has(s.id) && !liveSectionTexts.has(s.title)
+      )
+
+      // 2. 누락된 user 섹션 master 의 section row + 빈 자식 토글 INSERT
+      if (missing.length > 0) {
+        const maxPos = (liveBlocks || [])
+          .filter(b => !b.parent_block_id)
+          .reduce((m, b) => Math.max(m, Number(b.position) || 0), 0)
+        const newRows = []
+        missing.forEach((s, i) => {
+          const sectionBlockId = newBlockId()
+          newRows.push({
+            blockId: sectionBlockId,
+            pageId, pageDate, userId,
+            blockType: 'section',
+            parentBlockId: null,
+            sectionId: sectionBlockId,
+            sectionMasterId: s.id,
+            position: maxPos + i + 1,
+            textContent: s.title || '',
+            richContent: null,
+            isTodo: false, todoChecked: false, todoStatus: 'open',
+            isCarryOver: false, carryOverFrom: null, originBlockId: null,
+            isPinned: false,
+            visibility: s.visibility || 'all',
+            isFixedSection: false,
+          })
+          newRows.push({
+            blockId: newBlockId(),
+            pageId, pageDate, userId,
+            blockType: 'toggle',
+            parentBlockId: sectionBlockId,
+            sectionId: sectionBlockId,
+            sectionMasterId: null,
+            position: 999,
+            textContent: '', richContent: null,
+            isTodo: false, todoChecked: false, todoStatus: 'open',
+            isCarryOver: false, carryOverFrom: null, originBlockId: null,
+            isPinned: false, visibility: 'all', isFixedSection: false,
+          })
+        })
+        await applyDiff({ insert: newRows, update: [], softDelete: [] })
+      }
+
+      // 3. 직전 daily 페이지의 신규 미완료 todo 이월 (carryOverLazy)
+      const { data: prev } = await supabase
+        .from('pages')
+        .select('id')
+        .eq('parent_id', parentId)
+        .eq('page_type', 'daily')
+        .is('deleted_at', null)
+        .lt('page_date', pageDate)
+        .order('page_date', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (prev?.id) {
+        await carryOverLazy(supabase, prev.id, ctx)
+      }
+
+      await refetch()
+    } catch (err) {
+      logError('DailyPageV2.handleRefreshCarryOver', err)
+      alert('리프레시 실패: ' + (err?.message || err))
+    } finally {
+      setRefreshing(false)
+    }
+  }, [pageId, userId, pageDate, parentId, blocks, applyDiff, ctx, refetch])
 
   // 자유 섹션 추가 핸들러 (§3.4)
   const handleAddSection = useCallback(async () => {
@@ -260,7 +444,27 @@ export default function DailyPageV2({
   if (!initialLoaded) return <div className="daily-page-v2-loading">로딩...</div>
 
   return (
-    <div className="daily-page-v2">
+    <div className={`daily-page-v2 daily-page-v2--${viewMode}`}>
+      <div className="daily-page-v2-toolbar">
+        <button
+          type="button"
+          className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
+          onClick={() => viewMode !== 'list' && toggleViewMode()}
+          title="리스트뷰 (위→아래)"
+        >
+          <LayoutList size={14} />
+          <span>리스트</span>
+        </button>
+        <button
+          type="button"
+          className={`view-mode-btn ${viewMode === 'column' ? 'active' : ''}`}
+          onClick={() => viewMode !== 'column' && toggleViewMode()}
+          title="컬럼뷰 (가로 정렬, Trello 식)"
+        >
+          <Columns3 size={14} />
+          <span>컬럼</span>
+        </button>
+      </div>
       <TipTapEditor
         content={stableDoc}
         onUpdate={handleUpdate}
@@ -268,13 +472,24 @@ export default function DailyPageV2({
         isMaster={isMaster}
         isDailyPage={true}
       />
-      <button
-        type="button"
-        className="worklog-add-section-btn"
-        onClick={handleAddSection}
-      >
-        + 섹션 추가
-      </button>
+      <div className="worklog-actions-row">
+        <button
+          type="button"
+          className="worklog-add-section-btn"
+          onClick={handleAddSection}
+        >
+          + 섹션 추가
+        </button>
+        <button
+          type="button"
+          className="worklog-refresh-btn"
+          onClick={handleRefreshCarryOver}
+          disabled={refreshing}
+          title="직전 페이지의 새 섹션과 미완료 todo 를 가져옵니다"
+        >
+          {refreshing ? '리프레시 중...' : '↻ 이월 리프레시'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -392,6 +392,11 @@ export const Toggle = Node.create({
         parseHTML: element => element.getAttribute('data-section-id') || null,
         renderHTML: attributes => attributes.sectionId ? { 'data-section-id': attributes.sectionId } : {},
       },
+      sectionMasterId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-section-master-id') || null,
+        renderHTML: attributes => attributes.sectionMasterId ? { 'data-section-master-id': attributes.sectionMasterId } : {},
+      },
       isStarred: {
         default: false,
         parseHTML: element => element.getAttribute('data-starred') === 'true',
@@ -956,34 +961,17 @@ export const Toggle = Node.create({
       // dragover/drop은 글로벌 Plugin(blockDropIndicatorPlugin)에서 처리
       // NodeView에서는 dragstart/dragend만 관리
 
-      // Pin 버튼 — h2 자유 섹션: "섹션 고정" 텍스트, 비-h2 블록: 핀 아이콘 (daily에서만)
+      // daily 페이지 안의 비-h2 블록 — star / delete 버튼 표시 조건 + 그 외에서 사용.
+      const isBlockInDaily = node.attrs.blockType !== 'h2' && editor.storage.toggle?.isDailyPage
+
+      // Pin 버튼 — v2 에서 폐기 (2026-05-07).
+      //   · h2 자유 섹션 "섹션 고정": worklog_sections row 가 자동 등장이라 의미 없음
+      //   · 일반 토글 핀: 사용자 가치 낮음. todo 로 만들어 처리하면 됨
+      // dom 호환을 위해 button 은 만들지만 항상 숨김 + 이벤트 등록 안 함.
       const pinButton = document.createElement('button')
       pinButton.classList.add('toggle-pin-button')
       pinButton.contentEditable = 'false'
-      const isH2Free = node.attrs.blockType === 'h2' && !node.attrs.isFixedSection
-      const isBlockInDaily = node.attrs.blockType !== 'h2' && editor.storage.toggle?.isDailyPage
-      if (node.attrs.isPinned) pinButton.classList.add('pinned')
-      if (isH2Free) {
-        pinButton.title = node.attrs.isPinned ? '섹션 고정 해제' : '섹션 고정'
-        pinButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg><span>섹션 고정</span>`
-        pinButton.style.display = ''
-      } else if (isBlockInDaily) {
-        pinButton.title = node.attrs.isPinned ? '고정 해제' : '고정 (다음 날에도 유지)'
-        pinButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>'
-        pinButton.style.display = ''
-      } else {
-        pinButton.style.display = 'none'
-      }
-      pinButton.addEventListener('mousedown', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        const pos = getPos()
-        const currentNode = editor.state.doc.nodeAt(pos)
-        if (!currentNode) return
-        editor.view.dispatch(
-          editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, isPinned: !currentNode.attrs.isPinned })
-        )
-      })
+      pinButton.style.display = 'none'
 
       // 별표 (중요 표시) 버튼 — daily 페이지 비-h2 블록에서만
       const starButton = document.createElement('button')
@@ -1059,19 +1047,20 @@ export const Toggle = Node.create({
         duplicateTag.style.display = 'none'
       }
 
-      // Visibility 버튼 (h2 섹션 전용, 마스터만 조작) — 왕관 아이콘으로 직관성 ↑
+      // 마스터 권한 버튼 (h2 섹션 전용, 마스터만 조작) — 왕관 아이콘.
+      // 활성 = "마스터 권한" (master 만 보임), 비활성 = "공개" (모두 보임).
       const visibilityButton = document.createElement('button')
       visibilityButton.classList.add('toggle-visibility-button')
       visibilityButton.contentEditable = 'false'
       const isVisibilityMaster = node.attrs.visibility === 'master'
-      visibilityButton.title = isVisibilityMaster ? '마스터 전용 해제 (모두에게 공개)' : '마스터 전용으로 설정'
+      visibilityButton.title = isVisibilityMaster ? '마스터 권한 해제 (공개로 전환)' : '마스터 권한 부여 (마스터만 보기)'
       if (isVisibilityMaster) visibilityButton.classList.add('master-only')
       const showVisBtn = node.attrs.blockType === 'h2' && editor.storage.toggle?.isMaster
       visibilityButton.style.display = showVisBtn ? '' : 'none'
-      // Lucide Crown — 왕관. master-only 일 때 강조, all 일 때 흐리게.
+      // Lucide Crown — 왕관. 활성(master) 시 강조 + "마스터 권한" 라벨, 비활성 시 아이콘만.
       const crownSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg>'
       visibilityButton.innerHTML = isVisibilityMaster
-        ? `${crownSvg}<span>마스터 전용</span>`
+        ? `${crownSvg}<span>마스터 권한</span>`
         : crownSvg
       visibilityButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
@@ -1081,9 +1070,15 @@ export const Toggle = Node.create({
         const currentNode = editor.state.doc.nodeAt(pos)
         if (!currentNode) return
         const newVisibility = currentNode.attrs.visibility === 'master' ? 'all' : 'master'
+        const masterId = currentNode.attrs.sectionMasterId || null
         editor.view.dispatch(
           editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, visibility: newVisibility })
         )
+        // worklog_sections 의 master row 도 동기화 — 다음 daily / 리프레시 시 반영
+        dom.dispatchEvent(new CustomEvent('section-visibility-toggle', {
+          bubbles: true,
+          detail: { masterId, newVisibility },
+        }))
       })
 
       // 코멘트 버튼 (h2 섹션 + todo 항목)
@@ -1252,10 +1247,10 @@ export const Toggle = Node.create({
           visibilityButton.style.display = showVis ? '' : 'none'
           const isMasterVis = updatedNode.attrs.visibility === 'master'
           visibilityButton.classList.toggle('master-only', isMasterVis)
-          visibilityButton.title = isMasterVis ? '마스터 전용 해제 (모두에게 공개)' : '마스터 전용으로 설정'
+          visibilityButton.title = isMasterVis ? '마스터 권한 해제 (공개로 전환)' : '마스터 권한 부여 (마스터만 보기)'
           const crownSvg2 = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg>'
           visibilityButton.innerHTML = isMasterVis
-            ? `${crownSvg2}<span>마스터 전용</span>`
+            ? `${crownSvg2}<span>마스터 권한</span>`
             : crownSvg2
           // master-only 섹션에 시각적 표시
           dom.classList.toggle('toggle-master-only', isMasterVis && updatedNode.attrs.blockType === 'h2')
@@ -1269,13 +1264,11 @@ export const Toggle = Node.create({
           const showCmt = updatedNode.attrs.blockType === 'h2' || updatedNode.attrs.isTodo
           commentButton.style.display = showCmt ? '' : 'none'
 
-          // Pin 버튼 상태 업데이트
-          const isH2FreeUpd = updatedNode.attrs.blockType === 'h2' && !updatedNode.attrs.isFixedSection
-          const isBlockInDailyUpd = updatedNode.attrs.blockType !== 'h2' && editor.storage.toggle?.isDailyPage
-          pinButton.style.display = (isH2FreeUpd || isBlockInDailyUpd) ? '' : 'none'
-          pinButton.classList.toggle('pinned', !!updatedNode.attrs.isPinned)
+          // Pin 버튼 — v2 에서 폐기. 항상 숨김.
+          pinButton.style.display = 'none'
 
           // 별표 버튼 상태 업데이트
+          const isBlockInDailyUpd = updatedNode.attrs.blockType !== 'h2' && editor.storage.toggle?.isDailyPage
           starButton.style.display = isBlockInDailyUpd ? '' : 'none'
           starButton.classList.toggle('starred', !!updatedNode.attrs.isStarred)
           dom.classList.toggle('toggle-starred', !!updatedNode.attrs.isStarred)
