@@ -45,19 +45,37 @@ function buildEmptyChildToggle(sectionRow) {
 
 const EMPTY_DOC = { type: 'doc', content: [] }
 
-export async function createDailyPageV2({
+// 동시 호출 race 차단 — 같은 (parentId, dateKey, userId) 로 들어온 요청은 첫 promise 를 공유.
+// 화살표 / 캘린더 / 다른 진입점에서 동시에 호출돼도 페이지/섹션 row 가 한 번만 INSERT.
+const inFlight = new Map()
+
+export async function createDailyPageV2(args) {
+  const { parentId, dateKey, userId } = args
+  if (!args.supabase || !parentId || !dateKey || !userId) {
+    throw new Error('createDailyPageV2: supabase, parentId, dateKey, userId 모두 필수')
+  }
+  const key = `${parentId}|${dateKey}|${userId}`
+  if (inFlight.has(key)) return inFlight.get(key)
+  const promise = createDailyPageV2Impl(args)
+  inFlight.set(key, promise)
+  try {
+    return await promise
+  } finally {
+    inFlight.delete(key)
+  }
+}
+
+async function createDailyPageV2Impl({
   supabase,
   parentId,
   dateKey,
   userId,
   dailyPageName,    // (dateKey: string) => string. 호출자 주입 (의존성 격리)
 }) {
-  if (!supabase || !parentId || !dateKey || !userId) {
-    throw new Error('createDailyPageV2: supabase, parentId, dateKey, userId 모두 필수')
-  }
 
-  // 1. 중복 방지 — 이미 있으면 그 id 반환. 단 daily_blocks 가 비어있으면 (v1 흐름으로 만들어진 빈 페이지)
-  //    아래 step 4 부터 같은 흐름으로 row 채워서 회복.
+  // 1. 중복 방지 — 이미 있으면 그 id 그대로 반환. row 채움 작업은 첫 호출 한 번만.
+  // (이전엔 "빈 페이지 회복 모드" 로 row 가 0 이면 다시 채웠으나, race 시 첫 호출이 아직 row INSERT 중일 때
+  //  두 번째 호출이 빈 페이지로 인식하고 다시 채워 중복 발생. 회복 모드 제거 — race 차단 우선)
   const { data: dup, error: dupErr } = await supabase
     .from('pages')
     .select('id')
@@ -70,16 +88,7 @@ export async function createDailyPageV2({
   let pageId
   let created = false
   if (dup?.length) {
-    pageId = dup[0].id
-    const { count } = await supabase
-      .from('daily_blocks')
-      .select('block_id', { count: 'exact', head: true })
-      .eq('page_id', pageId)
-    if ((count || 0) > 0) {
-      // 이미 row 들이 박힌 정상 페이지 — 그대로 반환
-      return { pageId, created: false }
-    }
-    // 빈 페이지 — 아래 흐름으로 row 채움
+    return { pageId: dup[0].id, created: false }
   }
 
   // 2. pages INSERT (이미 존재하면 skip — 빈 페이지 회복 모드)
@@ -106,7 +115,25 @@ export async function createDailyPageV2({
       })
       .select('id')
       .single()
-    if (pageErr) throw pageErr
+    if (pageErr) {
+      // race condition: 동시에 다른 호출이 같은 (parent_id, page_date) 로 INSERT 했을 때
+      // partial unique index (uniq_daily_page_per_date) 가 23505 차단. fallback 으로 기존 row SELECT 후 사용.
+      if (pageErr.code === '23505') {
+        const { data: existing } = await supabase
+          .from('pages')
+          .select('id')
+          .eq('parent_id', parentId)
+          .eq('page_date', dateKey)
+          .eq('page_type', 'daily')
+          .is('deleted_at', null)
+          .limit(1)
+          .maybeSingle()
+        if (existing?.id) {
+          return { pageId: existing.id, created: false }
+        }
+      }
+      throw pageErr
+    }
     pageId = newPage.id
     created = true
   }

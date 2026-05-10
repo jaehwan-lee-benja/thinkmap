@@ -452,3 +452,27 @@ ProseMirror에서 콘텐츠가 에디터에 삽입되는 경로는 **3가지**�
 - [ ] 블록 드래그 → 자기 자신에 드롭 → 무시 (아무 변화 없음)
 - [ ] 블록 드래그 실패 시 → 토글이 일반 텍스트로 분해되지 않을 것
 - [ ] 블록 드래그 → 펼쳐진 토글 내 자식 사이에서도 파란 줄 표시
+
+## 17. 우측 정렬 원칙 (actions-group 위치)
+
+**원칙:** 모든 토글의 `.toggle-actions-group` (⋯/별표/댓글/삭제 등) 우측이 동일한 수직선에 정렬돼야 한다. 들여쓰기 깊이/부모 종류 (root / 일반 자식 / h2 카드 자식 / 손자 등) 무관.
+
+**메커니즘 (4 항목 세트 — 하나라도 빠지면 정렬 깨짐):**
+1. 부모 `.toggle-block`: `padding-right: 0` (부모 actions-group 위치 = box 우측)
+   - h2 카드 등 padding-right 필요한 경우 `--toggle-pr` 변수로 자식에 cascading
+2. `.toggle-actions-group`: `right: 0` (모든 토글 자기 box 우측에 정렬)
+3. 자식 `.toggle-block`:
+   - `width: calc(100% + var(--toggle-pr))`
+   - `margin-right: calc(-1 * var(--toggle-pr))`
+   - 자식 box 가 부모 padding-right 영역까지 stretch → 자식 우측 = 부모 우측
+4. `box-sizing: border-box` (자식 padding 이 width 안에 포함, 누적 방지)
+
+**과거 회귀 사례:**
+- `width: calc(100% + 32px)` 박힘 → 정렬 OK
+- 들여쓰기 padding 조정하면서 width 보정 제거됨 → 자식 actions-group 이 부모보다 ~4-16px 안쪽 → 사용자 신고 → 재작업
+- **막는 방법:** TipTapEditor.css 의 해당 룰들에 ⚠️ 주석 박혀있음. 들여쓰기 조정 시 width/margin-right 동기화 확인할 것.
+
+**금지 행위:**
+- `.toggle-actions-group { right: 2px }` 같이 0 외 값
+- 자식 `.toggle-block` 의 `width: calc(100% + var(--toggle-pr))` 제거
+- 부모 `.toggle-block` 의 `padding-right` 0 외 값으로 변경 (h2 카드는 `--toggle-pr` 통해 처리)

@@ -4,6 +4,7 @@ import { GlobalTopBar } from './components/GlobalTopBar/GlobalTopBar'
 import Sidebar from './components/Sidebar/Sidebar'
 import { TabBar } from './components/TabBar/TabBar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
+import CanvasViewer from './components/Canvas/CanvasViewer'
 // 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능
 // import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
 import { useAuth } from './hooks/useAuth'
@@ -129,22 +130,36 @@ function PaneInner({
               </button>
               <p>{projectsLoading || pagesLoading ? '로딩 중...' : '원하는 페이지를 상단 탭에서 선택해주세요 :)'}</p>
             </div>
-          ) : (
-            <TipTapEditorPage
-              key={`pane-${paneIndex}-${pageId}`}
-              session={effectiveSession}
-              currentPageId={pageId}
-              currentPageName={pageName}
-              onPageRename={renamePage}
-              isImpersonating={isImpersonating}
-              sidebarOpen={isSidebarOpen}
-              onToggleSidebar={() => toggleTabSidebar(tabId, paneIndex)}
-              mobileView={mobileView}
-              onMobileViewChange={setMobileView}
-              viewerToggleOverrides={viewerToggleOverrides}
-              saveViewerToggleOverrides={saveViewerToggleOverrides}
-            />
-          )}
+          ) : (() => {
+            const currentPage = pages.find(p => p.id === pageId)
+            const pageType = currentPage?.page_type
+            if (pageType === 'frame' || pageType === 'engine') {
+              return (
+                <CanvasViewer
+                  key={`pane-${paneIndex}-${pageId}`}
+                  pageId={pageId}
+                  canvasType={pageType}
+                  session={effectiveSession}
+                />
+              )
+            }
+            return (
+              <TipTapEditorPage
+                key={`pane-${paneIndex}-${pageId}`}
+                session={effectiveSession}
+                currentPageId={pageId}
+                currentPageName={pageName}
+                onPageRename={renamePage}
+                isImpersonating={isImpersonating}
+                sidebarOpen={isSidebarOpen}
+                onToggleSidebar={() => toggleTabSidebar(tabId, paneIndex)}
+                mobileView={mobileView}
+                onMobileViewChange={setMobileView}
+                viewerToggleOverrides={viewerToggleOverrides}
+                saveViewerToggleOverrides={saveViewerToggleOverrides}
+              />
+            )
+          })()}
         </div>
 
         {/* 탭별 사이드바 */}

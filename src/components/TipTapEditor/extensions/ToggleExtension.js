@@ -288,6 +288,67 @@ function convertNodeToTogglesJSON(node) {
 }
 
 /**
+ * paste 된 toggle 자손의 식별 attr 들을 재생성.
+ * - blockId: 새로 발급 (DB UNIQUE 제약 회피 — 같은 blockId 두 번 INSERT 차단)
+ * - sectionId / sectionMasterId: paste 위치 따라 새로 결정되어야 → null
+ * - originBlockId / isCarryOver / carryOverFrom: thread 끊김 (새 인스턴스)
+ *
+ * paragraph 등 toggle 외 노드는 그대로. 자손 재귀.
+ */
+function regenToggleIds(node) {
+  if (node.type.name !== 'toggle') return node
+  const newAttrs = {
+    ...node.attrs,
+    blockId: genBlockId(),
+    sectionId: null,
+    sectionMasterId: null,
+    originBlockId: null,
+    isCarryOver: false,
+    carryOverFrom: null,
+  }
+  const children = []
+  node.content.forEach(child => children.push(regenToggleIds(child)))
+  return node.type.create(newAttrs, Fragment.fromArray(children), node.marks)
+}
+
+/**
+ * h2 토글 섹션을 인접 h2 섹션과 swap (위/아래 화살표용).
+ * - currentPos: NodeView 의 getPos() 결과 (h2 toggle 의 시작 pos)
+ * - direction: 'up' | 'down'
+ *
+ * 구현: doc 의 자식들 중 toggle/h2 만 골라 인덱스 기준으로 swap.
+ * h2 사이에 다른 노드(빈 paragraph 등) 가 있어도 그 위치는 유지하고 h2 끼리만 위치 교환.
+ * setContent 로 doc 재구성 → onUpdate 트리거 → v1/v2 모두 자동 반영
+ * (v2 daily 의 handleUpdate 가 docToBlocks diff + section_order user_settings sync).
+ */
+function swapH2SectionAtPos(editor, currentPos, direction) {
+  if (currentPos == null) return
+  const $pos = editor.state.doc.resolve(currentPos)
+  const parent = $pos.parent
+  if (parent.type.name !== 'doc') return
+  const myIndex = $pos.index()
+
+  const h2Indices = []
+  parent.forEach((child, _offset, idx) => {
+    if (child.type.name === 'toggle' && child.attrs?.blockType === 'h2') {
+      h2Indices.push(idx)
+    }
+  })
+  const myH2Idx = h2Indices.indexOf(myIndex)
+  if (myH2Idx === -1) return
+  const targetH2Idx = direction === 'up' ? myH2Idx - 1 : myH2Idx + 1
+  if (targetH2Idx < 0 || targetH2Idx >= h2Indices.length) return
+  const swapIndex = h2Indices[targetH2Idx]
+
+  const nodes = []
+  parent.forEach(n => nodes.push(n))
+  ;[nodes[myIndex], nodes[swapIndex]] = [nodes[swapIndex], nodes[myIndex]]
+
+  const docJSON = { type: 'doc', content: nodes.map(n => n.toJSON()) }
+  editor.chain().setContent(docJSON, true).run()
+}
+
+/**
  * Toggle Extension for TipTap
  * Notion-style collapsible blocks with children
  */
@@ -472,6 +533,7 @@ export const Toggle = Node.create({
       dom.setAttribute('data-type', 'toggle')
       dom.setAttribute('data-is-open', node.attrs.isOpen)
       dom.setAttribute('data-block-type', node.attrs.blockType || 'paragraph')
+      if (node.attrs.blockId) dom.setAttribute('data-block-id', node.attrs.blockId)
 
       // 초기 클래스
       if (node.attrs.visibility === 'master' && node.attrs.blockType === 'h2') {
@@ -515,12 +577,35 @@ export const Toggle = Node.create({
         const nodeAtPos = editor.state.doc.nodeAt(pos)
         if (!nodeAtPos) return
 
-        const nodeJSON = nodeAtPos.toJSON()
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setData('application/x-thinkmap-block', JSON.stringify(nodeJSON))
+        // multi-select 활성 + 현재 블록이 포함되면 모든 선택 블록 묶음 드래그
+        const multiState = multiSelectPluginKey.getState(editor.state)
+        const selectedSet = new Set(multiState?.selectedPositions || [])
+        const isMulti = selectedSet.size > 1 && selectedSet.has(pos)
 
-        window.__crossPaneDrag = { sourceEditor: editor, sourcePos: pos, nodeSize: nodeAtPos.nodeSize }
-        const slice = new Slice(Fragment.from(nodeAtPos), 0, 0)
+        let dragPositions, dragNodes
+        if (isMulti) {
+          dragPositions = [...selectedSet].sort((a, b) => a - b)
+          dragNodes = dragPositions
+            .map(p => editor.state.doc.nodeAt(p))
+            .filter(n => n && n.type.name === 'toggle')
+        } else {
+          dragPositions = [pos]
+          dragNodes = [nodeAtPos]
+        }
+
+        const payload = isMulti ? dragNodes.map(n => n.toJSON()) : dragNodes[0].toJSON()
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('application/x-thinkmap-block', JSON.stringify(payload))
+
+        window.__crossPaneDrag = {
+          sourceEditor: editor,
+          sourcePositions: dragPositions,
+          nodeSizes: dragNodes.map(n => n.nodeSize),
+          // 호환 (단일 모드 fallback)
+          sourcePos: dragPositions[0],
+          nodeSize: dragNodes[0].nodeSize,
+        }
+        const slice = new Slice(Fragment.fromArray(dragNodes), 0, 0)
         editor.view.dragging = { slice, move: true }
         // CSS 클래스 변경 없음 — dragstart 중 어떤 DOM/스타일 변경도 브라우저가 드래그를 취소시킴
       })
@@ -722,6 +807,7 @@ export const Toggle = Node.create({
       }
 
       if (!node.attrs.isTodo) checkbox.style.display = 'none'
+      else dom.classList.add('toggle-todo')   // 명시적 클래스 — CSS :has() 가 display:none 을 검사 못 하므로 클래스로 정확히 매치
       if (node.attrs.todoChecked) {
         checkbox.classList.add('checked')
         dom.classList.add('toggle-todo-checked')
@@ -1085,7 +1171,8 @@ export const Toggle = Node.create({
       const commentButton = document.createElement('button')
       commentButton.classList.add('toggle-comment-button')
       commentButton.contentEditable = 'false'
-      const showComment = node.attrs.blockType === 'h2' || node.attrs.isTodo
+      // 모든 토글에 댓글 가능 (h2 카드 / todo / 일반 자식 토글 모두). 페이지 블록 등 특수 케이스만 제외 가능.
+      const showComment = node.attrs.blockType !== 'page'
       commentButton.title = node.attrs.isTodo ? 'todo 코멘트' : '섹션 코멘트'
       commentButton.style.display = showComment ? '' : 'none'
       commentButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
@@ -1116,12 +1203,7 @@ export const Toggle = Node.create({
       moveUpButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
-        const currentNode = editor.state.doc.nodeAt(getPos())
-        if (!currentNode) return
-        dom.dispatchEvent(new CustomEvent('section-move', {
-          bubbles: true,
-          detail: { sectionId: currentNode.attrs.sectionId, direction: 'up' }
-        }))
+        swapH2SectionAtPos(editor, getPos(), 'up')
       })
 
       const moveDownButton = document.createElement('button')
@@ -1133,11 +1215,37 @@ export const Toggle = Node.create({
       moveDownButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
-        const currentNode = editor.state.doc.nodeAt(getPos())
+        swapH2SectionAtPos(editor, getPos(), 'down')
+      })
+
+      // ⋮ 메뉴 (daily 페이지의 자식 토글 한정 — h2 카드 제외)
+      const moreButton = document.createElement('button')
+      moreButton.classList.add('toggle-more-button')
+      moreButton.contentEditable = 'false'
+      moreButton.title = '추가 옵션'
+      moreButton.style.display = (node.attrs.blockType !== 'h2' && editor.storage.toggle?.isDailyPage) ? '' : 'none'
+      // 가로 세점 (MoreHorizontal)
+      moreButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>'
+      moreButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
         if (!currentNode) return
-        dom.dispatchEvent(new CustomEvent('section-move', {
+        const rect = moreButton.getBoundingClientRect()
+        const title = currentNode.content?.firstChild?.textContent || ''
+        dom.dispatchEvent(new CustomEvent('toggle-more-menu', {
           bubbles: true,
-          detail: { sectionId: currentNode.attrs.sectionId, direction: 'down' }
+          detail: {
+            blockId: currentNode.attrs.blockId || null,
+            originBlockId: currentNode.attrs.originBlockId || null,
+            isCarryOver: !!currentNode.attrs.isCarryOver,
+            isStarred: !!currentNode.attrs.isStarred,
+            isTodo: !!currentNode.attrs.isTodo,
+            title,
+            anchorRect: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right },
+            pos,
+          }
         }))
       })
 
@@ -1153,6 +1261,7 @@ export const Toggle = Node.create({
       actionsGroup.appendChild(commentButton)
       actionsGroup.appendChild(starButton)
       actionsGroup.appendChild(pinButton)
+      actionsGroup.appendChild(moreButton)
       actionsGroup.appendChild(deleteButton)
 
       dom.appendChild(dragHandle)
@@ -1199,11 +1308,13 @@ export const Toggle = Node.create({
             // Todo checkbox update
             if (updatedNode.attrs.isTodo) {
               checkbox.style.display = ''
+              dom.classList.add('toggle-todo')
               checkbox.classList.toggle('checked', updatedNode.attrs.todoChecked && !updatedNode.attrs.todoStatus)
               dom.classList.toggle('toggle-todo-checked', updatedNode.attrs.todoChecked && !updatedNode.attrs.todoStatus)
               updateStatusIcon(updatedNode.attrs.todoStatus)
             } else {
               checkbox.style.display = 'none'
+              dom.classList.remove('toggle-todo')
               checkbox.classList.remove('checked')
               dom.classList.remove('toggle-todo-checked')
               updateStatusIcon(null)
@@ -1457,7 +1568,7 @@ export const Toggle = Node.create({
             }
             return slice
           },
-          // 붙여넣기 시 블록 단위 보장
+          // 붙여넣기 시 블록 단위 보장 + toggle 식별 attr 재생성 (DB UNIQUE 충돌 방지)
           transformPasted(slice) {
             if (slice.content.firstChild?.type.name === 'toggle') {
               // 단일 토글 체인(toggle > toggle > ... > paragraph) = 텍스트 복사 → 래퍼 벗기기
@@ -1470,7 +1581,10 @@ export const Toggle = Node.create({
                   return new Slice(Fragment.from(node), 0, 0)
                 }
               }
-              return new Slice(slice.content, 0, 0)
+              // 모든 toggle 자손의 blockId 등 재생성
+              const regenChildren = []
+              slice.content.forEach(n => regenChildren.push(regenToggleIds(n)))
+              return new Slice(Fragment.fromArray(regenChildren), 0, 0)
             }
             return slice
           },
@@ -1548,22 +1662,31 @@ export const Toggle = Node.create({
               const crossDrag = window.__crossPaneDrag
               const { state } = view
 
-              // JSON에서 토글 복원 (PM이 토글을 paragraph로 분해하므로)
+              // JSON에서 토글 복원 (PM이 토글을 paragraph로 분해하므로) — 단일/다중 둘 다 처리
               let contentToInsert = null
               const blockJSON = event.dataTransfer.getData('application/x-thinkmap-block')
               if (blockJSON) {
-                try { contentToInsert = Fragment.from(state.schema.nodeFromJSON(JSON.parse(blockJSON))) } catch { /* */ }
+                try {
+                  const parsed = JSON.parse(blockJSON)
+                  const list = Array.isArray(parsed) ? parsed : [parsed]
+                  const restored = list.map(j => state.schema.nodeFromJSON(j))
+                  contentToInsert = Fragment.fromArray(restored)
+                } catch { /* */ }
               }
               if (!contentToInsert && crossDrag) {
-                const srcNode = crossDrag.sourceEditor.state.doc.nodeAt(crossDrag.sourcePos)
-                if (srcNode) contentToInsert = Fragment.from(srcNode.copy(srcNode.content))
+                const positions = crossDrag.sourcePositions || [crossDrag.sourcePos]
+                const nodes = positions
+                  .map(p => crossDrag.sourceEditor.state.doc.nodeAt(p))
+                  .filter(Boolean)
+                if (nodes.length) contentToInsert = Fragment.fromArray(nodes.map(n => n.copy(n.content)))
               }
               if (!contentToInsert) { view.dragging = null; window.__crossPaneDrag = null; return true }
 
-              // 소스 정보
-              let sourcePos = null, sourceSize = null
+              // 소스 정보 — 단일/다중 통합 (sourcePositions[] / sourceSizes[])
+              let sourcePositions = null, sourceSizes = null
               if (crossDrag && crossDrag.sourceEditor?.view === view) {
-                sourcePos = crossDrag.sourcePos; sourceSize = crossDrag.nodeSize
+                sourcePositions = crossDrag.sourcePositions || [crossDrag.sourcePos]
+                sourceSizes = crossDrag.nodeSizes || [crossDrag.nodeSize]
               }
 
               // 드롭 위치 결정
@@ -1583,17 +1706,27 @@ export const Toggle = Node.create({
                 }
               }
 
-              // 자기 자신에 드롭이면 무시
-              if (sourcePos != null && sourceSize != null && insertPos >= sourcePos && insertPos <= sourcePos + sourceSize) {
-                view.dragging = null; window.__crossPaneDrag = null; return true
+              // 자기 자신/포함 영역에 드롭이면 무시 (다중 중 하나라도 포함되면 무시)
+              if (sourcePositions) {
+                for (let i = 0; i < sourcePositions.length; i++) {
+                  const sp = sourcePositions[i], ss = sourceSizes[i]
+                  if (insertPos >= sp && insertPos <= sp + ss) {
+                    view.dragging = null; window.__crossPaneDrag = null; return true
+                  }
+                }
               }
 
               try {
                 const { tr } = state
-                // 소스 삭제
-                if (sourcePos != null && sourceSize != null) {
-                  const srcNode = tr.doc.nodeAt(sourcePos)
-                  if (srcNode) tr.delete(sourcePos, sourcePos + srcNode.nodeSize)
+                // 소스 삭제 — 큰 위치부터 (mapping 영향 회피)
+                if (sourcePositions) {
+                  const sortedSrc = sourcePositions
+                    .map((p, i) => ({ p, s: sourceSizes[i] }))
+                    .sort((a, b) => b.p - a.p)
+                  for (const { p, s } of sortedSrc) {
+                    const srcNode = tr.doc.nodeAt(p)
+                    if (srcNode && srcNode.nodeSize === s) tr.delete(p, p + srcNode.nodeSize)
+                  }
                 }
                 let mappedPos = tr.mapping.map(insertPos)
 
@@ -1612,16 +1745,25 @@ export const Toggle = Node.create({
                 view.dispatch(tr)
               } catch (err) { console.error('블록 드롭 오류:', err) }
 
-              // 크로스 패널 소스 삭제
+              // 크로스 패널 소스 삭제 — 다중 노드 큰 위치부터
               if (crossDrag && crossDrag.sourceEditor?.view !== view) {
                 try {
-                  const { sourceEditor, sourcePos: sp, nodeSize: ns } = crossDrag
-                  const srcNode = sourceEditor.state.doc.nodeAt(sp)
-                  if (srcNode && srcNode.nodeSize === ns) {
-                    sourceEditor.view.dispatch(sourceEditor.state.tr.delete(sp, sp + ns))
+                  const positions = crossDrag.sourcePositions || [crossDrag.sourcePos]
+                  const sizes = crossDrag.nodeSizes || [crossDrag.nodeSize]
+                  const sortedSrc = positions.map((p, i) => ({ p, s: sizes[i] })).sort((a, b) => b.p - a.p)
+                  const srcTr = crossDrag.sourceEditor.state.tr
+                  for (const { p, s } of sortedSrc) {
+                    const srcNode = srcTr.doc.nodeAt(p)
+                    if (srcNode && srcNode.nodeSize === s) srcTr.delete(p, p + srcNode.nodeSize)
                   }
+                  if (srcTr.docChanged) crossDrag.sourceEditor.view.dispatch(srcTr)
                 } catch { /* */ }
               }
+
+              // multi-select 상태 초기화 — drop 후 잔존 highlight 방지
+              try {
+                view.dispatch(view.state.tr.setMeta(multiSelectPluginKey, { type: 'clear' }))
+              } catch { /* */ }
 
               view.dragging = null
               window.__crossPaneDrag = null

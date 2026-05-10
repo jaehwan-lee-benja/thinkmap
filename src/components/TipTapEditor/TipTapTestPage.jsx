@@ -137,6 +137,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
   // 형제 페이지 드롭다운
   const [showPageNav, setShowPageNav] = useState(false)
+  const [showWorklogCommentsModal, setShowWorklogCommentsModal] = useState(false)
   const pageNavRef = useRef(null)
 
   const siblingPages = pages
@@ -1428,6 +1429,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             >{currentPageName || '페이지'}</h2>
           </div>
           <div className="tiptap-header-actions">
+            {currentPage?.page_type !== 'daily' && <>
             <div className="page-nav-dropdown-wrapper" ref={pageNavRef}>
               <button
                 className={`tiptap-btn tiptap-btn-secondary page-nav-chevron ${showPageNav ? 'open' : ''}`}
@@ -1528,6 +1530,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
                 </>
               )}
             </div>
+            </>}
           </div>
         </div>
 
@@ -1645,6 +1648,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               parentId={currentPage.parent_id}
               isMaster={isMaster}
               placeholder="내용을 입력하세요..."
+              onCommentsClick={() => setShowWorklogCommentsModal(true)}
+              commentsCount={comments.length}
             />
           ) : content ? (
             <TipTapEditor
@@ -1660,7 +1665,37 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           ) : (
             <div className="tiptap-loading">로딩 중...</div>
           )}
+
         </div>
+
+        {/* 모달 — 페이지 전체 코멘트 */}
+        {currentPage?.page_type === 'daily' && showWorklogCommentsModal && createPortal(
+          <div
+            className="worklog-comments-modal-overlay"
+            onClick={() => setShowWorklogCommentsModal(false)}
+          >
+            <div className="worklog-comments-modal" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="worklog-comments-modal-close"
+                onClick={() => setShowWorklogCommentsModal(false)}
+                title="닫기"
+              >
+                ✕
+              </button>
+              <WorklogComments
+                comments={comments}
+                mentionableUsers={mentionableUsers}
+                currentUserEmail={session?.user?.email}
+                onAdd={addComment}
+                onToggleResolved={toggleResolved}
+                onDelete={deleteComment}
+                defaultOpen
+              />
+            </div>
+          </div>,
+          document.body
+        )}
 
         {/* 업무일지: 섹션 추가 버튼 */}
         {currentPage?.page_type === 'daily' && !isImpersonating && editorRef.current && (
@@ -1707,18 +1742,6 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             />
           </CommentPopover>,
           document.body
-        )}
-
-        {/* 페이지 하단 — 페이지 전체 코멘트 (commentTarget 무관) */}
-        {currentPage?.page_type === 'daily' && (
-          <WorklogComments
-            comments={comments}
-            mentionableUsers={mentionableUsers}
-            currentUserEmail={session?.user?.email}
-            onAdd={addComment}
-            onToggleResolved={toggleResolved}
-            onDelete={deleteComment}
-          />
         )}
 
         {/* 뷰어 모드 토스트 */}

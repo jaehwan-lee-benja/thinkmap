@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
 import BackupModal from '../Backup/BackupModal'
+import CreateCanvasModal from '../Canvas/CreateCanvasModal'
 import { SidebarHeader } from './components/SidebarHeader'
 import { PageTree } from './components/PageTree'
 import { useProjectContext } from '../../contexts/ProjectContext'
@@ -24,7 +25,7 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
   const { isTablet } = useIsMobile()
   const { effectiveSession } = usePaneData()
   const { projects, currentProjectId, createProject, renameProject, deleteProject } = useProjectContext()
-  const { pages, pageTree, currentPageId, createPage, renamePage, deletePage, reorderPages, getDescendantCount, expandedPages, saveExpandedPages } = usePageContext()
+  const { pages, pageTree, currentPageId, createPage, renamePage, deletePage, reorderPages, getDescendantCount, expandedPages, saveExpandedPages, fetchPages } = usePageContext()
   const { sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource } = useSharingContext()
   const { backups, backupLoading, createBackup, restoreBackup, deleteBackup, exportBackup, importBackup, refreshBackups } = useBackupContext()
 
@@ -38,6 +39,9 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
 
   // 프로젝트 모달 상태
   const [projectModalOpen, setProjectModalOpen] = useState(false)
+
+  // 마케팅 캔버스 생성 모달
+  const [canvasModalOpen, setCanvasModalOpen] = useState(false)
 
   const currentProject = projects.find(p => p.id === currentProjectId)
   const hasSharedItems = sharedWithMe.projects.length > 0 || sharedWithMe.pages.length > 0
@@ -125,6 +129,14 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             >
               <CalendarDays size={16} />
               <span>업무일지(개발중)</span>
+            </button>
+            <button
+              className="sidebar-worklog-btn"
+              onClick={() => setCanvasModalOpen(true)}
+              title="새 마케팅 캔버스 만들기"
+            >
+              <Target size={16} />
+              <span>+ 마케팅 캔버스</span>
             </button>
           </div>
 
@@ -287,6 +299,24 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
         onExportBackup={exportBackup}
         onImportBackup={importBackup}
         onRefresh={refreshBackups}
+      />
+
+      {/* 마케팅 캔버스 생성 모달 */}
+      <CreateCanvasModal
+        isOpen={canvasModalOpen}
+        onClose={() => setCanvasModalOpen(false)}
+        userId={effectiveSession?.user?.id}
+        masterId={effectiveSession?.user?.id}
+        onCreated={async (pairId, framePageId) => {
+          // PageContext 가 새로 만든 frame/engine 페이지를 인식하도록 먼저 fetch
+          if (typeof fetchPages === 'function') {
+            await fetchPages()
+          } else {
+            window.dispatchEvent(new CustomEvent('pages-refresh'))
+          }
+          // 그 다음 새 frame 페이지로 이동
+          handlePageSelect(framePageId)
+        }}
       />
     </>
   )

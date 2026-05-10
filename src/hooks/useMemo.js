@@ -86,5 +86,26 @@ export const useQuickMemo = (session) => {
     }
   }, [])
 
+  // Realtime 동기화 — 다른 탭/기기 변경 자동 반영. 본인이 typing 중이면 skip (덮어쓰기 방지).
+  useEffect(() => {
+    if (!userId) return
+    const channel = supabase
+      .channel(`user_memos:${userId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_memos',
+        filter: `user_id=eq.${userId}`,
+      }, (payload) => {
+        const next = payload.new?.content
+        if (next == null) return
+        // 본인이 typing 중 (저장 디바운스 active) 이면 skip — 자기 입력 덮어쓰기 방지
+        if (saveTimerRef.current) return
+        setContent(prev => (prev === next ? prev : next))
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [userId])
+
   return { content, updateContent, loading, saving }
 }

@@ -221,32 +221,26 @@
   flex: 1;
 }
 
-.calendar-entry {
-  display: flex;
+/* daily 셀의 단일 아이콘 버튼 — PC/모바일 둘 다 잘 보이는 크기 */
+.calendar-entry-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 6px;
-  border: none;
-  background: rgba(100, 108, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 11px;
-  font-family: inherit;
-  text-align: left;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(100, 108, 255, 0.35);
+  background: rgba(100, 108, 255, 0.18);
+  color: #b9c0ff;
   cursor: pointer;
-  border-radius: 4px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  transition: background 0.1s;
+  border-radius: 6px;
+  transition: all 0.1s;
 }
 
-.calendar-entry:hover {
-  background: rgba(100, 108, 255, 0.2);
-}
-
-.calendar-entry span {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.calendar-entry-btn:hover {
+  background: rgba(100, 108, 255, 0.35);
+  border-color: rgba(100, 108, 255, 0.6);
+  color: #fff;
 }
 
 .calendar-entry-more {
@@ -323,9 +317,10 @@
     display: none;  /* 아이콘만 */
   }
 
-  /* 셀 안의 텍스트 미리보기는 모바일에서 숨김 — 셀 폭 부족 */
-  .calendar-entry {
-    display: none;
+  /* 모바일: 살짝 줄이되 터치 부담 없는 크기 유지 */
+  .calendar-entry-btn {
+    width: 28px;
+    height: 28px;
   }
 
   /* 통계 (완료수 / 코멘트수) 는 점/숫자만 작게 */

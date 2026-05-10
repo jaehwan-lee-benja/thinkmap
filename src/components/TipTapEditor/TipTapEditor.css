@@ -989,14 +989,17 @@ th .paragraph-drag-handle {
   margin: 2rem 0;
 }
 
-/* Toggle Block 스타일 - 노션 스타일 */
+/* Toggle Block 스타일 - 노션 스타일.
+   --toggle-checkbox-offset: todo checkbox 영역 폭 (box 16 + flex gap 양쪽 4+4 + margin-right 4 = 28).
+   변경 시 .toggle-todo-checkbox 의 width/margin/부모 .toggle-block 의 gap 도 함께 조정. */
 .toggle-block {
+  --toggle-checkbox-offset: 28px;
   position: relative;
   display: flex;
   align-items: flex-start;
   gap: 0.25rem;
   margin: 0.375rem 0;
-  padding: 0.25rem 0.25rem 0 0.25rem;
+  padding: 0.25rem 0 0 0.25rem;  /* padding-right: 0 — 우측 정렬 일관성의 핵심 */
   border-radius: 0.25rem;
 }
 
@@ -1335,14 +1338,28 @@ th .paragraph-drag-handle {
   background: transparent !important;
 }
 
-/* 토글 내부 중첩 토글 — 들여쓰기 최소화 */
+/* ============================================================================
+   ⚠️ 토글 우측 정렬 원칙 — 절대 함부로 제거 금지. docs/TOGGLE-BLOCK-SPEC.md §17 참고.
+   메커니즘:
+     1. 모든 .toggle-block padding-right: 0 (위 base 룰)
+     2. .toggle-actions-group right: 0 (위 룰)
+     3. 자식 .toggle-block width: 100% + box-sizing: border-box (부모 .toggle-content 폭과 동일)
+     4. h2 카드만 padding-right 가 있어서 별도 width 보정 (자식 룰 specificity override, TipTapPage.css)
+   결과: 모든 깊이 자손 (todo 여부/부모 종류 무관) 의 actions-group 우측이 동일.
+   ============================================================================ */
 .toggle-content > .toggle-block {
-  margin-left: -38px;
+  box-sizing: border-box;
+  width: 100%;
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
-  padding-top: 0;
-  padding-bottom: 0;
+  padding: 0;
   background: transparent !important;
+}
+
+/* 부모가 todo 인 경우 — checkbox 영역 보정으로 자식 들여쓰기를 일반 부모와 일치시킴.
+   ".toggle-todo" 클래스는 NodeView 가 isTodo 일 때만 추가 (display:none 으로 가려진 checkbox 의 false positive 회피). */
+.toggle-block.toggle-todo > .toggle-content > .toggle-block {
+  margin-left: calc(-1 * var(--toggle-checkbox-offset));
 }
 
 /* 마지막 하위 블록: 부모 margin과 중첩 방지 */
@@ -1429,8 +1446,7 @@ th .paragraph-drag-handle {
 /* ── 마스터 전용 섹션 시각 표시 ── */
 .tiptap-page--daily .tiptap-editor > .toggle-block.toggle-master-only {
   border-color: rgba(167, 139, 250, 0.3);
-  background: linear-gradient(135deg, rgba(167, 139, 250, 0.04) 0%, rgba(124, 58, 237, 0.06) 100%) !important;
-  box-shadow: inset 3px 0 0 rgba(167, 139, 250, 0.5);
+  background: rgba(167, 139, 250, 0.04) !important;
 }
 
 /* ── 섹션 코멘트 버튼 ── */
@@ -1490,10 +1506,10 @@ th .paragraph-drag-handle {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* 오른쪽 액션 그룹 — 하위 토글이어도 항상 오른쪽 끝 정렬 */
+/* 오른쪽 액션 그룹 — 모든 토글의 우측 boundary (= padding-right 0 의 box 우측) 에 정렬 */
 .toggle-actions-group {
   position: absolute;
-  right: 2px;
+  right: 0;
   top: 2px;
   display: flex;
   align-items: center;

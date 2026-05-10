@@ -110,22 +110,22 @@ export const usePages = (session, currentProjectId, options = {}) => {
     try {
       setPagesLoading(true)
 
-      // 업무일지(project_id=NULL) 페이지는 항상 로드
+      // 독립 엔티티 페이지 (project_id=NULL) — 업무일지 + 마케팅 캔버스
       const worklogQuery = supabase
         .from('pages')
         .select('*')
         .is('project_id', null)
-        .in('page_type', ['calendar', 'daily'])
+        .in('page_type', ['calendar', 'daily', 'frame', 'engine'])
         .is('deleted_at', null)
         .order('position', { ascending: true })
 
-      // 프로젝트가 있으면 프로젝트 소속 페이지도 로드 (calendar/daily는 독립 엔티티이므로 제외)
+      // 프로젝트 소속 페이지 (독립 엔티티는 제외)
       const projectQuery = currentProjectId
         ? supabase
             .from('pages')
             .select('*')
             .eq('project_id', currentProjectId)
-            .not('page_type', 'in', '("calendar","daily")')
+            .not('page_type', 'in', '("calendar","daily","frame","engine")')
             .is('deleted_at', null)
             .order('position', { ascending: true })
         : Promise.resolve({ data: [], error: null })

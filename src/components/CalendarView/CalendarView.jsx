@@ -227,24 +227,20 @@ export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage, comm
                   </button>
                 )}
               </div>
-              <div className="calendar-cell-entries">
-                {entries.slice(0, maxShow).map(page => (
+              {/* daily 는 날짜당 1개라 단일 아이콘 버튼 (모바일 가독성 + 폭 절약) */}
+              {entries.length > 0 && (
+                <div className="calendar-cell-entries">
                   <button
-                    key={page.id}
-                    className="calendar-entry"
-                    onClick={() => onPageSelect(page.id)}
-                    title={page.name}
+                    key={entries[0].id}
+                    className="calendar-entry-btn"
+                    onClick={() => onPageSelect(entries[0].id)}
+                    title={entries[0].name}
+                    aria-label={entries[0].name}
                   >
-                    <FileText size={12} />
-                    <span>{page.name}</span>
+                    <FileText size={16} />
                   </button>
-                ))}
-                {entries.length > maxShow && (
-                  <span className="calendar-entry-more">
-                    +{entries.length - maxShow}개 더보기
-                  </span>
-                )}
-              </div>
+                </div>
+              )}
               {/* 셀 내 통계 */}
               {(todoStats?.total > 0 || commentStats?.total > 0) && (
                 <div className="calendar-cell-stats">

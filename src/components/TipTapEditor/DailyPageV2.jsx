@@ -11,7 +11,8 @@
 // 헤더 (WorklogHeader), 코멘트, 사이드 패널 등은 호출자 (TipTapTestPage) 가 wrap.
 
 import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react'
-import { LayoutList, Columns3 } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { LayoutList, Columns3, Square, ChevronLeft, ChevronRight, History, Trash2, Star, MessageSquare, MoreHorizontal } from 'lucide-react'
 import TipTapEditor from './TipTapEditor'
 import { useDailyBlocks } from '../../hooks/useDailyBlocks'
 import { blocksToDoc } from '../../utils/blocksToDoc'
@@ -74,6 +75,8 @@ export default function DailyPageV2({
   parentId,             // calendar 페이지 id — 리프레시 시 직전 daily 검색용
   isMaster = false,
   placeholder,
+  onCommentsClick,    // 코멘트 모달 트리거 (옵션)
+  commentsCount = 0,
 }) {
   const userId = session?.user?.id
   const ctx = useMemo(() => ({ pageId, pageDate, userId }), [pageId, pageDate, userId])
@@ -83,19 +86,21 @@ export default function DailyPageV2({
   // row → doc
   const sourceDoc = useMemo(() => blocksToDoc(blocks), [blocks])
 
-  // viewMode: 'list' (기본, 위→아래) | 'column' (Trello 식 가로 정렬)
+  // viewMode: 'list' (기본, 위→아래) | 'column' (Trello 식 가로) | 'card' (집중 모드, 한 카드씩 풀폭)
   // localStorage 에 사용자별 저장.
-  const [viewMode, setViewMode] = useState(() => {
+  const VALID_VIEW_MODES = ['list', 'column', 'card']
+  const [viewMode, setViewModeState] = useState(() => {
     if (typeof window === 'undefined') return 'list'
-    return localStorage.getItem('thinkmap.dailyViewMode') === 'column' ? 'column' : 'list'
+    const saved = localStorage.getItem('thinkmap.dailyViewMode')
+    return VALID_VIEW_MODES.includes(saved) ? saved : 'list'
   })
-  const toggleViewMode = useCallback(() => {
-    setViewMode(prev => {
-      const next = prev === 'list' ? 'column' : 'list'
-      try { localStorage.setItem('thinkmap.dailyViewMode', next) } catch {}
-      return next
-    })
+  const setViewMode = useCallback((m) => {
+    if (!VALID_VIEW_MODES.includes(m)) return
+    setViewModeState(m)
+    try { localStorage.setItem('thinkmap.dailyViewMode', m) } catch {}
   }, [])
+  // 'column' 과 'card' 는 가로 carousel — 같은 인프라 (scroll-snap, drag-to-scroll, 가로 wheel)
+  const isCarousel = viewMode === 'column' || viewMode === 'card'
 
   // stableDoc: TipTapEditor 에 전달할 doc.
   //   - 마운트 / 외부 변경 (realtime, refetch) 시 sourceDoc 으로 갱신
@@ -104,6 +109,8 @@ export default function DailyPageV2({
   const lastSavedDocRef = useRef(sourceDoc)
   const saveTimerRef = useRef(null)
   const userTypingAtRef = useRef(0)
+  const rootRef = useRef(null)
+  const editorRef = useRef(null)
   const TYPING_GUARD_MS = 2000
 
   useEffect(() => {
@@ -217,14 +224,18 @@ export default function DailyPageV2({
             })
         }
 
-        if (userMasters.length > 0) {
-          supabase
-            .from('worklog_sections')
-            .update({ deleted_at: new Date().toISOString() })
-            .in('id', userMasters)
-            .eq('created_by', userId)
-            .then(({ error }) => { if (error) logError('DailyPageV2.softDeleteSectionMaster', error) })
-        }
+        // 자동 폐기 비활성화 (race / 페이지 삭제 / doc 깨짐 등 의도치 않은 흐름에서
+        // section row 가 사라진 것으로 인식되어 worklog_sections master 까지 일괄 deleted_at 박히는
+        // 위험 케이스 발생. master 관리는 사용자가 명시적으로 별도 UI 에서 처리하도록.)
+        // if (userMasters.length > 0) {
+        //   supabase
+        //     .from('worklog_sections')
+        //     .update({ deleted_at: new Date().toISOString() })
+        //     .in('id', userMasters)
+        //     .eq('created_by', userId)
+        //     .then(({ error }) => { if (error) logError('DailyPageV2.softDeleteSectionMaster', error) })
+        // }
+        void userMasters
 
         // thread 동기화 — 체크박스가 토글된 row 들에 한해.
         // schema cache stale 등으로 실패해도 사이트 동작에 영향 없음 → silent.
@@ -439,17 +450,260 @@ export default function DailyPageV2({
     }
   }, [userId, pageId, pageDate, blocks, applyDiff])
 
+  // 가로 carousel (column / card): drag-to-scroll + wheel 가로 매핑
+  // drag-to-scroll 은 임계 거리(8px) 이후 활성화 → 카드 외 빈 영역과 카드 안 텍스트 모두에서 작동.
+  // 임계 미만은 클릭/selection 정상 진행.
+  useEffect(() => {
+    if (!isCarousel) return
+    const root = rootRef.current
+    if (!root) return
+    const pmEl = root.querySelector('.ProseMirror')
+    if (!pmEl) return
+
+    const DRAG_THRESHOLD = 8
+    let isDown = false
+    let startX = 0
+    let startScrollLeft = 0
+    let dragMode = false
+    let prevCursor = ''
+
+    const onWheel = (e) => {
+      // 세로 휠 → 가로 스크롤 (가로 휠은 그대로 통과)
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault()
+        pmEl.scrollLeft += e.deltaY
+      }
+    }
+    const onDown = (e) => {
+      if (e.button !== 0) return
+      isDown = true
+      dragMode = false
+      startX = e.clientX
+      startScrollLeft = pmEl.scrollLeft
+    }
+    const onMove = (e) => {
+      if (!isDown) return
+      const dx = e.clientX - startX
+      if (!dragMode && Math.abs(dx) > DRAG_THRESHOLD) {
+        dragMode = true
+        prevCursor = pmEl.style.cursor
+        pmEl.style.cursor = 'grabbing'
+        // 임계 넘은 시점부터 drag 의도 → 시작된 텍스트 selection 취소
+        try { window.getSelection()?.removeAllRanges() } catch {}
+      }
+      if (dragMode) {
+        e.preventDefault()
+        pmEl.scrollLeft = startScrollLeft - dx
+      }
+    }
+    const onUp = () => {
+      if (!isDown) return
+      isDown = false
+      if (dragMode) {
+        pmEl.style.cursor = prevCursor
+        dragMode = false
+      }
+    }
+
+    pmEl.addEventListener('wheel', onWheel, { passive: false })
+    pmEl.addEventListener('mousedown', onDown)
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => {
+      pmEl.removeEventListener('wheel', onWheel)
+      pmEl.removeEventListener('mousedown', onDown)
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [isCarousel, blocks?.length])
+
+  // 카드뷰 한정: 현재 화면에 보이는 카드 인덱스 추적 (인디케이터 + 화살표 네비게이션 + 키보드 ←→)
+  const [currentCardIndex, setCurrentCardIndex] = useState(0)
+  const [cardCount, setCardCount] = useState(0)
+
+  useEffect(() => {
+    if (viewMode !== 'card') {
+      setCardCount(0)
+      return
+    }
+    const root = rootRef.current
+    if (!root) return
+    const pmEl = root.querySelector('.ProseMirror')
+    if (!pmEl) return
+
+    // IntersectionObserver — 가장 큰 비율로 보이는 카드를 현재로 표시
+    const intersectionObs = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter(e => e.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
+      if (visible) {
+        const cards = Array.from(pmEl.querySelectorAll(':scope > .toggle-block'))
+        const idx = cards.indexOf(visible.target)
+        if (idx >= 0) setCurrentCardIndex(idx)
+      }
+    }, { root: pmEl, threshold: [0.25, 0.5, 0.75] })
+
+    // MutationObserver — ProseMirror 자식 (카드) 변경 시 cardCount 갱신 + IntersectionObserver 재구성
+    // (TipTapEditor setContent 가 비동기라 useEffect 첫 호출 시 카드가 없을 수 있음)
+    const refreshCards = () => {
+      const cards = Array.from(pmEl.querySelectorAll(':scope > .toggle-block'))
+      setCardCount(cards.length)
+      intersectionObs.disconnect()
+      cards.forEach(c => intersectionObs.observe(c))
+    }
+    refreshCards()
+    const mutationObs = new MutationObserver(refreshCards)
+    mutationObs.observe(pmEl, { childList: true })
+
+    // 키보드 ←→ 네비게이션 — center snap
+    const onKey = (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.target?.isContentEditable) return
+      e.preventDefault()
+      const cards = Array.from(pmEl.querySelectorAll(':scope > .toggle-block'))
+      if (cards.length === 0) return
+      const dir = e.key === 'ArrowLeft' ? -1 : 1
+      const next = Math.max(0, Math.min(cards.length - 1, currentCardIndex + dir))
+      cards[next]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
+    document.addEventListener('keydown', onKey)
+
+    return () => {
+      intersectionObs.disconnect()
+      mutationObs.disconnect()
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [viewMode, currentCardIndex])
+
+  // ⋮ 메뉴 (자식 토글의 추가 옵션 — 이월 히스토리 / 삭제)
+  const [moreMenu, setMoreMenu] = useState(null)
+  // 모바일 한정 actions 더보기 시트
+  const [showActionsMenu, setShowActionsMenu] = useState(false)
+  // null | { blockId, originBlockId, anchorRect }
+  const [historyData, setHistoryData] = useState(null)
+  // null | { threadId, rows: [...] } | { error }
+
+  useEffect(() => {
+    if (!initialLoaded) return
+    const root = rootRef.current
+    if (!root) return
+    const onMore = (e) => setMoreMenu(e.detail || null)
+    root.addEventListener('toggle-more-menu', onMore)
+    return () => root.removeEventListener('toggle-more-menu', onMore)
+  }, [initialLoaded])
+
+  // ESC / 외부 클릭 → 메뉴 닫기
+  useEffect(() => {
+    if (!moreMenu) return
+    const onKey = (e) => { if (e.key === 'Escape') setMoreMenu(null) }
+    const onClick = () => setMoreMenu(null)
+    document.addEventListener('keydown', onKey)
+    // mousedown 으로 닫음 — 메뉴 항목 클릭은 stopPropagation 으로 보호
+    document.addEventListener('mousedown', onClick)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onClick)
+    }
+  }, [moreMenu])
+
+  const handleDeleteFromMenu = useCallback(async () => {
+    const target = moreMenu
+    setMoreMenu(null)
+    if (!target?.blockId) return
+    if (!confirm('이 항목을 삭제할까요?')) return
+    try {
+      await applyDiff({ insert: [], update: [], softDelete: [{ blockId: target.blockId }] })
+      refetch()
+    } catch (err) {
+      logError('DailyPageV2.handleDeleteFromMenu', err)
+      alert('삭제 실패: ' + (err?.message || err))
+    }
+  }, [moreMenu, applyDiff, refetch])
+
+  // 댓글: rootRef 안의 토글 dom 을 anchor 로 'section-comment-click' dispatch (TipTapTestPage 가 popover)
+  const handleCommentFromMenu = useCallback(() => {
+    const target = moreMenu
+    setMoreMenu(null)
+    if (!target?.blockId) return
+    const root = rootRef.current
+    if (!root) return
+    const toggleDom = root.querySelector(`[data-block-id="${target.blockId}"]`)
+    if (!toggleDom) return
+    toggleDom.dispatchEvent(new CustomEvent('section-comment-click', {
+      bubbles: true,
+      detail: {
+        sectionTitle: target.title || '',
+        targetType: target.isTodo ? 'todo' : 'section',
+        toggleDom,
+        blockId: target.blockId,
+        sectionId: null,
+        originBlockId: target.originBlockId,
+      }
+    }))
+  }, [moreMenu])
+
+  // 별표: editor 의 setNodeMarkup 으로 isStarred attr 토글
+  const handleStarFromMenu = useCallback(() => {
+    const target = moreMenu
+    setMoreMenu(null)
+    if (target?.pos == null) return
+    const editor = editorRef.current
+    if (!editor) return
+    const node = editor.state.doc.nodeAt(target.pos)
+    if (!node) return
+    editor.view.dispatch(
+      editor.state.tr.setNodeMarkup(target.pos, null, { ...node.attrs, isStarred: !node.attrs.isStarred })
+    )
+  }, [moreMenu])
+
+  const handleHistoryFromMenu = useCallback(async () => {
+    const target = moreMenu
+    setMoreMenu(null)
+    if (!target) return
+    const threadId = target.originBlockId || target.blockId
+    if (!threadId) return
+    try {
+      // origin = threadId 또는 자기 자신 = threadId 인 row 들 (active만)
+      const { data, error } = await supabase
+        .from('daily_blocks')
+        .select('block_id, page_date, text_content, todo_checked, todo_status, is_carry_over, carry_over_from')
+        .or(`origin_block_id.eq.${threadId},block_id.eq.${threadId}`)
+        .is('deleted_at', null)
+        .order('page_date', { ascending: true })
+      if (error) throw error
+      setHistoryData({ threadId, rows: data || [] })
+    } catch (err) {
+      logError('DailyPageV2.handleHistoryFromMenu', err)
+      setHistoryData({ threadId, error: err?.message || String(err) })
+    }
+  }, [moreMenu])
+
+  // 카드뷰: 화살표 클릭 → 인접 카드로 scroll (center snap)
+  const scrollToCard = useCallback((delta) => {
+    const root = rootRef.current
+    if (!root) return
+    const pmEl = root.querySelector('.ProseMirror')
+    if (!pmEl) return
+    const cards = Array.from(pmEl.querySelectorAll(':scope > .toggle-block'))
+    if (cards.length === 0) return
+    const next = Math.max(0, Math.min(cards.length - 1, currentCardIndex + delta))
+    cards[next]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [currentCardIndex])
+
   if (error) return <div className="daily-page-v2-error">불러오기 실패: {String(error.message || error)}</div>
   // 첫 fetch 완료 전엔 에디터 마운트 안 함 — 빈 doc → 채워진 doc 전환 시 BubbleMenu race 회피
   if (!initialLoaded) return <div className="daily-page-v2-loading">로딩...</div>
 
   return (
-    <div className={`daily-page-v2 daily-page-v2--${viewMode}`}>
+    <div
+      ref={rootRef}
+      className={`daily-page-v2 daily-page-v2--${viewMode}${isCarousel ? ' daily-page-v2--carousel' : ''}`}
+    >
       <div className="daily-page-v2-toolbar">
         <button
           type="button"
           className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
-          onClick={() => viewMode !== 'list' && toggleViewMode()}
+          onClick={() => setViewMode('list')}
           title="리스트뷰 (위→아래)"
         >
           <LayoutList size={14} />
@@ -458,11 +712,20 @@ export default function DailyPageV2({
         <button
           type="button"
           className={`view-mode-btn ${viewMode === 'column' ? 'active' : ''}`}
-          onClick={() => viewMode !== 'column' && toggleViewMode()}
+          onClick={() => setViewMode('column')}
           title="컬럼뷰 (가로 정렬, Trello 식)"
         >
           <Columns3 size={14} />
           <span>컬럼</span>
+        </button>
+        <button
+          type="button"
+          className={`view-mode-btn ${viewMode === 'card' ? 'active' : ''}`}
+          onClick={() => setViewMode('card')}
+          title="카드뷰 (집중 모드, 한 카드씩 풀폭)"
+        >
+          <Square size={14} />
+          <span>카드</span>
         </button>
       </div>
       <TipTapEditor
@@ -471,7 +734,33 @@ export default function DailyPageV2({
         placeholder={placeholder}
         isMaster={isMaster}
         isDailyPage={true}
+        editorRef={editorRef}
       />
+      {viewMode === 'card' && cardCount > 0 && (
+        <div className="card-nav-row">
+          <button
+            type="button"
+            className="card-nav-btn"
+            onClick={() => scrollToCard(-1)}
+            disabled={currentCardIndex === 0}
+            title="이전 카드 (←)"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="card-nav-indicator">
+            {currentCardIndex + 1} / {cardCount}
+          </span>
+          <button
+            type="button"
+            className="card-nav-btn"
+            onClick={() => scrollToCard(1)}
+            disabled={currentCardIndex >= cardCount - 1}
+            title="다음 카드 (→)"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
       <div className="worklog-actions-row">
         <button
           type="button"
@@ -480,6 +769,15 @@ export default function DailyPageV2({
         >
           + 섹션 추가
         </button>
+        {onCommentsClick && (
+          <button
+            type="button"
+            className="worklog-comments-modal-trigger"
+            onClick={onCommentsClick}
+          >
+            💬 코멘트 ({commentsCount})
+          </button>
+        )}
         <button
           type="button"
           className="worklog-refresh-btn"
@@ -489,7 +787,146 @@ export default function DailyPageV2({
         >
           {refreshing ? '리프레시 중...' : '↻ 이월 리프레시'}
         </button>
+        {/* 모바일 한정 ⋯ 더보기 — 데스크톱에서는 CSS 로 hide. 위 3 버튼은 모바일에서 hide. */}
+        <button
+          type="button"
+          className="worklog-actions-more-btn"
+          onClick={() => setShowActionsMenu(prev => !prev)}
+          title="더보기"
+          aria-label="더보기"
+        >
+          <MoreHorizontal size={18} />
+        </button>
       </div>
+
+      {showActionsMenu && createPortal(
+        <div
+          className="worklog-actions-mobile-overlay"
+          onClick={() => setShowActionsMenu(false)}
+        >
+          <div className="worklog-actions-mobile-sheet" onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => { setShowActionsMenu(false); handleAddSection() }}>
+              + 섹션 추가
+            </button>
+            {onCommentsClick && (
+              <button type="button" onClick={() => { setShowActionsMenu(false); onCommentsClick() }}>
+                💬 코멘트 ({commentsCount})
+              </button>
+            )}
+            <button type="button" onClick={() => { setShowActionsMenu(false); handleRefreshCarryOver() }} disabled={refreshing}>
+              {refreshing ? '리프레시 중...' : '↻ 이월 리프레시'}
+            </button>
+            <button type="button" className="worklog-actions-mobile-cancel" onClick={() => setShowActionsMenu(false)}>
+              취소
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ⋯ 메뉴 — 자식 토글 클릭 시 dropdown */}
+      {moreMenu && createPortal(
+        <div
+          className="toggle-more-menu"
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: moreMenu.anchorRect.bottom + 4,
+            left: Math.max(8, moreMenu.anchorRect.right - 180),
+          }}
+        >
+          <button
+            type="button"
+            className="toggle-more-menu-item"
+            onClick={handleCommentFromMenu}
+          >
+            <MessageSquare size={14} /> 댓글
+          </button>
+          <button
+            type="button"
+            className="toggle-more-menu-item"
+            onClick={handleStarFromMenu}
+          >
+            <Star size={14} /> {moreMenu.isStarred ? '중요 해제' : '중요 표시'}
+          </button>
+          <button
+            type="button"
+            className="toggle-more-menu-item"
+            onClick={handleHistoryFromMenu}
+          >
+            <History size={14} /> 이월 히스토리
+          </button>
+          <button
+            type="button"
+            className="toggle-more-menu-item toggle-more-menu-item--danger"
+            onClick={handleDeleteFromMenu}
+          >
+            <Trash2 size={14} /> 삭제
+          </button>
+        </div>,
+        document.body
+      )}
+
+      {/* 이월 히스토리 모달 */}
+      {historyData && createPortal(
+        <div
+          className="worklog-comments-modal-overlay"
+          onClick={() => setHistoryData(null)}
+        >
+          <div className="worklog-comments-modal" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="worklog-comments-modal-close"
+              onClick={() => setHistoryData(null)}
+              title="닫기"
+            >
+              ✕
+            </button>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 600 }}>이월 히스토리</h3>
+            {historyData.error ? (
+              <div style={{ color: '#ff6b6b', fontSize: 13 }}>오류: {historyData.error}</div>
+            ) : historyData.rows?.length === 0 ? (
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>이월 기록이 없습니다.</div>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {historyData.rows.map(r => (
+                  <li
+                    key={r.block_id}
+                    style={{
+                      padding: '8px 10px',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      display: 'flex',
+                      gap: 10,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span style={{ minWidth: 100, color: 'rgba(255,255,255,0.5)', fontVariantNumeric: 'tabular-nums' }}>
+                      {r.page_date}
+                    </span>
+                    {r.todo_checked != null && (
+                      <span style={{
+                        fontSize: 11,
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                        background: r.todo_checked ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+                        color: r.todo_checked ? '#86efac' : 'rgba(255,255,255,0.4)',
+                      }}>
+                        {r.todo_checked ? '완료' : '진행'}
+                      </span>
+                    )}
+                    <span style={{ flex: 1, color: 'rgba(255,255,255,0.85)' }}>
+                      {r.text_content || '(내용 없음)'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

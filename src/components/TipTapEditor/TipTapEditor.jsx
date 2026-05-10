@@ -133,6 +133,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   const wrapperRef = useRef(null)
 
   const editor = useEditor({
+    editable: false,  // 더블클릭/더블탭 시에만 편집 활성화 (UX: 단일 클릭으로 caret 안 뜸)
     extensions: [
       StarterKit.configure({
         heading: {
@@ -200,6 +201,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     editorProps: {
       attributes: {
         class: 'tiptap-editor',
+        spellcheck: 'false',
       },
       // 복사 시 paragraph 사이에 줄바꿈 1개만 (기본값은 2개)
       clipboardTextSerializer: (slice) => {
@@ -611,6 +613,16 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   // 여백 더블클릭 시 토글 블록이 없으면 첫 줄에 토글 생성
   const handleWrapperDoubleClick = (e) => {
     if (!editor || isViewerMode) return
+    // 더블클릭 = 편집 활성화 — 클릭 위치에 caret + focus
+    if (!editor.isEditable) {
+      editor.setEditable(true)
+      const pos = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })
+      if (pos) {
+        try { editor.commands.setTextSelection(pos.pos) } catch {}
+      }
+      editor.commands.focus()
+    }
+
     // 토글 블록 내부 클릭이면 무시
     if (e.target.closest('.toggle-block')) return
     // 이미 토글이 있으면 무시
@@ -624,19 +636,38 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     editor.chain().focus().insertContentAt(0, toggleNode.toJSON()).run()
   }
 
+  // 외부로 focus 이동 시 editable false 로 — 단일 클릭 시 caret 안 뜨도록 다시 잠금
+  useEffect(() => {
+    if (!editor) return
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const onFocusOut = () => {
+      // setTimeout 으로 다음 tick 에서 active element 검사 (focus 이동 완료 후)
+      setTimeout(() => {
+        if (!wrapper.contains(document.activeElement)) {
+          editor.setEditable(false)
+        }
+      }, 50)
+    }
+    wrapper.addEventListener('focusout', onFocusOut)
+    return () => wrapper.removeEventListener('focusout', onFocusOut)
+  }, [editor])
+
 
   return (
     <div className="tiptap-wrapper" ref={wrapperRef} onDoubleClick={handleWrapperDoubleClick}>
-      <EditorContent editor={editor} />
+      <EditorContent editor={editor} className="tiptap-editor-content" />
 
       {/* 텍스트 선택 시 서식 도구창 (뷰어 모드에서 숨김) */}
       {!isViewerMode && <BubbleMenu
         editor={editor}
         updateDelay={150}
         shouldShow={({ editor, state }) => {
-          const { from, to, empty } = state.selection
+          // 새로고침 시 브라우저가 이전 selection 을 복원하면서 BubbleMenu 가 잠깐 뜨는 케이스 방지 —
+          // editor 포커스가 실제로 있을 때만 표시.
+          if (!editor.isFocused) return false
+          const { empty } = state.selection
           if (empty) return false
-          // NodeSelection(블록 전체 선택)일 때는 표시하지 않음
           if (state.selection.node) return false
           return true
         }}
