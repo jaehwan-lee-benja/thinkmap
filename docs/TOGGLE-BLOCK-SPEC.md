@@ -476,3 +476,114 @@ ProseMirror에서 콘텐츠가 에디터에 삽입되는 경로는 **3가지**�
 - `.toggle-actions-group { right: 2px }` 같이 0 외 값
 - 자식 `.toggle-block` 의 `width: calc(100% + var(--toggle-pr))` 제거
 - 부모 `.toggle-block` 의 `padding-right` 0 외 값으로 변경 (h2 카드는 `--toggle-pr` 통해 처리)
+
+## 18. layout 디버깅 방법 (시각 outline)
+
+**언제 쓰나:** 우측 정렬 어긋남, 들여쓰기 불일치, padding 영역 침범 등 시각 layout 문제 진단. 픽셀 수치 추정 대신 **눈으로 직접 box boundary 보면서** 어느 단계에서 어긋나는지 좁히기.
+
+**페이지 chain 단계별 outline (TipTapEditor.css 디버그 블록):**
+
+```css
+.tiptap-page-inner { outline: 2px solid magenta !important; }
+.tiptap-editor-wrapper { outline: 2px dashed cyan !important; }
+.tiptap-editor.ProseMirror { outline: 2px dotted yellow !important; }
+.tiptap-editor.ProseMirror > .toggle-block:not([data-bg-color]) {
+  outline: 2px solid lime !important;
+}
+.toggle-content > .toggle-block:not([data-bg-color]) {
+  outline: 1px solid blue !important;
+}
+.toggle-content > .toggle-block > .toggle-content {
+  outline: 1px dashed green !important;
+}
+.toggle-content > .toggle-block .toggle-content > .toggle-block:not([data-bg-color]) {
+  outline: 1px solid orange !important;
+}
+```
+
+**색 매핑:**
+| 색 / 스타일 | element | 의미 |
+|---|---|---|
+| 마젠타 실선 | `.tiptap-page-inner` | 페이지 콘텐츠 영역 (가장 외곽 boundary) |
+| 사이안 점선 | `.tiptap-editor-wrapper` | TipTap editor wrapper |
+| 노랑 점-점 | `.tiptap-editor.ProseMirror` | ProseMirror 자체 |
+| 라임 실선 | root `.toggle-block` | ProseMirror 직접 자식 토글 |
+| 파랑 실선 | 1 depth 자식 `.toggle-block` | `.toggle-content > .toggle-block` |
+| 초록 점선 | 자식 `.toggle-content` | 손자의 부모 컨테이너 (손자 width 100% 기준) |
+| 주황 실선 | 2 depth 손자 `.toggle-block` | 깊은 자손 box boundary |
+
+**진단 흐름:**
+1. 사용자가 시각 어긋남 신고 (예: ⋯ 정렬 안 됨, padding 침범) → outline 박음
+2. 어느 색 단계에서 boundary 가 어긋나는지 화면으로 즉시 확인
+3. 그 단계의 CSS 룰 (width / padding / margin) 검토
+4. 해당 룰의 specificity 와 cascading 확인 (CSS 변수 inherit, !important override 등)
+5. 수정 후 다시 outline 으로 검증
+6. 검증 완료 후 outline 룰 제거
+
+**과거 진단 사례 (이 방식으로 잡은 것):**
+- `width: 100%` 가 부모 `.toggle-content` 의 폭 기반 → 부모가 actions-group 영역 외에 좁으면 자식도 좁아짐 → 누적 안쪽으로 밀림
+- todo 부모 보정 `margin-left: -28` 만 박고 width 안 박아서 우측이 같이 28 좌측 이동
+- 모바일 룰 `.toggle-content { padding-right: 80px }` 가 자식 width 100% 의 100% 를 좁게 만듦
+- `.daily-page-v2--carousel ... > .toggle-content { padding-right: 30px }` 룰이 손자 우측을 30px 좌측으로 밀었음
+
+**규칙:**
+- 픽셀 수치를 추정하지 말고 outline 으로 측정. 작업 반복 안 일어남
+- 색은 위 매핑 유지 — 다른 작업자와 일관성
+
+## 19. 토글 블럭 layout 관리 원칙
+
+토글 블럭의 layout 은 **flex container + absolute actions-group + box-sizing border-box + width: 100%** 의 정교한 조합. 함부로 변경하면 우측 정렬, 들여쓰기, padding 침범 등 깨짐.
+
+**기본 구조:**
+
+```
+.toggle-block (display: flex, position: relative, padding: 0.25rem 0 0 0.25rem)
+  .toggle-drag-handle (flex item, 16px, opacity 0 default)
+  .toggle-page-link    (flex item, display: none 일반)
+  .toggle-button       (flex item, 20px — chevron)
+  .toggle-todo-checkbox (flex item, todo 일 때만 visible, 16+4 margin-right)
+  .toggle-content      (flex item, flex: 1, min-width: 0)
+    └ contentDOM (자식 토글들이 들어가는 영역)
+  .toggle-actions-group (position: absolute !important, right: 0, z-index: 2)
+  .toggle-page-overlay  (absolute, page 토글만 visible)
+```
+
+**핵심 원칙 (제거/수정 금지):**
+1. `.toggle-block { padding-right: 0 }` — 부모 actions-group 위치 = box 우측
+2. `.toggle-actions-group { position: absolute !important; right: 0 }` — flex 흐름에서 제외, 모든 토글 우측 정렬
+3. `.toggle-content > .toggle-block { box-sizing: border-box; width: 100% }` — 자식 box = 부모 `.toggle-content` 폭
+4. **h2 카드 직접 자식 한정 보정** (TipTapPage.css):
+   ```css
+   .tiptap-page--daily .tiptap-editor > [data-block-type="h2"] > .toggle-content > .toggle-block {
+     width: calc(100% + 16px);
+     margin-right: -16px;
+   }
+   ```
+   카드 padding-right(16) 영역까지 자식 stretch. 손자는 자식의 padding 0 안에 있으므로 자동 정렬.
+5. **todo 부모 한정 보정**: 부모가 todo (`.toggle-todo`) 면 자식이 checkbox 영역만큼 좌측 이동 + 폭 stretch:
+   ```css
+   .toggle-block.toggle-todo > .toggle-content > .toggle-block {
+     margin-left: calc(-1 * var(--toggle-checkbox-offset));
+     width: calc(100% + var(--toggle-checkbox-offset));
+   }
+   ```
+   ⚠️ margin-left 만 박으면 우측이 같이 좌측 이동 → 반드시 width 도 같이 박을 것
+6. **칼럼뷰/카드뷰 카드 안 자식 override**: carousel 카드 자체가 h2 토글이지만 자식이 padding 영역 침범하면 안 됨:
+   ```css
+   .daily-page-v2--carousel .ProseMirror > .toggle-block > .toggle-content > .toggle-block {
+     width: 100%;
+     margin-right: 0;
+   }
+   ```
+7. **NodeView 가 `toggle-todo` 클래스를 isTodo 일 때만 추가** (display:none 으로 가려진 checkbox 의 `:has()` false positive 회피)
+
+**자주 회귀하는 패턴 (체크리스트):**
+- [ ] padding/들여쓰기 작업 후 자식 토글 우측이 부모와 일치하는가
+- [ ] todo 부모의 자식이 일반 부모의 자식과 같은 들여쓰기인가
+- [ ] 손자 토글이 자식과 같은 우측 정렬인가
+- [ ] 카드/h2 카드의 padding-right 영역에 자식 box 가 stretch 되는가 (= h2 룰만), 안 stretch 되는가 (= 칼럼뷰)
+- [ ] 모바일 viewport 에서도 동일 시각인가
+
+**CSS variable cascading 함정:**
+- `--toggle-pr` 같은 변수를 base `.toggle-block` 에 박으면 자식도 자기 자신의 값을 inherit (부모 값 안 받음)
+- 변수는 **부모에서만** 정의하고 자식은 정의 없이 inherit 받게 두기 (또는 자식이 명시적 reset)

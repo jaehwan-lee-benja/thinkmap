@@ -590,8 +590,8 @@
   margin-bottom: 0.75rem;
 }
 
-/* h2 카드의 직접 자식 토글 — 카드 padding-right 16px 만큼 box 폭 stretch.
-   카드의 손자/증손자는 자식 토글 (padding 0) 의 자손이라 자동 정렬됨 → 추가 보정 불필요. */
+/* ⚠️ docs/TOGGLE-BLOCK-SPEC.md §17, §19 의 h2 카드 자식 보정 원칙.
+   카드 padding-right 16 만큼 자식 box 우측 stretch. 손자는 자식 padding 0 안이라 자동 정렬. */
 .tiptap-page--daily .tiptap-editor > [data-block-type="h2"] > .toggle-content > .toggle-block {
   width: calc(100% + 16px);
   margin-right: -16px;
@@ -1294,7 +1294,7 @@
 }
 
 .daily-page-v2--carousel .ProseMirror > .toggle-block {
-  flex: 0 0 300px;
+  flex: 0 0 360px;
   max-height: 70vh;
   overflow-y: auto;
   scroll-snap-align: start;
@@ -1303,6 +1303,13 @@
   border-radius: 6px;
   padding: 8px;
   margin: 0;
+}
+
+/* 칼럼뷰 카드 안의 자식 토글: 카드 .toggle-content 영역 안에만 stretch (카드 padding 영역 안 침범).
+   글로벌 daily h2 카드 width 보정(+16)이 카드 padding 영역 너머로 stretch 시키는 것을 override. */
+.daily-page-v2--carousel .ProseMirror > .toggle-block > .toggle-content > .toggle-block {
+  width: 100%;
+  margin-right: 0;
 }
 
 /* 카드 안 자식들은 다시 세로 흐름 */

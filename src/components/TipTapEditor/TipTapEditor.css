@@ -1007,6 +1007,7 @@ th .paragraph-drag-handle {
   background: transparent !important;
 }
 
+
 /* 토글 내부 드래그 핸들 */
 .toggle-drag-handle {
   flex-shrink: 0;
@@ -1356,10 +1357,11 @@ th .paragraph-drag-handle {
   background: transparent !important;
 }
 
-/* 부모가 todo 인 경우 — checkbox 영역 보정으로 자식 들여쓰기를 일반 부모와 일치시킴.
-   ".toggle-todo" 클래스는 NodeView 가 isTodo 일 때만 추가 (display:none 으로 가려진 checkbox 의 false positive 회피). */
+/* ⚠️ docs/TOGGLE-BLOCK-SPEC.md §19 의 todo 부모 보정 원칙. margin-left 와 width 반드시 한 쌍.
+   margin-left 만 박으면 우측 boundary 도 같이 좌측 이동해서 정렬 깨짐. */
 .toggle-block.toggle-todo > .toggle-content > .toggle-block {
   margin-left: calc(-1 * var(--toggle-checkbox-offset));
+  width: calc(100% + var(--toggle-checkbox-offset));
 }
 
 /* 마지막 하위 블록: 부모 margin과 중첩 방지 */
@@ -1506,9 +1508,10 @@ th .paragraph-drag-handle {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* 오른쪽 액션 그룹 — 모든 토글의 우측 boundary (= padding-right 0 의 box 우측) 에 정렬 */
+/* ⚠️ docs/TOGGLE-BLOCK-SPEC.md §17, §19 참고. position: absolute !important — flex 흐름에서 제외하여
+   .toggle-content 폭에 영향 안 가게. right: 0 — 모든 토글의 우측 정렬 일관. 수정 금지. */
 .toggle-actions-group {
-  position: absolute;
+  position: absolute !important;
   right: 0;
   top: 2px;
   display: flex;
@@ -2125,11 +2128,8 @@ th .paragraph-drag-handle {
     margin-left: -40px;
   }
 
-  /* 모바일에서 actions-group (이월/중복 태그 + 버튼들) 본문과 겹침 방지.
-     본문 영역에 우측 padding 으로 actions-group 을 위한 공간 확보. (MOBILE-DESIGN.md §3.4, §3.5) */
-  .toggle-block > .toggle-content {
-    padding-right: 80px;
-  }
+  /* (제거) 모바일 .toggle-content padding-right: 80 — 손자 width:100% 가 그 좁은 영역 기준이라
+     깊이마다 우측 정렬 안쪽으로 밀림. actions-group 은 absolute + z-index:2 라 텍스트 위에 떠서 가독성 OK. */
   /* 태그 (carry-over, duplicate) 폰트 한 단계 축소 */
   .toggle-carry-over-tag,
   .toggle-duplicate-tag {
