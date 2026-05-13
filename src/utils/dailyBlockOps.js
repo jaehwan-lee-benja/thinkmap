@@ -36,7 +36,26 @@ export async function fetchAllBlocksIncludingDeleted(supabase, pageId) {
 // 트랜잭션이 아니라는 한계: 일부만 성공하고 일부 실패할 수 있음.
 // 호출자는 실패 시 refetch + 사용자 알림으로 회복.
 // (향후 RPC 함수로 묶어 단일 트랜잭션화 검토 — Phase v2.2 후속)
+//
+// MASS_DELETE_GUARD: 한 번에 30개 이상의 row 를 softDelete 만 하는 diff 는 거부.
+// (2026-05-13 사고: mount race 로 빈 doc 과 비교해 페이지 전체가 softDelete 되는 케이스 차단)
+const MASS_DELETE_ABS_THRESHOLD = 30
+export class MassSoftDeleteBlocked extends Error {
+  constructor(delCount) {
+    super(`mass softDelete blocked: ${delCount} rows`)
+    this.name = 'MassSoftDeleteBlocked'
+    this.delCount = delCount
+  }
+}
+
 export async function applyDiffToSupabase(supabase, diff) {
+  const delCount = diff.softDelete?.length || 0
+  const insCount = diff.insert?.length || 0
+  const updCount = diff.update?.length || 0
+  if (delCount >= MASS_DELETE_ABS_THRESHOLD && insCount === 0 && updCount === 0) {
+    throw new MassSoftDeleteBlocked(delCount)
+  }
+
   const ops = []
 
   if (diff.insert && diff.insert.length > 0) {

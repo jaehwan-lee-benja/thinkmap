@@ -19,6 +19,11 @@ import {
   mergeDiffLocal,
   applyRealtimeEvent,
 } from '../utils/dailyBlockMerge.js'
+import {
+  writeSnapshot,
+  shouldSnapshot,
+  MASS_DELETE_SOFT_THRESHOLD,
+} from '../utils/dailyBlockSnapshot.js'
 
 export function useDailyBlocks(pageId) {
   const [blocks, setBlocks] = useState([])
@@ -26,6 +31,7 @@ export function useDailyBlocks(pageId) {
   const [error, setError] = useState(null)
   const [initialLoaded, setInitialLoaded] = useState(false)
   const mountedRef = useRef(true)
+  const lastSnapshotAtRef = useRef(0)        // 페이지별 throttle (pageId 바뀌면 리셋)
 
   useEffect(() => {
     mountedRef.current = true
@@ -52,9 +58,10 @@ export function useDailyBlocks(pageId) {
     }
   }, [pageId])
 
-  // pageId 가 바뀌면 initialLoaded 를 리셋 (새 페이지의 첫 fetch 까지 대기)
+  // pageId 가 바뀌면 initialLoaded + 스냅샷 throttle 리셋
   useEffect(() => {
     setInitialLoaded(false)
+    lastSnapshotAtRef.current = 0
   }, [pageId])
 
   useEffect(() => { refetch() }, [refetch])
@@ -62,6 +69,33 @@ export function useDailyBlocks(pageId) {
   const applyDiff = useCallback(async (diff) => {
     if (!diff) return
     try {
+      // 스냅샷 결정 — mass softDelete 직전이면 동기 await, 아니면 throttled fire-and-forget.
+      const delCount = diff.softDelete?.length || 0
+      const hasMassDelete = delCount >= MASS_DELETE_SOFT_THRESHOLD
+      const need = shouldSnapshot({
+        now: Date.now(),
+        lastSnapshotAt: lastSnapshotAtRef.current,
+        hasMassDelete,
+      })
+      if (need && blocks.length > 0) {
+        const userId = blocks[0]?.userId
+        const pageDate = blocks[0]?.pageDate
+        if (userId && pageDate) {
+          if (hasMassDelete) {
+            // mandatory — 실패하면 진행 안 함. 데이터 보호 최우선.
+            await writeSnapshot(supabase, {
+              pageId, userId, pageDate, blocks, reason: 'mass_delete',
+            })
+          } else {
+            // throttled — 실패해도 사용자 작업엔 영향 없음.
+            writeSnapshot(supabase, {
+              pageId, userId, pageDate, blocks, reason: 'change',
+            }).catch(e => logError('useDailyBlocks.snapshot(change)', e))
+          }
+          lastSnapshotAtRef.current = Date.now()
+        }
+      }
+
       await applyDiffToSupabase(supabase, diff)
       if (mountedRef.current) {
         setBlocks(prev => mergeDiffLocal(prev, diff))
@@ -72,7 +106,7 @@ export function useDailyBlocks(pageId) {
       refetch()
       throw err
     }
-  }, [refetch])
+  }, [refetch, blocks, pageId])
 
   // Realtime 구독
   useEffect(() => {

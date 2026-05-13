@@ -33,10 +33,27 @@ export function blocksToDoc(blocks) {
   }
 
   const roots = childrenByParent.get(ROOT) || []
-  return {
+  return sanitizeDoc({
     type: 'doc',
     content: roots.map(b => blockToNode(b, childrenByParent)),
+  })
+}
+
+// TipTap 은 빈 text node ({type:'text', text:''}) 를 거부 ('Empty text nodes are not allowed').
+// row 의 textContent 가 '' 거나 richContent 가 손상된 경우 doc 전체 로드가 실패해서
+// 에디터가 빈 doc 으로 떨어진다. 그 상태에서 onUpdate 가 발사되면 mass softDelete 위험.
+// → doc 트리를 한 번 더 정화: 빈 text node 제거, 자식이 비게 된 paragraph 도 정리.
+function sanitizeDoc(node) {
+  if (!node || typeof node !== 'object') return node
+  if (node.type === 'text') {
+    if (typeof node.text !== 'string' || node.text.length === 0) return null
+    return node
   }
+  if (Array.isArray(node.content)) {
+    const cleaned = node.content.map(sanitizeDoc).filter(c => c !== null)
+    return { ...node, content: cleaned }
+  }
+  return node
 }
 
 function blockToNode(block, childrenByParent) {
@@ -87,6 +104,7 @@ function blockToNode(block, childrenByParent) {
 }
 
 function sectionTitleParagraph(title) {
+  if (!title) return { type: 'paragraph', content: [] }
   return {
     type: 'paragraph',
     content: [{ type: 'text', marks: [{ type: 'bold' }], text: title }],

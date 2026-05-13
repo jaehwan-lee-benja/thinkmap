@@ -180,6 +180,12 @@ export default function DailyPageV2({
 
   // 에디터 변경 → diff → applyDiff (debounce)
   const handleUpdate = useCallback((nextDoc) => {
+    // Mount race 근본 차단: 초기 fetch 완료 전 onUpdate 는 mount 흐름의 부수효과.
+    // 이 시점엔 사용자가 친 게 아니므로 어떤 save 도 발사하지 않는다.
+    // (2026-05-13 사고의 출발점: 빈 doc onUpdate 가 setTimeout 으로 예약되고,
+    //  그 사이 lastSavedDocRef 가 79-row doc 으로 업데이트되어 diff 가 mass softDelete 가 됨.)
+    if (!initialLoaded) return
+
     // 마운트 직후 TipTapEditor 의 setContent 부수효과로 onUpdate 가 호출될 수 있음.
     // 그 경우 nextDoc 이 lastSavedDoc 와 같으므로 typing 가드 갱신 안 함 (4섹션 mount 흐름 보호).
     try {
@@ -200,6 +206,21 @@ export default function DailyPageV2({
         }
         const diff = docToBlocks(lastSavedDocRef.current, nextDoc, ctx)
         if (diffEmpty(diff)) return
+
+        // 대량 softDelete 가드 — mount race / doc 깨짐으로 빈 nextDoc 과 비교해 모든 row 가
+        // softDelete 로 묶이는 사고 방지 (2026-05-13 사고). 사용자는 한 번에 거의 모든 row 를
+        // 지우지 않으므로, insert/update 가 없고 softDelete 가 active row 의 절반 이상이면 차단.
+        const delCount = diff.softDelete?.length || 0
+        const insCount = diff.insert?.length || 0
+        const updCount = diff.update?.length || 0
+        const activeCount = blocks.length
+        if (delCount >= 5 && delCount >= activeCount * 0.5 && insCount === 0 && updCount === 0) {
+          console.warn('[DailyPageV2] mass softDelete blocked', {
+            delCount, activeCount, pageId, pageDate,
+          })
+          refetch()
+          return
+        }
 
         const checkboxUpdates = findCheckboxToggleUpdates(diff)
 
@@ -249,7 +270,7 @@ export default function DailyPageV2({
         refetch()
       }
     }, SAVE_DEBOUNCE_MS)
-  }, [applyDiff, ctx, refetch, blocks, userId])
+  }, [applyDiff, ctx, refetch, blocks, userId, initialLoaded, pageId, pageDate])
 
   // 컴포넌트 unmount 또는 pageId 변경 시 pending save flush
   useEffect(() => {
