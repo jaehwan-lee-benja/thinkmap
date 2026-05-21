@@ -20,7 +20,8 @@
 }
 
 /* daily 페이지: 위아래 빈 공간 제거 — 페이지가 부모(.content-scrollable flex column)
-   의 가용 세로 전체 차지. inner 도 flex:1 로 그 안에서 stretch. */
+   의 가용 세로 전체 차지. inner 도 flex:1 로 그 안에서 stretch.
+   carousel (column / card) 뷰는 가로 스크롤이 wrapper 안에서 일어나므로 viewport 캡 필요. */
 .tiptap-page--daily {
   padding-top: 0;
   padding-bottom: 0;
@@ -36,6 +37,14 @@
   display: flex;
   flex-direction: column;
   padding-bottom: 16px;  /* actions-row 와 페이지 바닥 사이 여백 */
+}
+
+/* list 뷰는 일반 페이지처럼 콘텐츠 길이만큼 늘어나고 .content-scrollable 이 세로 스크롤 담당.
+   flex:1 / min-height:0 체인을 풀어야 wrapper 가 viewport 가 아니라 콘텐츠 바닥까지 확장. */
+.tiptap-page--daily:has(.daily-page-v2--list),
+.tiptap-page--daily:has(.daily-page-v2--list) .tiptap-page-inner {
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 /* 코멘트 모달 트리거 — actions-row 안에서 섹션추가/이월 리프레시와 동일 시각 */
@@ -564,11 +573,16 @@
   border: none;
   background: transparent;
   min-height: auto;
-  /* 코멘트가 안으로 들어옴 — flex column + flex:1 으로 inner 의 가용 공간 차지 */
+  /* 코멘트가 안으로 들어옴 — flex column + flex:1 으로 inner 의 가용 공간 차지 (carousel 기준) */
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
+}
+
+/* list 뷰: wrapper 도 콘텐츠 사이즈로 늘어남 (페이지 chain 과 한 쌍) */
+.tiptap-editor-wrapper--daily:has(.daily-page-v2--list) {
+  flex: 0 0 auto;
 }
 
 .tiptap-editor-wrapper--daily .tiptap-wrapper {

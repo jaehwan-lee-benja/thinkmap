@@ -22,25 +22,43 @@ import { fetchAllBlocksIncludingDeleted, fetchBlocks } from './dailyBlockOps.js'
 
 // 이월 후보:
 //   - 미완료 todo (isTodo=true && !todoChecked + 텍스트 있음)
+//   - 완료 todo + 하위(서브트리)에 미완료 todo 존재 (CARRY-OVER-MAP §1 "완료유지" 이월)
 //   - 일반 텍스트 토글 (isTodo=false + blockType='toggle' + 텍스트 있음)
 // 즉 daily 페이지 본문의 의미 있는 모든 토글이 다음 daily 에 자동 이월됨.
 //
 // 제외:
 //   - section row (블록 종류가 'section') — worklog_sections master 가 자동 등장
 //   - 빈 자식 토글 (textContent 비어있음)
-//   - 완료된 todo
+//   - 전부완료 todo (서브트리 전체가 완료)
 //   - deleted
 //
 // v2 (2026-05-07): 핀 (isPinned) 분기 폐기 + 일반 텍스트 토글도 이월 대상에 포함.
+// v2 (2026-05-21): 완료유지 분기 활성화 — 완료 todo 라도 하위에 미완료가 있으면 후보 유지.
 export function selectCarryOverCandidates(rows) {
-  return (rows || []).filter(r => {
+  if (!rows) return []
+  const childrenByParent = buildChildrenByParent(rows)
+  return rows.filter(r => {
     if (r.deletedAt) return false
     if (r.blockType !== 'toggle') return false
     if ((r.textContent || '').trim().length === 0) return false
-    // 완료 todo 만 제외 — 미완료 todo + 일반 텍스트 모두 이월
-    if (r.isTodo && r.todoChecked) return false
+    if (r.isTodo && r.todoChecked) {
+      // 완료 todo: 하위에 미완료 todo 가 있어야만 유지 (완료유지 이월) — 전부완료면 제외.
+      return hasUnfinishedDescendantTodo(r, childrenByParent)
+    }
     return true
   })
+}
+
+// rows → Map<parentBlockId, child rows[]> (deleted 제외).
+// selectCarryOverCandidates 와 collectLiveDescendants 가 공유.
+function buildChildrenByParent(rows) {
+  const map = new Map()
+  for (const r of (rows || [])) {
+    if (!r.parentBlockId || r.deletedAt) continue
+    if (!map.has(r.parentBlockId)) map.set(r.parentBlockId, [])
+    map.get(r.parentBlockId).push(r)
+  }
+  return map
 }
 
 // 후보들 중 "다른 후보의 자손" 인 row 를 제외하고 root 만 남김.
@@ -114,7 +132,6 @@ export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null
 
   return subtree.map((r, i) => {
     const isRoot = i === 0
-    const isTodo = !!r.isTodo
     const remappedSectionId = sectionIdMap?.get(r.sectionId)
     // root 의 parentBlockId 결정:
     //   - parentBlockId 있고 어제 section row 면 → 새 section row 로 매핑 (자식으로 들어감)
@@ -135,10 +152,13 @@ export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null
       position: r.position,
       textContent: r.textContent,
       richContent: r.richContent,
-      isTodo,
-      // 자손 todo 도 미완료 reset — 새 페이지에서 다시 시작. (todo 가 아니면 그대로)
-      todoChecked: isTodo ? false : !!r.todoChecked,
-      todoStatus: isTodo ? 'open' : (r.todoStatus || 'open'),
+      isTodo: !!r.isTodo,
+      // root + 자손 모두 원본 todoChecked 보존 — CARRY-OVER-MAP §1 "완료유지" 원칙.
+      //   - 미완료 todo: false 그대로
+      //   - 완료 todo + 하위 미완료 존재: true 유지 (root 든 자손이든)
+      //   - 전부완료 서브트리: selectCarryOverCandidates / collectLiveDescendants 에서 이미 제외됨
+      todoChecked: !!r.todoChecked,
+      todoStatus: r.todoStatus || 'open',
       isCarryOver: true,
       carryOverFrom: r.carryOverFrom || r.pageDate,
       originBlockId: r.originBlockId || r.blockId,
@@ -181,12 +201,7 @@ export function toCarryOverRowMapped(src, ctx, sectionIdMap = null) {
 }
 
 function collectLiveDescendants(root, allRows) {
-  const childrenByParent = new Map()
-  for (const r of (allRows || [])) {
-    if (!r.parentBlockId || r.deletedAt) continue
-    if (!childrenByParent.has(r.parentBlockId)) childrenByParent.set(r.parentBlockId, [])
-    childrenByParent.get(r.parentBlockId).push(r)
-  }
+  const childrenByParent = buildChildrenByParent(allRows)
   // 자손 children 정렬: position asc, createdAt asc
   for (const arr of childrenByParent.values()) {
     arr.sort((a, b) => {
@@ -198,12 +213,26 @@ function collectLiveDescendants(root, allRows) {
   function walk(parentId) {
     const cs = childrenByParent.get(parentId) || []
     for (const c of cs) {
+      // 전부완료 자손 서브트리는 가지치기 — CARRY-OVER-MAP §1 "완료 투두(전부완료) → 이월 안 됨" 원칙을
+      // 자손 레벨에도 적용. 완료 todo 라도 하위에 미완료가 있으면 keep (완료유지 이월).
+      if (c.isTodo && c.todoChecked && !hasUnfinishedDescendantTodo(c, childrenByParent)) continue
       out.push(c)
       walk(c.blockId)
     }
   }
   walk(root.blockId)
   return out
+}
+
+// row 자신을 포함한 서브트리 어딘가에 미완료 todo 가 있는지 확인.
+// childrenByParent: collectLiveDescendants 가 만든 parent→children Map (soft-deleted 이미 제외됨).
+function hasUnfinishedDescendantTodo(row, childrenByParent) {
+  if (row.isTodo && !row.todoChecked) return true
+  const cs = childrenByParent.get(row.blockId) || []
+  for (const c of cs) {
+    if (hasUnfinishedDescendantTodo(c, childrenByParent)) return true
+  }
+  return false
 }
 
 // ----------------------------------------------------------------------------

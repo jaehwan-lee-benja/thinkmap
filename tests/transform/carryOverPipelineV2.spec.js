@@ -42,14 +42,41 @@ const ctx = {
 }
 
 describe('selectCarryOverCandidates', () => {
-  test('미완료 todo + 일반 텍스트 토글 모두 추출 (완료 todo 만 제외)', () => {
+  test('미완료 todo + 일반 텍스트 토글 모두 추출 (전부완료 todo 만 제외)', () => {
     const rows = [
       { ...baseRow, blockId: 'a', isTodo: true,  todoChecked: false },  // 미완료 todo
-      { ...baseRow, blockId: 'b', isTodo: true,  todoChecked: true },   // 완료 todo — 제외
+      { ...baseRow, blockId: 'b', isTodo: true,  todoChecked: true },   // 전부완료 todo (자손 없음) — 제외
       { ...baseRow, blockId: 'c', isTodo: false },                      // 일반 텍스트
     ]
     const result = selectCarryOverCandidates(rows)
     expect(result.map(r => r.blockId).sort()).toEqual(['a', 'c'])
+  })
+
+  test('완료 todo + 하위 미완료 todo 존재 → 후보 유지 (완료유지 이월) — CARRY-OVER-MAP §1', () => {
+    const rows = [
+      { ...baseRow, blockId: 'p', isTodo: true, todoChecked: true, textContent: '완료 부모' },
+      { ...baseRow, blockId: 'c', parentBlockId: 'p', isTodo: true, todoChecked: false, textContent: '미완료 자식' },
+    ]
+    const result = selectCarryOverCandidates(rows)
+    expect(result.map(r => r.blockId).sort()).toEqual(['c', 'p'])
+  })
+
+  test('완료 todo + 손자 미완료 → 후보 유지 (서브트리 재귀 탐색)', () => {
+    const rows = [
+      { ...baseRow, blockId: 'p',  isTodo: true, todoChecked: true,  textContent: '완료 root' },
+      { ...baseRow, blockId: 'c',  parentBlockId: 'p', isTodo: true, todoChecked: true, textContent: '완료 자식' },
+      { ...baseRow, blockId: 'g',  parentBlockId: 'c', isTodo: true, todoChecked: false, textContent: '미완료 손자' },
+    ]
+    const result = selectCarryOverCandidates(rows)
+    expect(result.map(r => r.blockId).sort()).toEqual(['c', 'g', 'p'])
+  })
+
+  test('전부완료 todo (서브트리 전체 완료) → 제외', () => {
+    const rows = [
+      { ...baseRow, blockId: 'p', isTodo: true, todoChecked: true, textContent: 'p' },
+      { ...baseRow, blockId: 'c', parentBlockId: 'p', isTodo: true, todoChecked: true, textContent: 'c' },
+    ]
+    expect(selectCarryOverCandidates(rows)).toEqual([])
   })
 
   test('isPinned 는 v2 에서 무시 — 일반 텍스트는 isPinned 와 무관하게 모두 이월', () => {
@@ -61,7 +88,7 @@ describe('selectCarryOverCandidates', () => {
     expect(selectCarryOverCandidates(rows).map(r => r.blockId).sort()).toEqual(['a', 'b'])
   })
 
-  test('isPinned 가 true 여도 완료된 todo 는 후보 아님 (todoChecked 가 우선)', () => {
+  test('isPinned 가 true 여도 전부완료 todo 는 후보 아님 (todoChecked 가 우선)', () => {
     const rows = [
       { ...baseRow, blockId: 'a', isTodo: true, todoChecked: true, isPinned: true },
     ]
@@ -304,12 +331,70 @@ describe('toCarryOverSubtree', () => {
     expect(result.find(r => r.textContent === 'g1').originBlockId).toBe('g1')
   })
 
-  test('자손 todo 도 미완료 reset', () => {
+  test('미완료 root todo 는 미완료 그대로 (새 페이지에서 시작)', () => {
+    const lonely = { ...baseRow, blockId: 'r1', parentBlockId: null, isTodo: true, todoChecked: false }
+    const result = toCarryOverSubtree(lonely, [lonely], ctx)
+    expect(result[0].todoChecked).toBe(false)
+    expect(result[0].todoStatus).toBe('open')
+  })
+
+  test('완료 root todo + 미완료 자손 → root 의 todoChecked 유지 (완료유지 이월)', () => {
+    // 어제: 프로젝트A(완료) ─ 기획(완료) ─ 검토(미완료)
+    const proj = { ...baseRow, blockId: 'proj', parentBlockId: null, isTodo: true, todoChecked: true, todoStatus: 'done', textContent: '프로젝트A' }
+    const plan = { ...baseRow, blockId: 'plan', parentBlockId: 'proj', isTodo: true, todoChecked: true, todoStatus: 'done', textContent: '기획' }
+    const review = { ...baseRow, blockId: 'rev', parentBlockId: 'plan', isTodo: true, todoChecked: false, textContent: '검토' }
+
+    const result = toCarryOverSubtree(proj, [proj, plan, review], ctx)
+    const newProj = result.find(r => r.textContent === '프로젝트A')
+    const newPlan = result.find(r => r.textContent === '기획')
+    const newRev  = result.find(r => r.textContent === '검토')
+    expect(newProj.todoChecked).toBe(true)
+    expect(newProj.todoStatus).toBe('done')
+    expect(newPlan.todoChecked).toBe(true)
+    expect(newRev.todoChecked).toBe(false)
+  })
+
+  test('전부완료 자손 todo (하위 미완료 없음) 은 이월 대상에서 제외 — CARRY-OVER-MAP §1', () => {
+    // p1(미완료) ─ c1(완료, 자손 없음)
     const completedC = { ...c1, todoChecked: true, todoStatus: 'done' }
     const result = toCarryOverSubtree(p1, [p1, completedC], ctx)
+    const texts = result.map(r => r.textContent)
+    expect(texts).not.toContain('c1')
+    expect(texts).toEqual(['할일'])  // root 만 남음
+  })
+
+  test('완료 자손 todo 라도 하위에 미완료가 있으면 완료유지한 채 이월', () => {
+    // p1(미완료) ─ c1(완료) ─ g1(미완료)
+    const completedC1 = { ...c1, todoChecked: true, todoStatus: 'done' }
+    const result = toCarryOverSubtree(p1, [p1, completedC1, g1], ctx)
+    const newC = result.find(r => r.textContent === 'c1')
+    const newG = result.find(r => r.textContent === 'g1')
+    expect(newC).toBeDefined()
+    expect(newC.todoChecked).toBe(true)
+    expect(newC.todoStatus).toBe('done')
+    expect(newG).toBeDefined()
+    expect(newG.todoChecked).toBe(false)
+  })
+
+  test('미완료 자손 todo 는 원본 todoChecked 그대로 (자손 reset 없음)', () => {
+    // p1(미완료) ─ c1(미완료)
+    const result = toCarryOverSubtree(p1, [p1, c1], ctx)
     const newC = result.find(r => r.textContent === 'c1')
     expect(newC.todoChecked).toBe(false)
     expect(newC.todoStatus).toBe('open')
+  })
+
+  test('완료 자손 형제 중 미완료 있는 가지만 남고 전부완료 가지는 제거됨', () => {
+    // p1(미완료)
+    //   ├─ c1(완료) ─ g1(미완료)   ← 유지 (완료유지)
+    //   └─ c2(완료, 자손 없음)      ← 제거
+    const completedC1 = { ...c1, todoChecked: true, todoStatus: 'done' }
+    const completedC2 = { ...c2, todoChecked: true, todoStatus: 'done' }
+    const result = toCarryOverSubtree(p1, [p1, completedC1, completedC2, g1], ctx)
+    const texts = result.map(r => r.textContent)
+    expect(texts).toContain('c1')
+    expect(texts).toContain('g1')
+    expect(texts).not.toContain('c2')
   })
 
   test('soft-deleted 자손은 끌고 오지 않음', () => {
