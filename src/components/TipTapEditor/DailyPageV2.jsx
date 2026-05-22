@@ -77,6 +77,7 @@ export default function DailyPageV2({
   placeholder,
   onCommentsClick,    // 코멘트 모달 트리거 (옵션)
   commentsCount = 0,
+  editorRef: externalEditorRef,  // 부모(TipTapTestPage)와 editor 공유 — 마키 드래그 선택 핸들러가 부모에서 editorRef.current 를 참조한다
 }) {
   const userId = session?.user?.id
   const ctx = useMemo(() => ({ pageId, pageDate, userId }), [pageId, pageDate, userId])
@@ -110,7 +111,8 @@ export default function DailyPageV2({
   const saveTimerRef = useRef(null)
   const userTypingAtRef = useRef(0)
   const rootRef = useRef(null)
-  const editorRef = useRef(null)
+  const internalEditorRef = useRef(null)
+  const editorRef = externalEditorRef || internalEditorRef
   const TYPING_GUARD_MS = 2000
 
   useEffect(() => {

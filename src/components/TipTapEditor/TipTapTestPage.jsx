@@ -1469,6 +1469,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               placeholder="내용을 입력하세요..."
               onCommentsClick={() => setShowWorklogCommentsModal(true)}
               commentsCount={comments.length}
+              editorRef={editorRef}
             />
           ) : content ? (
             <TipTapEditor
