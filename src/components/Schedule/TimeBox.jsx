@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check } from 'lucide-react'
+import { Check, Link2 } from 'lucide-react'
 import { HOUR_PX, minutesFromMidnight, isSameDay, ownerHue } from './scheduleUtils'
 
 /**
@@ -50,7 +50,7 @@ export default function TimeBox({
 
   return (
     <div
-      className={`timebox ${occ.is_shared ? 'shared' : ''} ${occ.completed ? 'completed' : ''} ${isPoint ? 'point' : ''}`}
+      className={`timebox ${occ.is_shared ? 'shared' : ''} ${occ.completed ? 'completed' : ''} ${isPoint ? 'point' : ''} ${occ.is_routine ? 'is-routine' : ''}`}
       title={tooltip}
       style={{
         top: `${top}px`,
@@ -80,6 +80,12 @@ export default function TimeBox({
           <div className="title">{occ.title || '(제목없음)'}</div>
           <div className="time">{fmtTime(start)}–{fmtTime(end)}</div>
         </>
+      )}
+
+      {occ.link_count > 0 && (
+        <span className="link-indicator" title={`${occ.link_count} 개 항목 연결됨`}>
+          <Link2 size={11} />
+        </span>
       )}
 
       {occ.is_routine && onToggleCheck && (

@@ -1,13 +1,15 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
 import WeekView from './WeekView'
 import EventEditor from './EventEditor'
 import ScheduleSettingsModal from './ScheduleSettingsModal'
 import { useScheduleEvents } from '../../hooks/useScheduleEvents'
 import { useScheduleInstances } from '../../hooks/useScheduleInstances'
+import { useScheduleLinks } from '../../hooks/useScheduleLinks'
 import { useLinkedAccounts } from '../../hooks/useLinkedAccounts'
 import { useEnabledOwners } from '../../hooks/useEnabledOwners'
 import { useAuthContext } from '../../contexts/AuthContext'
+import { supabase } from '../../supabaseClient'
 import { startOfWeek, addDays, ownerHue } from './scheduleUtils'
 import { buildOccurrences } from './routineUtils'
 import './Schedule.css'
@@ -44,8 +46,109 @@ export default function SchedulePage({ session }) {
     () => events.filter(e => e.is_routine).map(e => e.id),
     [events]
   )
-  const { instances, upsertInstance, toggleCompleted, refetch: refetchInstances } =
+  const { instances, upsertInstance, toggleCompleted: toggleInstanceOnly, refetch: refetchInstances } =
     useScheduleInstances({ eventIds: routineEventIds, from, to })
+
+  // 화면 events 전체의 links fetch (routine + single 모두)
+  const allEventIds = useMemo(() => events.map(e => e.id), [events])
+  const { links, createLink, deleteLink, refetch: refetchLinks } =
+    useScheduleLinks({ eventIds: allEventIds })
+
+  // 링크된 todo 블록의 표시용 메타 (text/checked/page_name) — 별도 fetch
+  const [linkTargets, setLinkTargets] = useState({})
+  useEffect(() => {
+    const todoIds = Array.from(new Set(
+      links.filter(l => l.target_type === 'todo').map(l => l.target_id)
+    ))
+    if (todoIds.length === 0) { setLinkTargets({}); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: blocks } = await supabase
+          .from('daily_blocks')
+          .select('block_id, page_id, text_content, todo_checked')
+          .in('block_id', todoIds)
+        const pageIds = Array.from(new Set((blocks || []).map(b => b.page_id)))
+        let pageMap = {}
+        if (pageIds.length) {
+          const { data: pageRows } = await supabase
+            .from('pages').select('id, name').in('id', pageIds)
+          ;(pageRows || []).forEach(p => { pageMap[p.id] = p.name })
+        }
+        if (cancelled) return
+        const map = {}
+        ;(blocks || []).forEach(b => {
+          map[b.block_id] = {
+            text_content: b.text_content,
+            todo_checked: b.todo_checked,
+            page_name: pageMap[b.page_id] || '',
+          }
+        })
+        setLinkTargets(map)
+      } catch (err) { console.error('linkTargets fetch:', err) }
+    })()
+    return () => { cancelled = true }
+  }, [links])
+
+  // event_id 별 links 인덱싱 (occurrence 에 붙여 TimeBox 가 link 아이콘 표시)
+  const linksByEvent = useMemo(() => {
+    const m = {}
+    links.forEach(l => {
+      if (!m[l.event_id]) m[l.event_id] = []
+      m[l.event_id].push(l)
+    })
+    return m
+  }, [links])
+
+  // EventEditor 의 연결된 todo 체크박스 클릭 — 그 todo 하나 토글
+  const toggleLinkTodo = useCallback(async (blockId, currentChecked) => {
+    const next = !currentChecked
+    setLinkTargets(prev => {
+      if (!prev[blockId]) return prev
+      return { ...prev, [blockId]: { ...prev[blockId], todo_checked: next } }
+    })
+    try {
+      const { error } = await supabase
+        .from('daily_blocks')
+        .update({ todo_checked: next, todo_status: next ? 'done' : 'open' })
+        .eq('block_id', blockId)
+      if (error) throw error
+    } catch (err) {
+      console.error('todo toggle 실패:', err)
+      // 롤백
+      setLinkTargets(prev => {
+        if (!prev[blockId]) return prev
+        return { ...prev, [blockId]: { ...prev[blockId], todo_checked: currentChecked } }
+      })
+    }
+  }, [])
+
+  // 박스 체크 → 링크된 todo 도 함께 sync (SPEC §8.2 단방향 push)
+  const toggleCompleted = useCallback(async (occ) => {
+    const next = !occ.completed
+    // 인스턴스 upsert
+    await toggleInstanceOnly(occ)
+    // 링크된 todo 동기 (sync_check=true 만)
+    const eventLinks = linksByEvent[occ.event_id] || []
+    const todoLinks = eventLinks.filter(l => l.target_type === 'todo' && l.sync_check)
+    if (todoLinks.length === 0) return
+    try {
+      const ids = todoLinks.map(l => l.target_id)
+      await supabase
+        .from('daily_blocks')
+        .update({
+          todo_checked: next,
+          todo_status: next ? 'done' : 'open',
+        })
+        .in('block_id', ids)
+      // 로컬 linkTargets 도 즉시 반영
+      setLinkTargets(prev => {
+        const out = { ...prev }
+        ids.forEach(id => { if (out[id]) out[id] = { ...out[id], todo_checked: next } })
+        return out
+      })
+    } catch (err) { console.error('todo sync 실패:', err) }
+  }, [linksByEvent, toggleInstanceOnly])
 
   // occurrences 빌드 (단발 + 루틴 펼침 + instance override 머지)
   const occurrences = useMemo(() => {
@@ -54,8 +157,11 @@ export default function SchedulePage({ session }) {
       if (!instancesByEvent[inst.event_id]) instancesByEvent[inst.event_id] = []
       instancesByEvent[inst.event_id].push(inst)
     })
-    return buildOccurrences(events, from, to, instancesByEvent)
-  }, [events, instances, from, to])
+    const raw = buildOccurrences(events, from, to, instancesByEvent)
+    // 링크 수를 occurrence 에 부여 — TimeBox 가 🔗 아이콘 표시 분기
+    return raw.map(o => ({ ...o, link_count: (linksByEvent[o.event_id] || []).length }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, instances, from, to, linksByEvent])
 
   const weekLabel = useMemo(() => {
     const end = addDays(weekStart, 6)
@@ -220,6 +326,19 @@ export default function SchedulePage({ session }) {
         <EventEditor
           event={editorTarget}
           anchorRect={editorAnchor}
+          links={(linksByEvent[editorTarget.event_id || editorTarget.id] || [])}
+          linkTargets={linkTargets}
+          onCreateLink={async ({ target_type, target_id }) => {
+            const eventId = editorTarget.event_id || editorTarget.id
+            if (!eventId || editorTarget.__draft) return null
+            await createLink({ event_id: eventId, target_type, target_id })
+            refetchLinks()
+          }}
+          onDeleteLink={async (id) => {
+            await deleteLink(id)
+            refetchLinks()
+          }}
+          onToggleLinkTodo={toggleLinkTodo}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={handleEditorClose}

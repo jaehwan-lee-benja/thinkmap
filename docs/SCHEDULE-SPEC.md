@@ -499,7 +499,8 @@ className={`sidebar-worklog-btn ${
 | **1.5** | 다중 계정 필터(모달) + owner hue 자동 배색 + 마스터 "전체 계정 토글" + 박스 owner 표시 | 완료 |
 | **2** | 루틴 RRULE 입력 UI(매일/평일/매주 요일/매월/매년 + COUNT/UNTIL) + 클라이언트 펼침 + 인스턴스 lazy upsert(체크/시간이동) + 박스 체크박스 + EventEditor 전체 시리즈 편집 | 완료 |
 | 2.1 | EventEditor 의 "이 회차만 / 이후 모든 회차" scope 분기 (§13.7) | 예정 |
-| 3 | todo/page/block 링크 + sync_check 양방향 체크 동기 | 예정 |
+| **3a** | todo 링크 CRUD + TodoPicker + EventEditor 연결 섹션 + 박스 체크 → todo 단방향 push 동기 + TimeBox 링크 아이콘 | 완료 |
+| 3b | todo → 박스 역방향 동기 (fetch 시점 머지로 daily_blocks 코드 수정 최소화), page/block 링크 UI | 예정 |
 | 4 | 월간 뷰 + 3일 뷰(모바일) + 박스 X 축 드래그(다른 날 이동) + 키보드 단축키 | 예정 |
 | 5 | Google Calendar OAuth + 양방향 polling 동기 + 충돌 머지 다이얼로그 | 예정 |
 

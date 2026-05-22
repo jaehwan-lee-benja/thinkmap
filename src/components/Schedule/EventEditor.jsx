@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Repeat } from 'lucide-react'
+import { Repeat, Link2, X, CheckSquare, Square } from 'lucide-react'
 import RoutineEditor from './RoutineEditor'
+import TodoPicker from './TodoPicker'
 
 const COLORS = [
   '#3b82f6',   // blue
@@ -25,13 +26,23 @@ function fromLocalInput(val) {
 }
 
 /**
- * @param event       schedule_events row (편집 모드) — 없으면 신규 생성 모드
- * @param anchorRect  { top, bottom, left, right, width, height } — 박스/드래그 좌표 (없으면 중앙)
- * @param onSave      (patch) => Promise
- * @param onDelete    () => Promise
- * @param onClose     () => void
+ * @param event           schedule_events row (편집 모드) — 없으면 신규 생성 모드
+ * @param anchorRect      { top, bottom, left, right, width, height } — 박스/드래그 좌표 (없으면 중앙)
+ * @param links           [link rows] — 이 이벤트에 연결된 schedule_event_links (Phase 3a: todo 만)
+ * @param linkTargets     { [block_id]: { text_content, todo_checked, page_name } } — 표시용 메타
+ * @param onSave          (patch) => Promise
+ * @param onDelete        () => Promise
+ * @param onClose         () => void
+ * @param onCreateLink    ({ target_type, target_id }) => Promise (이벤트 미저장 시 null 반환 가능)
+ * @param onDeleteLink    (link_id) => Promise
+ * @param onToggleLinkTodo  (blockId, currentChecked) => Promise — 연결된 todo 의 체크 토글
  */
-export default function EventEditor({ event, anchorRect, onSave, onDelete, onClose }) {
+export default function EventEditor({
+  event, anchorRect,
+  links = [], linkTargets = {},
+  onSave, onDelete, onClose,
+  onCreateLink, onDeleteLink, onToggleLinkTodo,
+}) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [startAt, setStartAt] = useState('')
@@ -41,6 +52,7 @@ export default function EventEditor({ event, anchorRect, onSave, onDelete, onClo
   const [isShared, setIsShared] = useState(false)
   const [rrule, setRrule] = useState(null)
   const [routineOpen, setRoutineOpen] = useState(false)
+  const [todoPickerOpen, setTodoPickerOpen] = useState(false)
 
   useEffect(() => {
     if (event) {
@@ -209,6 +221,51 @@ export default function EventEditor({ event, anchorRect, onSave, onDelete, onClo
           공유 일정 — 연결된 모든 계정에서 함께 표시
         </label>
 
+        {/* 연결된 항목 (Phase 3a — todo 만) */}
+        {event && !event.__draft && (
+          <div className="link-section">
+            <div className="link-section-label">연결된 항목</div>
+            {links.map(link => {
+              const t = linkTargets[link.target_id] || {}
+              return (
+                <div key={link.id} className="link-row">
+                  {link.target_type === 'todo' ? (
+                    <button
+                      type="button"
+                      className="link-todo-check"
+                      onClick={() => onToggleLinkTodo?.(link.target_id, !!t.todo_checked)}
+                      title={t.todo_checked ? '체크 해제' : '완료 체크'}
+                    >
+                      {t.todo_checked
+                        ? <CheckSquare size={14} className="link-icon checked" />
+                        : <Square size={14} className="link-icon" />}
+                    </button>
+                  ) : (
+                    <Link2 size={12} className="link-icon" />
+                  )}
+                  <span className={`link-label ${t.todo_checked ? 'todo-done' : ''}`}>
+                    {t.text_content || '(연결된 항목)'}{t.page_name ? ` · ${t.page_name}` : ''}
+                  </span>
+                  <button
+                    className="link-remove"
+                    onClick={() => onDeleteLink?.(link.id)}
+                    title="연결 해제"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )
+            })}
+            <button
+              className="link-add-btn"
+              type="button"
+              onClick={() => setTodoPickerOpen(true)}
+            >
+              <Link2 size={12} /> 투두 연결
+            </button>
+          </div>
+        )}
+
         {!routineOpen ? (
           <button
             type="button"
@@ -247,6 +304,15 @@ export default function EventEditor({ event, anchorRect, onSave, onDelete, onClo
           <label>설명 (선택)</label>
           <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} />
         </div>
+
+        <TodoPicker
+          isOpen={todoPickerOpen}
+          onClose={() => setTodoPickerOpen(false)}
+          excludeIds={links.filter(l => l.target_type === 'todo').map(l => l.target_id)}
+          onPick={async (block) => {
+            await onCreateLink?.({ target_type: 'todo', target_id: block.block_id })
+          }}
+        />
 
         <div className="actions">
           {event?.id && !event?.__draft ? (

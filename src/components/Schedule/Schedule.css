@@ -513,6 +513,174 @@
   border-top: 1px solid var(--color-border-light);
 }
 
+/* ── TodoPicker ───────────────────────────────────────────── */
+.todo-picker { width: 420px; }
+.todo-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-bg-input);
+  border-radius: var(--border-radius-md);
+  color: var(--color-text-tertiary);
+}
+.todo-picker-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 0;
+}
+.todo-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+.todo-picker-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.todo-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  transition: background var(--transition-fast);
+}
+.todo-picker-item:hover { background: var(--color-bg-hover); }
+.todo-picker-item.checked { opacity: 0.55; }
+.todo-picker-item.checked .todo-text { text-decoration: line-through; }
+.todo-picker-item > svg { flex-shrink: 0; color: var(--color-text-secondary); }
+.todo-picker-item .todo-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.todo-picker-item .todo-page {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── EventEditor 링크 섹션 ───────────────────────────────── */
+.link-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-light);
+}
+.link-section-label {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-md);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.link-row .link-icon { color: var(--color-primary-text); flex-shrink: 0; }
+.link-row .link-icon.checked { color: var(--color-primary); }
+.link-row .link-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.link-row .link-label.todo-done {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.link-row .link-todo-check {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+.link-row .link-todo-check:hover { background: var(--color-bg-hover); }
+.link-row .link-remove {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  border-radius: 3px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.link-row .link-remove:hover { color: var(--color-danger); background: var(--color-bg-hover); }
+
+.link-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px dashed var(--color-border-medium);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: 12px;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.link-add-btn:hover {
+  background: var(--color-primary-active);
+  border-color: var(--color-primary-border);
+  color: var(--color-primary-text);
+}
+
+/* TimeBox 의 링크 아이콘 */
+.timebox .link-indicator {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  width: 12px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.timebox.is-routine .link-indicator { right: 22px; }   /* 체크박스랑 안 겹치게 */
+
 /* ── 툴바 미니 마커 ─────────────────────────────────────────── */
 .owner-markers {
   display: flex;
