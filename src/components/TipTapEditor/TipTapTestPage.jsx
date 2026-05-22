@@ -184,6 +184,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const lastHistoryContentRef = useRef(null)
   // 초기 로드 완료 여부 (초기 로드 시 불필요한 저장 방지)
   const isInitialLoadRef = useRef(true)
+  // 페이지별 마지막으로 본 updated_at — optimistic lock 용
+  // 두 탭/디바이스가 동시 저장 시 stale state 가 최신을 덮어쓰는 사고 방지
+  // (2026-05-22 "개발할 것들" 데이터 손실 원인. block_history 에 ms 차이로 두 자동 백업이 찍힘)
+  const pageUpdatedAtsRef = useRef(new Map())
 
   // 히스토리 관련 상태
   const [showHistory, setShowHistory] = useState(false)
@@ -438,11 +442,13 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     try {
       const { data, error } = await supabase
         .from('pages')
-        .select('content_tiptap')
+        .select('content_tiptap, updated_at')
         .eq('id', pid)
         .single()
 
       if (error) { console.error('콘텐츠 로드 실패:', error); return }
+
+      if (data?.updated_at) pageUpdatedAtsRef.current.set(pid, data.updated_at)
 
       if (data?.content_tiptap) {
         const pageType = pages.find(p => p.id === pid)?.page_type
@@ -585,18 +591,28 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         }
       }
 
-      const { error } = await supabase
+      // Optimistic lock: 마지막으로 본 updated_at 과 DB 의 현재 값이 일치할 때만 UPDATE.
+      // 다른 탭/디바이스가 먼저 저장했으면 expected != DB 라서 0 row 반환 — stale 덮어쓰기 차단.
+      const expectedUpdatedAt = pageUpdatedAtsRef.current.get(pageIdToSave)
+      let query = supabase
         .from('pages')
         .update({
           content_tiptap: finalContent,
           updated_at: new Date().toISOString()
         })
         .eq('id', pageIdToSave)
+      if (expectedUpdatedAt) query = query.eq('updated_at', expectedUpdatedAt)
+      const { data: updatedRows, error } = await query.select('updated_at')
 
       if (error) {
         console.error('저장 실패:', error)
         return false
       }
+      if (!updatedRows || updatedRows.length === 0) {
+        console.warn('[saveImmediately] 동시 편집 충돌 — 다른 탭/디바이스가 먼저 저장해 stale 덮어쓰기를 차단했습니다.', { pageIdToSave, expectedUpdatedAt })
+        return false
+      }
+      pageUpdatedAtsRef.current.set(pageIdToSave, updatedRows[0].updated_at)
       return true
     } catch (err) {
       console.error('저장 오류:', err)
@@ -770,9 +786,14 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           updated_at: new Date().toISOString()
         })
 
+        // Optimistic lock: URL filter 로 expected updated_at 도 매칭. 다른 탭이 먼저 저장했으면 DB 가 0 row update.
+        const expectedUpdatedAt = pageUpdatedAtsRef.current.get(pageIdRef.current)
+        let url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/pages?id=eq.${pageIdRef.current}`
+        if (expectedUpdatedAt) url += `&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`
+
         // sendBeacon은 페이지가 닫혀도 전송을 보장
         navigator.sendBeacon(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/pages?id=eq.${pageIdRef.current}`,
+          url,
           new Blob([data], { type: 'application/json' })
         )
       }
