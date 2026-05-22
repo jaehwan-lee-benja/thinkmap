@@ -78,6 +78,161 @@
 .schedule-toolbar select:hover { border-color: var(--color-border-medium); }
 .schedule-toolbar select option { background: var(--color-bg-secondary); color: var(--color-text-primary); }
 
+/* ── 월간 뷰 ──────────────────────────────────────────────────── */
+.month-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.month-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+}
+.month-weekday {
+  padding: 8px 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  border-right: 1px solid var(--color-border-light);
+}
+.month-weekday:last-child { border-right: none; }
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  flex: 1;
+  overflow: hidden;
+}
+
+.month-cell {
+  border-right: 1px solid var(--color-border-light);
+  border-bottom: 1px solid var(--color-border-light);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.month-cell:nth-child(7n) { border-right: none; }
+.month-cell:nth-last-child(-n+7) { border-bottom: none; }
+.month-cell:hover { background: var(--color-bg-hover); }
+.month-cell.other-month { background: rgba(0, 0, 0, 0.15); }
+.month-cell.other-month .cell-date { color: var(--color-text-tertiary); }
+.month-cell.today { background: var(--color-primary-bg); }
+.month-cell.drop-target {
+  background: var(--color-primary-active);
+  outline: 2px dashed var(--color-primary);
+  outline-offset: -2px;
+}
+
+.cell-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 6px 0;
+}
+.cell-date {
+  background: transparent;
+  border: none;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-radius: 50%;
+  cursor: pointer;
+  min-width: 22px;
+  height: 22px;
+}
+.cell-date:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.month-cell.today .cell-date {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.cell-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 4px 4px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.month-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-left: 2px solid var(--tb-owner-hue, var(--color-primary));
+  background: color-mix(in srgb, var(--tb-color, #646cff) 22%, transparent);
+  border-radius: 2px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+.month-bar:hover { background: color-mix(in srgb, var(--tb-color, #646cff) 35%, transparent); }
+.month-bar.shared {
+  border-left-style: double;
+  border-left-width: 4px;
+}
+.month-bar.completed { opacity: 0.55; }
+.month-bar.completed .bar-title { text-decoration: line-through; }
+.month-bar .bar-time {
+  font-size: 10px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.month-bar .bar-title {
+  flex: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.month-overflow {
+  background: transparent;
+  border: none;
+  padding: 1px 4px;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  text-align: left;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.month-overflow:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.month-overflow-popover {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  width: 280px;
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: calc(var(--z-index-modal) + 1);
+}
+.month-overflow-popover .settings-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+.month-overflow-popover .settings-header h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-title);
+}
+
 /* ── 주간 뷰 ──────────────────────────────────────────────────── */
 .week-view {
   display: flex;
@@ -124,6 +279,109 @@
   line-height: 28px;
   border-radius: 50%;
 }
+
+/* ── ScheduleSearch ─────────────────────────────────────── */
+.schedule-search { position: relative; }
+.search-icon-btn {
+  background: transparent;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-lg);
+  padding: 4px 8px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  height: 26px;
+  display: flex;
+  align-items: center;
+}
+.search-icon-btn:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.search-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: 320px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+.search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text-tertiary);
+}
+.search-input-row input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 0;
+}
+.search-results {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+.search-popover .result-color {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── all-day strip ─────────────────────────────────────────── */
+.all-day-strip {
+  display: grid;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg-secondary);
+  flex-shrink: 0;
+  max-height: 90px;
+  overflow-y: auto;
+}
+.all-day-strip .corner.all-day-label {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: 4px 0;
+  border-right: 1px solid var(--color-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.all-day-strip .all-day-col {
+  border-right: 1px solid var(--color-border-light);
+  padding: 3px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.all-day-bar {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border-left: 3px solid var(--color-primary);
+  background: color-mix(in srgb, var(--tb-color, #646cff) 28%, transparent);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.all-day-bar:hover { background: color-mix(in srgb, var(--tb-color, #646cff) 40%, transparent); }
+.all-day-bar.shared { border-left-style: double; border-left-width: 5px; }
+.all-day-bar.completed { opacity: 0.55; text-decoration: line-through; }
 
 /* ── 시간 그리드 ──────────────────────────────────────────────── */
 .week-view-body {
@@ -234,6 +492,31 @@
   border-left-width: 5px;
 }
 
+/* cross-day 연결 — 잘린 모서리 평평 + 미세한 가장자리 톤으로 "이어짐" 표현 */
+.timebox.cont-prev {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 1px dashed color-mix(in srgb, var(--tb-color, #646cff) 80%, transparent);
+}
+.timebox.cont-next {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: 1px dashed color-mix(in srgb, var(--tb-color, #646cff) 80%, transparent);
+}
+.timebox.cont-prev::before,
+.timebox.cont-next::after {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  line-height: 1;
+  color: var(--tb-color, var(--color-primary));
+  opacity: 0.85;
+  pointer-events: none;
+}
+.timebox.cont-prev::before { content: '▲'; top: 1px; }
+.timebox.cont-next::after  { content: '▼'; bottom: 1px; }
+
 /* 포인트 이벤트 (start == end) — 1줄 마커 */
 .timebox.point {
   padding: 2px 6px;
@@ -270,15 +553,16 @@
   color: var(--color-text-primary);
 }
 
-/* 드래그 핸들 (하단 6px) */
+/* 드래그 핸들 (상/하 6px) */
 .timebox .resize-handle {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
   height: 6px;
   cursor: ns-resize;
 }
+.timebox .resize-handle-top    { top: 0; }
+.timebox .resize-handle-bottom { bottom: 0; }
 
 /* ── EventEditor 팝오버 ──────────────────────────────────────── */
 .event-editor-backdrop {
@@ -410,6 +694,25 @@
   accent-color: var(--color-primary);
 }
 
+.event-editor .notify-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.event-editor .notify-row label { margin: 0; }
+.event-editor .notify-row select {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-md);
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  color-scheme: dark;
+}
+
 .event-editor .no-end-toggle {
   display: flex;
   align-items: center;
@@ -511,6 +814,32 @@
 .schedule-settings .master-section {
   padding-top: 8px;
   border-top: 1px solid var(--color-border-light);
+}
+
+.schedule-settings .color-label-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.schedule-settings .color-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.schedule-settings .color-label-row input[type="text"] {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-md);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  min-width: 0;
+}
+.schedule-settings .color-label-row input[type="text"]:focus {
+  outline: none;
+  border-color: var(--color-primary-border);
 }
 
 /* ── TodoPicker ───────────────────────────────────────────── */
@@ -665,11 +994,11 @@
   color: var(--color-primary-text);
 }
 
-/* TimeBox 의 링크 아이콘 */
+/* TimeBox 의 링크 아이콘 — 체크박스가 모든 박스에 노출되므로 항상 왼쪽으로 22px */
 .timebox .link-indicator {
   position: absolute;
   top: 3px;
-  right: 4px;
+  right: 22px;
   width: 12px;
   height: 12px;
   display: flex;
@@ -679,7 +1008,6 @@
   opacity: 0.7;
   pointer-events: none;
 }
-.timebox.is-routine .link-indicator { right: 22px; }   /* 체크박스랑 안 겹치게 */
 
 /* ── 툴바 미니 마커 ─────────────────────────────────────────── */
 .owner-markers {

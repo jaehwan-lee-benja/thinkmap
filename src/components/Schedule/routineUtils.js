@@ -102,6 +102,7 @@ export function expandRoutine(event, from, to, instances = []) {
 
 /**
  * 단발 event 를 occurrence 한 개로 변환 (WeekView 가 한 가지 모양만 다루도록).
+ * 단발은 schedule_events.completed 컬럼을 그대로 사용.
  */
 export function singleAsOccurrence(event) {
   return {
@@ -112,10 +113,11 @@ export function singleAsOccurrence(event) {
     color: event.color,
     is_shared: event.is_shared,
     is_routine: false,
+    all_day: !!event.all_day,
     instance_start_at: new Date(event.start_at),
     start_at: new Date(event.start_at),
     end_at: new Date(event.end_at),
-    completed: false,
+    completed: !!event.completed,
     cancelled: false,
     instance_id: null,
   }

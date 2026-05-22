@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Repeat, Link2, X, CheckSquare, Square } from 'lucide-react'
+import { Repeat, Link2, X, CheckSquare, Square, FileText, ExternalLink, Bell } from 'lucide-react'
 import RoutineEditor from './RoutineEditor'
 import TodoPicker from './TodoPicker'
+import PagePicker from './PagePicker'
 
 const COLORS = [
   '#3b82f6',   // blue
@@ -36,23 +37,27 @@ function fromLocalInput(val) {
  * @param onCreateLink    ({ target_type, target_id }) => Promise (이벤트 미저장 시 null 반환 가능)
  * @param onDeleteLink    (link_id) => Promise
  * @param onToggleLinkTodo  (blockId, currentChecked) => Promise — 연결된 todo 의 체크 토글
+ * @param onNavigateToLink  (link) => void — 원본 페이지로 이동
  */
 export default function EventEditor({
   event, anchorRect,
   links = [], linkTargets = {},
   onSave, onDelete, onClose,
-  onCreateLink, onDeleteLink, onToggleLinkTodo,
+  onCreateLink, onDeleteLink, onToggleLinkTodo, onNavigateToLink,
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [startAt, setStartAt] = useState('')
   const [endAt, setEndAt] = useState('')
   const [noEnd, setNoEnd] = useState(false)
+  const [allDay, setAllDay] = useState(false)
   const [color, setColor] = useState(COLORS[0])
   const [isShared, setIsShared] = useState(false)
   const [rrule, setRrule] = useState(null)
   const [routineOpen, setRoutineOpen] = useState(false)
+  const [notifyMin, setNotifyMin] = useState('')   // '' = 없음, '0' = 시작 시점, '5' / '10' / ...
   const [todoPickerOpen, setTodoPickerOpen] = useState(false)
+  const [pagePickerOpen, setPagePickerOpen] = useState(false)
 
   useEffect(() => {
     if (event) {
@@ -62,10 +67,12 @@ export default function EventEditor({
       setEndAt(toLocalInput(event.end_at))
       // end_at === start_at 이면 포인트 이벤트로 인식
       setNoEnd(!!event.start_at && event.end_at === event.start_at)
+      setAllDay(!!event.all_day)
       setColor(event.color || COLORS[0])
       setIsShared(!!event.is_shared)
       setRrule(event.rrule || null)
       setRoutineOpen(!!event.rrule)   // 이미 루틴이면 자동 펼침
+      setNotifyMin(event.notify_minutes_before == null ? '' : String(event.notify_minutes_before))
     }
   }, [event?.id])
 
@@ -128,18 +135,28 @@ export default function EventEditor({
   if (!event) return null
 
   const handleSave = async () => {
-    const startIso = fromLocalInput(startAt)
-    // "종료 없이" 면 end_at = start_at (0-duration → TimeBox 가 1줄 마커로 렌더)
-    const endIso = noEnd ? startIso : fromLocalInput(endAt)
+    let startIso = fromLocalInput(startAt)
+    let endIso = noEnd ? startIso : fromLocalInput(endAt)
+    // all_day: 그날 00:00:00 ~ 다음날 00:00:00 (시간정보 제거)
+    if (allDay && startIso) {
+      const s = new Date(startIso); s.setHours(0, 0, 0, 0)
+      const e = endIso ? new Date(endIso) : new Date(s)
+      e.setHours(0, 0, 0, 0)
+      if (+e <= +s) e.setDate(s.getDate() + 1)
+      startIso = s.toISOString()
+      endIso = e.toISOString()
+    }
     const patch = {
       title: title.trim(),
       description: description.trim() || null,
       start_at: startIso,
       end_at: endIso,
+      all_day: allDay,
       color,
       is_shared: isShared,
       is_routine: !!rrule,
       rrule: rrule || null,
+      notify_minutes_before: notifyMin === '' ? null : parseInt(notifyMin, 10),
     }
     await onSave(patch)
     onClose()
@@ -196,7 +213,17 @@ export default function EventEditor({
         <label className="no-end-toggle">
           <input
             type="checkbox"
+            checked={allDay}
+            onChange={e => setAllDay(e.target.checked)}
+          />
+          종일 (all-day) — 하루 단위. 시간 무시.
+        </label>
+
+        <label className="no-end-toggle">
+          <input
+            type="checkbox"
             checked={noEnd}
+            disabled={allDay}
             onChange={e => setNoEnd(e.target.checked)}
           />
           종료 없이 만들기 — 그 시각에 한 줄 마커로 표시
@@ -221,6 +248,20 @@ export default function EventEditor({
           공유 일정 — 연결된 모든 계정에서 함께 표시
         </label>
 
+        <div className="notify-row">
+          <label><Bell size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />알림</label>
+          <select value={notifyMin} onChange={e => setNotifyMin(e.target.value)}>
+            <option value="">없음</option>
+            <option value="0">시작 시점</option>
+            <option value="5">5분 전</option>
+            <option value="10">10분 전</option>
+            <option value="15">15분 전</option>
+            <option value="30">30분 전</option>
+            <option value="60">1시간 전</option>
+            <option value="1440">1일 전</option>
+          </select>
+        </div>
+
         {/* 연결된 항목 (Phase 3a — todo 만) */}
         {event && !event.__draft && (
           <div className="link-section">
@@ -240,12 +281,22 @@ export default function EventEditor({
                         ? <CheckSquare size={14} className="link-icon checked" />
                         : <Square size={14} className="link-icon" />}
                     </button>
+                  ) : link.target_type === 'page' ? (
+                    <FileText size={12} className="link-icon" />
                   ) : (
                     <Link2 size={12} className="link-icon" />
                   )}
                   <span className={`link-label ${t.todo_checked ? 'todo-done' : ''}`}>
-                    {t.text_content || '(연결된 항목)'}{t.page_name ? ` · ${t.page_name}` : ''}
+                    {t.text_content || t.page_name || '(연결된 항목)'}
+                    {t.text_content && t.page_name ? ` · ${t.page_name}` : ''}
                   </span>
+                  <button
+                    className="link-remove"
+                    onClick={() => onNavigateToLink?.(link)}
+                    title="원본 페이지로 가기"
+                  >
+                    <ExternalLink size={12} />
+                  </button>
                   <button
                     className="link-remove"
                     onClick={() => onDeleteLink?.(link.id)}
@@ -256,13 +307,24 @@ export default function EventEditor({
                 </div>
               )
             })}
-            <button
-              className="link-add-btn"
-              type="button"
-              onClick={() => setTodoPickerOpen(true)}
-            >
-              <Link2 size={12} /> 투두 연결
-            </button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                className="link-add-btn"
+                type="button"
+                onClick={() => setTodoPickerOpen(true)}
+                style={{ flex: 1 }}
+              >
+                <Link2 size={12} /> 투두 연결
+              </button>
+              <button
+                className="link-add-btn"
+                type="button"
+                onClick={() => setPagePickerOpen(true)}
+                style={{ flex: 1 }}
+              >
+                <FileText size={12} /> 페이지 연결
+              </button>
+            </div>
           </div>
         )}
 
@@ -311,6 +373,14 @@ export default function EventEditor({
           excludeIds={links.filter(l => l.target_type === 'todo').map(l => l.target_id)}
           onPick={async (block) => {
             await onCreateLink?.({ target_type: 'todo', target_id: block.block_id })
+          }}
+        />
+        <PagePicker
+          isOpen={pagePickerOpen}
+          onClose={() => setPagePickerOpen(false)}
+          excludeIds={links.filter(l => l.target_type === 'page').map(l => l.target_id)}
+          onPick={async (page) => {
+            await onCreateLink?.({ target_type: 'page', target_id: page.id })
           }}
         />
 

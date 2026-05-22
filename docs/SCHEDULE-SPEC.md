@@ -379,7 +379,11 @@ iCalendar RFC 5545 를 따른다. 초기 UI 지원 범위:
 
 ---
 
-## 9. Google Calendar 동기 (Phase 5)
+## 9. Google Calendar 동기 (Phase 5 — 차후 이슈로 분리)
+
+> **상태**: 본 명세서 작성 시점에는 차후 별도 이슈로 진행하기로 결정.
+> 현재 코드에는 `schedule_events` 의 `google_event_id` / `google_calendar_id` / `google_etag` / `google_synced_at` 컬럼만 placeholder 로 존재하며, 어떤 코드 경로도 이 컬럼을 read/write 하지 않는다.
+> 실제 구현 시점은 미정. 아래는 구현 시 참고할 설계 메모.
 
 ### 9.1 인증
 
@@ -500,34 +504,43 @@ className={`sidebar-worklog-btn ${
 | **2** | 루틴 RRULE 입력 UI(매일/평일/매주 요일/매월/매년 + COUNT/UNTIL) + 클라이언트 펼침 + 인스턴스 lazy upsert(체크/시간이동) + 박스 체크박스 + EventEditor 전체 시리즈 편집 | 완료 |
 | 2.1 | EventEditor 의 "이 회차만 / 이후 모든 회차" scope 분기 (§13.7) | 예정 |
 | **3a** | todo 링크 CRUD + TodoPicker + EventEditor 연결 섹션 + 박스 체크 → todo 단방향 push 동기 + TimeBox 링크 아이콘 | 완료 |
-| 3b | todo → 박스 역방향 동기 (fetch 시점 머지로 daily_blocks 코드 수정 최소화), page/block 링크 UI | 예정 |
-| 4 | 월간 뷰 + 3일 뷰(모바일) + 박스 X 축 드래그(다른 날 이동) + 키보드 단축키 | 예정 |
-| 5 | Google Calendar OAuth + 양방향 polling 동기 + 충돌 머지 다이얼로그 | 예정 |
+| **3b** | schedule_events.completed 추가(단발도 체크), 단발/루틴 통일 toggle, fetch 시점 머지(linked todo 전원 체크 → 박스 자동 완료), PagePicker + 페이지 연결, EventEditor 의 link checkbox 인터랙티브 | 완료 |
+| **4a** | 박스 X 축 드래그(다른 날로 이동) + 링크된 todo 원본 페이지로 가기(빨강 펄스) | 완료 |
+| **4b** | 월간 뷰 (6주×7일, 칸당 막대 3개 + 외 N개 팝오버, 빈 칸 클릭=09:00 draft, 막대 드래그=다른 날, 날짜숫자 클릭=주간 뷰 점프) | 완료 |
+| **4c** | 3일 뷰 (WeekView 일반화 dayCount=3, 토글/오늘/이동 ±3일) | 완료 |
+| **4d** | 키보드 단축키 (← → 이동, T 오늘, N 새 이벤트, Esc 닫기, 1/2/3 뷰 전환) | 완료 |
+| **4e** | §13.1 클릭/드래그 임계값(3px), 알림(notify_minutes_before + Notification API), all-day 이벤트(EventEditor 토글 + 헤더 strip), §13.3 상단 리사이즈 핸들, 제목 검색(툴바 팝오버 + 결과 점프 + 펄스) | 완료 |
+| 5 | Google Calendar OAuth + 양방향 polling 동기 + 충돌 머지 다이얼로그 | **차후 이슈로 분리** — 현재는 schema 의 `google_*` 컬럼만 placeholder 로 유지. 실제 작업 시점은 미정. |
 
 ---
 
 ## 13. 알려진 제약 / 미해결 이슈
 
-### 13.1 클릭/드래그 구분 (Phase 1)
+### 13.1 클릭/드래그 구분 — 해결 (Phase 4e)
 
-- 현재 박스 mousedown 은 즉시 move 모드로 진입 → 짧은 클릭이 의도치 않게 시간 이동이 될 수 있음
-- 해결: pointer 이동 거리 3px 미만은 click 으로 처리
+- Phase 1 에서는 박스 mousedown 즉시 move 모드 → 짧은 클릭이 의도치 않게 시간 이동
+- Phase 4e 에서 3px 임계 도입. 임계 미만이면 click 으로 처리 → EventEditor 오픈만, DB 변경 없음.
 
-### 13.2 다른 날 이동 (Phase 1)
+### 13.2 다른 날 이동 — 해결 (Phase 4a)
 
-- 현재 같은 day-column 안에서만 시간 이동 가능
-- 해결: Phase 4 에서 col 인덱스 추적 추가
+- Phase 1 에서는 같은 day-column 안에서만 시간 이동 가능
+- Phase 4a 에서 `findDayIdxAt(clientX)` 로 mousemove 중 cursor 가 다른 컬럼 위에 있으면 `drag.dayIdx` 갱신 → 다른 날로 자유 이동
+- 단발: 그대로 새 날짜의 start/end 로 update. 루틴: instance_start_at(원본) 유지하고 moved_start_at/moved_end_at 만 새 날로 override (이 회차만 이동)
+- 리사이즈 / 신규 생성 은 시작 컬럼 고정 (Google Calendar 동일)
 
-### 13.3 상단 리사이즈 (Phase 1)
+### 13.3 상단 리사이즈 — 해결 (Phase 4e)
 
-- start_at 변경 핸들 없음 → EventEditor 로만 가능
-- 해결: 6.3 의 핸들 미러링
+- Phase 1 에서는 하단 핸들만 (end_at) — 시작 시각 변경은 EventEditor 만
+- Phase 4e 에서 상단 6px 핸들 추가. `edge: 'top'|'bottom'` 으로 drag.mode='resize' 분기. top 은 start_at 만, bottom 은 end_at 만 변경.
 
-### 13.4 자정 넘는 이벤트
+### 13.4 자정 넘는 이벤트 — 해결 (Phase 4f)
 
-- 현재 day-column 에서 잘려서 표시됨 (visibleStart/visibleEnd 로 처리)
-- 알람/표시는 OK 지만 드래그 이동 시 동일 day 만 다루므로 사용자가 헷갈릴 수 있음
-- 해결: Phase 4 에서 다중 day 박스 렌더 모델 도입
+- Phase 1 에서는 day-column 별로 잘려 표시되며 두 박스가 별개로 보임
+- Phase 4a 에서 다른 날 드래그 가능해짐
+- Phase 4f 에서 TimeBox 에 `continuesFromPrev`/`continuesToNext` 계산:
+  - 잘린 모서리는 border-radius 0 + dashed 가장자리 선
+  - 상단 ▲ / 하단 ▼ 미세한 인디케이터 (같은 이벤트의 연속임을 알림)
+  - 해당 쪽 리사이즈 핸들 숨김 (의미 없음)
 
 ### 13.5 RLS 충돌 가능성
 

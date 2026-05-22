@@ -17,7 +17,7 @@ import { HOUR_PX, minutesFromMidnight, isSameDay, ownerHue } from './scheduleUti
  */
 export default function TimeBox({
   occ, dayDate, col, colCount,
-  selfUid, ownerEmail,
+  selfUid, ownerEmail, colorLabel,
   onClick, onDragStart, onResizeStart, onToggleCheck,
 }) {
   const start = new Date(occ.start_at)
@@ -27,8 +27,10 @@ export default function TimeBox({
   const dayStart = new Date(dayDate); dayStart.setHours(0, 0, 0, 0)
   const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1)
 
-  const visibleStart = start < dayStart ? dayStart : start
-  const visibleEnd = end > dayEnd ? dayEnd : end
+  const continuesFromPrev = start < dayStart    // 어제 시작 — 윗쪽 잘림
+  const continuesToNext   = end > dayEnd        // 내일까지 — 아래쪽 잘림
+  const visibleStart = continuesFromPrev ? dayStart : start
+  const visibleEnd   = continuesToNext ? dayEnd : end
 
   const topMin = minutesFromMidnight(visibleStart)
   const bottomMin = isSameDay(visibleEnd, dayStart) ? minutesFromMidnight(visibleEnd) : 24 * 60
@@ -44,13 +46,15 @@ export default function TimeBox({
   const fmtTime = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 
   const hue = ownerHue(occ.owner_user_id, selfUid)
-  const tooltip = ownerEmail
-    ? `${occ.title || '(제목없음)'} · ${ownerEmail}`
-    : (occ.title || '(제목없음)')
+  const parts = [occ.title || '(제목없음)']
+  if (colorLabel) parts.push(`[${colorLabel}]`)
+  if (ownerEmail) parts.push(ownerEmail)
+  const tooltip = parts.join(' · ')
 
   return (
     <div
-      className={`timebox ${occ.is_shared ? 'shared' : ''} ${occ.completed ? 'completed' : ''} ${isPoint ? 'point' : ''} ${occ.is_routine ? 'is-routine' : ''}`}
+      data-schedule-event-id={occ.event_id}
+      className={`timebox ${occ.is_shared ? 'shared' : ''} ${occ.completed ? 'completed' : ''} ${isPoint ? 'point' : ''} ${occ.is_routine ? 'is-routine' : ''} ${continuesFromPrev ? 'cont-prev' : ''} ${continuesToNext ? 'cont-next' : ''}`}
       title={tooltip}
       style={{
         top: `${top}px`,
@@ -62,13 +66,7 @@ export default function TimeBox({
         borderLeftColor: hue,
       }}
       onMouseDown={(e) => { if (onDragStart) onDragStart(e, occ) }}
-      onClick={(e) => {
-        e.stopPropagation()
-        if (onClick) {
-          const rect = e.currentTarget.getBoundingClientRect()
-          onClick(occ, rect)
-        }
-      }}
+      /* 클릭 처리는 WeekView 의 mouseup 에서 (3px 임계 — §13.1) */
     >
       {isPoint ? (
         <div className="point-row">
@@ -88,7 +86,8 @@ export default function TimeBox({
         </span>
       )}
 
-      {occ.is_routine && onToggleCheck && (
+      {/* 단발/루틴 모두 체크박스 노출 (Phase 3b) */}
+      {onToggleCheck && (
         <div
           className={`routine-check ${occ.completed ? 'checked' : ''}`}
           onMouseDown={e => e.stopPropagation()}
@@ -99,11 +98,18 @@ export default function TimeBox({
         </div>
       )}
 
-      {/* 포인트 이벤트는 리사이즈 핸들 숨김 (드래그하면 일반 이벤트로 변환됨) */}
-      {!isPoint && onResizeStart && (
+      {/* 포인트 이벤트는 리사이즈 핸들 숨김.
+          cross-day 잘림(이전/다음 날로 이어짐) 쪽도 의미 없어서 숨김 */}
+      {!isPoint && onResizeStart && !continuesFromPrev && (
         <div
-          className="resize-handle"
-          onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, occ) }}
+          className="resize-handle resize-handle-top"
+          onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, occ, 'top') }}
+        />
+      )}
+      {!isPoint && onResizeStart && !continuesToNext && (
+        <div
+          className="resize-handle resize-handle-bottom"
+          onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, occ, 'bottom') }}
         />
       )}
     </div>

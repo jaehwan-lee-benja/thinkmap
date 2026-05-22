@@ -4,35 +4,32 @@ import {
   HOUR_PX, SLOT_MINUTES, PX_PER_MIN,
   startOfWeek, addDays, isSameDay,
   layoutDayColumn, snapToSlot,
-  minutesFromMidnight,
+  minutesFromMidnight, ownerHue,
 } from './scheduleUtils'
 import { DAY_NAMES } from '../../utils/dateUtils'
 
 /**
- * 주간 뷰 — 7일 × 24시간 그리드 + occurrence 렌더 + 드래그 생성/이동/리사이즈
+ * 시간축 뷰 — N일 × 24시간 그리드 + occurrence 렌더 + 드래그 생성/이동/리사이즈
+ * dayCount=7 (주간 뷰) / 3 (모바일 3일 뷰) 등으로 재사용.
  *
- * @param weekStart        주의 시작 (Date, 일요일 00:00)
- * @param occurrences      해당 주의 Occurrence 배열 (단발/루틴 통일)
- * @param selfUid          현재 사용자 uuid
- * @param ownerEmailByUid  { [uid]: email } — tooltip 용
- * @param onUpdate         (occ, patch) → Promise — 단발/루틴 분기는 부모가 처리
- * @param onSelect         (occOrDraft) → void — 박스 클릭 또는 신규 draft 생성
- * @param onToggleCheck    (occ) → void — 루틴 체크
- * @param pendingDraft     EventEditor 에서 편집 중인 draft (없으면 null).
- *                         있으면 해당 시간 슬롯을 선택 표시로 계속 그림.
- *
- * 신규 생성: 빈 영역 드래그 종료 시 DB 저장하지 않고 draft 객체만 만들어
- *           onSelect(draft) 로 넘김. 부모는 EventEditor 를 띄우고, 사용자가
- *           저장 버튼을 눌렀을 때 비로소 createEvent 호출 (Google Calendar 패턴).
+ * @param weekStart        뷰 시작 (Date)
+ * @param dayCount         표시할 일수 (기본 7)
+ * @param occurrences      해당 범위의 Occurrence 배열
+ * @param ...etc
  */
 export default function WeekView({
-  weekStart, occurrences, selfUid, ownerEmailByUid,
+  weekStart, dayCount = 7, occurrences, selfUid, ownerEmailByUid, colorLabels,
   onUpdate, onSelect, onToggleCheck, pendingDraft,
 }) {
   const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
-    [weekStart.getTime()]
+    () => Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i)),
+    [weekStart.getTime(), dayCount]
   )
+  const gridCols = `60px repeat(${dayCount}, 1fr)`
+
+  // all_day 와 시간 이벤트 분리
+  const timedOccurrences = useMemo(() => occurrences.filter(o => !o.all_day), [occurrences])
+  const allDayOccurrences = useMemo(() => occurrences.filter(o => o.all_day), [occurrences])
 
   // 현재 시각 라인
   const [now, setNow] = useState(() => new Date())
@@ -41,18 +38,33 @@ export default function WeekView({
     return () => clearInterval(id)
   }, [])
 
-  // 컬럼별 layout 계산 — occurrence 를 schedule_events 형태로 어댑트해서 layoutDayColumn 재사용
+  // 컬럼별 layout 계산 (시간 이벤트만)
   const layoutsByDay = useMemo(() => {
     return days.map(day => {
       const dayStart = new Date(day); dayStart.setHours(0, 0, 0, 0)
       const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1)
-      const inDay = occurrences.filter(o => {
+      const inDay = timedOccurrences.filter(o => {
         const s = new Date(o.start_at), en = new Date(o.end_at)
         return s < dayEnd && en > dayStart
       })
       return layoutDayColumn(inDay)
     })
-  }, [days, occurrences])
+  }, [days, timedOccurrences])
+
+  // all_day 막대 — day 별 그루핑
+  const allDayByDayIdx = useMemo(() => {
+    const out = days.map(() => [])
+    allDayOccurrences.forEach(o => {
+      const s = new Date(o.start_at)
+      const e = new Date(o.end_at)
+      days.forEach((d, i) => {
+        const dayStart = new Date(d); dayStart.setHours(0, 0, 0, 0)
+        const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1)
+        if (s < dayEnd && e > dayStart) out[i].push(o)
+      })
+    })
+    return out
+  }, [days, allDayOccurrences])
 
   // ── 드래그 상태 ─────────────────────────────────────────────
   const [drag, setDrag] = useState(null)
@@ -101,47 +113,88 @@ export default function WeekView({
       dayIdx,
       duration: new Date(occ.end_at) - new Date(occ.start_at),
       grabOffsetPx: grabY - startTopY,
+      startX: e.clientX,
+      startY: e.clientY,
+      boxRect: e.currentTarget.getBoundingClientRect(),
+      moved: false,
     })
     e.preventDefault()
   }
 
-  const handleBoxResizeStart = (e, occ) => {
+  const handleBoxResizeStart = (e, occ, edge = 'bottom') => {
     if (e.button !== 0) return
     const dayIdx = days.findIndex(d => isSameDay(d, new Date(occ.start_at)))
     if (dayIdx < 0) return
     setDrag({
       mode: 'resize',
+      edge,                          // 'top' | 'bottom'
       occ,
       dayIdx,
       startAt: new Date(occ.start_at),
+      endAt: new Date(occ.end_at),
     })
     e.preventDefault()
+  }
+
+  // 화면 X 좌표로 day-column 인덱스 찾기 (좌우 X축 드래그 추적용)
+  const findDayIdxAt = (clientX) => {
+    for (let i = 0; i < colRefs.current.length; i++) {
+      const c = colRefs.current[i]
+      if (!c) continue
+      const r = c.getBoundingClientRect()
+      if (clientX >= r.left && clientX < r.right) return i
+    }
+    return -1
   }
 
   useEffect(() => {
     if (!drag) return
     const onMove = (e) => {
+      if (drag.mode === 'move') {
+        // 3px 임계 미만이면 click 으로 간주 (preview 미발생) — §13.1
+        const dx = e.clientX - drag.startX
+        const dy = e.clientY - drag.startY
+        if (!drag.moved && dx * dx + dy * dy < 9) return
+
+        // 다른 day-column 위로 이동했으면 dayIdx 갱신 (X축 드래그)
+        const overIdx = findDayIdxAt(e.clientX)
+        const effectiveDayIdx = overIdx >= 0 ? overIdx : drag.dayIdx
+        const col = colRefs.current[effectiveDayIdx]
+        if (!col) return
+        const rect = col.getBoundingClientRect()
+        const y = e.clientY - rect.top
+        const newTopY = y - drag.grabOffsetPx
+        const newStart = yToTime(days[effectiveDayIdx], newTopY)
+        const newEnd = new Date(newStart.getTime() + drag.duration)
+        setDrag(d => ({ ...d, moved: true, dayIdx: effectiveDayIdx, previewStart: newStart, previewEnd: newEnd }))
+        return
+      }
+
       const col = colRefs.current[drag.dayIdx]
       if (!col) return
       const rect = col.getBoundingClientRect()
       const y = e.clientY - rect.top
 
       if (drag.mode === 'create') {
+        // 신규 생성은 시작 컬럼 고정 (Google Calendar 동일 패턴)
         const t = yToTime(days[drag.dayIdx], y)
         const anchorTime = yToTime(days[drag.dayIdx], drag.anchorY)
         const a = anchorTime < t ? anchorTime : t
         const b = anchorTime < t ? t : anchorTime
         const endAdj = b.getTime() === a.getTime() ? new Date(a.getTime() + SLOT_MINUTES * 60_000) : b
         setDrag(d => ({ ...d, startTime: a, endTime: endAdj }))
-      } else if (drag.mode === 'move') {
-        const newTopY = y - drag.grabOffsetPx
-        const newStart = yToTime(days[drag.dayIdx], newTopY)
-        const newEnd = new Date(newStart.getTime() + drag.duration)
-        setDrag(d => ({ ...d, previewStart: newStart, previewEnd: newEnd }))
       } else if (drag.mode === 'resize') {
-        const newEnd = yToTime(days[drag.dayIdx], y)
-        const minEnd = new Date(drag.startAt.getTime() + SLOT_MINUTES * 60_000)
-        setDrag(d => ({ ...d, previewEnd: newEnd > minEnd ? newEnd : minEnd }))
+        // 같은 컬럼 안에서 resize (자정 넘어가는 케이스는 §13.4 후속)
+        const t = yToTime(days[drag.dayIdx], y)
+        if (drag.edge === 'top') {
+          // start_at 변경, end_at 보존. 최소 SLOT_MINUTES 보장 (end 직전).
+          const maxStart = new Date(drag.endAt.getTime() - SLOT_MINUTES * 60_000)
+          setDrag(d => ({ ...d, previewStart: t < maxStart ? t : maxStart }))
+        } else {
+          // bottom — end_at 변경
+          const minEnd = new Date(drag.startAt.getTime() + SLOT_MINUTES * 60_000)
+          setDrag(d => ({ ...d, previewEnd: t > minEnd ? t : minEnd }))
+        }
       }
     }
     const onUp = async () => {
@@ -176,13 +229,22 @@ export default function WeekView({
           }
         }
         if (onSelect) onSelect(draft, anchorRect)
-      } else if (drag.mode === 'move' && drag.previewStart) {
-        await onUpdate(drag.occ, {
-          start_at: drag.previewStart.toISOString(),
-          end_at: drag.previewEnd.toISOString(),
-        })
-      } else if (drag.mode === 'resize' && drag.previewEnd) {
-        await onUpdate(drag.occ, { end_at: drag.previewEnd.toISOString() })
+      } else if (drag.mode === 'move') {
+        if (drag.moved && drag.previewStart) {
+          await onUpdate(drag.occ, {
+            start_at: drag.previewStart.toISOString(),
+            end_at: drag.previewEnd.toISOString(),
+          })
+        } else if (!drag.moved && onSelect) {
+          // 임계 미만 — click 으로 처리하여 EventEditor 오픈
+          onSelect(drag.occ, drag.boxRect)
+        }
+      } else if (drag.mode === 'resize') {
+        if (drag.edge === 'top' && drag.previewStart) {
+          await onUpdate(drag.occ, { start_at: drag.previewStart.toISOString() })
+        } else if (drag.previewEnd) {
+          await onUpdate(drag.occ, { end_at: drag.previewEnd.toISOString() })
+        }
       }
       setDrag(null)
     }
@@ -200,7 +262,7 @@ export default function WeekView({
 
   return (
     <div className="week-view">
-      <div className="week-view-header">
+      <div className="week-view-header" style={{ gridTemplateColumns: gridCols }}>
         <div className="corner" />
         {days.map((d, i) => (
           <div key={i} className={`day-cell ${isSameDay(d, now) ? 'today' : ''}`}>
@@ -210,12 +272,44 @@ export default function WeekView({
         ))}
       </div>
 
+      {/* 종일 (all-day) 막대 영역 — 컬럼 헤더와 시간 그리드 사이 */}
+      {allDayOccurrences.length > 0 && (
+        <div className="all-day-strip" style={{ gridTemplateColumns: gridCols }}>
+          <div className="corner all-day-label">종일</div>
+          {days.map((d, i) => (
+            <div key={i} className="all-day-col">
+              {allDayByDayIdx[i].map(o => {
+                const hue = ownerHue(o.owner_user_id, selfUid)
+                return (
+                  <div
+                    key={o.id}
+                    className={`all-day-bar ${o.is_shared ? 'shared' : ''} ${o.completed ? 'completed' : ''}`}
+                    title={o.title || '(제목없음)'}
+                    style={{
+                      '--tb-color': o.color || '#3b82f6',
+                      borderLeftColor: hue,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (onSelect) onSelect(o, e.currentTarget.getBoundingClientRect())
+                    }}
+                  >
+                    {o.title || '(제목없음)'}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="week-view-body" ref={bodyRef}>
         <div
           className="week-grid"
           style={{
             height: `${24 * HOUR_PX}px`,
             ['--hour-px']: `${HOUR_PX}px`,
+            gridTemplateColumns: gridCols,
           }}
         >
           <div style={{ position: 'relative', borderRight: '1px solid var(--color-border-light)' }}>
@@ -245,9 +339,13 @@ export default function WeekView({
                 const top = (minutesFromMidnight(drag.previewStart) / 60) * HOUR_PX
                 const h = ((drag.previewEnd - drag.previewStart) / 60000) * PX_PER_MIN
                 preview = { top, h }
-              } else if (drag.mode === 'resize' && drag.previewEnd) {
-                const top = (minutesFromMidnight(new Date(drag.occ.start_at)) / 60) * HOUR_PX
-                const h = ((drag.previewEnd - new Date(drag.occ.start_at)) / 60000) * PX_PER_MIN
+              } else if (drag.mode === 'resize') {
+                const origStart = new Date(drag.occ.start_at)
+                const origEnd = new Date(drag.occ.end_at)
+                const effStart = drag.edge === 'top' && drag.previewStart ? drag.previewStart : origStart
+                const effEnd = drag.edge === 'bottom' && drag.previewEnd ? drag.previewEnd : origEnd
+                const top = (minutesFromMidnight(effStart) / 60) * HOUR_PX
+                const h = ((effEnd - effStart) / 60000) * PX_PER_MIN
                 preview = { top, h }
               }
             }
@@ -282,6 +380,7 @@ export default function WeekView({
                     colCount={colCount}
                     selfUid={selfUid}
                     ownerEmail={ownerEmailByUid?.[occ.owner_user_id]}
+                    colorLabel={colorLabels?.[occ.color]}
                     onClick={onSelect}
                     onDragStart={handleBoxDragStart}
                     onResizeStart={handleBoxResizeStart}

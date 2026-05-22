@@ -319,3 +319,22 @@ button {
     /* 터치 스크롤은 브라우저 기본값 사용 */
   }
 }
+
+/* 캘린더 → 원본 페이지 이동 시 해당 블록에 잠시 펄스 강조 (red) */
+.schedule-highlight-pulse {
+  animation: schedule-highlight-pulse 2.5s ease-out;
+  border-radius: 4px;
+  position: relative;
+  z-index: 1;
+}
+@keyframes schedule-highlight-pulse {
+  0%,
+  70% {
+    background-color: rgba(239, 68, 68, 0.45);     /* red 안쪽 채움 — 끝나기 전까지 유지 */
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.40); /* red 둘레 ring — 동일하게 유지 */
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+}

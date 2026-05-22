@@ -10,17 +10,24 @@ import { ownerHue } from './scheduleUtils'
  *
  * Phase 2 이후: 기본 색/알림/RRULE 디폴트 등이 이 모달에 추가됨.
  */
+const COLOR_PRESETS = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+  '#8b5cf6', '#ec4899', '#64748b',
+]
+
 export default function ScheduleSettingsModal({
   isOpen,
   onClose,
   selfUid,
   selfEmail,
   linkedAccounts,
-  enabledOwners,           // string[]
-  onToggleOwner,           // (uid) => void
+  enabledOwners,
+  onToggleOwner,
   isMaster,
   masterAll,
   onToggleMasterAll,
+  colorLabels = {},
+  onSetColorLabel,
 }) {
   if (!isOpen) return null
 
@@ -82,6 +89,24 @@ export default function ScheduleSettingsModal({
             </label>
           </div>
         )}
+
+        {/* 색상 카테고리 라벨 — 7색에 사용자 정의 이름 부여. localStorage 영속화. */}
+        <div className="master-section">
+          <label className="section-label">색상 라벨 (선택)</label>
+          <div className="color-label-list">
+            {COLOR_PRESETS.map(c => (
+              <div key={c} className="color-label-row">
+                <span className="owner-marker" style={{ background: c }} />
+                <input
+                  type="text"
+                  placeholder="라벨 (예: 업무, 개인…)"
+                  value={colorLabels[c] || ''}
+                  onChange={e => onSetColorLabel?.(c, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="actions">
           <div />

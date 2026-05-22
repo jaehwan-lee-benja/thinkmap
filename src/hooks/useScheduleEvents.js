@@ -107,6 +107,29 @@ export function useScheduleEvents({ from, to, ownerIds = [], masterAll = false, 
     return data
   }, [refetch])
 
+  // 단발 이벤트 체크 토글. 루틴은 useScheduleInstances 의 toggleCompleted 사용.
+  const toggleEventCompleted = useCallback(async (id, currentCompleted) => {
+    const next = !currentCompleted
+    setEvents(prev => prev.map(e =>
+      e.id === id
+        ? { ...e, completed: next, completed_at: next ? new Date().toISOString() : null }
+        : e
+    ))
+    const { data, error: updErr } = await supabase
+      .from('schedule_events')
+      .update({ completed: next, completed_at: next ? new Date().toISOString() : null })
+      .eq('id', id)
+      .select()
+      .single()
+    if (updErr) {
+      logError('useScheduleEvents.toggleCompleted', updErr)
+      refetch()   // 롤백
+      throw updErr
+    }
+    if (mountedRef.current) setEvents(prev => prev.map(e => e.id === id ? data : e))
+    return data
+  }, [refetch])
+
   const deleteEvent = useCallback(async (id) => {
     setEvents(prev => prev.filter(e => e.id !== id))
     // soft delete
@@ -128,6 +151,7 @@ export function useScheduleEvents({ from, to, ownerIds = [], masterAll = false, 
     refetch,
     createEvent,
     updateEvent,
+    toggleEventCompleted,
     deleteEvent,
   }
 }

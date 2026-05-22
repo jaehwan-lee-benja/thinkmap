@@ -47,6 +47,30 @@ export function overlaps(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && bStart < aEnd
 }
 
+// 그 달 첫 날을 포함하는 주의 시작(일요일 00:00)
+export function startOfMonthGrid(date) {
+  const first = new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0)
+  return startOfWeek(first)
+}
+
+// startOfMonthGrid 에서 +42 일 (6주) — month grid 끝(exclusive)
+export function endOfMonthGrid(date) {
+  return addDays(startOfMonthGrid(date), 42)
+}
+
+// 같은 달인지
+export function isSameMonth(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
+}
+
+// 날짜 → 'YYYY-MM-DD' (로컬 기준)
+export function dateKey(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 // uuid → HSL hue (0–360) 결정론적 변환
 // FNV-1a 32bit 해시 사용. uuid 의 모든 hex 문자를 입력으로.
 function fnv1a(str) {
