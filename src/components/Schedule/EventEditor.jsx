@@ -90,6 +90,20 @@ export default function EventEditor({
       const vh = window.innerHeight
       const gap = 8
 
+      // 모바일 (≤600px): 바텀시트 — 화면 가로 가득 + 화면 하단
+      if (vw <= 600) {
+        setPopoverStyle({
+          position: 'fixed',
+          left: 0, right: 0, bottom: 0,
+          width: '100vw',
+          maxWidth: '100vw',
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
+          maxHeight: '85vh',
+        })
+        return
+      }
+
       if (!anchorRect) {
         // 앵커 없음 — 화면 중앙
         setPopoverStyle({

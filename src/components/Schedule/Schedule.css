@@ -66,6 +66,65 @@
 
 .schedule-toolbar .view-switch { display: flex; gap: 2px; }
 
+/* ── 모바일 (≤768px) — 툴바 wrap + 라벨 축약 ──────────────── */
+@media (max-width: 768px) {
+  .schedule-toolbar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .schedule-toolbar .title { display: none; }    /* 캘린더 진입했으니 제목 생략 */
+  .schedule-toolbar .nav .label { font-size: 11px; padding: 0 4px; }
+  .schedule-toolbar .spacer { display: none; }
+  .schedule-toolbar .owner-markers,
+  .schedule-toolbar .search-icon-btn { margin-left: auto; }
+  .schedule-toolbar select { font-size: 11px; padding: 3px 6px; }
+}
+@media (max-width: 480px) {
+  .schedule-toolbar .nav .label {
+    /* "2026.05.22 – 05.28" 같은 라벨이 자리 차지 — 더 좁으면 숨김 */
+    display: none;
+  }
+}
+
+/* 검색 popover — 모바일에선 화면 전폭에 가깝게 */
+@media (max-width: 600px) {
+  .search-popover {
+    width: calc(100vw - 16px);
+    right: auto;
+    left: 8px;
+  }
+
+  /* 월간 뷰 — 좁은 화면에서 칸 안 막대 폰트/패딩 축소 */
+  .month-cell {
+    font-size: 11px;
+  }
+  .cell-date {
+    font-size: 11px;
+    padding: 1px 4px;
+    min-width: 20px;
+    height: 20px;
+  }
+  .month-bar {
+    font-size: 10px;
+    padding: 1px 3px;
+  }
+  .month-bar .bar-time { font-size: 9px; }
+  .month-overflow { font-size: 9px; padding: 0 2px; }
+
+  /* 주간 뷰 헤더 폰트 축소 */
+  .week-view-header .day-cell .date { font-size: 14px; }
+  .week-view-header .day-cell.today .date {
+    width: 24px; height: 24px; line-height: 24px;
+  }
+  /* TimeBox 폰트 축소 */
+  .timebox { font-size: 11px; padding: 3px 5px; }
+  .timebox .time { font-size: 9px; }
+
+  /* 시간 라벨 폰트 축소 — grid template 60px 컬럼은 그대로 */
+  .hour-label { font-size: 9px; padding-right: 4px; }
+}
+
 .schedule-toolbar select {
   padding: 4px 8px;
   border-radius: var(--border-radius-lg);
@@ -564,6 +623,11 @@
 .timebox .resize-handle-top    { top: 0; }
 .timebox .resize-handle-bottom { bottom: 0; }
 
+/* 터치 디바이스 — 핸들 두께 확대 (손가락 hit target) */
+@media (hover: none) and (pointer: coarse) {
+  .timebox .resize-handle { height: 12px; }
+}
+
 /* ── EventEditor 팝오버 ──────────────────────────────────────── */
 .event-editor-backdrop {
   position: fixed;
@@ -578,6 +642,39 @@
 .event-editor-backdrop.popover {
   background: transparent;
   display: block;
+}
+
+/* 모바일 (≤600px) — 모든 모달 바텀시트화.
+   EventEditor 는 JS 가 inline 으로 position:fixed bottom:0 처리해서 flex layout 무관.
+   Settings/TodoPicker/PagePicker 는 backdrop flex 로 하단 정렬. */
+@media (max-width: 600px) {
+  .event-editor-backdrop:not(.popover) {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .event-editor,
+  .event-editor.schedule-settings,
+  .event-editor.todo-picker {
+    width: 100vw;
+    max-width: 100vw;
+    border-top-left-radius: var(--border-radius-xl);
+    border-top-right-radius: var(--border-radius-xl);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: none;
+    max-height: 85vh;
+  }
+  /* 바텀시트 상단에 드래그 핸들 표시 (시각적) */
+  .event-editor::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--color-border-strong);
+    border-radius: 2px;
+    margin: -4px auto 6px;
+    flex-shrink: 0;
+  }
 }
 .event-editor {
   background: var(--color-bg-primary);
@@ -1146,6 +1243,22 @@
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: #fff;
+}
+
+/* 터치 디바이스 — 체크박스/링크아이콘 확대 */
+@media (hover: none) and (pointer: coarse) {
+  .timebox .routine-check {
+    width: 20px;
+    height: 20px;
+    top: 4px;
+    right: 6px;
+  }
+  .timebox .link-indicator {
+    width: 16px;
+    height: 16px;
+    right: 30px;
+    top: 6px;
+  }
 }
 
 .timebox.completed { opacity: 0.55; }

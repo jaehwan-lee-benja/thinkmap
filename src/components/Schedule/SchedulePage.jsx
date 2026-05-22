@@ -14,6 +14,7 @@ import { useEnabledOwners } from '../../hooks/useEnabledOwners'
 import { useColorLabels } from '../../hooks/useColorLabels'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { usePageContext } from '../../contexts/PageContext'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { supabase } from '../../supabaseClient'
 import { startOfWeek, addDays, ownerHue, startOfMonthGrid, endOfMonthGrid } from './scheduleUtils'
 import { buildOccurrences } from './routineUtils'
@@ -26,7 +27,9 @@ const MARKER_LIMIT = 4   // 툴바에 표시할 owner 색 점 최대 개수
  * Phase 1.5: 모달 기반 다중 owner 필터 + 마스터 전체 토글 + owner hue 마커.
  */
 export default function SchedulePage({ session }) {
-  const [view, setView] = useState('week')                          // 'week' | 'month' | '3day'
+  const { isMobile } = useIsMobile()
+  // 초기 뷰 — 모바일이면 3day 가 기본 (좁은 화면에서 7컬럼은 너무 빡빡)
+  const [view, setView] = useState(() => isMobile ? '3day' : 'week')
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [threeDayStart, setThreeDayStart] = useState(() => {        // 3일 뷰 시작일 (오늘)
     const d = new Date(); d.setHours(0, 0, 0, 0); return d

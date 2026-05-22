@@ -510,6 +510,8 @@ className={`sidebar-worklog-btn ${
 | **4c** | 3일 뷰 (WeekView 일반화 dayCount=3, 토글/오늘/이동 ±3일) | 완료 |
 | **4d** | 키보드 단축키 (← → 이동, T 오늘, N 새 이벤트, Esc 닫기, 1/2/3 뷰 전환) | 완료 |
 | **4e** | §13.1 클릭/드래그 임계값(3px), 알림(notify_minutes_before + Notification API), all-day 이벤트(EventEditor 토글 + 헤더 strip), §13.3 상단 리사이즈 핸들, 제목 검색(툴바 팝오버 + 결과 점프 + 펄스) | 완료 |
+| **4f** | cross-day 박스 시각 연결(cont-prev/cont-next 모서리 평평 + ▲/▼), 색상 카테고리 라벨(localStorage → tooltip) | 완료 |
+| **4g (모바일)** | isMobile 시 초기 3-day 뷰, 툴바 wrap+라벨 축약(≤768/480), EventEditor 바텀시트(≤600 화면 폭 가득), 터치 핸들 6→12px / 체크박스 14→20px (hover:none), 검색 popover 전폭, 월간 칸 폰트 축소 | 완료 |
 | 5 | Google Calendar OAuth + 양방향 polling 동기 + 충돌 머지 다이얼로그 | **차후 이슈로 분리** — 현재는 schema 의 `google_*` 컬럼만 placeholder 로 유지. 실제 작업 시점은 미정. |
 
 ---
