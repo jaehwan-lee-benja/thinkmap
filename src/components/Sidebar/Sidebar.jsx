@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -82,6 +82,55 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             [향후] 계정별 개인 업무일지 분리 시, 여기서 owner_id 기반 필터링 추가
           */}
           <div className="sidebar-worklog-fixed">
+            {/* 캘린더 — 업무일지 위쪽 */}
+            <button
+              className={`sidebar-worklog-btn ${currentPageId && pages.find(p => p.id === currentPageId)?.page_type === 'schedule' ? 'active' : ''}`}
+              onClick={async () => {
+                // 메모리 캐시 우선
+                let schedulePage = pages.find(p => p.page_type === 'schedule')
+
+                // DB 직접 조회 (캐시에 없을 수 있음 — 다른 사용자/계정이 만든 경우 포함)
+                if (!schedulePage) {
+                  const { data } = await supabase
+                    .from('pages')
+                    .select('id')
+                    .eq('page_type', 'schedule')
+                    .is('deleted_at', null)
+                    .limit(1)
+                    .maybeSingle()
+                  if (data) schedulePage = { id: data.id, page_type: 'schedule' }
+                }
+
+                // 그래도 없으면 신규 생성
+                if (!schedulePage) {
+                  const newPageId = generateUUID()
+                  const { error } = await supabase
+                    .from('pages')
+                    .insert([{
+                      id: newPageId,
+                      user_id: effectiveSession.user.id,
+                      name: '캘린더',
+                      page_type: 'schedule',
+                      project_id: null,
+                      parent_id: null,
+                      position: -1,    // 업무일지보다 위
+                    }])
+                  if (error) {
+                    console.error('캘린더 페이지 생성 실패:', error)
+                    return
+                  }
+                  schedulePage = { id: newPageId, page_type: 'schedule' }
+                }
+
+                // PageContext 캐시 갱신 후 선택 (reload 없음)
+                if (typeof fetchPages === 'function') await fetchPages()
+                handlePageSelect(schedulePage.id)
+              }}
+            >
+              <Calendar size={16} />
+              <span>캘린더</span>
+            </button>
+
             <button
               className={`sidebar-worklog-btn ${currentPageId && pages.find(p => p.id === currentPageId)?.page_type === 'calendar' ? 'active' : ''}`}
               onClick={async () => {

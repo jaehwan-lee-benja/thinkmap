@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar/Sidebar'
 import { TabBar } from './components/TabBar/TabBar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
 import CanvasViewer from './components/Canvas/CanvasViewer'
+import SchedulePage from './components/Schedule/SchedulePage'
 // 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능
 // import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
 import { useAuth } from './hooks/useAuth'
@@ -139,6 +140,14 @@ function PaneInner({
                   key={`pane-${paneIndex}-${pageId}`}
                   pageId={pageId}
                   canvasType={pageType}
+                  session={effectiveSession}
+                />
+              )
+            }
+            if (pageType === 'schedule') {
+              return (
+                <SchedulePage
+                  key={`pane-${paneIndex}-${pageId}`}
                   session={effectiveSession}
                 />
               )
@@ -280,6 +289,43 @@ function App() {
       console.error('오늘 daily 페이지 생성 실패 (v2):', err)
     }
   }, [addTab, updateTabInPane, activePaneIndex, session])
+
+  // 캘린더(schedule) 페이지 바로가기 — Sidebar 의 캘린더 버튼과 동일 로직
+  const handleNavigateSchedule = useCallback(async () => {
+    let scheduleId = null
+    const { data: rows, error } = await supabase
+      .from('pages')
+      .select('id')
+      .eq('page_type', 'schedule')
+      .is('deleted_at', null)
+      .limit(1)
+    if (error) { console.error('schedule page 조회 실패:', error); return }
+    if (rows?.length) {
+      scheduleId = rows[0].id
+    } else {
+      // 신규 생성
+      const newPageId = generateUUID()
+      const { error: insErr } = await supabase
+        .from('pages')
+        .insert([{
+          id: newPageId,
+          user_id: session.user.id,
+          name: '캘린더',
+          page_type: 'schedule',
+          project_id: null,
+          parent_id: null,
+          position: -1,
+        }])
+      if (insErr) { console.error('캘린더 페이지 생성 실패:', insErr); return }
+      scheduleId = newPageId
+    }
+    window.dispatchEvent(new CustomEvent('pages-refresh'))
+    addTab(activePaneIndex, { projectId: null, pageId: scheduleId })
+    setTimeout(() => {
+      const nav = paneNavRef.current[activePaneIndex]
+      if (nav) nav.setCurrentPageId(scheduleId)
+    }, 0)
+  }, [addTab, activePaneIndex, session])
 
   // 삭제 토스트 상태
   const [deleteToast, setDeleteToast] = useState(null)
@@ -507,6 +553,7 @@ function App() {
           onFavoriteNavigate={handleFavoriteNavigate}
           onRemoveFavorite={favoritesHook.removeFavorite}
           onTodayWorklog={handleNavigateTodayWorklog}
+          onScheduleOpen={handleNavigateSchedule}
           session={session}
         />
 

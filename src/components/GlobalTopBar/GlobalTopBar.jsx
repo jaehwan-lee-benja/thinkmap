@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Shield, ChevronDown, Star, X, CalendarDays } from 'lucide-react'
+import { Shield, ChevronDown, Star, X, CalendarDays, Calendar } from 'lucide-react'
 import AdminModal from '../Admin/AdminModal'
 import QuickTodo from '../QuickTodo/QuickTodo'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { DAY_NAMES } from '../../utils/dateUtils'
 import './GlobalTopBar.css'
 
-export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite, onTodayWorklog, session }) {
+export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite, onTodayWorklog, onScheduleOpen, session }) {
   const {
     userEmail, ownEmail, userAvatarUrl, handleLogout, isMaster,
     isImpersonating, impersonatedEmail, stopImpersonation,
@@ -66,6 +66,14 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
             >
               <CalendarDays size={12} />
               <span>오늘 - {todayLabel}</span>
+            </button>
+            <button
+              className="bookmark-item bookmark-schedule"
+              onClick={() => onScheduleOpen?.()}
+              title="캘린더"
+            >
+              <Calendar size={12} />
+              <span>캘린더</span>
             </button>
             {/* TODO: 검색 기능 (향후 추가 예정) */}
           </div>

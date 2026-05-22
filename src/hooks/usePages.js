@@ -110,12 +110,12 @@ export const usePages = (session, currentProjectId, options = {}) => {
     try {
       setPagesLoading(true)
 
-      // 독립 엔티티 페이지 (project_id=NULL) — 업무일지 + 마케팅 캔버스
+      // 독립 엔티티 페이지 (project_id=NULL) — 업무일지 + 마케팅 캔버스 + 캘린더
       const worklogQuery = supabase
         .from('pages')
         .select('*')
         .is('project_id', null)
-        .in('page_type', ['calendar', 'daily', 'frame', 'engine'])
+        .in('page_type', ['calendar', 'daily', 'frame', 'engine', 'schedule'])
         .is('deleted_at', null)
         .order('position', { ascending: true })
 
@@ -125,7 +125,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
             .from('pages')
             .select('*')
             .eq('project_id', currentProjectId)
-            .not('page_type', 'in', '("calendar","daily","frame","engine")')
+            .not('page_type', 'in', '("calendar","daily","frame","engine","schedule")')
             .is('deleted_at', null)
             .order('position', { ascending: true })
         : Promise.resolve({ data: [], error: null })
