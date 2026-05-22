@@ -1,17 +1,27 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Check, Pin, PinOff, Settings } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
-import { generateUUID } from '../../utils/uuid'
-import { buildDailyPageTemplate } from '../../utils/worklogUtils'
 import { DEFAULT_SECTION_ID } from '../../utils/worklogConstants'
-import { todoToggle } from '../../utils/toggleNodeFactory'
-import { extractH2Sections, filterByVisibility, findSectionMatcher as findMatcher } from '../../utils/sectionUtils'
+import {
+  findCalendarPageId,
+  ensureTodayDailyPage,
+  fetchSectionRows,
+  findSectionByMasterId,
+  insertTodoIntoSection,
+  moveTodoRowToSection,
+} from '../../utils/quickTodoOps'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
 import './QuickTodo.css'
 
 /**
  * Quick Todo — 상단바에서 빠르게 todo를 입력하여 오늘 업무일지에 삽입
+ * v2: daily_blocks row 기반.
+ *   - 오늘 페이지 보장: createDailyPageV2 (섹션/이월 row 까지 생성)
+ *   - 삽입: 섹션 자식으로 toggle row INSERT (block_type='toggle', is_todo=true)
+ *   - 이동: parent_block_id / section_id / position UPDATE
+ *
+ * pinnedSection 는 sectionMasterId 를 저장 — 매일 새 페이지의 섹션 row 로 자동 매핑.
  */
 export default function QuickTodo({ session }) {
   const { isMaster } = useAuthContext()
@@ -22,15 +32,15 @@ export default function QuickTodo({ session }) {
   const [showSettings, setShowSettings] = useState(false)
   const [availableSections, setAvailableSections] = useState([])
 
-  // Supabase 기반 고정 섹션
+  // pinnedSection 의 id 는 sectionMasterId (예: 'fixed_todo', 'usr-xxxx')
   const pinnedSection = quicktodoPinned?.id || null
   const pinnedSectionName = quicktodoPinned?.name || null
 
   const inputRef = useRef(null)
   const wrapperRef = useRef(null)
   // 마지막 삽입 정보 (섹션 이동용)
-  const lastInsertRef = useRef(null) // { pageId, todoText, fromSectionId }
-  // 기본 섹션 이름 (DB에서 조회)
+  const lastInsertRef = useRef(null) // { pageId, blockId, fromSectionMasterId }
+  // 기본 섹션 이름 (DB 에서 조회)
   const [defaultSectionName, setDefaultSectionName] = useState('')
   useEffect(() => {
     supabase.from('worklog_sections').select('title').eq('id', DEFAULT_SECTION_ID).maybeSingle()
@@ -57,109 +67,74 @@ export default function QuickTodo({ session }) {
     return () => clearTimeout(t)
   }, [result])
 
+  /** 오늘 daily 페이지 보장. 없으면 createDailyPageV2 로 생성. */
   const getOrCreateTodayPage = useCallback(async () => {
-    const todayStr = new Date().toISOString().slice(0, 10)
-    const { data: calPages } = await supabase
-      .from('pages').select('id').eq('page_type', 'calendar').is('deleted_at', null).limit(1)
-    if (!calPages?.length) throw new Error('캘린더 페이지 없음')
-    const calendarId = calPages[0].id
-
-    const { data: todayPages } = await supabase
-      .from('pages').select('id, content_tiptap')
-      .eq('parent_id', calendarId).eq('page_date', todayStr)
-      .eq('page_type', 'daily').is('deleted_at', null).limit(1)
-    if (todayPages?.length > 0) return todayPages[0]
-
-    const { data: recentPages } = await supabase
-      .from('pages').select('page_date, content_tiptap')
-      .eq('parent_id', calendarId).eq('page_type', 'daily').is('deleted_at', null)
-      .order('page_date', { ascending: false }).limit(1)
-
-    const template = await buildDailyPageTemplate(recentPages || [], supabase)
-    const newPage = {
-      id: generateUUID(), user_id: session.user.id, name: `업무일지_${todayStr}`,
-      parent_id: calendarId, content_tiptap: template, project_id: null,
-      page_type: 'daily', page_date: todayStr, position: 0,
-    }
-    const { error } = await supabase.from('pages').insert([newPage])
-    if (error) throw error
-    return { id: newPage.id, content_tiptap: template }
+    const calendarId = await findCalendarPageId(supabase)
+    if (!calendarId) throw new Error('캘린더 페이지 없음')
+    return ensureTodayDailyPage(supabase, { calendarId, userId: session.user.id })
   }, [session])
 
-  const extractSections = (content) =>
-    filterByVisibility(extractH2Sections(content), isMaster)
+  /** 섹션 row 를 QuickTodo 가 사용하는 표시 모델로 변환 — id 는 sectionMasterId */
+  const toDisplaySection = (row) => ({
+    id: row.sectionMasterId || row.blockId,
+    title: row.textContent,
+    visibility: row.visibility || 'all',
+    _row: row,  // 내부용 (실제 blockId 등 row 데이터)
+  })
 
   /** 섹션에 todo 삽입 */
-  const insertTodo = useCallback(async (todoText, targetId) => {
-    const page = await getOrCreateTodayPage()
-    const content = page.content_tiptap
-    if (!content?.content) throw new Error('페이지 콘텐츠 없음')
+  const insertTodo = useCallback(async (todoText, targetMasterId) => {
+    const { pageId, pageDate } = await getOrCreateTodayPage()
+    const sectionRows = await fetchSectionRows(supabase, pageId, { isMaster })
+    const sections = sectionRows.map(toDisplaySection)
+    const { row: targetRow, foundExact } = findSectionByMasterId(sectionRows, targetMasterId, DEFAULT_SECTION_ID)
+    if (!targetRow) throw new Error('대상 섹션을 찾을 수 없음')
 
-    const sections = extractSections(content)
-    const { matcher, found } = findMatcher(content, targetId)
-    const newTodo = todoToggle(todoText)
+    const newRow = await insertTodoIntoSection(supabase, {
+      pageId,
+      pageDate,
+      userId: session.user.id,
+      sectionRow: targetRow,
+      todoText,
+    })
+    window.dispatchEvent(new CustomEvent('quicktodo-inserted', { detail: { pageId } }))
 
-    let actualTarget = null
-    const newContent = { ...content, content: content.content.map(node => {
-      if (actualTarget || !matcher(node)) return node
-      actualTarget = { id: node.attrs?.sectionId, title: node.content?.[0]?.content?.[0]?.text }
-      const children = [...(node.content || [])]
-      children.splice(children.length > 1 ? children.length : 1, 0, newTodo)
-      return { ...node, content: children }
-    })}
+    lastInsertRef.current = {
+      pageId,
+      blockId: newRow.blockId,
+      fromSectionMasterId: targetRow.sectionMasterId,
+    }
+    const actualTarget = {
+      id: targetRow.sectionMasterId,
+      title: targetRow.textContent,
+      visibility: targetRow.visibility,
+    }
+    return { sections, sectionNotFound: !foundExact, actualTarget }
+  }, [getOrCreateTodayPage, isMaster, session])
 
-    await supabase.from('pages').update({ content_tiptap: newContent }).eq('id', page.id)
-    window.dispatchEvent(new CustomEvent('quicktodo-inserted', { detail: { pageId: page.id } }))
-
-    lastInsertRef.current = { pageId: page.id, todoText, fromSectionId: actualTarget?.id }
-    return { sections, sectionNotFound: !found, actualTarget }
-  }, [getOrCreateTodayPage, isMaster])
-
-  /** 마지막 삽입한 todo를 다른 섹션으로 이동 */
+  /** 마지막 삽입한 todo 를 다른 섹션으로 이동 */
   const moveTodoToSection = useCallback(async (section) => {
     const last = lastInsertRef.current
     if (!last) return
 
-    const { data } = await supabase.from('pages').select('content_tiptap').eq('id', last.pageId).single()
-    if (!data?.content_tiptap) return
+    const sectionRows = await fetchSectionRows(supabase, last.pageId, { isMaster })
+    const targetRow =
+      sectionRows.find(s => s.sectionMasterId === section.id) ||
+      sectionRows.find(s => s.blockId === section.id)
+    if (!targetRow) return
 
-    const content = data.content_tiptap
-    let removedTodo = null
-
-    // 원래 섹션에서 제거
-    const afterRemove = { ...content, content: content.content.map(node => {
-      if (node.type !== 'toggle' || node.attrs?.blockType !== 'h2') return node
-      if (node.attrs?.sectionId !== last.fromSectionId) return node
-      const children = (node.content || []).filter(child => {
-        if (removedTodo) return true
-        if (child.type === 'toggle' && child.attrs?.isTodo) {
-          const childText = child.content?.[0]?.content?.[0]?.text
-          if (childText === last.todoText) { removedTodo = child; return false }
-        }
-        return true
-      })
-      return { ...node, content: children }
-    })}
-
-    if (!removedTodo) return
-
-    // 대상 섹션에 삽입
-    const targetMatcher = (node) => node.type === 'toggle' && node.attrs?.blockType === 'h2' && node.attrs?.sectionId === section.id
-    const finalContent = { ...afterRemove, content: afterRemove.content.map(node => {
-      if (!targetMatcher(node)) return node
-      const children = [...(node.content || [])]
-      children.splice(children.length > 1 ? children.length : 1, 0, removedTodo)
-      return { ...node, content: children }
-    })}
-
-    await supabase.from('pages').update({ content_tiptap: finalContent }).eq('id', last.pageId)
+    await moveTodoRowToSection(supabase, {
+      blockId: last.blockId,
+      targetSectionRow: targetRow,
+      pageId: last.pageId,
+    })
     window.dispatchEvent(new CustomEvent('quicktodo-inserted', { detail: { pageId: last.pageId } }))
 
-    lastInsertRef.current = { ...last, fromSectionId: section.id }
-  }, [])
+    lastInsertRef.current = { ...last, fromSectionMasterId: targetRow.sectionMasterId }
+  }, [isMaster])
 
   const pinSection = (section) => {
-    updateQuicktodoPinned({ id: section.id || section.title, name: section.title })
+    updateQuicktodoPinned({ id: section.id, name: section.title })
   }
 
   const handleUnpin = () => {
@@ -172,8 +147,8 @@ export default function QuickTodo({ session }) {
     if (!text.trim() || submitting) return
     setSubmitting(true)
     try {
-      const targetId = pinnedSection || DEFAULT_SECTION_ID
-      const { sections, sectionNotFound, actualTarget } = await insertTodo(text.trim(), targetId)
+      const targetMasterId = pinnedSection || DEFAULT_SECTION_ID
+      const { sections, sectionNotFound, actualTarget } = await insertTodo(text.trim(), targetMasterId)
 
       if (sectionNotFound) handleUnpin()
 
@@ -184,7 +159,7 @@ export default function QuickTodo({ session }) {
         insertedTo: actualTarget?.title || defaultSectionName,
         insertedToId: actualTarget?.id,
         visibility: targetInfo?.visibility || 'all',
-        sectionNotFound: sectionNotFound ? targetId : null,
+        sectionNotFound: sectionNotFound ? targetMasterId : null,
       })
     } catch (err) {
       console.error('Quick Todo 오류:', err)
@@ -220,8 +195,9 @@ export default function QuickTodo({ session }) {
     setShowSettings(prev => !prev)
     setResult(null)
     try {
-      const page = await getOrCreateTodayPage()
-      setAvailableSections(extractSections(page.content_tiptap))
+      const { pageId } = await getOrCreateTodayPage()
+      const rows = await fetchSectionRows(supabase, pageId, { isMaster })
+      setAvailableSections(rows.map(toDisplaySection))
     } catch {}
   }
 
@@ -262,8 +238,8 @@ export default function QuickTodo({ session }) {
           <div className="quick-todo-sections">
             {availableSections.map(s => (
               <button
-                key={s.id || s.title}
-                className={`quick-todo-section-btn ${s.visibility === 'master' ? 'master' : ''} ${(s.id && s.id === pinnedSection) || s.title === pinnedSection ? 'current' : ''}`}
+                key={s.id}
+                className={`quick-todo-section-btn ${s.visibility === 'master' ? 'master' : ''} ${s.id === pinnedSection ? 'current' : ''}`}
                 onClick={() => { pinSection(s); setShowSettings(false) }}
               >
                 {s.title}
@@ -292,7 +268,7 @@ export default function QuickTodo({ session }) {
                     .filter(s => s.title !== result.insertedTo)
                     .map(s => (
                       <button
-                        key={s.id || s.title}
+                        key={s.id}
                         className={`quick-todo-section-btn ${s.visibility === 'master' ? 'master' : ''}`}
                         onClick={() => handleSectionClick(s)}
                       >

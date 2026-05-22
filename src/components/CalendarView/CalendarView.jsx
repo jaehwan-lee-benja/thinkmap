@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Plus, FileText, CheckSquare, MessageSquare, Archive } from 'lucide-react'
-import { parseTodoStats } from '../../utils/worklogUtils'
 import { DAY_NAMES } from '../../utils/dateUtils'
 import LeftoverManager from '../Worklog/LeftoverManager'
 import './CalendarView.css'
@@ -8,8 +7,10 @@ import './CalendarView.css'
 /**
  * 업무일지 달력 뷰
  * Notion 달력 DB와 유사한 월간 그리드
+ *
+ * todoStats: { [pageId]: { total, completed } } — useCalendarTodoStats 결과를 호출자에서 주입.
  */
-export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage, commentCounts, session }) {
+export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage, commentCounts, todoStats, session }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-indexed
@@ -71,19 +72,19 @@ export function CalendarView({ dailyPages, onPageSelect, onCreateDailyPage, comm
     return map
   }, [dailyPages])
 
-  // 날짜별 todo 통계
+  // 날짜별 todo 통계 — todoStats (pageId → {total, completed}) 를 날짜로 집계.
   const statsByDate = useMemo(() => {
     const map = {}
     if (!dailyPages) return map
     dailyPages.forEach(page => {
       const dateKey = page.page_date || page.name
-      const stats = parseTodoStats(page.content_tiptap)
+      const stats = todoStats?.[page.id] || { total: 0, completed: 0 }
       if (!map[dateKey]) map[dateKey] = { total: 0, completed: 0 }
       map[dateKey].total += stats.total
       map[dateKey].completed += stats.completed
     })
     return map
-  }, [dailyPages])
+  }, [dailyPages, todoStats])
 
   // 날짜별 코멘트 수
   const commentsByDate = useMemo(() => {

@@ -2123,18 +2123,22 @@ th .paragraph-drag-handle {
     gap: 0.125rem;
   }
 
-  /* 모바일 들여쓰기 축소 (1/4) */
+  /* 모바일 들여쓰기 축소 — TOGGLE-BLOCK-SPEC.md §17/§19 원칙:
+     margin-left 와 width 는 반드시 같은 절대값 쌍. margin-left 만 박으면 우측 boundary 도
+     같이 좌측 이동해서 우측 정렬 깨짐 (= 우측 들여쓰기처럼 보이는 회귀).
+     값 (-28px) 은 --toggle-checkbox-offset 과 동일 — todo 부모 override (line 1362) 와 호환.
+     깊이당 시각 indent ≈ (48 - 28) = 20px → 깊이 3 누적 ≈ 60px. */
   .toggle-content > .toggle-block {
-    margin-left: -40px;
+    margin-left: calc(-1 * var(--toggle-checkbox-offset));
+    width: calc(100% + var(--toggle-checkbox-offset));
   }
 
   /* (제거) 모바일 .toggle-content padding-right: 80 — 손자 width:100% 가 그 좁은 영역 기준이라
      깊이마다 우측 정렬 안쪽으로 밀림. actions-group 은 absolute + z-index:2 라 텍스트 위에 떠서 가독성 OK. */
-  /* 태그 (carry-over, duplicate) 폰트 한 단계 축소 */
+  /* 좁은 화면에서는 이월 / 중복 태그 숨김 — 공간 확보 + 가독성. */
   .toggle-carry-over-tag,
   .toggle-duplicate-tag {
-    font-size: 0.62rem;
-    padding: 0 3px;
+    display: none;
   }
 
   .toggle-drag-handle {
@@ -2223,9 +2227,9 @@ th .paragraph-drag-handle {
     padding: 0.125rem;
   }
 
-  .toggle-content > .toggle-block {
-    margin-left: -40px;
-  }
+  /* (제거됨) .toggle-content > .toggle-block { margin-left: -40px } —
+     768px 룰이 이미 (-28/+28) 쌍으로 처리. 여기서 margin-left 만 재선언하면 width 와 desync 되어
+     §17 우측 정렬 깨짐 (재발 회귀 패턴). 480px 도 768px 룰 그대로 inherit. */
 
   /* 표 스크롤 가능하게 */
   .tiptap-editor table {
@@ -2454,3 +2458,4 @@ th .paragraph-drag-handle {
   padding-bottom: max(1rem, var(--keyboard-height, 0px));
   transition: padding-bottom 0.15s ease;
 }
+
