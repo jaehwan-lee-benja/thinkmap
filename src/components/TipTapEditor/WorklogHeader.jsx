@@ -1,7 +1,7 @@
 import React from 'react'
 import { Trash2, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 
-export default function WorklogHeader({ pageDate, onDelete, onGoToCalendar, onPrevDay, onNextDay }) {
+export default function WorklogHeader({ pageDate, onDelete, onGoToCalendar, onPrevDay, onNextDay, extraActions }) {
   return (
     <div className="worklog-header">
       <div className="worklog-header-actions">
@@ -21,6 +21,7 @@ export default function WorklogHeader({ pageDate, onDelete, onGoToCalendar, onPr
             <span>캘린더</span>
           </button>
         )}
+        {extraActions}
         {onDelete && (
           <button className="worklog-delete-btn" onClick={onDelete} title="이 업무일지 삭제">
             <Trash2 size={14} />

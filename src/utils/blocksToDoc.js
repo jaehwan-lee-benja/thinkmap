@@ -67,6 +67,7 @@ function blockToNode(block, childrenByParent) {
       sectionId: block.sectionId,
       isFixedSection: block.isFixedSection,
       visibility: block.visibility,
+      isOpen: block.isOpen !== false,
     }
     if (block.sectionMasterId != null) attrs.sectionMasterId = block.sectionMasterId
     return {
@@ -86,6 +87,7 @@ function blockToNode(block, childrenByParent) {
     todoChecked: block.todoChecked,
     isCarryOver: block.isCarryOver,
     isPinned: block.isPinned,
+    isOpen: block.isOpen !== false,
     visibility: block.visibility,
     blockType: 'paragraph',
   }

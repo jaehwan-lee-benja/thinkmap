@@ -17,6 +17,9 @@
 .tiptap-page-inner {
   max-width: 900px;
   margin: 0 auto;
+  /* daily 페이지가 부모 flex column 인 상태에서 margin:auto 가 align-self:stretch 를
+     무효화 → 콘텐츠 크기로 축소되는 현상 차단. width:100% 로 명시 stretch (max-width 가 캡). */
+  width: 100%;
 }
 
 /* daily 페이지: 위아래 빈 공간 제거 — 페이지가 부모(.content-scrollable flex column)

@@ -312,16 +312,19 @@ function regenToggleIds(node) {
 }
 
 /**
- * h2 토글 섹션을 인접 h2 섹션과 swap (위/아래 화살표용).
+ * h2 토글 섹션을 이동.
  * - currentPos: NodeView 의 getPos() 결과 (h2 toggle 의 시작 pos)
- * - direction: 'up' | 'down'
+ * - action: 'top' | 'up' | 'down' | 'bottom'
+ *   - 'top': 첫 번째 h2 섹션 자리로 이동
+ *   - 'up'/'down': 인접 h2 와 swap
+ *   - 'bottom': 마지막 h2 섹션 자리로 이동
  *
- * 구현: doc 의 자식들 중 toggle/h2 만 골라 인덱스 기준으로 swap.
- * h2 사이에 다른 노드(빈 paragraph 등) 가 있어도 그 위치는 유지하고 h2 끼리만 위치 교환.
- * setContent 로 doc 재구성 → onUpdate 트리거 → v1/v2 모두 자동 반영
- * (v2 daily 의 handleUpdate 가 docToBlocks diff + section_order user_settings sync).
+ * 구현: doc 의 자식들 중 h2 toggle 만 골라 인덱스 배열로 정렬.
+ * h2 사이에 다른 노드(빈 paragraph 등) 가 있어도 그 자리는 유지하고 h2 노드끼리만 자리 교환/재배치.
+ * top/bottom 은 단순 swap 이 아니므로, h2 슬롯들의 노드 배열만 회전(rotate)시킴.
+ * setContent 로 doc 재구성 → onUpdate 트리거 → v2 daily 의 handleUpdate 가 section_order 자동 동기.
  */
-function swapH2SectionAtPos(editor, currentPos, direction) {
+function moveH2SectionAtPos(editor, currentPos, action) {
   if (currentPos == null) return
   const $pos = editor.state.doc.resolve(currentPos)
   const parent = $pos.parent
@@ -336,13 +339,26 @@ function swapH2SectionAtPos(editor, currentPos, direction) {
   })
   const myH2Idx = h2Indices.indexOf(myIndex)
   if (myH2Idx === -1) return
-  const targetH2Idx = direction === 'up' ? myH2Idx - 1 : myH2Idx + 1
-  if (targetH2Idx < 0 || targetH2Idx >= h2Indices.length) return
-  const swapIndex = h2Indices[targetH2Idx]
+
+  // 동작 안 하는 케이스는 조용히 무시 (UI 가 disabled 처리)
+  if ((action === 'up' || action === 'top') && myH2Idx === 0) return
+  if ((action === 'down' || action === 'bottom') && myH2Idx === h2Indices.length - 1) return
 
   const nodes = []
   parent.forEach(n => nodes.push(n))
-  ;[nodes[myIndex], nodes[swapIndex]] = [nodes[swapIndex], nodes[myIndex]]
+
+  if (action === 'up' || action === 'down') {
+    const targetH2Idx = action === 'up' ? myH2Idx - 1 : myH2Idx + 1
+    const swapIndex = h2Indices[targetH2Idx]
+    ;[nodes[myIndex], nodes[swapIndex]] = [nodes[swapIndex], nodes[myIndex]]
+  } else if (action === 'top' || action === 'bottom') {
+    // h2 슬롯들의 노드만 재배치. 슬롯(=인덱스) 자체는 그대로 두고 들어가는 노드만 회전.
+    const h2Nodes = h2Indices.map(i => nodes[i])
+    const moved = h2Nodes.splice(myH2Idx, 1)[0]
+    if (action === 'top') h2Nodes.unshift(moved)
+    else h2Nodes.push(moved)
+    h2Indices.forEach((slotIdx, i) => { nodes[slotIdx] = h2Nodes[i] })
+  }
 
   const docJSON = { type: 'doc', content: nodes.map(n => n.toJSON()) }
   editor.chain().setContent(docJSON, true).run()
@@ -787,20 +803,23 @@ export const Toggle = Node.create({
       }
       checkbox.appendChild(particles)
 
-      // 상태 아이콘 (보류/진행중)
+      // 상태 아이콘 (보류/진행중/취소)
       const statusIcon = document.createElement('div')
       statusIcon.classList.add('checkbox-status-icon')
       statusIcon.innerHTML = ''
       checkbox.appendChild(statusIcon)
 
       const updateStatusIcon = (status) => {
-        checkbox.classList.remove('status-hold', 'status-progress')
+        checkbox.classList.remove('status-hold', 'status-progress', 'status-cancel')
         if (status === 'hold') {
           checkbox.classList.add('status-hold')
           statusIcon.innerHTML = '<svg viewBox="0 0 12 12" width="10" height="10"><rect x="2.5" y="2" width="2.5" height="8" rx="0.8" fill="currentColor"/><rect x="7" y="2" width="2.5" height="8" rx="0.8" fill="currentColor"/></svg>'
         } else if (status === 'progress') {
           checkbox.classList.add('status-progress')
           statusIcon.innerHTML = '<svg viewBox="0 0 12 12" width="10" height="10"><path d="M3 1.5L10 6L3 10.5V1.5Z" fill="currentColor"/></svg>'
+        } else if (status === 'cancel') {
+          checkbox.classList.add('status-cancel')
+          statusIcon.innerHTML = '<svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3.5 3.5L8.5 8.5M8.5 3.5L3.5 8.5"/></svg>'
         } else {
           statusIcon.innerHTML = ''
         }
@@ -820,13 +839,25 @@ export const Toggle = Node.create({
       statusPopup.contentEditable = 'false'
       statusPopup.style.display = 'none'
       statusPopup.innerHTML = `
-        <button data-status="hold" class="status-popup-item status-popup-hold">
+        <button data-action="incomplete" class="status-popup-item status-popup-incomplete">
+          <svg viewBox="0 0 12 12" width="12" height="12"><circle cx="6" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span>미완료</span>
+        </button>
+        <button data-action="progress" class="status-popup-item status-popup-progress">
+          <svg viewBox="0 0 12 12" width="12" height="12"><path d="M3 1.5L10 6L3 10.5V1.5Z" fill="currentColor"/></svg>
+          <span>진행중</span>
+        </button>
+        <button data-action="hold" class="status-popup-item status-popup-hold">
           <svg viewBox="0 0 12 12" width="12" height="12"><rect x="2.5" y="2" width="2.5" height="8" rx="0.8" fill="currentColor"/><rect x="7" y="2" width="2.5" height="8" rx="0.8" fill="currentColor"/></svg>
           <span>보류</span>
         </button>
-        <button data-status="progress" class="status-popup-item status-popup-progress">
-          <svg viewBox="0 0 12 12" width="12" height="12"><path d="M3 1.5L10 6L3 10.5V1.5Z" fill="currentColor"/></svg>
-          <span>진행중</span>
+        <button data-action="done" class="status-popup-item status-popup-done">
+          <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5L5 9L9.5 3.5"/></svg>
+          <span>완료</span>
+        </button>
+        <button data-action="cancel" class="status-popup-item status-popup-cancel">
+          <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3.5 3.5L8.5 8.5M8.5 3.5L3.5 8.5"/></svg>
+          <span>취소</span>
         </button>
       `
       // 팝업은 처음부터 body에 배치 (overflow 클리핑 방지, NodeView DOM 무결성 유지)
@@ -859,22 +890,35 @@ export const Toggle = Node.create({
         const currentNode = editor.state.doc.nodeAt(popupNodePos)
         if (!currentNode || currentNode.type.name !== 'toggle') { hideStatusPopup(); return }
 
-        const newStatus = btn.dataset.status
-        const finalStatus = currentNode.attrs.todoStatus === newStatus ? null : newStatus
+        const action = btn.dataset.action
+        let nextChecked = currentNode.attrs.todoChecked
+        let nextStatus = currentNode.attrs.todoStatus
+        let flashColor = '#6b7280'
+
+        if (action === 'incomplete') {
+          nextChecked = false; nextStatus = null; flashColor = '#9ca3af'
+        } else if (action === 'progress') {
+          nextChecked = false; nextStatus = 'progress'; flashColor = '#3b82f6'
+        } else if (action === 'hold') {
+          nextChecked = false; nextStatus = 'hold'; flashColor = '#f59e0b'
+        } else if (action === 'done') {
+          nextChecked = true; nextStatus = null; flashColor = '#10b981'
+        } else if (action === 'cancel') {
+          nextChecked = false; nextStatus = 'cancel'; flashColor = '#9ca3af'
+        }
 
         const { tr } = editor.state
         tr.setNodeMarkup(popupNodePos, null, {
           ...currentNode.attrs,
-          todoStatus: finalStatus,
-          todoChecked: finalStatus ? false : currentNode.attrs.todoChecked,
+          todoStatus: nextStatus,
+          todoChecked: nextChecked,
         })
         editor.view.dispatch(tr)
 
-        const color = finalStatus === 'hold' ? '#f59e0b' : finalStatus === 'progress' ? '#3b82f6' : '#6b7280'
         checkbox.animate([
           { transform: 'scale(1)', boxShadow: '0 0 0 0 transparent' },
-          { transform: 'scale(1.3)', boxShadow: `0 0 0 4px ${color}40`, offset: 0.3 },
-          { transform: 'scale(0.9)', boxShadow: `0 0 0 2px ${color}20`, offset: 0.6 },
+          { transform: 'scale(1.3)', boxShadow: `0 0 0 4px ${flashColor}40`, offset: 0.3 },
+          { transform: 'scale(0.9)', boxShadow: `0 0 0 2px ${flashColor}20`, offset: 0.6 },
           { transform: 'scale(1)', boxShadow: '0 0 0 0 transparent' },
         ], { duration: 400, easing: 'ease-out' })
 
@@ -1193,30 +1237,99 @@ export const Toggle = Node.create({
         }))
       })
 
-      // 섹션 이동 버튼 (h2 섹션 전용, daily 페이지에서만)
-      const moveUpButton = document.createElement('button')
-      moveUpButton.classList.add('toggle-move-button', 'move-up')
-      moveUpButton.contentEditable = 'false'
-      moveUpButton.title = '섹션 위로 이동'
-      moveUpButton.style.display = (node.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage) ? '' : 'none'
-      moveUpButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>'
-      moveUpButton.addEventListener('mousedown', (e) => {
+      // 섹션 이동 버튼 (h2 섹션 전용, daily 페이지에서만) — 클릭 시 4개 옵션 팝업
+      const moveButton = document.createElement('button')
+      moveButton.classList.add('toggle-move-button')
+      moveButton.contentEditable = 'false'
+      moveButton.title = '섹션 이동'
+      moveButton.style.display = (node.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage) ? '' : 'none'
+      moveButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 9 5-5 5 5"/><path d="m7 15 5 5 5-5"/></svg>'
+
+      // 이동 팝업 — body 에 부착 (overflow 클리핑 방지)
+      const movePopup = document.createElement('div')
+      movePopup.classList.add('section-move-popup')
+      movePopup.contentEditable = 'false'
+      movePopup.style.display = 'none'
+      movePopup.innerHTML = `
+        <button data-action="top" class="section-move-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 11-5-5-5 5"/><path d="m17 18-5-5-5 5"/></svg>
+          <span>제일 위로</span>
+        </button>
+        <button data-action="up" class="section-move-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          <span>위로</span>
+        </button>
+        <button data-action="down" class="section-move-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          <span>아래로</span>
+        </button>
+        <button data-action="bottom" class="section-move-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 6 5 5 5-5"/><path d="m7 13 5 5 5-5"/></svg>
+          <span>제일 아래로</span>
+        </button>
+      `
+      document.body.appendChild(movePopup)
+
+      const showMovePopup = () => {
+        const rect = moveButton.getBoundingClientRect()
+        movePopup.style.display = ''
+        // 측정 후 위치 보정 — 화면 우측/하단 잘림 방지
+        const popupRect = movePopup.getBoundingClientRect()
+        let left = rect.right - popupRect.width
+        let top = rect.bottom + 4
+        if (left < 8) left = 8
+        if (top + popupRect.height > window.innerHeight - 8) top = rect.top - popupRect.height - 4
+        movePopup.style.left = left + 'px'
+        movePopup.style.top = top + 'px'
+        movePopup.animate([
+          { opacity: 0, transform: 'scale(0.92) translateY(-4px)' },
+          { opacity: 1, transform: 'scale(1) translateY(0)' },
+        ], { duration: 140, easing: 'ease-out' })
+
+        // 가능/불가 항목 비활성화 표시
+        const $pos = editor.state.doc.resolve(getPos())
+        const parent = $pos.parent
+        let h2Total = 0, myH2Idx = -1
+        if (parent.type.name === 'doc') {
+          parent.forEach((child, _o, idx) => {
+            if (child.type.name === 'toggle' && child.attrs?.blockType === 'h2') {
+              if (idx === $pos.index()) myH2Idx = h2Total
+              h2Total++
+            }
+          })
+        }
+        const cantUp = myH2Idx <= 0
+        const cantDown = myH2Idx === -1 || myH2Idx >= h2Total - 1
+        movePopup.querySelector('[data-action="top"]').classList.toggle('disabled', cantUp)
+        movePopup.querySelector('[data-action="up"]').classList.toggle('disabled', cantUp)
+        movePopup.querySelector('[data-action="down"]').classList.toggle('disabled', cantDown)
+        movePopup.querySelector('[data-action="bottom"]').classList.toggle('disabled', cantDown)
+      }
+      const hideMovePopup = () => { movePopup.style.display = 'none' }
+
+      moveButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
-        swapH2SectionAtPos(editor, getPos(), 'up')
+        if (movePopup.style.display !== 'none') { hideMovePopup(); return }
+        showMovePopup()
       })
 
-      const moveDownButton = document.createElement('button')
-      moveDownButton.classList.add('toggle-move-button', 'move-down')
-      moveDownButton.contentEditable = 'false'
-      moveDownButton.title = '섹션 아래로 이동'
-      moveDownButton.style.display = (node.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage) ? '' : 'none'
-      moveDownButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
-      moveDownButton.addEventListener('mousedown', (e) => {
+      movePopup.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
-        swapH2SectionAtPos(editor, getPos(), 'down')
+        const btn = e.target.closest('.section-move-item')
+        if (!btn || btn.classList.contains('disabled')) return
+        const action = btn.dataset.action
+        moveH2SectionAtPos(editor, getPos(), action)
+        hideMovePopup()
       })
+
+      const handleDocClickForMovePopup = (ev) => {
+        if (movePopup.style.display !== 'none' && !movePopup.contains(ev.target) && ev.target !== moveButton && !moveButton.contains(ev.target)) {
+          hideMovePopup()
+        }
+      }
+      document.addEventListener('mousedown', handleDocClickForMovePopup)
 
       // ⋮ 메뉴 (daily 페이지의 자식 토글 한정 — h2 카드 제외)
       const moreButton = document.createElement('button')
@@ -1255,8 +1368,7 @@ export const Toggle = Node.create({
       actionsGroup.contentEditable = 'false'
       actionsGroup.appendChild(duplicateTag)
       actionsGroup.appendChild(carryOverTag)
-      actionsGroup.appendChild(moveUpButton)
-      actionsGroup.appendChild(moveDownButton)
+      actionsGroup.appendChild(moveButton)
       actionsGroup.appendChild(visibilityButton)
       actionsGroup.appendChild(commentButton)
       actionsGroup.appendChild(starButton)
@@ -1368,8 +1480,8 @@ export const Toggle = Node.create({
 
           // 섹션 이동 버튼 상태 업데이트
           const showMove = updatedNode.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage
-          moveUpButton.style.display = showMove ? '' : 'none'
-          moveDownButton.style.display = showMove ? '' : 'none'
+          moveButton.style.display = showMove ? '' : 'none'
+          if (!showMove && movePopup.style.display !== 'none') hideMovePopup()
 
           // 코멘트 버튼 상태 업데이트
           const showCmt = updatedNode.attrs.blockType === 'h2' || updatedNode.attrs.isTodo
@@ -1396,7 +1508,9 @@ export const Toggle = Node.create({
         },
         destroy: () => {
           if (statusPopup.parentElement) statusPopup.remove()
+          if (movePopup.parentElement) movePopup.remove()
           document.removeEventListener('mousedown', handleDocClickForPopup)
+          document.removeEventListener('mousedown', handleDocClickForMovePopup)
           // DOM 이벤트 리스너는 dom이 GC될 때 자동 해제되므로 별도 해제 불필요
         },
       }
@@ -2326,6 +2440,39 @@ export const Toggle = Node.create({
         json.content.forEach(node => newContent.push(...convertNodeToTogglesJSON(node)))
 
         editor.commands.setContent({ ...json, content: newContent })
+        return true
+      },
+
+      /**
+       * 모든 토글의 isOpen 을 일괄 설정.
+       * - depth 가 number: 1..depth 깊이 토글은 열고, 그 이상은 닫음 (top-level toggle = depth 1).
+       *   - depth = 0 → 전체 닫기
+       *   - depth = Infinity → 전체 열기
+       * tr 기반 동작 — setContent 와 달리 cursor/selection 유지.
+       */
+      setAllTogglesOpen: (depth) => ({ editor, tr, dispatch }) => {
+        const targetDepth = (depth === undefined || depth === null) ? Infinity : depth
+        const positions = []
+        editor.state.doc.descendants((node, pos, parent) => {
+          if (node.type.name !== 'toggle') return true
+          // 토글 깊이 계산: 부모를 거슬러 올라가며 toggle 노드 갯수 세기
+          // descendants 콜백은 자식 → 자식의 자식 순회 시 부모 정보가 직접 안 주어지므로 resolve 로 깊이 계산.
+          const $pos = editor.state.doc.resolve(pos)
+          let toggleDepth = 0
+          for (let d = 0; d <= $pos.depth; d++) {
+            if ($pos.node(d).type.name === 'toggle') toggleDepth++
+          }
+          toggleDepth += 1 // 자기 자신 포함
+          const wantOpen = toggleDepth <= targetDepth
+          if (node.attrs.isOpen !== wantOpen) positions.push({ pos, node, wantOpen })
+          return true
+        })
+        if (positions.length === 0) return false
+        if (dispatch) {
+          positions.forEach(({ pos, node, wantOpen }) => {
+            tr.setNodeMarkup(pos, null, { ...node.attrs, isOpen: wantOpen })
+          })
+        }
         return true
       },
     }

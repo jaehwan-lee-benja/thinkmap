@@ -1167,6 +1167,26 @@ th .paragraph-drag-handle {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
 }
 
+.toggle-todo-checkbox.status-cancel {
+  border-color: #9ca3af;
+  background: #9ca3af;
+}
+
+.toggle-todo-checkbox.status-cancel .checkbox-status-icon svg {
+  display: block;
+  color: white;
+}
+
+.toggle-todo-checkbox.status-cancel .checkbox-icon {
+  display: none;
+}
+
+.toggle-todo-checkbox.status-cancel:hover {
+  border-color: #6b7280;
+  background: #6b7280;
+  box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.4);
+}
+
 /* 상태 선택 팝업 */
 .checkbox-status-popup {
   position: fixed;
@@ -1197,12 +1217,12 @@ th .paragraph-drag-handle {
   transition: background 0.1s;
 }
 
-.status-popup-hold {
-  color: #f59e0b;
+.status-popup-incomplete {
+  color: #d1d5db;
 }
 
-.status-popup-hold:hover {
-  background: rgba(245, 158, 11, 0.15);
+.status-popup-incomplete:hover {
+  background: rgba(156, 163, 175, 0.15);
 }
 
 .status-popup-progress {
@@ -1211,6 +1231,30 @@ th .paragraph-drag-handle {
 
 .status-popup-progress:hover {
   background: rgba(59, 130, 246, 0.15);
+}
+
+.status-popup-hold {
+  color: #f59e0b;
+}
+
+.status-popup-hold:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.status-popup-done {
+  color: #10b981;
+}
+
+.status-popup-done:hover {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.status-popup-cancel {
+  color: #9ca3af;
+}
+
+.status-popup-cancel:hover {
+  background: rgba(156, 163, 175, 0.15);
 }
 
 /* 체크마크 SVG 스트로크 애니메이션 */
@@ -1506,6 +1550,47 @@ th .paragraph-drag-handle {
 .toggle-move-button:hover {
   color: rgba(255, 255, 255, 0.6);
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* 섹션 이동 팝업 */
+.section-move-popup {
+  position: fixed;
+  z-index: 9999;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+}
+
+.section-move-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+}
+
+.section-move-item:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.section-move-item.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 /* ⚠️ docs/TOGGLE-BLOCK-SPEC.md §17, §19 참고. position: absolute !important — flex 흐름에서 제외하여

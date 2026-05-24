@@ -78,6 +78,7 @@ import { useFavoritesContext } from '../../contexts/FavoritesContext'
 import { FileText, Star, ChevronDown, X, CalendarDays } from 'lucide-react'
 import { CalendarView } from '../CalendarView/CalendarView'
 import WorklogHeader from './WorklogHeader'
+import ToggleControlDropdown from './ToggleControlDropdown'
 import WorklogComments from './WorklogComments'
 import CommentPopover from './CommentPopover'
 import EmojiPicker from '../Common/EmojiPicker'
@@ -144,6 +145,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const [showWorklogCommentsModal, setShowWorklogCommentsModal] = useState(false)
   const pageNavRef = useRef(null)
 
+
   const siblingPages = pages
     .filter(p => p.parent_id === (currentPage?.parent_id ?? null) && p.id !== currentPageId)
     .sort((a, b) => a.position - b.position)
@@ -161,6 +163,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
   // 페이지 전환 시 드롭다운 닫기
   useEffect(() => { setShowPageNav(false) }, [currentPageId])
+
 
   // 현재 페이지의 하위 페이지 목록 (콘텐츠 내 page 블록 삽입용)
   const childPages = useMemo(() =>
@@ -1380,6 +1383,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             onGoToCalendar={currentPage.parent_id ? () => setCurrentPageId(currentPage.parent_id) : null}
             onPrevDay={goToPrevWorklog}
             onNextDay={goToNextWorklog}
+            extraActions={!isImpersonating ? <ToggleControlDropdown editorRef={editorRef} variant="header" resetKey={currentPageId} /> : null}
             onDelete={!isImpersonating ? async () => {
               if (!confirm(`${currentPage.page_date} 업무일지를 삭제하시겠습니까?`)) return
               const parentId = currentPage.parent_id
@@ -1407,6 +1411,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             <ChevronRight />
             전체 토글화
           </button>
+
+          <ToggleControlDropdown editorRef={editorRef} variant="toolbar" resetKey={currentPageId} />
           <button
             onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run()}
             className="tiptap-btn tiptap-btn-secondary"
