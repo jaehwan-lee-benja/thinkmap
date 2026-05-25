@@ -1495,6 +1495,18 @@ th .paragraph-drag-handle {
   background: rgba(167, 139, 250, 0.04) !important;
 }
 
+/* ── 섹션 카드 색상 — 카드가 선택한 색을 "입음" (테두리 + 은은한 배경 틴트 + 헤더 강조) ──
+   --card-color (base hue) 는 ToggleExtension nodeView 가 세팅. color-mix 로 파생.
+   !important + 동일/상위 명시도 + 소스 순서로 위의 마스터 보라색 처리보다 우선.
+   (왕관 배지는 별도 버튼 색이라 그대로 유지 → 마스터 여부는 계속 식별 가능) */
+.tiptap-page--daily .tiptap-editor > [data-block-type="h2"][data-card-color] {
+  background: color-mix(in srgb, var(--card-color) 12%, var(--color-bg-editor, #2d2d2d)) !important;
+  border-color: color-mix(in srgb, var(--card-color) 55%, transparent) !important;
+}
+.tiptap-page--daily .tiptap-editor > [data-block-type="h2"][data-card-color] > .toggle-content > .paragraph-block:first-child p {
+  color: color-mix(in srgb, var(--card-color) 60%, var(--color-text, #e5e7eb));
+}
+
 /* ── 섹션 코멘트 버튼 ── */
 .toggle-comment-button {
   flex-shrink: 0;
@@ -1591,6 +1603,78 @@ th .paragraph-drag-handle {
 .section-move-item.disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* 섹션 색상 버튼 (h2 전용) — 이동 버튼과 동일 스타일 */
+.toggle-color-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.toggle-block:hover > .toggle-actions-group .toggle-color-button {
+  opacity: 1;
+}
+
+.toggle-color-button:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* 섹션 색상 팝업 — 스와치 그리드 */
+.section-color-popup {
+  position: fixed;
+  z-index: 9999;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+
+.section-color-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.1s;
+}
+
+.section-color-swatch:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.section-color-swatch.is-active {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.5);
+}
+
+.section-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: block;
 }
 
 /* ⚠️ docs/TOGGLE-BLOCK-SPEC.md §17, §19 참고. position: absolute !important — flex 흐름에서 제외하여

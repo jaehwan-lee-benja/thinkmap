@@ -8,6 +8,43 @@ export const multiSelectPluginKey = new PluginKey('multiSelect')
 export const focusHighlightPluginKey = new PluginKey('toggleFocusHighlight')
 const blockDragPluginKey = new PluginKey('blockDrag')
 
+// 섹션 카드 색상 팔레트 — daily 페이지 h2 섹션이 "입는" 색.
+// value 는 base hue hex. 카드 테두리/배경 틴트는 CSS color-mix 로 파생 (TipTapEditor.css).
+// 일반 블록 배경색(BG_COLORS, rgba 색면)과는 별개 개념.
+export const SECTION_CARD_COLORS = [
+  { name: '기본', value: null },
+  { name: '빨강', value: '#ef4444' },
+  { name: '주황', value: '#f97316' },
+  { name: '노랑', value: '#eab308' },
+  { name: '초록', value: '#22c55e' },
+  { name: '파랑', value: '#3b82f6' },
+  { name: '보라', value: '#a855f7' },
+  { name: '분홍', value: '#ec4899' },
+  { name: '회색', value: '#9ca3af' },
+]
+
+// backgroundColor attr 를 DOM 에 반영.
+// daily 페이지 h2 섹션  → 카드가 색을 "입음": --card-color 변수 + data-card-color 만 세팅,
+//                         실제 테두리/배경 틴트는 CSS 가 color-mix 로 처리 (마스터 보라색도 override).
+// 그 외 블록            → 기존 동작: data-bg-color + 인라인 background-color (색면 채우기).
+function applyBlockBackground(dom, attrs, editor) {
+  const color = attrs.backgroundColor || null
+  const isDailyCard = attrs.blockType === 'h2' && !!editor.storage.toggle?.isDailyPage
+  // 항상 먼저 초기화 (속성 전환 시 잔재 제거)
+  dom.removeAttribute('data-bg-color')
+  dom.removeAttribute('data-card-color')
+  dom.style.removeProperty('--card-color')
+  dom.style.removeProperty('background-color')
+  if (!color) return
+  if (isDailyCard) {
+    dom.setAttribute('data-card-color', color)
+    dom.style.setProperty('--card-color', color)
+  } else {
+    dom.setAttribute('data-bg-color', color)
+    dom.style.setProperty('background-color', color, 'important')
+  }
+}
+
 // --- Todo thread 동기화 ---
 // 체크박스 완료/해제 시 같은 originBlockId를 가진 이월본을 교차 페이지 동기화
 // 조회 범위: 최근 CARRY_OVER_SYNC_WINDOW_DAYS일 이내의 daily 페이지
@@ -559,11 +596,8 @@ export const Toggle = Node.create({
         dom.classList.add('toggle-starred')
       }
 
-      // 배경색 적용
-      if (node.attrs.backgroundColor) {
-        dom.setAttribute('data-bg-color', node.attrs.backgroundColor)
-        dom.style.setProperty('background-color', node.attrs.backgroundColor, 'important')
-      }
+      // 배경색 적용 (daily h2 섹션은 카드 테마, 그 외는 색면 채우기)
+      applyBlockBackground(dom, node.attrs, editor)
 
       // 초기 decoration 적용
       const hasFocusClass = (decos) =>
@@ -1331,6 +1365,82 @@ export const Toggle = Node.create({
       }
       document.addEventListener('mousedown', handleDocClickForMovePopup)
 
+      // 섹션 색상 버튼 (h2 섹션 전용, daily 페이지에서만) — 카드가 색을 "입음"
+      const colorButton = document.createElement('button')
+      colorButton.classList.add('toggle-color-button')
+      colorButton.contentEditable = 'false'
+      colorButton.title = '카드 색상'
+      const showColorBtn = node.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage
+      colorButton.style.display = showColorBtn ? '' : 'none'
+      // Lucide Palette
+      colorButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>'
+
+      // 색상 팝업 — body 에 부착 (overflow 클리핑 방지)
+      const colorPopup = document.createElement('div')
+      colorPopup.classList.add('section-color-popup')
+      colorPopup.contentEditable = 'false'
+      colorPopup.style.display = 'none'
+      colorPopup.innerHTML = SECTION_CARD_COLORS.map(c => `
+        <button class="section-color-swatch" data-color="${c.value ?? ''}" title="${c.name}">
+          <span class="section-color-dot" style="${c.value
+            ? `background:${c.value}`
+            : 'background:transparent;border:1px dashed rgba(255,255,255,0.4)'}"></span>
+        </button>
+      `).join('')
+      document.body.appendChild(colorPopup)
+
+      const showColorPopup = () => {
+        // 현재 선택 색 표시
+        const cur = editor.state.doc.nodeAt(getPos())?.attrs.backgroundColor ?? null
+        colorPopup.querySelectorAll('.section-color-swatch').forEach(sw => {
+          sw.classList.toggle('is-active', (sw.dataset.color || null) === (cur || null))
+        })
+        const rect = colorButton.getBoundingClientRect()
+        colorPopup.style.display = ''
+        const popupRect = colorPopup.getBoundingClientRect()
+        let left = rect.right - popupRect.width
+        let top = rect.bottom + 4
+        if (left < 8) left = 8
+        if (top + popupRect.height > window.innerHeight - 8) top = rect.top - popupRect.height - 4
+        colorPopup.style.left = left + 'px'
+        colorPopup.style.top = top + 'px'
+        colorPopup.animate([
+          { opacity: 0, transform: 'scale(0.92) translateY(-4px)' },
+          { opacity: 1, transform: 'scale(1) translateY(0)' },
+        ], { duration: 140, easing: 'ease-out' })
+      }
+      const hideColorPopup = () => { colorPopup.style.display = 'none' }
+
+      colorButton.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (colorPopup.style.display !== 'none') { hideColorPopup(); return }
+        showColorPopup()
+      })
+
+      colorPopup.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const sw = e.target.closest('.section-color-swatch')
+        if (!sw) return
+        const value = sw.dataset.color || null
+        const pos = getPos()
+        const currentNode = editor.state.doc.nodeAt(pos)
+        if (currentNode) {
+          editor.view.dispatch(
+            editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, backgroundColor: value })
+          )
+        }
+        hideColorPopup()
+      })
+
+      const handleDocClickForColorPopup = (ev) => {
+        if (colorPopup.style.display !== 'none' && !colorPopup.contains(ev.target) && ev.target !== colorButton && !colorButton.contains(ev.target)) {
+          hideColorPopup()
+        }
+      }
+      document.addEventListener('mousedown', handleDocClickForColorPopup)
+
       // ⋮ 메뉴 (daily 페이지의 자식 토글 한정 — h2 카드 제외)
       const moreButton = document.createElement('button')
       moreButton.classList.add('toggle-more-button')
@@ -1369,6 +1479,7 @@ export const Toggle = Node.create({
       actionsGroup.appendChild(duplicateTag)
       actionsGroup.appendChild(carryOverTag)
       actionsGroup.appendChild(moveButton)
+      actionsGroup.appendChild(colorButton)
       actionsGroup.appendChild(visibilityButton)
       actionsGroup.appendChild(commentButton)
       actionsGroup.appendChild(starButton)
@@ -1456,14 +1567,8 @@ export const Toggle = Node.create({
             duplicateTag.classList.remove('original')
           }
 
-          // 배경색 업데이트
-          if (updatedNode.attrs.backgroundColor) {
-            dom.setAttribute('data-bg-color', updatedNode.attrs.backgroundColor)
-            dom.style.setProperty('background-color', updatedNode.attrs.backgroundColor, 'important')
-          } else {
-            dom.removeAttribute('data-bg-color')
-            dom.style.removeProperty('background-color')
-          }
+          // 배경색 업데이트 (daily h2 섹션은 카드 테마, 그 외는 색면 채우기)
+          applyBlockBackground(dom, updatedNode.attrs, editor)
 
           // Visibility 버튼 상태 업데이트
           const showVis = updatedNode.attrs.blockType === 'h2' && editor.storage.toggle?.isMaster
@@ -1482,6 +1587,10 @@ export const Toggle = Node.create({
           const showMove = updatedNode.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage
           moveButton.style.display = showMove ? '' : 'none'
           if (!showMove && movePopup.style.display !== 'none') hideMovePopup()
+
+          // 섹션 색상 버튼 상태 업데이트 (이동 버튼과 동일 조건)
+          colorButton.style.display = showMove ? '' : 'none'
+          if (!showMove && colorPopup.style.display !== 'none') hideColorPopup()
 
           // 코멘트 버튼 상태 업데이트
           const showCmt = updatedNode.attrs.blockType === 'h2' || updatedNode.attrs.isTodo
@@ -1509,8 +1618,10 @@ export const Toggle = Node.create({
         destroy: () => {
           if (statusPopup.parentElement) statusPopup.remove()
           if (movePopup.parentElement) movePopup.remove()
+          if (colorPopup.parentElement) colorPopup.remove()
           document.removeEventListener('mousedown', handleDocClickForPopup)
           document.removeEventListener('mousedown', handleDocClickForMovePopup)
+          document.removeEventListener('mousedown', handleDocClickForColorPopup)
           // DOM 이벤트 리스너는 dom이 GC될 때 자동 해제되므로 별도 해제 불필요
         },
       }

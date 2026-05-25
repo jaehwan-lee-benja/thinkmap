@@ -16,6 +16,16 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
   const menuRef = useRef(null)
   const imageInputRef = useRef(null)
 
+  // daily 페이지 h2 섹션 카드는 전용 "카드 색상" 버튼으로 색을 입힘 →
+  // 여기 색면 채우기(블록 배경색)는 중복/혼선이라 숨김.
+  const isDailySectionCard = (() => {
+    try {
+      if (nodePos === null) return false
+      const node = editor.state.doc.nodeAt(nodePos)
+      return node?.attrs?.blockType === 'h2' && !!editor.storage.toggle?.isDailyPage
+    } catch { return false }
+  })()
+
   // 들여쓰기/내어쓰기 가능 여부 계산
   const indentInfo = (() => {
     try {
@@ -220,6 +230,7 @@ export function BlockContextMenu({ editor, position, nodePos, onClose }) {
           onClick={() => { setShowBgColorPicker(!showBgColorPicker); setShowColorPicker(false) }}
           className={`format-button ${showBgColorPicker ? 'is-active' : ''}`}
           title="블록 배경색"
+          style={{ display: isDailySectionCard ? 'none' : undefined }}
         >
           <span style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',

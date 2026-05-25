@@ -61,7 +61,7 @@ priority: 200
 | `isTodo` | boolean | `false` | 체크박스 UI 활성화 |
 | `todoChecked` | boolean | `false` | 체크 상태 |
 | `todoStatus` | string\|null | `null` | `"progress"` (진행중), `"hold"` (보류), `"cancel"` (취소). `null`이면 미완료(또는 `todoChecked`로 완료) |
-| `backgroundColor` | string\|null | `null` | 배경색 |
+| `backgroundColor` | string\|null | `null` | 배경색. **daily h2 섹션**: base hue hex(예 `#22c55e`) → 카드가 색을 "입음"(테두리+배경 틴트+헤더, CSS `color-mix`, 마스터 보라색 override). **그 외 블록**: rgba 색면 채우기. nodeView `applyBlockBackground()` 가 blockType 으로 분기. daily 섹션은 액션그룹의 **카드 색상 버튼**(팔레트 아이콘)으로 설정, daily_blocks.background_color 에 영속 |
 | `blockType` | string | `'paragraph'` | `'paragraph'`, `'ordered'`, `'bullet'`, `'h1'`~`'h3'`, `'page'` |
 | `pageId` | string\|null | `null` | 페이지 블록일 때 연결된 페이지 ID |
 | `isPinned` | boolean | `false` | 고정 블록 — h2: 섹션 고정, 블록: 다음 날 이월 |

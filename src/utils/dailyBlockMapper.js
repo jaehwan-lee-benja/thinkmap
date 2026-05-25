@@ -21,6 +21,7 @@
 //   originBlockId   ↔ origin_block_id
 //   isPinned        ↔ is_pinned
 //   isOpen          ↔ is_open
+//   backgroundColor ↔ background_color
 //   visibility      ↔ visibility
 //   isFixedSection  ↔ is_fixed_section
 //   createdAt       ↔ created_at
@@ -47,6 +48,7 @@ const FIELD_MAP_TO_DB = Object.freeze({
   originBlockId:  'origin_block_id',
   isPinned:       'is_pinned',
   isOpen:         'is_open',
+  backgroundColor: 'background_color',
   visibility:     'visibility',
   isFixedSection: 'is_fixed_section',
   createdAt:      'created_at',

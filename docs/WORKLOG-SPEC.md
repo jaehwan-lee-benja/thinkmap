@@ -132,6 +132,7 @@ CREATE TABLE daily_blocks (
 
   -- 기타 메타
   is_pinned       boolean NOT NULL DEFAULT false,
+  background_color text,                                  -- 섹션/블록 배경색 (TipTap backgroundColor attr, CSS 색상 문자열). null=기본
   visibility      text NOT NULL DEFAULT 'all' CHECK (visibility IN ('all','master')),
   is_fixed_section boolean NOT NULL DEFAULT false,        -- h2 섹션이 worklog_sections 의 fixed 와 매핑되는지
 
@@ -260,6 +261,7 @@ type DailyBlock = {
 
   // 메타
   isPinned:        boolean
+  backgroundColor: string | null  // 섹션/블록 배경색 (CSS 색상 문자열). null=기본
   visibility:      'all' | 'master'
   isFixedSection:  boolean
 

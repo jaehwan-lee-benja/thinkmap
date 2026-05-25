@@ -126,6 +126,7 @@ function makeRow(node, position, parentBlockId, ancestorSectionId, ctx) {
       originBlockId: null,
       isPinned: false,
       isOpen: attrs.isOpen !== false,
+      backgroundColor: attrs.backgroundColor ?? null,
       visibility: attrs.visibility ?? 'all',
       isFixedSection: !!attrs.isFixedSection,
     }
@@ -154,6 +155,7 @@ function makeRow(node, position, parentBlockId, ancestorSectionId, ctx) {
     originBlockId: attrs.originBlockId ?? null,
     isPinned: !!attrs.isPinned,
     isOpen: attrs.isOpen !== false,
+    backgroundColor: attrs.backgroundColor ?? null,
     visibility: attrs.visibility ?? 'all',
     isFixedSection: false,
   }
@@ -177,7 +179,7 @@ const PATCH_FIELDS = [
   'textContent', 'richContent',
   'isTodo', 'todoChecked', 'todoStatus',
   'isCarryOver', 'carryOverFrom', 'originBlockId',
-  'isPinned', 'isOpen', 'visibility', 'isFixedSection',
+  'isPinned', 'isOpen', 'backgroundColor', 'visibility', 'isFixedSection',
   'blockType',
 ]
 

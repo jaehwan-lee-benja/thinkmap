@@ -70,6 +70,7 @@ function blockToNode(block, childrenByParent) {
       isOpen: block.isOpen !== false,
     }
     if (block.sectionMasterId != null) attrs.sectionMasterId = block.sectionMasterId
+    if (block.backgroundColor != null) attrs.backgroundColor = block.backgroundColor
     return {
       type: 'toggle',
       attrs,
@@ -93,6 +94,7 @@ function blockToNode(block, childrenByParent) {
   }
   if (block.carryOverFrom != null) attrs.carryOverFrom = block.carryOverFrom
   if (block.originBlockId != null) attrs.originBlockId = block.originBlockId
+  if (block.backgroundColor != null) attrs.backgroundColor = block.backgroundColor
 
   const body = block.richContent && block.richContent.length > 0
     ? block.richContent
