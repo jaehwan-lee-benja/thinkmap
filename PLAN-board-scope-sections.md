@@ -302,3 +302,4 @@ WHERE s.section_order IS NOT NULL;
 | 날짜 | 결정 | 비고 |
 |---|---|---|
 | 2026-05-29 | 초안 작성 — 단위 불일치 진단 후 board-scope 채택 방향 | 5/28 사고 진단 직후 |
+| 2026-05-30 | STEP 0~4 (백업/스키마/멤버시드/섹션이전/section_order) prod 적용 완료. 코드 변경 (createDailyPageV2 / DailyPageV2 / useWorklogUserSettings / TipTapTestPage / worklogTemplateV2) 완료, **로컬 테스트 보류**. quicktodo_pinned 가 user-global 으로 남아야 한다는 점이 마이그 중 확인돼 §7 Phase 3 의 "worklog_user_settings drop" 은 "section_order 컬럼만 drop" 으로 수정 필요 | 테스트·후속 작업은 [PLAN-board-scope-TESTING-CHECKLIST.md](PLAN-board-scope-TESTING-CHECKLIST.md) 참조 |

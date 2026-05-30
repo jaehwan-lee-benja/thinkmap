@@ -5,12 +5,12 @@
 //             - 필수 필드: id, title
 //             - 선택: section_type/sectionType, visibility, sort_order/sortOrder, parent_id/parentId
 //   ctx:      { pageId, pageDate, userId }
-//   opts:     { sectionOrder?: string[] }   - 사용자 worklog_user_settings.section_order
+//   opts:     { sectionOrder?: string[] }   - worklog_board_user_settings.section_order (board-scope)
 //
 // 출력: DailyBlock[] (block_type='section' row 들)
 //
 // 책임 경계:
-//   - DB 조회는 호출자 (worklog_sections + worklog_user_settings 조회)
+//   - DB 조회는 호출자 (worklog_sections + worklog_board_user_settings 조회)
 //   - 본 함수는 sections + ctx 만으로 row 들을 결정적으로 생성
 //   - parent_id 가 있는 sub-section (h3) 도 row 로 만들되 parentBlockId 는 부모 section row 의 blockId
 

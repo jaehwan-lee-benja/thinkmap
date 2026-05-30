@@ -238,12 +238,12 @@ export default function DailyPageV2({
         await applyDiff(diff)
         lastSavedDocRef.current = nextDoc
 
-        if (sectionOrderChanged && userId) {
+        if (sectionOrderChanged && userId && parentId) {
           supabase
-            .from('worklog_user_settings')
-            .upsert({ user_id: userId, section_order: nextOrder, updated_at: new Date().toISOString() })
+            .from('worklog_board_user_settings')
+            .upsert({ user_id: userId, board_id: parentId, section_order: nextOrder, updated_at: new Date().toISOString() }, { onConflict: 'user_id,board_id' })
             .then(({ error }) => {
-              if (error) logError('worklog_user_settings.section_order 동기화', error)
+              if (error) logError('worklog_board_user_settings.section_order 동기화', error)
             })
         }
 
@@ -314,8 +314,8 @@ export default function DailyPageV2({
       const { data: userSections } = await supabase
         .from('worklog_sections')
         .select('*')
-        .eq('scope', 'user')
-        .eq('created_by', userId)
+        .eq('scope', 'board')
+        .eq('board_id', parentId)
         .is('deleted_at', null)
 
       // textContent 매칭으로 currentMasterIds 보강
@@ -402,13 +402,15 @@ export default function DailyPageV2({
     if (!userId || !pageId) return
 
     try {
+      if (!parentId) throw new Error('handleAddSection: parentId (boardId) 필수')
       const masterId = newBlockId()
       const { error: msErr } = await supabase
         .from('worklog_sections')
         .insert({
           id: masterId,
           title: title.trim(),
-          scope: 'user',
+          scope: 'board',
+          board_id: parentId,
           section_type: 'user',
           created_by: userId,
           visibility: 'all',
@@ -471,7 +473,7 @@ export default function DailyPageV2({
       logError('DailyPageV2.handleAddSection', err)
       alert('섹션 추가 실패: ' + (err?.message || err))
     }
-  }, [userId, pageId, pageDate, blocks, applyDiff])
+  }, [userId, pageId, pageDate, blocks, applyDiff, parentId])
 
   // 가로 carousel (column / card): drag-to-scroll + wheel 가로 매핑
   // drag-to-scroll 은 임계 거리(8px) 이후 활성화 → 카드 외 빈 영역과 카드 안 텍스트 모두에서 작동.

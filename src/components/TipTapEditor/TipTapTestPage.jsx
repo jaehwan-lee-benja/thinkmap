@@ -137,8 +137,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const { commentCounts } = useCalendarCommentCounts(session, calendarPageIds)
   const { todoStats } = useCalendarTodoStats(session, calendarPageIds)
 
-  // 업무일지 계정별 섹션 순서
-  const { sectionOrder, updateSectionOrder } = useWorklogUserSettings(session)
+  // 업무일지 계정별 섹션 순서 (board-scope — 현재 daily 의 parent 가 보드)
+  const { sectionOrder, updateSectionOrder } = useWorklogUserSettings(session, currentPage?.parent_id || null)
 
   // 형제 페이지 드롭다운
   const [showPageNav, setShowPageNav] = useState(false)

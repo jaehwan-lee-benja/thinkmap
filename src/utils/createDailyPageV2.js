@@ -3,7 +3,7 @@
 // 흐름:
 //   1. 중복 방지: 같은 (parent_id, page_date) daily 가 있으면 그 id 반환
 //   2. pages 에 daily row INSERT (content_tiptap = null/빈, page_type='daily')
-//   3. worklog_sections + worklog_user_settings 조회
+//   3. worklog_sections (global + board-scope) + worklog_board_user_settings 조회
 //   4. buildDailyTemplateRows 로 section row 생성 → daily_blocks INSERT
 //   5. 직전 daily 페이지에서 carryOverEager → 이월 row INSERT
 //
@@ -139,9 +139,10 @@ async function createDailyPageV2Impl({
   }
   const ctx = { pageId, pageDate: dateKey, userId }
 
-  // 3. 섹션 마스터 + 사용자 순서 조회 — global + 본인 user scope. deleted_at 제외.
-  // user scope 는 sort_order 가 같으면 created_at (만든 순서) 로 결정적 정렬.
-  const [globalRes, userRes, settingsRes] = await Promise.all([
+  // 3. 섹션 마스터 + 사용자 순서 조회 — global + 이 보드의 board scope. deleted_at 제외.
+  // board scope 는 sort_order 가 같으면 created_at (만든 순서) 로 결정적 정렬.
+  // section_order 는 (user_id, board_id) 키. 이 user 가 이 보드에서 정렬한 순서.
+  const [globalRes, boardRes, settingsRes] = await Promise.all([
     supabase
       .from('worklog_sections')
       .select('*')
@@ -151,20 +152,21 @@ async function createDailyPageV2Impl({
     supabase
       .from('worklog_sections')
       .select('*')
-      .eq('scope', 'user')
-      .eq('created_by', userId)
+      .eq('scope', 'board')
+      .eq('board_id', parentId)
       .is('deleted_at', null)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true }),
     supabase
-      .from('worklog_user_settings')
+      .from('worklog_board_user_settings')
       .select('section_order')
       .eq('user_id', userId)
+      .eq('board_id', parentId)
       .maybeSingle(),
   ])
   if (globalRes.error) throw globalRes.error
-  if (userRes.error)   throw userRes.error
-  const sections = [...(globalRes.data || []), ...(userRes.data || [])]
+  if (boardRes.error)  throw boardRes.error
+  const sections = [...(globalRes.data || []), ...(boardRes.data || [])]
   const sectionOrder = settingsRes.data?.section_order || []
 
   // 4. section row + 각 섹션의 빈 자식 토글 INSERT
