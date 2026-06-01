@@ -88,6 +88,7 @@ export function PaneProvider({
     onPageChange: handlePageChange,
     preferencesLoaded: !prefs.preferencesLoading,
     isImpersonating,
+    isMaster,
   })
 
   // ─── 페이지 네비게이션 히스토리 (state 기반) ───
@@ -433,6 +434,7 @@ export function PaneProvider({
 
   const paneData = useMemo(() => ({
     effectiveSession,
+    isMaster,
     isImpersonating,
     isLinkedAccountSwitch,
     projectsLoading,
@@ -444,7 +446,7 @@ export function PaneProvider({
     activeTab,
     viewerToggleOverrides: prefs.viewerToggleOverrides,
     saveViewerToggleOverrides: prefs.saveViewerToggleOverrides,
-  }), [effectiveSession, isImpersonating, isLinkedAccountSwitch, projectsLoading, pagesLoading, projects, buildBreadcrumb, getBreadcrumbSiblings, handleBreadcrumbNavigate, activeTab, prefs.viewerToggleOverrides, prefs.saveViewerToggleOverrides])
+  }), [effectiveSession, isMaster, isImpersonating, isLinkedAccountSwitch, projectsLoading, pagesLoading, projects, buildBreadcrumb, getBreadcrumbSiblings, handleBreadcrumbNavigate, activeTab, prefs.viewerToggleOverrides, prefs.saveViewerToggleOverrides])
 
   return (
     <PaneDataContext.Provider value={paneData}>

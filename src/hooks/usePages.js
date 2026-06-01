@@ -8,12 +8,17 @@ import { logError } from '../utils/supabaseError'
  * @param {Array} pages - 플랫 페이지 배열
  * @returns {Array} - 트리 구조 페이지 배열 (각 노드에 children 포함)
  */
-const buildPageTree = (pages) => {
+const buildPageTree = (pages, isMaster = true) => {
   const pageMap = {}
   const tree = []
 
   // calendar/daily 페이지는 사이드바 페이지 목록에서 제외 (고정 업무일지 버튼으로만 접근)
-  const visiblePages = pages.filter(p => p.page_type !== 'calendar' && p.page_type !== 'daily')
+  // 마케팅 캔버스(frame/engine) + 급여(payroll)는 마스터에게만 트리에 노출
+  const visiblePages = pages.filter(p => {
+    if (p.page_type === 'calendar' || p.page_type === 'daily') return false
+    if (!isMaster && (p.page_type === 'frame' || p.page_type === 'engine' || p.page_type === 'payroll')) return false
+    return true
+  })
 
   // 1단계: 모든 페이지를 맵에 등록 (children 배열 추가)
   visiblePages.forEach(page => {
@@ -91,7 +96,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
   }, [initialPageId])
 
   // 트리 구조로 변환 (메모이제이션)
-  const pageTree = useMemo(() => buildPageTree(pages), [pages])
+  const pageTree = useMemo(() => buildPageTree(pages, options.isMaster), [pages, options.isMaster])
 
   // 페이지 선택 (콜백 호출 포함)
   const selectPage = useCallback((pageId) => {
@@ -110,12 +115,12 @@ export const usePages = (session, currentProjectId, options = {}) => {
     try {
       setPagesLoading(true)
 
-      // 독립 엔티티 페이지 (project_id=NULL) — 업무일지 + 마케팅 캔버스 + 캘린더
+      // 독립 엔티티 페이지 (project_id=NULL) — 업무일지 + 마케팅 캔버스 + 캘린더 + 급여
       const worklogQuery = supabase
         .from('pages')
         .select('*')
         .is('project_id', null)
-        .in('page_type', ['calendar', 'daily', 'frame', 'engine', 'schedule'])
+        .in('page_type', ['calendar', 'daily', 'frame', 'engine', 'schedule', 'payroll'])
         .is('deleted_at', null)
         .order('position', { ascending: true })
 
@@ -125,7 +130,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
             .from('pages')
             .select('*')
             .eq('project_id', currentProjectId)
-            .not('page_type', 'in', '("calendar","daily","frame","engine","schedule")')
+            .not('page_type', 'in', '("calendar","daily","frame","engine","schedule","payroll")')
             .is('deleted_at', null)
             .order('position', { ascending: true })
         : Promise.resolve({ data: [], error: null })

@@ -1,0 +1,170 @@
+/* ──────────────────────────────────────────────────────────────
+   급여명세서 (Payroll) — 다크 모드
+   styles/variables.css 의 토큰을 사용해 앱 전반과 일관
+   ────────────────────────────────────────────────────────────── */
+
+.payroll-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+/* 툴바 */
+.payroll-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: 10px 16px;
+  background: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border-light);
+  flex-wrap: wrap;
+}
+.payroll-toolbar-left, .payroll-toolbar-right { display: flex; align-items: center; gap: 10px; }
+.payroll-title { font-size: 16px; font-weight: 700; margin: 0; color: var(--color-text-title); }
+.payroll-month, .payroll-month-saved {
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--border-radius-lg);
+  padding: 4px 8px;
+  font-size: var(--font-size-sm);
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  color-scheme: dark; /* 네이티브 month picker 다크화 */
+}
+.payroll-summary { display: flex; gap: var(--spacing-md); align-items: center; color: var(--color-text-secondary); }
+.payroll-summary .payroll-net { font-weight: 700; color: var(--color-success); }
+
+/* 버튼 */
+.payroll-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--color-border-medium);
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-radius: var(--border-radius-lg);
+  padding: 6px 12px; cursor: pointer; font-size: var(--font-size-sm);
+  transition: background var(--transition-fast);
+}
+.payroll-btn:hover { background: var(--color-bg-active); }
+.payroll-btn-primary { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.payroll-btn-primary:hover { background: var(--color-primary-dark); }
+.payroll-btn:disabled { opacity: .5; cursor: default; }
+
+/* 본문 */
+.payroll-body { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.payroll-card {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-xl);
+  padding: 14px;
+}
+.payroll-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.payroll-card-head h2 { font-size: var(--font-size-sm); font-weight: 700; margin: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-primary); }
+.payroll-muted { color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
+.payroll-center { text-align: center; }
+
+.payroll-sheet-url {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.payroll-sheet-url > svg { color: var(--color-text-tertiary); flex-shrink: 0; }
+.payroll-url-input {
+  flex: 1; min-width: 0;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--border-radius-lg);
+  padding: 6px 10px;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+.payroll-url-input::placeholder { color: var(--color-text-disabled); }
+.payroll-url-input:focus { outline: 1px solid var(--color-primary-border); border-color: var(--color-primary-border); }
+.payroll-or { font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-bottom: 6px; }
+
+.payroll-raw {
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--border-radius-lg);
+  padding: 8px;
+  font-family: ui-monospace, monospace; font-size: var(--font-size-xs);
+  resize: vertical;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+.payroll-raw::placeholder { color: var(--color-text-disabled); }
+.payroll-row-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+
+.payroll-warnings {
+  display: flex; gap: 8px; margin-top: 10px; padding: 8px 10px;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-bg);
+  border-radius: var(--border-radius-lg);
+  color: var(--color-warning-text);
+  font-size: var(--font-size-xs);
+}
+.payroll-warnings svg { flex-shrink: 0; margin-top: 2px; color: var(--color-warning); }
+
+/* 전역 설정 */
+.payroll-config { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.payroll-config label { display: flex; flex-direction: column; gap: 4px; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.payroll-config input[type=number] {
+  width: 90px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--border-radius-lg);
+  padding: 4px 6px;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+.payroll-config .payroll-check { flex-direction: row; align-items: center; gap: 6px; }
+
+/* 인원별 시급 테이블 */
+.payroll-rates { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+.payroll-rates th, .payroll-rates td { border-bottom: 1px solid var(--color-border-light); padding: 6px 8px; text-align: left; }
+.payroll-rates th { color: var(--color-text-tertiary); font-weight: 600; }
+.payroll-rates td { color: var(--color-text-primary); }
+.payroll-rates input {
+  width: 80px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--border-radius-md);
+  padding: 3px 6px; text-align: right;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+.payroll-rates input.payroll-narrow { width: 56px; }
+.payroll-anomaly-dot { color: var(--color-warning); margin-left: 4px; font-size: 10px; }
+
+/* 명세서 카드 */
+.payroll-slips { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.payroll-slip {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-xl);
+  padding: 14px;
+}
+.payroll-slip-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; border-bottom: 1px dashed var(--color-border-medium); padding-bottom: 8px; }
+.payroll-slip-title { font-weight: 700; color: var(--color-text-title); }
+.payroll-slip-name { color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+.payroll-slip-name b { color: var(--color-text-primary); }
+.payroll-slip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.payroll-items { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+.payroll-items th { background: var(--color-bg-active); color: var(--color-text-tertiary); font-weight: 600; padding: 4px 6px; text-align: left; border: 1px solid var(--color-border-light); }
+.payroll-items td { border: 1px solid var(--color-border-light); padding: 2px 6px; color: var(--color-text-primary); }
+.payroll-items td:first-child { color: var(--color-text-secondary); white-space: nowrap; }
+.payroll-items input {
+  width: 100%; box-sizing: border-box;
+  border: none; background: transparent;
+  text-align: right; padding: 3px 2px; font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+}
+.payroll-items input:focus { background: var(--color-primary-bg); outline: 1px solid var(--color-primary-border); }
+.payroll-total-row td { font-weight: 700; background: var(--color-bg-hover); }
+.payroll-slip-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.payroll-net-big { font-weight: 700; color: var(--color-success); }
+
+.payroll-empty { text-align: center; color: var(--color-text-tertiary); padding: 40px 0; }
+
+@media (max-width: 720px) {
+  .payroll-slips { grid-template-columns: 1fr; }
+  .payroll-toolbar { flex-direction: column; align-items: stretch; }
+}

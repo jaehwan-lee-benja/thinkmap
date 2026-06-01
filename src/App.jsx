@@ -6,6 +6,7 @@ import { TabBar } from './components/TabBar/TabBar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
 import CanvasViewer from './components/Canvas/CanvasViewer'
 import SchedulePage from './components/Schedule/SchedulePage'
+import PayrollPage from './components/Payroll/PayrollPage'
 // 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능
 // import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
 import { useAuth } from './hooks/useAuth'
@@ -64,7 +65,7 @@ function PaneInner({
   highlightedTabId,
 }) {
   const {
-    effectiveSession, isImpersonating, projectsLoading, pagesLoading,
+    effectiveSession, isMaster, isImpersonating, projectsLoading, pagesLoading,
     projects, buildBreadcrumb, getBreadcrumbSiblings, handleBreadcrumbNavigate,
     activeTab, viewerToggleOverrides, saveViewerToggleOverrides,
   } = usePaneData()
@@ -147,6 +148,23 @@ function PaneInner({
               return (
                 <SchedulePage
                   key={`pane-${paneIndex}-${pageId}`}
+                  session={effectiveSession}
+                />
+              )
+            }
+            if (pageType === 'payroll') {
+              // 급여명세서 — 마스터 전용. 비마스터 접근 시 거부.
+              if (!isMaster) {
+                return (
+                  <div className="no-page-selected">
+                    <p>접근 권한이 없습니다. (마스터 전용)</p>
+                  </div>
+                )
+              }
+              return (
+                <PayrollPage
+                  key={`pane-${paneIndex}-${pageId}`}
+                  pageId={pageId}
                   session={effectiveSession}
                 />
               )

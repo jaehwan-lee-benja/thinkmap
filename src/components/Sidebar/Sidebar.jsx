@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -23,7 +23,7 @@ import './Sidebar.css'
  */
 function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, onMobileViewChange }) {
   const { isTablet } = useIsMobile()
-  const { effectiveSession } = usePaneData()
+  const { effectiveSession, isMaster } = usePaneData()
   const { projects, currentProjectId, createProject, renameProject, deleteProject } = useProjectContext()
   const { pages, pageTree, currentPageId, createPage, renamePage, deletePage, reorderPages, getDescendantCount, expandedPages, saveExpandedPages, fetchPages } = usePageContext()
   const { sharedWithMe, sharingLoading, createShare, updateSharePermission, deleteShare, getSharesForResource } = useSharingContext()
@@ -179,14 +179,68 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
               <CalendarDays size={16} />
               <span>업무일지(개발중)</span>
             </button>
-            <button
-              className="sidebar-worklog-btn"
-              onClick={() => setCanvasModalOpen(true)}
-              title="새 마케팅 캔버스 만들기"
-            >
-              <Target size={16} />
-              <span>+ 마케팅 캔버스</span>
-            </button>
+            {/* 마케팅 캔버스 + 급여명세서 — 마스터 전용 */}
+            {isMaster && (
+              <>
+                <button
+                  className="sidebar-worklog-btn"
+                  onClick={() => setCanvasModalOpen(true)}
+                  title="새 마케팅 캔버스 만들기"
+                >
+                  <Target size={16} />
+                  <span>+ 마케팅 캔버스</span>
+                </button>
+
+                <button
+                  className={`sidebar-worklog-btn ${currentPageId && pages.find(p => p.id === currentPageId)?.page_type === 'payroll' ? 'active' : ''}`}
+                  title="급여명세서 (마스터 전용)"
+                  onClick={async () => {
+                    // 메모리 캐시 우선
+                    let payrollPage = pages.find(p => p.page_type === 'payroll')
+
+                    // DB 직접 조회 (캐시에 없을 수 있음)
+                    if (!payrollPage) {
+                      const { data, error } = await supabase
+                        .from('pages')
+                        .select('id')
+                        .eq('page_type', 'payroll')
+                        .is('deleted_at', null)
+                        .limit(1)
+                        .maybeSingle()
+                      if (error) { alert('급여명세서 조회 실패: ' + error.message); return }
+                      if (data) payrollPage = { id: data.id, page_type: 'payroll' }
+                    }
+
+                    // 없으면 신규 생성
+                    if (!payrollPage) {
+                      const newPageId = generateUUID()
+                      const { error } = await supabase
+                        .from('pages')
+                        .insert([{
+                          id: newPageId,
+                          user_id: effectiveSession.user.id,
+                          name: '급여명세서',
+                          page_type: 'payroll',
+                          project_id: null,
+                          parent_id: null,
+                          position: -1,
+                        }])
+                      if (error) {
+                        alert('급여명세서 페이지 생성 실패: ' + error.message)
+                        return
+                      }
+                      payrollPage = { id: newPageId, page_type: 'payroll' }
+                    }
+
+                    if (typeof fetchPages === 'function') await fetchPages()
+                    handlePageSelect(payrollPage.id)
+                  }}
+                >
+                  <Receipt size={16} />
+                  <span>급여명세서</span>
+                </button>
+              </>
+            )}
           </div>
 
           <div className="sidebar-pages-header">Pages</div>
