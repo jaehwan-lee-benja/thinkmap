@@ -192,6 +192,21 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   // (2026-05-22 "개발할 것들" 데이터 손실 원인. block_history 에 ms 차이로 두 자동 백업이 찍힘)
   const pageUpdatedAtsRef = useRef(new Map())
 
+  // ── 실시간 동기화 (일반 페이지) ──
+  // 충돌 배너: 내가 편집 중인데 다른 탭/사용자가 저장했을 때만 표시 (덮어쓰지 않고 선택 유도)
+  const [syncConflict, setSyncConflict] = useState(null)   // { byName }
+  // 동기화 토스트: 내가 편집 중이 아닐 때 원격 변경이 부드럽게 반영됨을 알림
+  const [syncToast, setSyncToast] = useState(null)         // { byName }
+  const syncToastTimer = useRef(null)
+  const syncConflictRef = useRef(false)   // 충돌 미해결 동안 자동저장 보류 (반복 실패/덮어쓰기 방지)
+  const lastSaveConflictRef = useRef(false) // saveImmediately 가 낙관적 잠금 0-row 로 막혔는지
+  const loadContentRef = useRef(null)     // 구독 콜백에서 최신 loadContent 호출용 (재구독 churn 방지)
+  const showSyncToast = useCallback((byName) => {
+    setSyncToast({ byName })
+    if (syncToastTimer.current) clearTimeout(syncToastTimer.current)
+    syncToastTimer.current = setTimeout(() => setSyncToast(null), 2500)
+  }, [])
+
   // 히스토리 관련 상태
   const [showHistory, setShowHistory] = useState(false)
   const [historyList, setHistoryList] = useState([])
@@ -528,6 +543,50 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     return () => window.removeEventListener('quicktodo-inserted', handler)
   }, [loadContent, currentPageId])
 
+  // loadContent 를 ref 로 보관 — 아래 실시간 구독 콜백이 최신 함수를 쓰되,
+  // loadContent 가 자주 바뀌어도 구독을 재생성하지 않도록.
+  useEffect(() => { loadContentRef.current = loadContent }, [loadContent])
+
+  // ── 트리거 D: 다른 탭/사용자의 저장을 실시간 반영 (일반 페이지 — Option 1) ──
+  // daily 는 DailyPageV2 가 자체 실시간(daily_blocks) 처리하므로 제외.
+  useEffect(() => {
+    if (!session || !currentPageId) return
+    if (currentPage?.page_type === 'daily') return
+    const pid = currentPageId
+
+    const channel = supabase
+      .channel(`pages-sync:${pid}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'pages', filter: `id=eq.${pid}` },
+        (payload) => {
+          const row = payload.new
+          if (!row || row.page_type === 'daily') return
+          // 내 저장이 만든 에코는 무시 (updated_at baseline 일치)
+          if (row.updated_at && row.updated_at === pageUpdatedAtsRef.current.get(pid)) return
+
+          const byEmail = row.last_edited_by_email || ''
+          const byName = byEmail ? byEmail.split('@')[0] : '다른 사용자'
+
+          // "내가 실제로 편집 중" = 편집을 시작했고(!initialLoad) 미저장 변경이 있음.
+          const iAmEditing = !isImpersonating && !isInitialLoadRef.current && hasUnsavedChanges.current
+          if (!iAmEditing) {
+            // 부드럽게 최신 내용 반영 (재저장 에코는 initialLoad 가드로 차단)
+            isInitialLoadRef.current = true
+            if (loadContentRef.current) loadContentRef.current(pid)
+            showSyncToast(byName)
+          } else {
+            // 덮어쓰지 않고 배너로 선택 유도
+            syncConflictRef.current = true
+            setSyncConflict({ byName })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [session, currentPageId, currentPage?.page_type, isImpersonating, showSyncToast])
+
   // 에디터 내용 변경 시 (사용자 편집)
   // editor.getJSON()은 _dismissed 같은 비표준 루트 키를 포함하지 않으므로
   // 기존 state의 _dismissed를 수동으로 병합해 보존한다.
@@ -601,7 +660,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         .from('pages')
         .update({
           content_tiptap: finalContent,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          // 실시간 "OOO님이 수정" 표시용 (payload.new 로 바로 실려옴)
+          last_edited_by: session.user.id,
+          last_edited_by_email: session.user.email,
         })
         .eq('id', pageIdToSave)
       if (expectedUpdatedAt) query = query.eq('updated_at', expectedUpdatedAt)
@@ -613,8 +675,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       }
       if (!updatedRows || updatedRows.length === 0) {
         console.warn('[saveImmediately] 동시 편집 충돌 — 다른 탭/디바이스가 먼저 저장해 stale 덮어쓰기를 차단했습니다.', { pageIdToSave, expectedUpdatedAt })
+        lastSaveConflictRef.current = true  // 호출자(자동저장)가 충돌 배너를 띄우도록
         return false
       }
+      lastSaveConflictRef.current = false
       pageUpdatedAtsRef.current.set(pageIdToSave, updatedRows[0].updated_at)
       return true
     } catch (err) {
@@ -622,6 +686,40 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       return false
     }
   }, [session, isMaster, pages])
+
+  // 충돌 해결 ① 최신 내용 불러오기 (내 미저장 변경 버림)
+  const resolveSyncReload = useCallback(() => {
+    if (!window.confirm('작성 중이던 변경을 버리고 최신 내용을 불러올까요?')) return
+    isInitialLoadRef.current = true
+    hasUnsavedChanges.current = false
+    syncConflictRef.current = false
+    lastSaveConflictRef.current = false
+    setSyncConflict(null)
+    if (loadContentRef.current) loadContentRef.current(currentPageId)
+  }, [currentPageId])
+
+  // 충돌 해결 ② 내 변경으로 저장 (상대 내용 덮어쓰기)
+  const resolveSyncOverwrite = useCallback(async () => {
+    // 최신 updated_at 으로 baseline 을 맞춰 낙관적 잠금을 통과 → 내 버전으로 강제 저장
+    const { data } = await supabase.from('pages').select('updated_at').eq('id', currentPageId).single()
+    if (data?.updated_at) pageUpdatedAtsRef.current.set(currentPageId, data.updated_at)
+    syncConflictRef.current = false
+    const ok = await saveImmediately(contentRef.current, currentPageId)
+    if (ok) {
+      hasUnsavedChanges.current = false
+      setLastSaved(new Date())
+      setSyncConflict(null)
+    } else {
+      // 그 사이 또 바뀜 — 배너 유지하고 자동저장 보류 지속
+      syncConflictRef.current = true
+    }
+  }, [currentPageId, saveImmediately])
+
+  // 충돌 해결 ③ 나중에 — 배너만 닫음. 계속 편집하면 자동저장이 다시 충돌을 감지해 배너 재표시.
+  const dismissSyncConflict = useCallback(() => {
+    syncConflictRef.current = false
+    setSyncConflict(null)
+  }, [])
 
   // content가 변경될 때마다 ref 업데이트
   useEffect(() => {
@@ -700,8 +798,17 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     }
 
     const timer = setTimeout(async () => {
+      // 충돌 배너가 떠 있으면 사용자가 선택할 때까지 자동저장 보류 (의도치 않은 덮어쓰기 방지)
+      if (syncConflictRef.current) return
       setIsSaving(true)
       const success = await saveImmediately(content, currentPageId)
+      if (!success && lastSaveConflictRef.current) {
+        // 낙관적 잠금 충돌 backstop — 누가 바꿨는지 조회해 배너 표시
+        const { data } = await supabase.from('pages').select('last_edited_by_email').eq('id', currentPageId).single()
+        const byEmail = data?.last_edited_by_email || ''
+        syncConflictRef.current = true
+        setSyncConflict({ byName: byEmail ? byEmail.split('@')[0] : '다른 사용자' })
+      }
       if (success) {
         setLastSaved(new Date())
         hasUnsavedChanges.current = false
@@ -1200,6 +1307,32 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   return (
     <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''} ${currentPage?.page_type === 'daily' ? 'tiptap-page--daily' : ''}`}>
       <div className="tiptap-page-inner">
+        {/* 실시간 충돌 배너 — 내가 편집 중인데 다른 곳에서 수정됨 (덮어쓰지 않고 선택) */}
+        {syncConflict && currentPage?.page_type !== 'daily' && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            padding: '10px 16px', margin: '0 0 8px', borderRadius: 8,
+            background: '#FFF4E5', border: '1px solid #FFB74D', color: '#7A4F01',
+            fontSize: 14,
+          }}>
+            <span style={{ flex: 1, minWidth: 200 }}>
+              ⚠️ <strong>{syncConflict.byName}</strong>님이 이 페이지를 수정했어요. 어떻게 할까요?
+            </span>
+            <button
+              onClick={resolveSyncReload}
+              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #FFB74D', background: '#fff', color: '#7A4F01', cursor: 'pointer' }}
+            >최신 내용 불러오기</button>
+            <button
+              onClick={resolveSyncOverwrite}
+              style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#FB8C00', color: '#fff', cursor: 'pointer' }}
+            >내 변경으로 저장</button>
+            <button
+              onClick={dismissSyncConflict}
+              title="나중에" aria-label="나중에"
+              style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: '#7A4F01', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}
+            >✕</button>
+          </div>
+        )}
         {/* 페이지 헤더 */}
         <div className="tiptap-page-header">
           <div className="tiptap-page-header-left">
@@ -1594,6 +1727,11 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         {/* 뷰어 모드 토스트 */}
         {viewerToast && (
           <div className="viewer-toast">뷰어모드입니다</div>
+        )}
+
+        {/* 실시간 동기화 토스트 — 다른 사용자의 수정이 부드럽게 반영됨 */}
+        {syncToast && (
+          <div className="viewer-toast">{syncToast.byName}님의 수정이 반영되었어요</div>
         )}
       </div>
 
