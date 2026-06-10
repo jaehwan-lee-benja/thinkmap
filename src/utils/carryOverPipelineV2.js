@@ -121,7 +121,9 @@ export function toCarryOverRow(src, ctx) {
 //   sectionIdMap (선택): Map<oldSectionBlockId, newSectionBlockId>
 //                        §9.9 옵션 A self-ref 모델에서 어제 섹션 blockId → 새 페이지 섹션 blockId
 // 반환: 새 row 배열 (root 가 첫 번째, 자손 순).
-export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null) {
+//   sectionVisibilityByNewId (선택): Map<newSectionBlockId, visibility> — 새 페이지 섹션 행의 visibility.
+//                        P1: 이월 블록은 *대상 섹션*의 visibility 를 상속한다(원본 visibility 비정규화 갈라짐 방지).
+export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null, sectionVisibilityByNewId = null) {
   const descendants = collectLiveDescendants(srcRoot, srcAllRows)
   const subtree = [srcRoot, ...descendants]
 
@@ -133,6 +135,7 @@ export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null
   return subtree.map((r, i) => {
     const isRoot = i === 0
     const remappedSectionId = sectionIdMap?.get(r.sectionId)
+    const newSectionId = remappedSectionId || r.sectionId
     // root 의 parentBlockId 결정:
     //   - parentBlockId 있고 어제 section row 면 → 새 section row 로 매핑 (자식으로 들어감)
     //   - parentBlockId null 이지만 sectionId 가 어제 섹션 blockId 면 → 새 섹션 row 자식으로 (root-level 텍스트도 카드 안으로)
@@ -147,7 +150,7 @@ export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null
       userId: ctx.userId,
       blockType: r.blockType,
       parentBlockId: isRoot ? rootParent : (idMap.get(r.parentBlockId) || null),
-      sectionId: remappedSectionId || r.sectionId,
+      sectionId: newSectionId,
       sectionMasterId: null,
       position: r.position,
       textContent: r.textContent,
@@ -163,7 +166,8 @@ export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null
       carryOverFrom: r.carryOverFrom || r.pageDate,
       originBlockId: r.originBlockId || r.blockId,
       isPinned: !!r.isPinned,
-      visibility: r.visibility || 'all',
+      // P1: 대상 섹션 visibility 상속. 매핑 정보 없으면 원본 보존(fallback).
+      visibility: sectionVisibilityByNewId?.get(newSectionId) ?? (r.visibility || 'all'),
       isFixedSection: false,
     }
   })
@@ -188,6 +192,16 @@ export function buildSectionIdMap(prevRows, currentRows) {
     let newId = r.sectionMasterId ? newByMaster.get(r.sectionMasterId) : null
     if (!newId && r.textContent) newId = newByText.get(r.textContent)
     if (newId) map.set(r.blockId, newId)
+  }
+  return map
+}
+
+// 새 페이지 섹션 행의 visibility 맵 — P1 이월 visibility 상속용. Map<sectionBlockId, visibility>.
+export function buildSectionVisibilityMap(currentRows) {
+  const map = new Map()
+  for (const r of (currentRows || [])) {
+    if (r.blockType !== 'section') continue
+    map.set(r.blockId, r.visibility || 'all')
   }
   return map
 }
@@ -254,12 +268,18 @@ export async function carryOverEager(supabase, fromPageId, ctx) {
   if (rootCands.length === 0) return { inserted: 0 }
 
   const sectionIdMap = buildSectionIdMap(prevRows, currentRows)
+  const sectionVisMap = buildSectionVisibilityMap(currentRows)
 
   // 섹션별로 root 후보 그룹 + position 1, 2, 3... 매김.
   // → createDailyPageV2 가 박은 빈 자식 (position=999) 위에 자연 배치.
+  // 새 페이지에서 섹션을 못 찾으면(sectionIdMap 미스) 건너뛴다. 과거엔 || root.sectionId 로
+  // 옛(직전 페이지) section_id 를 그대로 둬서, 그 섹션이 새 페이지에 없으면 헤더 없는 고아 토글이 됐다.
+  // 특히 비마스터가 페이지를 만들 때 RLS 가 prev 의 master 섹션을 가려 매핑이 실패 → master 섹션
+  // 콘텐츠가 cross-page 고아로 박혔다. 못 매핑되는 건 끌어오지 않는다(원본 페이지에 그대로 남음).
   const bySection = new Map()
   for (const root of rootCands) {
-    const newSec = sectionIdMap.get(root.sectionId) || root.sectionId
+    const newSec = sectionIdMap.get(root.sectionId)
+    if (!newSec) continue
     if (!bySection.has(newSec)) bySection.set(newSec, [])
     bySection.get(newSec).push(root)
   }
@@ -267,7 +287,7 @@ export async function carryOverEager(supabase, fromPageId, ctx) {
   const carryRows = []
   for (const [, rootsInSection] of bySection) {
     rootsInSection.forEach((root, i) => {
-      const subtree = toCarryOverSubtree(root, prevRows, ctx, sectionIdMap)
+      const subtree = toCarryOverSubtree(root, prevRows, ctx, sectionIdMap, sectionVisMap)
       if (subtree[0]) subtree[0].position = i + 1  // root 만 1, 2, 3...
       carryRows.push(...subtree)
     })
@@ -296,6 +316,7 @@ export async function carryOverLazy(supabase, prevPageId, ctx) {
   if (newOnes.length === 0) return { inserted: 0 }
 
   const sectionIdMap = buildSectionIdMap(prevRows, currentRowsAll)
+  const sectionVisMap = buildSectionVisibilityMap(currentRowsAll)
 
   // 섹션별로 현재 페이지의 max(position) 계산 — 빈 자식 (999+) 은 제외
   const sectionMaxPos = new Map()
@@ -307,10 +328,12 @@ export async function carryOverLazy(supabase, prevPageId, ctx) {
     if (pos > cur) sectionMaxPos.set(r.parentBlockId, pos)
   }
 
-  // 섹션별로 그룹 후 root position 매김
+  // 섹션별로 그룹 후 root position 매김.
+  // 새 페이지에서 섹션을 못 찾으면 건너뛴다 (carryOverEager 와 동일 원칙 — cross-page 고아 방지).
   const bySection = new Map()
   for (const root of newOnes) {
-    const newSec = sectionIdMap.get(root.sectionId) || root.sectionId
+    const newSec = sectionIdMap.get(root.sectionId)
+    if (!newSec) continue
     if (!bySection.has(newSec)) bySection.set(newSec, [])
     bySection.get(newSec).push(root)
   }
@@ -319,7 +342,7 @@ export async function carryOverLazy(supabase, prevPageId, ctx) {
   for (const [secKey, rootsInSection] of bySection) {
     let nextPos = (sectionMaxPos.get(secKey) || 0) + 1
     rootsInSection.forEach(root => {
-      const subtree = toCarryOverSubtree(root, prevRows, ctx, sectionIdMap)
+      const subtree = toCarryOverSubtree(root, prevRows, ctx, sectionIdMap, sectionVisMap)
       if (subtree[0]) subtree[0].position = nextPos++
       carryRows.push(...subtree)
     })

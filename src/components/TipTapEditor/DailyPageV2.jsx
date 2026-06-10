@@ -365,7 +365,9 @@ export default function DailyPageV2({
             textContent: '', richContent: null,
             isTodo: false, todoChecked: false, todoStatus: 'open',
             isCarryOver: false, carryOverFrom: null, originBlockId: null,
-            isPinned: false, visibility: 'all', isFixedSection: false,
+            // P1: 빈 자식은 부모 섹션의 visibility 를 상속한다('all' 하드코딩 금지).
+            // master 섹션 아래 'all' 자식은 비마스터 화면에서 헤더 없는 고아가 된다.
+            isPinned: false, visibility: s.visibility || 'all', isFixedSection: false,
           })
         })
         await applyDiff({ insert: newRows, update: [], softDelete: [] })
