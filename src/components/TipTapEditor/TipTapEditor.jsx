@@ -129,6 +129,9 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   // 멀티셀렉트 상태
   const [multiSelectCount, setMultiSelectCount] = useState(0)
 
+  // 편집 모드 시각 표시 (view ↔ edit) — Viewer mode 에선 항상 false
+  const [isEditing, setIsEditing] = useState(false)
+
   // 래퍼 ref (이벤트 스코프 제한용)
   const wrapperRef = useRef(null)
 
@@ -616,6 +619,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     // 더블클릭 = 편집 활성화 — 클릭 위치에 caret + focus
     if (!editor.isEditable) {
       editor.setEditable(true)
+      setIsEditing(true)
       const pos = editor.view.posAtCoords({ left: e.clientX, top: e.clientY })
       if (pos) {
         try { editor.commands.setTextSelection(pos.pos) } catch {}
@@ -646,6 +650,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       setTimeout(() => {
         if (!wrapper.contains(document.activeElement)) {
           editor.setEditable(false)
+          setIsEditing(false)
         }
       }, 50)
     }
@@ -655,7 +660,14 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
 
   return (
-    <div className="tiptap-wrapper" ref={wrapperRef} onDoubleClick={handleWrapperDoubleClick}>
+    <div
+      className={`tiptap-wrapper ${isEditing && !isViewerMode ? 'is-editing' : 'is-view'}`}
+      ref={wrapperRef}
+      onDoubleClick={handleWrapperDoubleClick}
+    >
+      {isEditing && !isViewerMode && (
+        <div className="edit-mode-badge" aria-hidden="true">편집 중</div>
+      )}
       <EditorContent editor={editor} className="tiptap-editor-content" />
 
       {/* 텍스트 선택 시 서식 도구창 (뷰어 모드에서 숨김) */}
