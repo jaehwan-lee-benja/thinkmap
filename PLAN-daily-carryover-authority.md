@@ -12,18 +12,19 @@
 |---|---|---|---|
 | 0 | 가시성 상속 코드 강제 (P1) | ✅ 코드완료 | createDailyPageV2·DailyPageV2:368 빈자식 상속 + 이월 visibility=대상섹션 + 매핑실패 skip. 빌드 OK. 런타임 검증만 남음 |
 | 0.5 | 기존 데이터 백필 (Q3) | ✅ 완료 | LIVE 2,744 'all'→'master' 백필. remaining=0. 백업=`q3_visibility_backup_20260609`(롤백 가능) |
-| 0.7 | RLS 보드 멤버십 정렬 (Q4/P6) | ▶ 진행중 | pages·daily_blocks RLS additive. 보안 신중 — 회귀표 먼저 |
+| 0.7 | RLS 보드 멤버십 정렬 (Q4/P6) | ✅ 적용(LIVE) · 실기기 검증 대기 | LIVE 발견: pages_*_worklog 가 daily 를 로그인 전원 개방 → pages additive 무의미. 변경은 **daily_blocks UPDATE 1개**(협업: `OR visibility='all' AND is_board_member_of_page`). 멤버 등록(partner+rlawldus0621=member). 회귀표 통과(`PHASE07-regression.md`). 헬퍼 `is_board_member_of_page`. 롤백=`phase07-step2-rls.sql` 하단 |
 | 1 | Edge `ensure-daily-page` (A안) | ⬜todo | CLI 1회 셋업 → 함수 → 클라 전환 |
 | 2 | 클라 이월 경로 제거·정리 | ⬜todo | Edge 일원화 |
 
-**다음 진입점:** Phase 0.7 — **`diagnose-board-membership.sql`(작성 완료, 미실행)을 VSCode에 다시 열고 사용자가 Run → 결과 받기** → 그 결과로 ① pages·daily_blocks board-membership additive RLS 설계 → ② 역할×동작 회귀표(적용 전후) → ③ 검토 → ④ 적용. (RLS는 회귀표 통과 전 적용 금지)
+**다음 진입점:** Phase 0.7 **실기기 검증**(`PHASE07-regression.md` §6 시나리오 5개: partner 로그인 → 'all' 블록 편집 성공 / master 블록 안 보임 / 본인 블록 여전히 편집 등) → 통과하면 **Phase 1(Edge `ensure-daily-page`)** 착수.
 
-**🔖 세션 재개 핸드오프 (2026-06-10 중단):**
-- 완료: Phase 0(가시성 상속 코드, 빌드 OK·런타임검증 대기), Phase 0.5(LIVE 2,744 백필, remaining=0).
-- 진행중: Phase 0.7 첫 단계 = `diagnose-board-membership.sql` 실행 대기.
-- 재개 시 할 일: ① 이 표·아래 §들 일독 ② `open -a "Visual Studio Code" diagnose-board-membership.sql` ③ 사용자에게 Run 요청 → 결과로 RLS 설계 착수.
-- 미실행/보류 SQL 파일: `diagnose-board-membership.sql`(다음 실행), 진단 보존본 `diagnose-carry-67-to-69.sql` 등.
-- 백필 롤백표: `q3_visibility_backup_20260609`.
+**🔖 세션 재개 핸드오프 (2026-06-11 갱신):**
+- 완료: Phase 0(가시성 상속 코드, 빌드 OK·런타임검증 대기), Phase 0.5(LIVE 2,744 백필, remaining=0), **Phase 0.7(board-membership RLS LIVE 적용 — 실기기 검증만 남음)**.
+- Phase 0.7 적용 내역(LIVE): ① 멤버 등록 partner+rlawldus0621=member(보드 0fcc0fee), ② 헬퍼 `is_board_member_of_page` 생성, ③ `daily_blocks_update` 정책에 `OR (visibility='all' AND is_board_member_of_page(page_id))` 추가(USING·CHECK). pages/SELECT/INSERT/DELETE 무변경.
+- Phase 0.7 산출 파일: `phase07-step1-enroll.sql`(멤버), `phase07-step2-rls.sql`(RLS+롤백), `PHASE07-regression.md`(회귀표·검증 시나리오), `verify-live-policies-1.sql`(BEFORE 덤프), `diagnose-board-membership-all.sql`(멤버십 진단).
+- 재개 시 할 일: ① 이 표·§들 일독 ② `PHASE07-regression.md` §6 검증 결과 확인 ③ 통과 시 Phase 1 착수.
+- 미실행/보류 SQL: 진단 보존본 `diagnose-carry-67-to-69.sql` 등.
+- 백필 롤백표: `q3_visibility_backup_20260609`. Phase 0.7 롤백: `phase07-step2-rls.sql` 하단 STEP2-ROLLBACK.
 **작업 브랜치:** `fix/daily-worklog-broken-2026-06-08`.
 **Phase 0 적용 코드(빌드 OK, 런타임 검증 대기):** `createDailyPageV2.js`(빈자식 상속), `carryOverPipelineV2.js`(매핑실패 skip + `buildSectionVisibilityMap`/이월 visibility 상속), `DailyPageV2.jsx:368`(빈자식 상속).
 
