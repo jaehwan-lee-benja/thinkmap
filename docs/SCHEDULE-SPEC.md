@@ -560,6 +560,24 @@ className={`sidebar-worklog-btn ${
   - "이후 모든 회차" → 원본 RRULE 의 UNTIL 을 (선택 회차 - 1일) 로 자르고 새 event INSERT. 기존 instance override 가 어느 쪽에 귀속되는지 결정 필요.
 - 일상 단일 회차 조작(시간 이동/체크)은 드래그·체크박스로 이미 가능하므로 Phase 2.1 우선순위 낮음.
 
+### 13.8 루틴 요일 +1일 시프트 — 해결 (타임존 정규화, 정석안)
+
+**증상**: 루틴에서 "수요일 제외"로 저장했는데 캘린더에는 목요일이 비어 보임 (아침 루틴에서 발생).
+
+**원인**: rrule.js 는 timezone-naive 라 `Date` 의 **UTC 필드**를 벽시계로 읽어 BYDAY/시각을 판정한다. `event.start_at` 은 UTC instant 로 저장되므로 그대로 `between()` 하면 요일 판정이 **UTC 기준**이 되는데, WeekView/MonthView 는 occurrence 를 **로컬(브라우저) 기준**으로 day-column 에 버킷팅한다. 두 프레임이 UTC+9 만큼 어긋나, KST 09:00 이전(아침) 루틴은 모든 회차가 +1 로컬일로 밀려 "제외한 요일"이 하루 뒤로 이동.
+
+**해결** (`routineUtils.js` `expandRoutine` 단일 chokepoint):
+- `event.timezone`(기본 Asia/Seoul) 벽시계를 UTC 필드에 담은 **floating Date** 로 dtstart·from·to 를 변환 → rrule 이 BYDAY/시각을 event.timezone 기준으로 펼침.
+- 펼친 occurrence 를 다시 **실제 instant 로 환원**(`fromFloating`) 해 반환 → 렌더러의 로컬 버킷팅과 프레임 일치.
+- `Intl.DateTimeFormat` 로 per-instant 오프셋 계산(DST tz 도 1회 보정으로 안전; Asia/Seoul 은 DST 없음).
+- 검증: 아침/자정/저녁 KST + 브라우저≠event.tz(NY) 전 케이스에서 "화면상 수요일만 정확히 제외" 확인. 단발 이벤트는 rrule 미경유라 무관.
+
+**키 일관성**: `instance_start_at` 저장값 = 펼침이 내보내는 occurrence instant 의 ISO (`SchedulePage` `upsertInstance`). 읽기 매칭도 같은 instant ISO. 읽기/쓰기가 **동일 단일 출처**라 펼침 기준을 바꿔도 *이후* 생성되는 override 는 자동 일관 (completed/cancelled/moved 머지 재현 확인 완료).
+
+**잔여 주의점**:
+1. **레거시 instance 고아화** — 본 수정 *이전*에 생성된 루틴 instance row 는 구(UTC) 프레임 instant 로 저장돼 있어 새 펼침 instant 와 매칭되지 않을 수 있다. 다만 구 값은 애초에 잘못된 날짜를 가리켰으므로(체크가 엉뚱한 칸에 찍힘) 고아화가 의미상 더 안전. instances 는 lazy 생성이라 실사용 row 수가 적음. 의미 있는 기존 override 가 많다면 event 별 tz 델타로 `instance_start_at` 재계산하는 마이그레이션 별도 검토.
+2. **UNTIL 경계 미세 오차** — RRULE 의 `UNTIL` 은 UTC(`...T235959Z`)로 직렬화돼 있어 floating 펼침 공간과 최대 tz 오프셋(~9h)만큼 어긋날 수 있다. 종료일 당일 오후 회차의 포함 여부에만 영향하는 좁은 엣지. 필요 시 UNTIL 도 floating 으로 주입하도록 후속 처리.
+
 ---
 
 ## 14. 수정 원칙
