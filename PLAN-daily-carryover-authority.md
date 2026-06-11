@@ -12,20 +12,24 @@
 |---|---|---|---|
 | 0 | 가시성 상속 코드 강제 (P1) | ✅ 코드완료 | createDailyPageV2·DailyPageV2:368 빈자식 상속 + 이월 visibility=대상섹션 + 매핑실패 skip. 빌드 OK. 런타임 검증만 남음 |
 | 0.5 | 기존 데이터 백필 (Q3) | ✅ 완료 | LIVE 2,744 'all'→'master' 백필. remaining=0. 백업=`q3_visibility_backup_20260609`(롤백 가능) |
-| 0.7 | RLS 보드 멤버십 정렬 (Q4/P6) | ✅ 적용(LIVE) · 실기기 검증 대기 | LIVE 발견: pages_*_worklog 가 daily 를 로그인 전원 개방 → pages additive 무의미. 변경은 **daily_blocks UPDATE 1개**(협업: `OR visibility='all' AND is_board_member_of_page`). 멤버 등록(partner+rlawldus0621=member). 회귀표 통과(`PHASE07-regression.md`). 헬퍼 `is_board_member_of_page`. 롤백=`phase07-step2-rls.sql` 하단 |
+| 0.7 | RLS 보드 멤버십 정렬 (Q4/P6) | ✅ 완료 (LIVE 적용 + 실기기 검증 통과 + 릴리즈) | LIVE 발견: pages_*_worklog 가 daily 를 로그인 전원 개방 → pages additive 무의미. 변경은 **daily_blocks UPDATE 1개**(협업: `OR visibility='all' AND is_board_member_of_page`). 멤버 등록(partner+rlawldus0621=member). 회귀표 통과(`PHASE07-regression.md`). 헬퍼 `is_board_member_of_page`. 롤백=`phase07-step2-rls.sql` 하단. **2026-06-11 검증: partner 'all' 편집/이월 정상·master 블록 안 보임 확인. main `ee0fd1a` 배포 완료** |
 | 1 | Edge `ensure-daily-page` (A안) | ⬜todo | CLI 1회 셋업 → 함수 → 클라 전환 |
 | 2 | 클라 이월 경로 제거·정리 | ⬜todo | Edge 일원화 |
 
-**다음 진입점:** Phase 0.7 **실기기 검증**(`PHASE07-regression.md` §6 시나리오 5개: partner 로그인 → 'all' 블록 편집 성공 / master 블록 안 보임 / 본인 블록 여전히 편집 등) → 통과하면 **Phase 1(Edge `ensure-daily-page`)** 착수.
+**▶▶ 다음 진입점 = Phase 1 (Edge `ensure-daily-page`) ◀◀**
+- 해결할 증상(2026-06-11 실측): **partner(비마스터)가 daily 생성 → 섹션은 넘어오나 그 안의 master 콘텐츠는 이월 안 됨.** 원인: 이월이 partner 권한(RLS)으로 실행 → `daily_blocks` SELECT(`visibility='all' OR is_master()`)가 master 블록을 가려 *읽지도 못함* → 복사 누락. (P1 때문에 SELECT 를 열 수 없음 → 서버 권한이 정답.)
+- 할 일: ① Supabase CLI 1회 셋업 → ② Edge Function `ensure-daily-page` 작성(service_role 로 prev 전부 읽어 master 블록까지 `visibility='master'` 그대로 carry, JS 이월 로직 재사용) → ③ 클라 `createDailyPageV2` 이월 경로를 함수 호출로 전환 → ④ 검증.
+- 상세 설계: 아래 §3.2 / §5 Phase 1 참조.
 
-**🔖 세션 재개 핸드오프 (2026-06-11 갱신):**
-- 완료: Phase 0(가시성 상속 코드, 빌드 OK·런타임검증 대기), Phase 0.5(LIVE 2,744 백필, remaining=0), **Phase 0.7(board-membership RLS LIVE 적용 — 실기기 검증만 남음)**.
+**🔖 세션 재개 핸드오프 (2026-06-11, 릴리즈 후 갱신):**
+- 완료: Phase 0(가시성 상속 코드 — partner 'all' 이월·양식 정상 실측 확인), Phase 0.5(LIVE 2,744 백필, remaining=0), **Phase 0.7(board-membership RLS — LIVE 적용 + 실기기 검증 통과 + 배포 완료)**.
+- **릴리즈 상태:** main=`ee0fd1a` 푸시 → GitHub Actions 배포 성공. 라이브 https://jaehwan-lee-benja.github.io/thinkmap/ 갱신. 앱 코드 ↔ Supabase 정책 일치.
 - Phase 0.7 적용 내역(LIVE): ① 멤버 등록 partner+rlawldus0621=member(보드 0fcc0fee), ② 헬퍼 `is_board_member_of_page` 생성, ③ `daily_blocks_update` 정책에 `OR (visibility='all' AND is_board_member_of_page(page_id))` 추가(USING·CHECK). pages/SELECT/INSERT/DELETE 무변경.
 - Phase 0.7 산출 파일: `phase07-step1-enroll.sql`(멤버), `phase07-step2-rls.sql`(RLS+롤백), `PHASE07-regression.md`(회귀표·검증 시나리오), `verify-live-policies-1.sql`(BEFORE 덤프), `diagnose-board-membership-all.sql`(멤버십 진단).
-- 재개 시 할 일: ① 이 표·§들 일독 ② `PHASE07-regression.md` §6 검증 결과 확인 ③ 통과 시 Phase 1 착수.
+- **재개 시 할 일: 곧장 Phase 1 착수** (위 "다음 진입점" 절차). 검증·릴리즈는 끝났으니 더 할 것 없음.
 - 미실행/보류 SQL: 진단 보존본 `diagnose-carry-67-to-69.sql` 등.
 - 백필 롤백표: `q3_visibility_backup_20260609`. Phase 0.7 롤백: `phase07-step2-rls.sql` 하단 STEP2-ROLLBACK.
-**작업 브랜치:** `fix/daily-worklog-broken-2026-06-08`.
+**작업 브랜치:** `main`=`fix/daily-worklog-broken-2026-06-08`=`ee0fd1a` (동기). Phase 1 은 main 에서 새 브랜치로 시작 권장. 편집모드 WIP 별도: `feature/edit-mode-visual-indicator`.
 **Phase 0 적용 코드(빌드 OK, 런타임 검증 대기):** `createDailyPageV2.js`(빈자식 상속), `carryOverPipelineV2.js`(매핑실패 skip + `buildSectionVisibilityMap`/이월 visibility 상속), `DailyPageV2.jsx:368`(빈자식 상속).
 
 ---
