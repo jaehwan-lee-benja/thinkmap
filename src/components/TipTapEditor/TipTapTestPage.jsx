@@ -1140,9 +1140,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     const handleCreateDailyPage = async (dateKey) => {
       // v2 (§10 Phase v2.2): row 기반 daily 페이지 생성
       try {
-        const { createDailyPageV2 } = await import('../../utils/createDailyPageV2')
+        const { ensureDailyPage } = await import('../../utils/ensureDailyPage')
         const { dailyPageName } = await import('../../utils/dateUtils')
-        const result = await createDailyPageV2({
+        const result = await ensureDailyPage({
           supabase,
           parentId: currentPageId,
           dateKey,
@@ -1283,8 +1283,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
     // v2: row 기반 생성 (중복 방지 + section row + 이월 모두 헬퍼 안에서)
     try {
-      const { createDailyPageV2 } = await import('../../utils/createDailyPageV2')
-      const result = await createDailyPageV2({
+      const { ensureDailyPage } = await import('../../utils/ensureDailyPage')
+      const result = await ensureDailyPage({
         supabase,
         parentId: currentPage.parent_id,
         dateKey,
