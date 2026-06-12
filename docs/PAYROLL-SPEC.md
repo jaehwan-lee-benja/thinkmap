@@ -54,6 +54,10 @@
 
 ## 3. 사용자 & 권한
 
+> payroll 의 `is_master()` 단일 게이트는 ThinkMap 권한 **패러다임 C(마스터 전용)의 기원**
+> 이며, 이후 goals/dashboard 가 이 패턴을 재사용했다. 전체 권한 지도는
+> [ACCESS-MODEL.md](./ACCESS-MODEL.md) 참조.
+
 - **마스터(`app_users.role = 'master'`) 전용.** 일반 사용자/뷰어에게는 메뉴·페이지·데이터가
   전혀 노출되지 않는다.
 - 이참에 **마케팅 캔버스(page_type frame/engine)도 마스터 전용**으로 전환한다.

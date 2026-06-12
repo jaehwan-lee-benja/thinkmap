@@ -3,6 +3,8 @@
 > 작성일: 2026-04-17
 > 상태: 구현 완료, 문서화
 > 관련: 업무일지 통합 접근은 별도 체계 — [WORKLOG-SPEC.md](./WORKLOG-SPEC.md) 10-2절 참조
+> 권한 총괄(권한 주체·3 패러다임·수렴 방향): [ACCESS-MODEL.md](./ACCESS-MODEL.md).
+> 임퍼소네이션은 권한을 새로 부여하지 않고 `auth.uid()` 평가 대상만 바꾼다(ACCESS-MODEL §1).
 
 ---
 

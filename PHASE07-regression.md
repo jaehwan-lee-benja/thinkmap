@@ -3,6 +3,10 @@
 > PLAN-daily-carryover-authority.md Phase 0.7 · 작성 2026-06-11
 > **이 표가 "안 깨짐"을 증명하기 전에는 `phase07-step2-rls.sql` 실행 금지.**
 > BEFORE 열은 추정이 아니라 **LIVE `pg_policies` 덤프**(verify-live-policies-1.sql 결과)에 근거.
+>
+> 권한 맥락: 여기서 도입한 `is_board_member_of_page` 헬퍼는 ThinkMap 권한 패러다임 B(공개형)를
+> "만든 사람" 기준에서 **보드 멤버십** 기준으로 옮기는 첫 단계이자, L1 테넌시 계층의 선행
+> 작업이다. 전체 권한 지도/수렴 방향은 [docs/ACCESS-MODEL.md](docs/ACCESS-MODEL.md) §3·§6 참조.
 
 ## 0. 변경 요약
 

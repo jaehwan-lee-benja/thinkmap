@@ -11,6 +11,8 @@
 >
 > 관련 문서: [TOGGLE-BLOCK-SPEC.md](./TOGGLE-BLOCK-SPEC.md), [CARRY-OVER-MAP.md](./CARRY-OVER-MAP.md), [DESIGN-PHILOSOPHY.md](./DESIGN-PHILOSOPHY.md)
 >
+> 권한 맥락: 여기서 정립하는 `visibility('all'|'master')` 는 ThinkMap 권한 **패러다임 B(공개형)의 기원**으로, 이후 도메인의 RLS 가 이를 재사용·확장한다(예: Phase 0.7 보드 멤버십). 전체 권한 지도/수렴 방향은 [ACCESS-MODEL.md](./ACCESS-MODEL.md) 참조. (본 문서 자체는 권한 정책을 재설계하지 않는다 — §1.3.)
+>
 > 📌 **중요 결정 (2026-04-28)**: 기존 daily/calendar 페이지 데이터는 **모두 더미였으며 v2 착수 직전 전부 폐기**. 따라서 이 기획서는 **마이그레이션 없는 깨끗한 시작**을 전제로 한다. 듀얼라이트·백필·일치성 검증 단계가 모두 제거되었다.
 
 ---

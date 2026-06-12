@@ -418,6 +418,10 @@ iCalendar RFC 5545 를 따른다. 초기 UI 지원 범위:
 
 ## 10. RLS / RPC
 
+> 전체 권한 모델(3 패러다임 + 단일 access 헬퍼로의 수렴 방향)은
+> [ACCESS-MODEL.md](./ACCESS-MODEL.md) 참조. 아래 `can_*_schedule_owner` 는 그 문서가
+> "마스터/본인/linked 를 한 함수로 합성한 프로토타입"으로 꼽는 **수렴 재료**다 — 폐기 대상이 아니다.
+
 ### 10.1 헬퍼 함수
 
 ```sql
@@ -588,7 +592,7 @@ className={`sidebar-worklog-btn ${
 4. **인스턴스는 lazily 생성**. RRULE 펼침 결과에 instance row 가 없으면 = 원본 상태로 그린다.
 5. **양방향 동기는 origin 플래그로 무한 루프 차단**.
 6. **window.location.reload() 금지** — fetchPages + setCurrentPageId 패턴 사용. (이전 시도에서 흰 화면 + 첫 클릭 미진입 버그 원인이었음)
-7. **새 page_type 추가 시** — `pages_page_type_chk` CHECK 제약 + worklog 계열 RLS 3종(SELECT/INSERT/UPDATE) 모두 확장 필요. 하나만 풀면 400 으로 떨어진다.
+7. **새 page_type 추가 시** — `pages_page_type_chk` CHECK 제약 + worklog 계열 RLS 3종(SELECT/INSERT/UPDATE) 모두 확장 필요. 하나만 풀면 400 으로 떨어진다. **단, 이 규칙은 공개(워크스페이스 공개) page_type 한정이다.** 마스터 전용(payroll/dashboard 등)은 의도된 예외로 CHECK 제약만 확장하고 worklog 공개 절에는 넣지 않는다 (마스터의 `pages` 기본 `is_master()` 정책으로 진입 보호). → [ACCESS-MODEL §7](./ACCESS-MODEL.md), [DASHBOARD-SPEC §6.2](./DASHBOARD-SPEC.md).
 8. **Google 컬럼은 절대 클라이언트에서 직접 채우지 않는다** — Edge Function / 서버 sync 로직만 갱신.
 
 ---
