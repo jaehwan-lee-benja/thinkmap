@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt, LayoutDashboard } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -14,7 +14,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isCalendarPage, isSchedulePage, isPayrollPage } from '../../utils/pageTypes'
+import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage } from '../../utils/pageTypes'
 import './Sidebar.css'
 
 /**
@@ -131,6 +131,57 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
               <Calendar size={16} />
               <span>캘린더</span>
             </button>
+
+            {/* 대시보드 — 캘린더 아래. 마스터 전용 (비마스터에겐 진입 자체를 숨김). */}
+            {isMaster && (
+            <button
+              className={`sidebar-worklog-btn ${currentPageId && isDashboardPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
+              onClick={async () => {
+                // 메모리 캐시 우선
+                let dashboardPage = pages.find(p => isDashboardPage(p))
+
+                // DB 직접 조회 (캐시에 없을 수 있음 — 다른 사용자/계정이 만든 경우 포함)
+                if (!dashboardPage) {
+                  const { data } = await supabase
+                    .from('pages')
+                    .select('id')
+                    .eq('page_type', 'dashboard')
+                    .is('deleted_at', null)
+                    .limit(1)
+                    .maybeSingle()
+                  if (data) dashboardPage = { id: data.id, page_type: 'dashboard' }
+                }
+
+                // 그래도 없으면 신규 생성 (단 1번)
+                if (!dashboardPage) {
+                  const newPageId = generateUUID()
+                  const { error } = await supabase
+                    .from('pages')
+                    .insert([{
+                      id: newPageId,
+                      user_id: effectiveSession.user.id,
+                      name: '대시보드',
+                      page_type: 'dashboard',
+                      project_id: null,
+                      parent_id: null,
+                      position: -1,
+                    }])
+                  if (error) {
+                    console.error('대시보드 페이지 생성 실패:', error)
+                    return
+                  }
+                  dashboardPage = { id: newPageId, page_type: 'dashboard' }
+                }
+
+                // PageContext 캐시 갱신 후 선택 (reload 없음)
+                if (typeof fetchPages === 'function') await fetchPages()
+                handlePageSelect(dashboardPage.id)
+              }}
+            >
+              <LayoutDashboard size={16} />
+              <span>대시보드</span>
+            </button>
+            )}
 
             <button
               className={`sidebar-worklog-btn ${currentPageId && isCalendarPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
