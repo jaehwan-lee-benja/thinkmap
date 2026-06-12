@@ -3,6 +3,28 @@ import { supabase } from '../supabaseClient'
 import { generateUUID } from '../utils/uuid'
 import { logError } from '../utils/supabaseError'
 
+// 페이지 정렬 비교자 — position 우선, 동률 시 created_at·id 로 비결정성 제거.
+// (position 은 형제 그룹별로 매겨져 프로젝트 전체에서 유일하지 않음 → tiebreak 필수)
+const comparePages = (a, b) =>
+  (a.position ?? 0) - (b.position ?? 0)
+  || String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))
+  || String(a.id ?? '').localeCompare(String(b.id ?? ''))
+
+const isNormalPage = (p) => p.page_type == null || p.page_type === 'normal'
+
+// "갈 곳을 잃었을 때"(저장된 페이지를 못 찾음 / 저장값 없음)의 fallback 기본 페이지.
+// 임의의 data[0](= position 최소, 동률 시 비결정적) 대신 의미 있는 페이지를 결정적으로 선택:
+//   1순위 최상위(parent_id 없는) 일반 페이지 → 2순위 중첩 포함 일반 페이지
+//   → 3순위 그 외(업무일지·캘린더 등 특수 타입). 모든 단계에서 comparePages 로 결정적.
+const pickDefaultPageId = (list) => {
+  if (!list || list.length === 0) return null
+  const topNormal = list.filter(p => !p.parent_id && isNormalPage(p)).sort(comparePages)
+  if (topNormal.length) return topNormal[0].id
+  const anyNormal = list.filter(isNormalPage).sort(comparePages)
+  if (anyNormal.length) return anyNormal[0].id
+  return [...list].sort(comparePages)[0].id
+}
+
 /**
  * 플랫 페이지 배열을 트리 구조로 변환
  * @param {Array} pages - 플랫 페이지 배열
@@ -36,11 +58,11 @@ const buildPageTree = (pages, isMaster = true) => {
     }
   })
 
-  // position 기준 정렬
-  tree.sort((a, b) => a.position - b.position)
+  // position 기준 정렬 (동률 시 created_at·id tiebreak — 사이드바 순서 비결정성 제거)
+  tree.sort(comparePages)
   Object.values(pageMap).forEach(node => {
     if (node.children.length > 1) {
-      node.children.sort((a, b) => a.position - b.position)
+      node.children.sort(comparePages)
     }
   })
 
@@ -174,7 +196,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
             // 자동 선택 방지 (분할뷰 새 패널 등)
             initialLoadDoneRef.current = true
           } else {
-            const targetPageId = targetPage ? targetPage.id : data[0].id
+            const targetPageId = targetPage ? targetPage.id : pickDefaultPageId(data)
             setCurrentPageId(targetPageId)
             initialLoadDoneRef.current = true
             // 저장된 값으로 복원할 때는 콜백 호출하지 않음
@@ -325,23 +347,42 @@ export const usePages = (session, currentProjectId, options = {}) => {
     // 로컬 상태에서 즉시 제거
     setPages(updatedPages)
 
-    // 삭제된 페이지(또는 자손)가 현재 페이지였다면 다른 페이지로 전환
+    // 삭제된 페이지(또는 자손)가 현재 페이지였다면 의미 있는 기본 페이지로 전환
     const prevPageId = currentPageId
     if (idsToRemove.has(currentPageId) && updatedPages.length > 0) {
-      selectPage(updatedPages[0].id)
+      const nextId = pickDefaultPageId(updatedPages)
+      if (nextId) selectPage(nextId)
     }
 
-    // DB soft-delete: deleted_at 타임스탬프 기록 (대상 + 자손 모두)
+    // DB soft-delete: deleted_at 타임스탬프 기록 (대상 + 자손 모두).
+    // 실제 반영 여부를 검증한다 — RLS 가 일부 행(예: user_id 가 다른 자식)을 조용히
+    // 건너뛰면 error 없이 부분/0 업데이트가 되어 "삭제됐다 되돌아옴" 증상이 난다.
+    // 실패 시 낙관적 제거를 되돌리고 false 를 반환해 호출부가 성공으로 오인하지 않게 한다.
     const now = new Date().toISOString()
+    const allIds = [pageId, ...descendantIds]
+    const revertOptimistic = (err) => {
+      logError('페이지 삭제', err)
+      setPages(prev => {
+        const existing = new Set(prev.map(p => p.id))
+        const restore = removedPages.filter(p => !existing.has(p.id))
+        return [...prev, ...restore].sort(comparePages)
+      })
+      if (prevPageId) selectPage(prevPageId)
+    }
     try {
-      const allIds = [pageId, ...descendantIds]
-      const { error } = await supabase
+      const { data: deletedRows, error } = await supabase
         .from('pages')
         .update({ deleted_at: now })
         .in('id', allIds)
-      if (error) logError('페이지 삭제', error)
+        .select('id')
+      const okCount = deletedRows?.length || 0
+      if (error || okCount < allIds.length) {
+        revertOptimistic(error || new Error(`삭제 권한 없음/부분 실패 (${okCount}/${allIds.length})`))
+        return false
+      }
     } catch (error) {
-      logError('페이지 삭제', error)
+      revertOptimistic(error)
+      return false
     }
 
     // 이전 undo 타이머가 있으면 제거
