@@ -2,13 +2,11 @@
   "name": "섹션의 형제로 토글 추가 (flat 패턴, sectionId 상속)",
   "description": "ToggleExtension 이 새 토글을 섹션의 자식이 아닌 doc.content 의 최상위 형제로 만드는 케이스. flattenDoc 가 직전 섹션의 blockId 를 이 토글의 sectionId 로 상속해야 한다 (NOT NULL 위반 회피).",
   "spec": "WORKLOG-SPEC.md §3.7 (v2.2 통합 후 발견된 패턴)",
-
   "ctx": {
     "pageId": "page-0001-0000-0000-0000-000000000000",
     "pageDate": "2026-04-28",
     "userId": "user-0001-0000-0000-0000-000000000000"
   },
-
   "initialRows": [
     {
       "blockId": "blk-1000-0000-0000-0000-000000000000",
@@ -36,7 +34,6 @@
       "deletedAt": null
     }
   ],
-
   "prevDoc": {
     "type": "doc",
     "content": [
@@ -48,15 +45,28 @@
           "sectionId": "blk-1000-0000-0000-0000-000000000000",
           "sectionMasterId": "fixed_todo",
           "isFixedSection": true,
-          "visibility": "all"
+          "visibility": "all",
+          "isOpen": true
         },
         "content": [
-          { "type": "paragraph", "content": [{ "type": "text", "marks": [{ "type": "bold" }], "text": "할 일" }] }
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          }
         ]
       }
     ]
   },
-
   "nextDoc": {
     "type": "doc",
     "content": [
@@ -68,10 +78,24 @@
           "sectionId": "blk-1000-0000-0000-0000-000000000000",
           "sectionMasterId": "fixed_todo",
           "isFixedSection": true,
-          "visibility": "all"
+          "visibility": "all",
+          "isOpen": true
         },
         "content": [
-          { "type": "paragraph", "content": [{ "type": "text", "marks": [{ "type": "bold" }], "text": "할 일" }] }
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "할 일"
+              }
+            ]
+          }
         ]
       },
       {
@@ -83,15 +107,23 @@
           "isCarryOver": false,
           "isPinned": false,
           "visibility": "all",
-          "blockType": "paragraph"
+          "blockType": "paragraph",
+          "isOpen": true
         },
         "content": [
-          { "type": "paragraph", "content": [{ "type": "text", "text": "할일 1" }] }
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "할일 1"
+              }
+            ]
+          }
         ]
       }
     ]
   },
-
   "expectedDiff": {
     "insert": [
       {
@@ -106,7 +138,15 @@
         "position": 2,
         "textContent": "할일 1",
         "richContent": [
-          { "type": "paragraph", "content": [{ "type": "text", "text": "할일 1" }] }
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "할일 1"
+              }
+            ]
+          }
         ],
         "isTodo": true,
         "todoChecked": false,
@@ -116,12 +156,16 @@
         "originBlockId": null,
         "isPinned": false,
         "visibility": "all",
-        "isFixedSection": false
+        "isFixedSection": false,
+        "isOpen": true,
+        "backgroundColor": null
       }
     ],
     "update": [],
     "softDelete": []
   },
-
-  "rules": ["R1", "R7"]
+  "rules": [
+    "R1",
+    "R7"
+  ]
 }

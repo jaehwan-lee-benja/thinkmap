@@ -45,7 +45,8 @@
           "sectionId": "blk-1002-0000-0000-0000-000000000000",
           "sectionMasterId": "fixed_wrapup",
           "isFixedSection": true,
-          "visibility": "all"
+          "visibility": "all",
+          "isOpen": true
         },
         "content": [
           {
@@ -77,7 +78,8 @@
           "sectionId": "blk-1002-0000-0000-0000-000000000000",
           "sectionMasterId": "fixed_wrapup",
           "isFixedSection": true,
-          "visibility": "master"
+          "visibility": "master",
+          "isOpen": true
         },
         "content": [
           {

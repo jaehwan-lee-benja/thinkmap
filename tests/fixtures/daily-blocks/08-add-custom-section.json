@@ -45,7 +45,8 @@
           "sectionId": "blk-1000-0000-0000-0000-000000000000",
           "sectionMasterId": "fixed_todo",
           "isFixedSection": true,
-          "visibility": "all"
+          "visibility": "all",
+          "isOpen": true
         },
         "content": [
           {
@@ -77,7 +78,8 @@
           "sectionId": "blk-1000-0000-0000-0000-000000000000",
           "sectionMasterId": "fixed_todo",
           "isFixedSection": true,
-          "visibility": "all"
+          "visibility": "all",
+          "isOpen": true
         },
         "content": [
           {
@@ -104,7 +106,8 @@
           "sectionId": "blk-1500-0000-0000-0000-000000000000",
           "sectionMasterId": "usr-1500-master-purchase-000000",
           "isFixedSection": false,
-          "visibility": "all"
+          "visibility": "all",
+          "isOpen": true
         },
         "content": [
           {
@@ -147,7 +150,9 @@
         "originBlockId": null,
         "isPinned": false,
         "visibility": "all",
-        "isFixedSection": false
+        "isFixedSection": false,
+        "isOpen": true,
+        "backgroundColor": null
       }
     ],
     "update": [],

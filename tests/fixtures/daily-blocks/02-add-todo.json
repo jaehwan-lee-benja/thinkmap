@@ -45,7 +45,8 @@
           "sectionId": "blk-1000-0000-0000-0000-000000000000",
           "sectionMasterId": "fixed_todo",
           "isFixedSection": true,
-          "visibility": "all"
+          "visibility": "all",
+          "isOpen": true
         },
         "content": [
           {
@@ -77,7 +78,8 @@
           "sectionId": "blk-1000-0000-0000-0000-000000000000",
           "sectionMasterId": "fixed_todo",
           "isFixedSection": true,
-          "visibility": "all"
+          "visibility": "all",
+          "isOpen": true
         },
         "content": [
           {
@@ -103,7 +105,8 @@
               "isCarryOver": false,
               "isPinned": false,
               "visibility": "all",
-              "blockType": "paragraph"
+              "blockType": "paragraph",
+              "isOpen": true
             },
             "content": [
               {
@@ -153,7 +156,9 @@
         "originBlockId": null,
         "isPinned": false,
         "visibility": "all",
-        "isFixedSection": false
+        "isFixedSection": false,
+        "isOpen": true,
+        "backgroundColor": null
       }
     ],
     "update": [],
