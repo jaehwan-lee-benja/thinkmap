@@ -26,6 +26,7 @@ import FavoritesContext from './contexts/FavoritesContext'
 import { supabase } from './supabaseClient'
 import { generateUUID } from './utils/uuid'
 import { dailyPageName } from './utils/dateUtils'
+import { PAGE_TYPES, isSchedulePage, isPayrollPage } from './utils/pageTypes'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -134,7 +135,7 @@ function PaneInner({
           ) : (() => {
             const currentPage = pages.find(p => p.id === pageId)
             const pageType = currentPage?.page_type
-            if (pageType === 'frame' || pageType === 'engine') {
+            if (pageType === PAGE_TYPES.FRAME || pageType === PAGE_TYPES.ENGINE) {
               return (
                 <CanvasViewer
                   key={`pane-${paneIndex}-${pageId}`}
@@ -144,7 +145,7 @@ function PaneInner({
                 />
               )
             }
-            if (pageType === 'schedule') {
+            if (isSchedulePage(pageType)) {
               return (
                 <SchedulePage
                   key={`pane-${paneIndex}-${pageId}`}
@@ -152,7 +153,7 @@ function PaneInner({
                 />
               )
             }
-            if (pageType === 'payroll') {
+            if (isPayrollPage(pageType)) {
               // 급여명세서 — 마스터 전용. 비마스터 접근 시 거부.
               if (!isMaster) {
                 return (

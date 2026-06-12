@@ -2,6 +2,10 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } fr
 import { supabase } from '../supabaseClient'
 import { generateUUID } from '../utils/uuid'
 import { logError } from '../utils/supabaseError'
+import {
+  isNormalPage, isCalendarPage, isDailyPage,
+  INDEPENDENT_PAGE_TYPES, MASTER_ONLY_PAGE_TYPES,
+} from '../utils/pageTypes'
 
 // 페이지 정렬 비교자 — position 우선, 동률 시 created_at·id 로 비결정성 제거.
 // (position 은 형제 그룹별로 매겨져 프로젝트 전체에서 유일하지 않음 → tiebreak 필수)
@@ -9,8 +13,6 @@ const comparePages = (a, b) =>
   (a.position ?? 0) - (b.position ?? 0)
   || String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))
   || String(a.id ?? '').localeCompare(String(b.id ?? ''))
-
-const isNormalPage = (p) => p.page_type == null || p.page_type === 'normal'
 
 // "갈 곳을 잃었을 때"(저장된 페이지를 못 찾음 / 저장값 없음)의 fallback 기본 페이지.
 // 임의의 data[0](= position 최소, 동률 시 비결정적) 대신 의미 있는 페이지를 결정적으로 선택:
@@ -37,8 +39,8 @@ const buildPageTree = (pages, isMaster = true) => {
   // calendar/daily 페이지는 사이드바 페이지 목록에서 제외 (고정 업무일지 버튼으로만 접근)
   // 마케팅 캔버스(frame/engine) + 급여(payroll)는 마스터에게만 트리에 노출
   const visiblePages = pages.filter(p => {
-    if (p.page_type === 'calendar' || p.page_type === 'daily') return false
-    if (!isMaster && (p.page_type === 'frame' || p.page_type === 'engine' || p.page_type === 'payroll')) return false
+    if (isCalendarPage(p) || isDailyPage(p)) return false
+    if (!isMaster && MASTER_ONLY_PAGE_TYPES.includes(p.page_type)) return false
     return true
   })
 
@@ -142,7 +144,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
         .from('pages')
         .select('*')
         .is('project_id', null)
-        .in('page_type', ['calendar', 'daily', 'frame', 'engine', 'schedule', 'payroll'])
+        .in('page_type', INDEPENDENT_PAGE_TYPES)
         .is('deleted_at', null)
         .order('position', { ascending: true })
 
@@ -152,7 +154,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
             .from('pages')
             .select('*')
             .eq('project_id', currentProjectId)
-            .not('page_type', 'in', '("calendar","daily","frame","engine","schedule","payroll")')
+            .not('page_type', 'in', `(${INDEPENDENT_PAGE_TYPES.map(t => `"${t}"`).join(',')})`)
             .is('deleted_at', null)
             .order('position', { ascending: true })
         : Promise.resolve({ data: [], error: null })
@@ -246,7 +248,7 @@ export const usePages = (session, currentProjectId, options = {}) => {
   // 새 페이지 생성 (parentId 지원, 양식 content 지원, extraFields로 page_type/page_date 등 추가 필드 전달)
   const createPage = async (name = 'Untitled', parentId = null, contentTiptap = null, extraFields = {}) => {
     // calendar/daily 페이지는 project_id=null 허용
-    const isWorklogPage = extraFields.page_type === 'calendar' || extraFields.page_type === 'daily'
+    const isWorklogPage = isCalendarPage(extraFields) || isDailyPage(extraFields)
     if (!session?.user?.id || (!currentProjectId && !isWorklogPage)) return null
 
     try {

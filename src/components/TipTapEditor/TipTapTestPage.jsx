@@ -88,6 +88,7 @@ import { useWorklogComments } from '../../hooks/useWorklogComments'
 import { useCalendarCommentCounts } from '../../hooks/useCalendarCommentCounts'
 import { useCalendarTodoStats } from '../../hooks/useCalendarTodoStats'
 import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
+import { isDailyPage, isCalendarPage } from '../../utils/pageTypes'
 import './TipTapPage.css'
 
 /**
@@ -122,13 +123,13 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const currentPage = pages.find(p => p.id === currentPageId)
   const { comments, mentionableUsers, addComment, toggleResolved, deleteComment } = useWorklogComments(
     session,
-    currentPage?.page_type === 'daily' ? currentPageId : null,
+    isDailyPage(currentPage) ? currentPageId : null,
     currentProjectId,
-    currentPage?.page_type === 'daily',
+    isDailyPage(currentPage),
   )
 
   // 캘린더 뷰용 코멘트 수 배치 조회
-  const isCalendar = currentPage?.page_type === 'calendar'
+  const isCalendar = isCalendarPage(currentPage)
   const calendarDailyPages = useMemo(
     () => isCalendar ? pages.filter(p => p.parent_id === currentPageId) : [],
     [isCalendar, pages, currentPageId]
@@ -455,7 +456,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
     // v2 (§10 Phase v2.2): daily 페이지는 DailyPageV2 가 자체 책임. v1 read 경로 차단.
     const pageType = pages.find(p => p.id === pid)?.page_type
-    if (pageType === 'daily') return
+    if (isDailyPage(pageType)) return
 
     try {
       const { data, error } = await supabase
@@ -551,7 +552,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   // daily 는 DailyPageV2 가 자체 실시간(daily_blocks) 처리하므로 제외.
   useEffect(() => {
     if (!session || !currentPageId) return
-    if (currentPage?.page_type === 'daily') return
+    if (isDailyPage(currentPage)) return
     const pid = currentPageId
 
     const channel = supabase
@@ -561,7 +562,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         { event: 'UPDATE', schema: 'public', table: 'pages', filter: `id=eq.${pid}` },
         (payload) => {
           const row = payload.new
-          if (!row || row.page_type === 'daily') return
+          if (!row || isDailyPage(row)) return
           // 내 저장이 만든 에코는 무시 (updated_at baseline 일치)
           if (row.updated_at && row.updated_at === pageUpdatedAtsRef.current.get(pid)) return
 
@@ -594,7 +595,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   // 덮어쓰지 않도록 반드시 functional form으로 설정한다.
   const handleUpdate = (newContent) => {
     // v2: daily 는 DailyPageV2 가 별도 처리. v1 onUpdate 흐름 무시.
-    if (currentPage?.page_type === 'daily') return
+    if (isDailyPage(currentPage)) return
 
     if (isImpersonating) {
       setContent(prev => {
@@ -622,7 +623,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
     // v2: daily 는 DailyPageV2 의 row 기반 저장. v1 content_tiptap 저장 차단.
     const pageType = pages.find(p => p.id === pageIdToSave)?.page_type
-    if (pageType === 'daily') return false
+    if (isDailyPage(pageType)) return false
 
     try {
       // 비관리자가 daily 페이지 저장 시 DB의 master 전용 h2 섹션을 보존하여 data loss 방지
@@ -635,7 +636,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           .eq('id', pageIdToSave)
           .single()
 
-        if (dbPage?.page_type === 'daily' && Array.isArray(dbPage?.content_tiptap?.content)) {
+        if (isDailyPage(dbPage) && Array.isArray(dbPage?.content_tiptap?.content)) {
           const masterSections = []
           dbPage.content_tiptap.content.forEach((n, i) => {
             if (isH2Section(n) && n.attrs?.visibility === 'master') {
@@ -816,7 +817,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         saveAutoHistory(content, currentPageId)
         // daily 페이지 (master 전용): fixed 섹션의 title/visibility 를 worklog_sections DB 에 동기화
         // RLS 로 master 만 UPDATE 가능. pinned 섹션(sec_*)은 테이블 행이 없어 UPDATE 가 no-op 이지만 에러는 아님
-        if (isMaster && currentPage?.page_type === 'daily' && content?.content) {
+        if (isMaster && isDailyPage(currentPage) && content?.content) {
           for (const node of content.content) {
             if (node.type === 'toggle' && node.attrs?.blockType === 'h2' && node.attrs?.sectionId) {
               const title = node.content?.[0]?.content?.[0]?.text
@@ -1133,7 +1134,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
    * 달력 뷰 분기: page_type === 'calendar'이면 CalendarView 렌더링
    * [향후] 계정별 개인 업무일지 분리 시, dailyPages를 owner_id로 필터링
    */
-  if (currentPage?.page_type === 'calendar') {
+  if (isCalendarPage(currentPage)) {
     // calendarDailyPages는 상단에서 이미 계산됨
     const dailyPages = calendarDailyPages
 
@@ -1199,7 +1200,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   useEffect(() => {
     const el = pageRef.current
     if (!el) return
-    const isDaily = currentPage?.page_type === 'daily'
+    const isDaily = isDailyPage(currentPage)
     const handler = (e) => {
       const { sectionTitle, targetType = 'section', toggleDom, blockId, sectionId, originBlockId } = e.detail
       // todo 는 thread id (originBlockId || blockId) 로 귀속 — 이월 시 코멘트가 따라감.
@@ -1305,10 +1306,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   // v1 의 _dismissed (content_tiptap 루트 키) 흐름 폐기 (2026-05-04).
 
   return (
-    <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''} ${currentPage?.page_type === 'daily' ? 'tiptap-page--daily' : ''}`}>
+    <div ref={pageRef} className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''} ${isDailyPage(currentPage) ? 'tiptap-page--daily' : ''}`}>
       <div className="tiptap-page-inner">
         {/* 실시간 충돌 배너 — 내가 편집 중인데 다른 곳에서 수정됨 (덮어쓰지 않고 선택) */}
-        {syncConflict && currentPage?.page_type !== 'daily' && (
+        {syncConflict && !isDailyPage(currentPage) && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
             padding: '10px 16px', margin: '0 0 8px', borderRadius: 8,
@@ -1405,7 +1406,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             >{currentPageName || '페이지'}</h2>
           </div>
           <div className="tiptap-header-actions">
-            {currentPage?.page_type !== 'daily' && <>
+            {!isDailyPage(currentPage) && <>
             <div className="page-nav-dropdown-wrapper" ref={pageNavRef}>
               <button
                 className={`tiptap-btn tiptap-btn-secondary page-nav-chevron ${showPageNav ? 'open' : ''}`}
@@ -1420,7 +1421,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
                   <div className="page-nav-dropdown-header">페이지</div>
                   <div className="page-nav-dropdown-list">
                     {/* 업무일지 캘린더 (daily 페이지에서 부모로 이동) */}
-                    {currentPage?.page_type === 'daily' && currentPage.parent_id && (
+                    {isDailyPage(currentPage) && currentPage.parent_id && (
                       <button
                         className="page-nav-dropdown-item"
                         onClick={() => setCurrentPageId(currentPage.parent_id)}
@@ -1510,7 +1511,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           </div>
         </div>
 
-        {currentPage?.page_type === 'daily' && (
+        {isDailyPage(currentPage) && (
           <WorklogHeader
             pageDate={currentPage.page_date}
             onGoToCalendar={currentPage.parent_id ? () => setCurrentPageId(currentPage.parent_id) : null}
@@ -1618,8 +1619,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
         {/* 하위 페이지는 콘텐츠 내 page 블록으로 인라인 표시 (노션 스타일) */}
 
-        <div className={`tiptap-editor-wrapper ${currentPage?.page_type === 'daily' ? 'tiptap-editor-wrapper--daily' : ''}`}>
-          {currentPage?.page_type === 'daily' ? (
+        <div className={`tiptap-editor-wrapper ${isDailyPage(currentPage) ? 'tiptap-editor-wrapper--daily' : ''}`}>
+          {isDailyPage(currentPage) ? (
             <DailyPageV2
               session={session}
               pageId={currentPageId}
@@ -1649,7 +1650,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         </div>
 
         {/* 모달 — 페이지 전체 코멘트 */}
-        {currentPage?.page_type === 'daily' && showWorklogCommentsModal && createPortal(
+        {isDailyPage(currentPage) && showWorklogCommentsModal && createPortal(
           <div
             className="worklog-comments-modal-overlay"
             onClick={() => setShowWorklogCommentsModal(false)}
@@ -1678,7 +1679,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         )}
 
         {/* 업무일지: 섹션 추가 버튼 */}
-        {currentPage?.page_type === 'daily' && !isImpersonating && editorRef.current && (
+        {isDailyPage(currentPage) && !isImpersonating && editorRef.current && (
           <button
             className="worklog-add-section-btn"
             onClick={() => {
@@ -1704,7 +1705,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         )}
 
         {/* todo/section 클릭 시 floating popover */}
-        {currentPage?.page_type === 'daily' && commentTarget && commentAnchorEl && createPortal(
+        {isDailyPage(currentPage) && commentTarget && commentAnchorEl && createPortal(
           <CommentPopover
             anchorEl={commentAnchorEl}
             onClose={() => { setCommentTarget(null); setCommentAnchorEl(null) }}

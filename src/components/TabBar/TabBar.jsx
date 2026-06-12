@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, List } from 'lucide-react'
+import { isCalendarPage } from '../../utils/pageTypes'
 import './TabBar.css'
 
 export function TabBar({
@@ -115,7 +116,7 @@ export function TabBar({
     if (!buildBreadcrumb) return { label: '새 탭', icon: null }
     const parts = buildBreadcrumb(tab)
     const last = parts[parts.length - 1]
-    const label = last?.pageType === 'calendar' ? '업무일지' : (last?.name || '새 탭')
+    const label = isCalendarPage(last?.pageType) ? '업무일지' : (last?.name || '새 탭')
     const icon = last?.icon || null
     return { label, icon }
   }
@@ -135,7 +136,7 @@ export function TabBar({
             >
               {part.icon
                 ? <span style={{ marginRight: 3, flexShrink: 0, fontSize: 12 }}>{part.icon}</span>
-                : part.pageType === 'calendar'
+                : isCalendarPage(part.pageType)
                   ? <CalendarDays size={12} style={{ marginRight: 3, verticalAlign: -1, flexShrink: 0 }} />
                   : null
               }
@@ -317,8 +318,8 @@ export function TabBar({
                 onClick={() => handleDropdownSelect(dropdown.type, item.id)}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
-                  {item.pageType === 'calendar' && <CalendarDays size={12} style={{ flexShrink: 0 }} />}
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.pageType === 'calendar' ? '업무일지(개발중)' : item.name}</span>
+                  {isCalendarPage(item.pageType) && <CalendarDays size={12} style={{ flexShrink: 0 }} />}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isCalendarPage(item.pageType) ? '업무일지(개발중)' : item.name}</span>
                 </span>
                 {item.id === dropdown.currentId && (
                   <svg width="12" height="12" viewBox="0 0 12 12" className="breadcrumb-dropdown-check">

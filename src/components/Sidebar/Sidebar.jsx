@@ -14,6 +14,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
+import { isCalendarPage, isSchedulePage, isPayrollPage } from '../../utils/pageTypes'
 import './Sidebar.css'
 
 /**
@@ -84,10 +85,10 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
           <div className="sidebar-worklog-fixed">
             {/* 캘린더 — 업무일지 위쪽 */}
             <button
-              className={`sidebar-worklog-btn ${currentPageId && pages.find(p => p.id === currentPageId)?.page_type === 'schedule' ? 'active' : ''}`}
+              className={`sidebar-worklog-btn ${currentPageId && isSchedulePage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
               onClick={async () => {
                 // 메모리 캐시 우선
-                let schedulePage = pages.find(p => p.page_type === 'schedule')
+                let schedulePage = pages.find(p => isSchedulePage(p))
 
                 // DB 직접 조회 (캐시에 없을 수 있음 — 다른 사용자/계정이 만든 경우 포함)
                 if (!schedulePage) {
@@ -132,10 +133,10 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             </button>
 
             <button
-              className={`sidebar-worklog-btn ${currentPageId && pages.find(p => p.id === currentPageId)?.page_type === 'calendar' ? 'active' : ''}`}
+              className={`sidebar-worklog-btn ${currentPageId && isCalendarPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
               onClick={async () => {
                 // page_type='calendar'인 페이지 찾기 (프로젝트 무관 — 업무일지는 독립 엔티티)
-                let calendarPage = pages.find(p => p.page_type === 'calendar')
+                let calendarPage = pages.find(p => isCalendarPage(p))
 
                 if (!calendarPage) {
                   // DB에서 page_type='calendar' 확인 (project_id 필터 없음)
@@ -192,11 +193,11 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
                 </button>
 
                 <button
-                  className={`sidebar-worklog-btn ${currentPageId && pages.find(p => p.id === currentPageId)?.page_type === 'payroll' ? 'active' : ''}`}
+                  className={`sidebar-worklog-btn ${currentPageId && isPayrollPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
                   title="급여명세서 (마스터 전용)"
                   onClick={async () => {
                     // 메모리 캐시 우선
-                    let payrollPage = pages.find(p => p.page_type === 'payroll')
+                    let payrollPage = pages.find(p => isPayrollPage(p))
 
                     // DB 직접 조회 (캐시에 없을 수 있음)
                     if (!payrollPage) {

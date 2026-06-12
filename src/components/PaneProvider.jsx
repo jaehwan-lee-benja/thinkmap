@@ -7,6 +7,7 @@ import ProjectContext from '../contexts/ProjectContext'
 import PageContext from '../contexts/PageContext'
 import SharingContext from '../contexts/SharingContext'
 import BackupContext from '../contexts/BackupContext'
+import { isCalendarPage } from '../utils/pageTypes'
 
 const PaneDataContext = createContext(null)
 export function usePaneData() { return useContext(PaneDataContext) }
@@ -341,13 +342,13 @@ export function PaneProvider({
         .filter(p => (p.parent_id || null) === (part.parentId || null))
         .sort((a, b) => {
           // 캘린더(업무일지) 페이지를 최상단으로
-          if (a.page_type === 'calendar' && b.page_type !== 'calendar') return -1
-          if (b.page_type === 'calendar' && a.page_type !== 'calendar') return 1
+          if (isCalendarPage(a) && !isCalendarPage(b)) return -1
+          if (isCalendarPage(b) && !isCalendarPage(a)) return 1
           return a.position - b.position
         })
         .filter(p => {
           // calendar 페이지 중복 방지 (1개만 표시)
-          if (p.page_type === 'calendar') {
+          if (isCalendarPage(p)) {
             if (seen.has('calendar')) return false
             seen.add('calendar')
           }
