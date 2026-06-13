@@ -311,8 +311,8 @@ function App() {
     }
 
     try {
-      const { createDailyPageV2 } = await import('./utils/createDailyPageV2')
-      const result = await createDailyPageV2({
+      const { ensureDailyPage } = await import('./utils/ensureDailyPage')
+      const result = await ensureDailyPage({
         supabase,
         parentId: calendarPage.id,
         dateKey: todayStr,

@@ -13,10 +13,15 @@
 | 0 | 가시성 상속 코드 강제 (P1) | ✅ 코드완료 | createDailyPageV2·DailyPageV2:368 빈자식 상속 + 이월 visibility=대상섹션 + 매핑실패 skip. 빌드 OK. 런타임 검증만 남음 |
 | 0.5 | 기존 데이터 백필 (Q3) | ✅ 완료 | LIVE 2,744 'all'→'master' 백필. remaining=0. 백업=`q3_visibility_backup_20260609`(롤백 가능) |
 | 0.7 | RLS 보드 멤버십 정렬 (Q4/P6) | ✅ 완료 (LIVE 적용 + 실기기 검증 통과 + 릴리즈) | LIVE 발견: pages_*_worklog 가 daily 를 로그인 전원 개방 → pages additive 무의미. 변경은 **daily_blocks UPDATE 1개**(협업: `OR visibility='all' AND is_board_member_of_page`). 멤버 등록(partner+rlawldus0621=member). 회귀표 통과(`PHASE07-regression.md`). 헬퍼 `is_board_member_of_page`. 롤백=`phase07-step2-rls.sql` 하단. **2026-06-11 검증: partner 'all' 편집/이월 정상·master 블록 안 보임 확인. main `ee0fd1a` 배포 완료** |
-| 1 | Edge `ensure-daily-page` (A안) | ⬜todo | CLI 1회 셋업 → 함수 → 클라 전환 |
+| 1 | Edge `ensure-daily-page` (A안) | 🔄 코드완료 (배포/검증 대기) | 브랜치 `feature/edge-ensure-daily-page`. 함수+클라 헬퍼+4개 호출지점 전환 완료, `deno check`/`npm run build` 통과. 남은 것=배포(사용자 토큰)+실기기 검증. 런북=`PHASE1-deploy-verify.md` |
 | 2 | 클라 이월 경로 제거·정리 | ⬜todo | Edge 일원화 |
 
-**▶▶ 다음 진입점 = Phase 1 (Edge `ensure-daily-page`) ◀◀**
+**▶▶ 다음 진입점 = Phase 1 배포·검증 (PHASE1-deploy-verify.md) ◀◀**
+- 코드는 끝남. `SUPABASE_ACCESS_TOKEN` 으로 `supabase functions deploy ensure-daily-page --project-ref sqisntxippjzcekyhqyo` → `.env` `VITE_USE_EDGE_DAILY=true` → 검증 시나리오(런북 §3). service_role 시크릿은 런타임 자동 주입이라 불필요.
+
+---
+
+### (이전 진입점 기록) Phase 1 착수 전
 - 해결할 증상(2026-06-11 실측): **partner(비마스터)가 daily 생성 → 섹션은 넘어오나 그 안의 master 콘텐츠는 이월 안 됨.** 원인: 이월이 partner 권한(RLS)으로 실행 → `daily_blocks` SELECT(`visibility='all' OR is_master()`)가 master 블록을 가려 *읽지도 못함* → 복사 누락. (P1 때문에 SELECT 를 열 수 없음 → 서버 권한이 정답.)
 - 할 일: ① Supabase CLI 1회 셋업 → ② Edge Function `ensure-daily-page` 작성(service_role 로 prev 전부 읽어 master 블록까지 `visibility='master'` 그대로 carry, JS 이월 로직 재사용) → ③ 클라 `createDailyPageV2` 이월 경로를 함수 호출로 전환 → ④ 검증.
 - 상세 설계: 아래 §3.2 / §5 Phase 1 참조.
@@ -210,3 +215,4 @@ ensureDailyPage(boardId, date, requestingUserId):
 - 2026-06-09: **형태 확정 = Edge Function**(PL/pgSQL 배제 — 진화하는 이월 로직을 경직된 SQL에 박지 않음, P5). **Q1·Q2 확정**(Edge 도입 / eager·lazy 통합). 결정 근거: 권한 경계는 안정·로직은 유연(P5), 운영 표면 +1은 일회성 비용으로 수용.
 - 2026-06-09: **Q3·Q4 확정.** Q3=기존 'all'-under-master 2,744블록 1회 백필(Phase 0.5). Q4=보드 데일리는 보드 소유(**P6 신설**), RLS를 보드 멤버십 기반으로 additive 정렬(Phase 0.7). 사용자 확인: "업무일지 보드는 마스터+비마스터가 같이 쓰는 공유 구조".
 - 2026-06-10: **Phase 0 코드 완료**(createDailyPageV2·DailyPageV2:368 빈자식 visibility 상속, `buildSectionVisibilityMap`+이월 visibility=대상섹션, 매핑실패 skip; 빌드 OK). **Phase 0.5 백필 완료**(LIVE daily 2,744 'all'→'master', DEAD 1,856 제외, remaining=0, 백업표 `q3_visibility_backup_20260609`). **Phase 0.7 착수** — `diagnose-board-membership.sql` 작성, 실행 대기 상태로 세션 중단.
+- 2026-06-11: **Phase 1 코드 완료** (브랜치 `feature/edge-ensure-daily-page`). Edge Function `supabase/functions/ensure-daily-page` — JWT 검증 후 **service_role 로 검증된 `createDailyPageV2` 파이프라인을 그대로 재사용**(P5, 재구현 0). 인가는 "유효 JWT(로그인)"까지만 — 멤버십 강제 게이트는 멤버 row 없는 다른 보드의 생성을 깨므로 보류(현행 pages-INSERT "로그인 전원"과 동일 권한선, 회귀 0). 이월된 master 콘텐츠는 visibility='master' 상속이라 비마스터 SELECT 에 안 잡힘(누출 0). 클라: 단일 진입점 `ensureDailyPage`(Edge↔로컬 폴백, 플래그 `VITE_USE_EDGE_DAILY`) 신설 + 4개 호출지점 전환. `deno check`/`npm run build` 통과. service_role 시크릿은 런타임 자동 주입이라 수동 셋업 불필요. **남은 것: 배포(사용자 PAT) + 실기기 검증** → 런북 `PHASE1-deploy-verify.md`.

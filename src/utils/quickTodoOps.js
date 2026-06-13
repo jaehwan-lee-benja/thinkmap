@@ -8,7 +8,7 @@
 //
 // 모든 함수는 supabase 클라이언트를 인자로 받아 의존성 격리.
 
-import { createDailyPageV2 } from './createDailyPageV2.js'
+import { ensureDailyPage } from './ensureDailyPage.js'
 import { dailyPageName } from './dateUtils.js'
 import { newBlockId } from './blockIdV2.js'
 import { rowToDb, patchToDb } from './dailyBlockMapper.js'
@@ -39,7 +39,7 @@ export async function ensureTodayDailyPage(supabase, { calendarId, userId }) {
   if (!calendarId) throw new Error('ensureTodayDailyPage: calendarId 필수')
   if (!userId) throw new Error('ensureTodayDailyPage: userId 필수')
   const pageDate = new Date().toISOString().slice(0, 10)
-  const { pageId } = await createDailyPageV2({
+  const { pageId } = await ensureDailyPage({
     supabase, parentId: calendarId, dateKey: pageDate, userId, dailyPageName,
   })
   return { pageId, pageDate }
