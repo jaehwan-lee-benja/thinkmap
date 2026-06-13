@@ -1841,6 +1841,11 @@ th .paragraph-drag-handle {
   transition: background-color 0.15s;
 }
 
+/* 삭제된(고아) 페이지 블록: 노드는 유지하되 숨겨 클릭 가능한 고아 링크 제거 */
+.toggle-page-block-deleted {
+  display: none !important;
+}
+
 .toggle-page-block:hover {
   background: rgba(255, 255, 255, 0.06) !important;
 }

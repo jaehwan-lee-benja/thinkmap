@@ -597,6 +597,29 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     }
   }, [editor, pageContext?.pages])
 
+  // 고아(삭제된) 페이지 블록 숨김: pageContext.pages 는 deleted_at IS NULL 로 필터됨.
+  // 자식 페이지가 삭제되면 pages 에서 빠지므로, 본문의 page 블록 pageId 가 pages 에 없으면
+  // 삭제된 것으로 보고 숨긴다. 노드는 유지하되 display:none 으로 시각/클릭만 차단.
+  // - storage.activePageIds: nodeview 가 신규 DOM 생성(페이지 전환/새로고침) 시 즉시 판정.
+  // - 아래 DOM sweep: node 변경 없이 pages 만 바뀌는 실시간 삭제/복원(undo)을 즉시 반영.
+  // 로딩 중(pages 비어있음)에는 판정을 보류해 오인 숨김을 막는다.
+  useEffect(() => {
+    if (!editor || !editor.storage.toggle) return
+    const pages = pageContext?.pages
+    const loaded = Array.isArray(pages) && pages.length > 0
+    const activeIds = loaded ? new Set(pages.map(p => p.id)) : null
+    editor.storage.toggle.activePageIds = activeIds
+    editor.storage.toggle.pageIdsLoaded = loaded
+
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    wrapper.querySelectorAll('.toggle-page-block').forEach(el => {
+      const pid = el.getAttribute('data-page-id')
+      const isDeleted = loaded && pid && !activeIds.has(pid)
+      el.classList.toggle('toggle-page-block-deleted', !!isDeleted)
+    })
+  }, [editor, pageContext?.pages])
+
   if (!editor) {
     return <div>에디터 로딩 중...</div>
   }

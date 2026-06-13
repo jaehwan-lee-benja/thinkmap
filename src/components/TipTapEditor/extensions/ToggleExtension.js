@@ -423,7 +423,10 @@ export const Toggle = Node.create({
   addStorage() {
     // isReloading: setContent 등으로 문서 전체를 교체하는 동안 true
     // 이월 블록 삭제 감지 plugin이 이 플래그를 보고 감지를 건너뛴다.
-    return { viewerMode: false, isMaster: false, isReloading: false }
+    // activePageIds: 삭제되지 않은(deleted_at IS NULL) 페이지 id 집합. React 레이어가 갱신.
+    //   page 블록의 pageId 가 이 집합에 없으면 = 삭제된 자식 → 고아 블록으로 숨김.
+    // pageIdsLoaded: pages 목록이 로드됐는지. 로딩 중 오인 숨김 방지용.
+    return { viewerMode: false, isMaster: false, isReloading: false, activePageIds: null, pageIdsLoaded: false }
   },
 
   addAttributes() {
@@ -587,6 +590,16 @@ export const Toggle = Node.create({
       dom.setAttribute('data-is-open', node.attrs.isOpen)
       dom.setAttribute('data-block-type', node.attrs.blockType || 'paragraph')
       if (node.attrs.blockId) dom.setAttribute('data-block-id', node.attrs.blockId)
+
+      // 고아(삭제된) 페이지 블록 숨김 상태 적용.
+      // pageId 가 storage.activePageIds(미삭제 페이지)에 없으면 삭제된 자식 → 숨김.
+      // pageIdsLoaded=false(로딩 중)면 판정 보류해 오인 숨김 방지.
+      const applyPageDeletedState = (attrs) => {
+        const isPage = attrs.blockType === 'page' && attrs.pageId
+        const ids = editor.storage.toggle?.activePageIds
+        const loaded = editor.storage.toggle?.pageIdsLoaded
+        dom.classList.toggle('toggle-page-block-deleted', !!(isPage && loaded && ids && !ids.has(attrs.pageId)))
+      }
 
       // 초기 클래스
       if (node.attrs.visibility === 'master' && node.attrs.blockType === 'h2') {
@@ -1112,6 +1125,7 @@ export const Toggle = Node.create({
       const isPageBlock = node.attrs.blockType === 'page' && node.attrs.pageId
       if (isPageBlock) {
         dom.classList.add('toggle-page-block')
+        dom.setAttribute('data-page-id', node.attrs.pageId)
         button.style.display = 'none'
         checkbox.style.display = 'none'
         pageLink.style.display = ''
@@ -1121,6 +1135,7 @@ export const Toggle = Node.create({
         pageLink.style.display = 'none'
         pageOverlay.style.display = 'none'
       }
+      applyPageDeletedState(node.attrs)
 
       // dragover/drop은 글로벌 Plugin(blockDropIndicatorPlugin)에서 처리
       // NodeView에서는 dragstart/dragend만 관리
@@ -1513,11 +1528,13 @@ export const Toggle = Node.create({
             dom.setAttribute('data-is-open', 'false')
             dom.setAttribute('data-block-type', 'page')
             dom.setAttribute('data-page-id', updatedNode.attrs.pageId)
+            applyPageDeletedState(updatedNode.attrs)
           } else {
             pageLink.style.display = 'none'
             pageOverlay.style.display = 'none'
             button.style.display = ''
             dom.removeAttribute('data-page-id')
+            dom.classList.remove('toggle-page-block-deleted')
             dom.setAttribute('data-block-type', updatedNode.attrs.blockType || 'paragraph')
 
             button.dataset.arrow = hasChildToggles(updatedNode)
