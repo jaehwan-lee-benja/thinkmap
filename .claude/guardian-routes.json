@@ -1,0 +1,21 @@
+{
+  "_comment": "전역 PostToolUse 라우터(~/.claude/hooks/guardian-router.js)가 읽는 이 프로젝트의 guardian 라우팅 표. 파일을 수정하면 경로가 어떤 영역에 속하는지 판단해 해당 guardian 검수를 제안한다. 위에서부터 첫 매칭만 사용.",
+  "routes": [
+    {
+      "contains": ["ToggleExtension", "FoldableTable", "toggleNodeFactory", "blocksToDoc", "TipTapEditor"],
+      "guardian": "toggle-guardian",
+      "desc": "토글/블록/테이블 레이아웃·우측정렬·들여쓰기·복붙 규칙"
+    },
+    {
+      "endsWith": [".sql"],
+      "contains": ["/supabase/functions/"],
+      "guardian": "supabase-guardian",
+      "desc": "RLS/SQL 마이그레이션/Edge Function 보안·정합성"
+    },
+    {
+      "contains": ["carryOver", "ensureDailyPage", "dailyBlock", "createDailyPageV2", "DailyPageV2"],
+      "guardian": "carryover-debugger",
+      "desc": "데일리 이월 파이프라인"
+    }
+  ]
+}

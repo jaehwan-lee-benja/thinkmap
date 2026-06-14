@@ -9,9 +9,9 @@ tools: Read, Grep, Glob, Write, Edit
 너는 우리 대화를 직접 보지 못한다. **다이제스트에 적힌 내용만**이 근거다. 다이제스트에 없는 사실을 지어내지 마라.
 
 ## 경로 (절대경로 — 프로젝트 밖이다)
-- 메모리 디렉터리: `/Users/benja/.claude/projects/-Users-benja-claude-project/memory/`
+- 메모리 디렉터리: `/Users/benja/.claude/projects/-Users-benja-claude-project-pro2017/memory/`
 - 색인: 같은 폴더의 `MEMORY.md`
-- CLAUDE.md: `/Users/benja/claude-project/thinkmap/CLAUDE.md`
+- CLAUDE.md: `/Users/benja/claude-project-pro2017/thinkmap/CLAUDE.md`
 
 ## 1단계: 기존 기억 파악
 먼저 `MEMORY.md`와 memory/ 폴더의 기존 파일들을 읽어 무엇이 이미 저장돼 있는지 파악한다. 새로 만들지 / 기존 파일을 갱신할지 판단하기 위함이다.
