@@ -90,6 +90,16 @@ export async function loadMemberPrivate(memberId) {
   return { data: data || null, error }
 }
 
+// 전 멤버 민감정보 일괄 로드 — 연명부 표(목록)에서 한눈에 보기용. 마스터 전용(RLS).
+// 반환: { [member_id]: privateRow }
+export async function loadAllMemberPrivate() {
+  const { data, error } = await supabase.from('member_private').select('*')
+  if (error) { logError('loadAllMemberPrivate', error); return { byId: {}, error } }
+  const byId = {}
+  for (const r of data || []) byId[r.member_id] = r
+  return { byId, error: null }
+}
+
 export async function saveMemberPrivate(memberId, patch) {
   const { error } = await supabase
     .from('member_private')

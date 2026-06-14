@@ -18,6 +18,23 @@ export const ROSTER_ROLE_PRESETS = [
 
 export const ROSTER_SHIFTS = ['오픈', '마감', '종일']
 
+// 역할별 세부 업무 — 보드 뷰 포지션 카드에 표시. 슬라이드 패턴(PLAN-roster-visual-board §7).
+// Phase B(DB 템플릿)에서 roster_template_slots.tasks 로 대체/오버라이드 예정. 그 전까지 표시 기본값.
+export const ROLE_TASKS = {
+  '커피': '샷, 스팀, 컵준비',
+  '아이스크림': '아이스크림, 계산',
+  '서포트': '쟁반 셋팅, 주문서 정리, 호출',
+  '빵자르기': '카이막 뜨기, 빵, 설거지, 반납대',
+  '포장': '카이막, 포장(카이막·말렌카)',
+  '카이막': '카이막 뜨기, 반납대, 물기닦기',
+  '설거지': '설거지',
+  '홀·자리안내': '홀 관리, 자리 안내',
+  '반납대': '반납대, 물기 닦기',
+  '마감보조': '홀, 물기 (마감)',
+  '매니저': '',
+  '이사': '운영 이사',
+}
+
 // 배치 상태 — planned/worked 가 Phase 1 주력. 나머지는 근무요청 허브(Phase 2)용.
 export const ROSTER_STATUS = [
   { value: 'planned', label: '예정' },

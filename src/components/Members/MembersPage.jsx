@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Plus, X, Trash2, Pencil, Save } from 'lucide-react'
 import {
-  useMembers, loadMemberPrivate, saveMemberPrivate,
+  useMembers, loadMemberPrivate, saveMemberPrivate, loadAllMemberPrivate,
   loadMemberRecords, saveMemberRecord, deleteMemberRecord,
 } from '../../hooks/useMembers'
 import {
@@ -19,6 +19,14 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
   const [showInactive, setShowInactive] = useState(true)
   const { members, loading, createMember, updateMember, removeMember } = useMembers({ includeInactive: showInactive })
   const [editing, setEditing] = useState(null) // null | 'new' | memberObject
+  const [privById, setPrivById] = useState({})
+
+  const loadPriv = async () => {
+    if (!isMaster) return
+    const { byId } = await loadAllMemberPrivate()
+    setPrivById(byId || {})
+  }
+  useEffect(() => { loadPriv() }, [isMaster, members.length])
 
   if (!isMaster) {
     return <div className="members-page"><div className="members-denied">접근 권한이 없습니다. (마스터 전용)</div></div>
@@ -44,37 +52,48 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
       ) : members.length === 0 ? (
         <div className="members-empty">등록된 멤버가 없습니다.</div>
       ) : (
-        <table className="members-table">
-          <thead>
-            <tr>
-              <th>이름</th><th>근무요일</th><th>직급</th><th>연락처</th><th>상태</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) => (
-              <tr key={m.id} className={m.status !== 'active' ? 'is-inactive' : ''}>
-                <td className="col-name">{m.name}</td>
-                <td>{(m.work_days || []).join('·') || '—'}</td>
-                <td>{m.seniority || '—'}</td>
-                <td>{m.phone || '—'}</td>
-                <td><span className={`members-status members-status--${m.status}`}>{MEMBER_STATUS_LABEL[m.status] || m.status}</span></td>
-                <td className="col-actions">
-                  <button className="members-icon-btn" title="편집" onClick={() => setEditing(m)}><Pencil size={14} /></button>
-                  <button className="members-icon-btn members-icon-btn--danger" title="삭제" onClick={async () => {
-                    if (confirm(`${m.name} 님을 삭제할까요? (기록은 보존됩니다)`)) await removeMember(m.id)
-                  }}><Trash2 size={14} /></button>
-                </td>
+        <div className="members-table-wrap">
+          <table className="members-table members-table--roster">
+            <thead>
+              <tr>
+                <th>근무일</th><th>이름</th><th>직급</th><th>전화번호</th>
+                <th>급여명세서 메일</th><th>급여 계좌</th><th>생일</th><th>gmail</th>
+                <th>상태</th><th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {members.map((m) => {
+                const p = privById[m.id] || {}
+                return (
+                  <tr key={m.id} className={m.status !== 'active' ? 'is-inactive' : ''}>
+                    <td className="col-days">{(m.work_days || []).join('·') || '—'}</td>
+                    <td className="col-name">{m.name}</td>
+                    <td>{m.seniority || '—'}</td>
+                    <td className="col-phone">{m.phone || '—'}</td>
+                    <td className="col-mail">{p.payslip_email || '—'}</td>
+                    <td className="col-bank">{p.bank_account || '—'}</td>
+                    <td>{p.birth || '—'}</td>
+                    <td className="col-mail">{p.email_gmail || '—'}</td>
+                    <td><span className={`members-status members-status--${m.status}`}>{MEMBER_STATUS_LABEL[m.status] || m.status}</span></td>
+                    <td className="col-actions">
+                      <button className="members-icon-btn" title="편집" onClick={() => setEditing(m)}><Pencil size={14} /></button>
+                      <button className="members-icon-btn members-icon-btn--danger" title="삭제" onClick={async () => {
+                        if (confirm(`${m.name} 님을 삭제할까요? (기록은 보존됩니다)`)) await removeMember(m.id)
+                      }}><Trash2 size={14} /></button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {editing && (
         <MemberEditModal
           member={editing === 'new' ? null : editing}
           isMaster={isMaster}
-          onClose={() => setEditing(null)}
+          onClose={() => { setEditing(null); loadPriv() }}
           onCreate={createMember}
           onUpdate={updateMember}
         />

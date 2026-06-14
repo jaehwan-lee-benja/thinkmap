@@ -123,6 +123,180 @@
 }
 .roster-add-custom:hover { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.8); }
 
+/* ── 보기 토글 (보드/표) ──────────────────────────────────────────────── */
+.roster-view-toggle {
+  display: inline-flex; gap: 2px; margin-left: auto; margin-right: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px; padding: 2px;
+}
+.roster-view-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px; padding: 4px 9px; border-radius: 5px;
+}
+.roster-view-btn:hover { color: rgba(255, 255, 255, 0.85); }
+.roster-view-btn.active { background: rgba(255, 255, 255, 0.12); color: #fff; }
+
+/* ── 보드 뷰 ──────────────────────────────────────────────────────────── */
+.roster-board { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 8px; }
+.roster-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.roster-slot {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 9px 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.roster-slot.is-custom { border-style: dashed; }
+.roster-slot-unassigned { border-color: rgba(234, 179, 8, 0.35); background: rgba(234, 179, 8, 0.06); }
+.roster-slot-head { display: flex; flex-direction: column; gap: 2px; }
+.roster-slot-role { font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, 0.92); }
+.roster-slot-tasks { font-size: 11px; color: rgba(255, 255, 255, 0.42); line-height: 1.35; }
+.roster-slot-members { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.roster-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 3px 5px 3px 9px;
+  font-size: 12px;
+}
+.roster-chip-name { font-weight: 500; color: rgba(255, 255, 255, 0.92); }
+.roster-chip-shift {
+  font-size: 10px; padding: 1px 5px; border-radius: 4px;
+  background: rgba(120, 170, 255, 0.18); color: #cfe0ff;
+}
+.roster-chip-status {
+  font-size: 10px; padding: 1px 6px; border-radius: 4px;
+  border: none; cursor: pointer; line-height: 1.4;
+}
+.roster-chip-status:disabled { cursor: default; }
+.roster-chip-status.st-planned { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); }
+.roster-chip-status.st-worked { background: rgba(74, 222, 128, 0.2); color: #bbf7d0; }
+.roster-chip-status.st-requested { background: rgba(120, 170, 255, 0.18); color: #cfe0ff; }
+.roster-chip-status.st-accepted { background: rgba(74, 222, 128, 0.2); color: #bbf7d0; }
+.roster-chip-status.st-declined { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+.roster-chip-status.st-tentative { background: rgba(234, 179, 8, 0.18); color: #fde68a; }
+.roster-chip-del {
+  display: inline-flex; background: none; border: none; cursor: pointer;
+  color: rgba(255, 255, 255, 0.35); padding: 2px; border-radius: 4px;
+}
+.roster-chip-del:hover { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+.roster-chip.is-held { outline: 2px solid rgba(120, 170, 255, 0.7); }
+.roster-chip-name.as-btn { background: none; border: none; cursor: pointer; padding: 0; font: inherit; }
+.roster-chip-name.as-btn:disabled { cursor: default; }
+
+/* ── 체제 선택 바 ─────────────────────────────────────────────────────────── */
+.roster-template-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0 10px; margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.roster-template-label { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.roster-template-select { flex: 1; max-width: 320px; }
+
+/* ── 멤버 풀 ──────────────────────────────────────────────────────────────── */
+.roster-pool {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px; padding: 8px 10px; margin-bottom: 12px;
+}
+.roster-pool-label { display: block; font-size: 11px; color: rgba(255, 255, 255, 0.45); margin-bottom: 6px; }
+.roster-pool-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.roster-pool-empty { font-size: 12px; color: rgba(255, 255, 255, 0.35); }
+.roster-pool-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px; padding: 4px 11px; font-size: 12px;
+  color: rgba(255, 255, 255, 0.9); cursor: pointer;
+}
+.roster-pool-chip:hover { background: rgba(255, 255, 255, 0.12); }
+.roster-pool-chip.is-held { outline: 2px solid rgba(120, 170, 255, 0.8); background: rgba(120, 170, 255, 0.15); }
+.roster-pool-sr { font-size: 10px; color: rgba(255, 255, 255, 0.45); }
+
+/* ── 작전판(필드) ─────────────────────────────────────────────────────────── */
+.roster-field {
+  position: relative;
+  width: 100%;
+  min-height: 420px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(120, 170, 255, 0.04), transparent 70%),
+    rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+/* 안쪽 사각형 = 주방/바, 바깥(상위 배경) = 홀. 위치/크기는 인라인 style(체제별 좌표). */
+.roster-field-kitchen {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.roster-field-kitchen.is-editing { cursor: move; touch-action: none; border-style: dashed; border-color: rgba(120, 170, 255, 0.55); }
+.roster-kitchen-resize {
+  position: absolute; right: -6px; bottom: -6px; width: 16px; height: 16px;
+  border-radius: 4px; cursor: nwse-resize; touch-action: none;
+  background: rgba(120, 170, 255, 0.8); border: 1px solid #fff;
+}
+.roster-field-kitchen-label {
+  position: absolute; top: 6px; left: 10px;
+  font-size: 10px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.32);
+}
+.roster-field-hall-label {
+  position: absolute; top: 8px; left: 12px;
+  font-size: 10px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.28);
+}
+.roster-fieldslot {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 130px; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 7px 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 9px;
+  background: rgba(30, 30, 30, 0.72);
+}
+.roster-fieldslot.is-filled { border-style: solid; background: rgba(40, 40, 40, 0.92); }
+.roster-fieldslot.can-drop { cursor: pointer; border-color: rgba(120, 170, 255, 0.6); }
+.roster-fieldslot.can-drop:hover { background: rgba(120, 170, 255, 0.16); border-color: rgba(120, 170, 255, 0.95); }
+.roster-fieldslot-head { display: flex; align-items: center; gap: 4px; }
+.roster-fieldslot-tasks { font-size: 10px; color: rgba(255, 255, 255, 0.4); line-height: 1.3; }
+.roster-fieldslot-members { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.roster-slot-shift {
+  font-size: 10px; padding: 1px 5px; border-radius: 4px;
+  background: rgba(120, 170, 255, 0.15); color: #cfe0ff; font-weight: 500;
+}
+.roster-slot-empty { font-size: 11px; color: rgba(255, 255, 255, 0.3); }
+.roster-fieldslot .roster-chip { font-size: 11px; padding: 2px 4px 2px 7px; gap: 4px; }
+
+/* ── 레이아웃 편집(Phase D) ───────────────────────────────────────────────── */
+.roster-field.is-editing { background: rgba(120, 170, 255, 0.04); }
+.roster-fieldslot.editing { width: 150px; border-style: solid; background: rgba(40, 40, 40, 0.95); }
+.roster-editslot-bar { display: flex; align-items: center; justify-content: space-between; }
+.roster-editslot-grip {
+  display: inline-flex; background: none; border: none; cursor: move;
+  color: rgba(255, 255, 255, 0.5); padding: 2px; touch-action: none;
+}
+.roster-editslot-grip:hover { color: rgba(255, 255, 255, 0.9); }
+.roster-editslot-role { width: 100%; box-sizing: border-box; font-weight: 600; font-size: 12px; padding: 3px 6px; }
+.roster-editslot-tasks { width: 100%; box-sizing: border-box; font-size: 11px; padding: 3px 6px; }
+.roster-edit-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px; }
+.roster-edit-toolbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.roster-edit-count { font-size: 12px; color: rgba(255, 255, 255, 0.4); }
+.roster-edit-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+/* 보드 뷰에서 모달을 넓게 — 작전판 공간 확보 */
+.roster-modal.is-board { max-width: 940px; }
+
 /* 라이트 테마 대응(앱이 라이트일 때) */
 @media (prefers-color-scheme: light) {
   .roster-card { background: #f5f5f5; border-color: #e0e0e0; color: #333; }
@@ -132,4 +306,27 @@
   .roster-modal-header { border-color: #eee; }
   .roster-input, .roster-select { background: #fafafa; border-color: #ddd; color: #222; }
   .roster-select option { background: #fff; }
+  .roster-view-toggle { background: #f0f0f0; border-color: #ddd; }
+  .roster-view-btn { color: #888; }
+  .roster-view-btn:hover { color: #333; }
+  .roster-view-btn.active { background: #fff; color: #111; }
+  .roster-slot { background: #fafafa; border-color: #e2e2e2; }
+  .roster-slot-role { color: #222; }
+  .roster-slot-tasks { color: #888; }
+  .roster-chip { background: #fff; border-color: #ddd; }
+  .roster-chip-name { color: #222; }
+  .roster-chip-status.st-planned { background: #eee; color: #777; }
+  .roster-template-bar { border-color: #eee; }
+  .roster-template-label { color: #888; }
+  .roster-pool { background: #fafafa; border-color: #e2e2e2; }
+  .roster-pool-label { color: #888; }
+  .roster-pool-chip { background: #fff; border-color: #ddd; color: #222; }
+  .roster-pool-chip:hover { background: #f0f0f0; }
+  .roster-slot-empty { color: #bbb; }
+  .roster-field { border-color: #ddd; background: #fafafa; }
+  .roster-field-kitchen { border-color: #ddd; background: rgba(0,0,0,0.02); }
+  .roster-field-kitchen-label, .roster-field-hall-label { color: #aaa; }
+  .roster-fieldslot { background: #fff; border-color: #ccc; }
+  .roster-fieldslot.is-filled { background: #fff; border-color: #bbb; }
+  .roster-fieldslot-tasks { color: #888; }
 }
