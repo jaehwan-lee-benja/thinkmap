@@ -1,0 +1,85 @@
+/* 멤버 관리 페이지 — 건조한 스타일. */
+.members-page { padding: 20px 24px; max-width: 920px; margin: 0 auto; color: rgba(255,255,255,0.9); }
+.members-denied { padding: 40px; text-align: center; color: rgba(255,255,255,0.5); }
+
+.members-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.members-header h2 { font-size: 18px; font-weight: 600; margin: 0; }
+.members-header-actions { display: flex; align-items: center; gap: 14px; }
+.members-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.55); cursor: pointer; }
+.members-add-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(120,170,255,0.18); border: 1px solid rgba(120,170,255,0.4);
+  color: #cfe0ff; font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+}
+.members-add-btn:hover { background: rgba(120,170,255,0.28); }
+
+.members-empty { padding: 40px; text-align: center; color: rgba(255,255,255,0.45); font-size: 13px; }
+.members-empty-sm { color: rgba(255,255,255,0.4); font-size: 12px; padding: 6px 0; list-style: none; }
+
+.members-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.members-table th { text-align: left; font-weight: 500; font-size: 11px; color: rgba(255,255,255,0.4); padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.members-table td { padding: 9px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.members-table tr.is-inactive { opacity: 0.5; }
+.members-table .col-name { font-weight: 600; }
+.members-table .col-actions { text-align: right; white-space: nowrap; }
+
+.members-status { font-size: 11px; padding: 2px 7px; border-radius: 5px; }
+.members-status--active { background: rgba(34,197,94,0.15); color: #86efac; }
+.members-status--inactive { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); }
+.members-status--resigned { background: rgba(239,68,68,0.15); color: #fca5a5; }
+
+.members-icon-btn { background: none; border: none; color: rgba(255,255,255,0.45); cursor: pointer; padding: 5px; border-radius: 6px; }
+.members-icon-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.members-icon-btn--danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+
+/* 모달 */
+.members-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+.members-modal { width: 100%; max-width: 520px; max-height: 84vh; display: flex; flex-direction: column; background: #1e1e1e; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; }
+.members-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); font-weight: 600; font-size: 14px; }
+.members-modal-close { background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px; border-radius: 6px; }
+.members-modal-close:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+.members-tabs { display: flex; gap: 4px; padding: 8px 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.members-tabs button { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 13px; padding: 7px 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+.members-tabs button.active { color: #fff; border-bottom-color: rgba(120,170,255,0.7); }
+
+.members-modal-body { padding: 16px; overflow-y: auto; }
+.members-form { display: flex; flex-direction: column; gap: 12px; }
+.members-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: rgba(255,255,255,0.55); }
+.members-form input, .members-form select, .members-form textarea {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+  color: rgba(255,255,255,0.9); font-size: 13px; padding: 7px 9px;
+}
+.members-form input:focus, .members-form select:focus, .members-form textarea:focus { outline: none; border-color: rgba(120,170,255,0.6); }
+.members-form select option { background: #1e1e1e; }
+.members-hint { font-size: 12px; color: rgba(255,255,255,0.45); margin: 0 0 4px; }
+
+.members-days { display: flex; gap: 5px; }
+.members-days button { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); border-radius: 6px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+.members-days button.on { background: rgba(120,170,255,0.22); border-color: rgba(120,170,255,0.5); color: #cfe0ff; }
+
+.members-save-btn {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(120,170,255,0.18); border: 1px solid rgba(120,170,255,0.4); color: #cfe0ff;
+  font-size: 13px; font-weight: 500; padding: 7px 14px; border-radius: 7px; cursor: pointer; margin-top: 4px;
+}
+.members-save-btn:hover:not(:disabled) { background: rgba(120,170,255,0.28); }
+.members-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* 인사 이력 */
+.members-records-list { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.members-records-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; }
+.members-rec-type { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); white-space: nowrap; }
+.members-rec-title { flex: 1; }
+.members-rec-date { color: rgba(255,255,255,0.45); font-size: 12px; font-variant-numeric: tabular-nums; }
+.members-rec-add { display: grid; grid-template-columns: 1fr 1.4fr 1fr 1fr auto; gap: 6px; align-items: center; }
+.members-rec-add select, .members-rec-add input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: rgba(255,255,255,0.9); font-size: 12px; padding: 6px 7px; }
+.members-rec-add .members-save-btn { margin-top: 0; padding: 6px 10px; }
+
+@media (prefers-color-scheme: light) {
+  .members-page { color: #222; }
+  .members-modal { background: #fff; color: #222; }
+  .members-form input, .members-form select, .members-form textarea,
+  .members-rec-add select, .members-rec-add input { background: #fafafa; border-color: #ddd; color: #222; }
+  .members-form select option { background: #fff; }
+}

@@ -15,6 +15,7 @@ export const PAGE_TYPES = {
   ENGINE: 'engine',
   PAYROLL: 'payroll',
   DASHBOARD: 'dashboard',
+  MEMBERS: 'members',
 }
 
 // 독립 엔티티(project_id = null, 프로젝트에 소속되지 않음) 페이지 타입.
@@ -27,6 +28,7 @@ export const INDEPENDENT_PAGE_TYPES = [
   PAGE_TYPES.SCHEDULE,
   PAGE_TYPES.PAYROLL,
   PAGE_TYPES.DASHBOARD,
+  PAGE_TYPES.MEMBERS,
 ]
 
 // 마스터에게만 사이드바 트리에 노출되는 타입.
@@ -34,6 +36,7 @@ export const MASTER_ONLY_PAGE_TYPES = [
   PAGE_TYPES.FRAME,
   PAGE_TYPES.ENGINE,
   PAGE_TYPES.PAYROLL,
+  PAGE_TYPES.MEMBERS,
 ]
 
 // page 객체 또는 page_type 문자열 모두 허용 (호출부 다양성 대응)
@@ -44,6 +47,7 @@ export const isCalendarPage = (page) => typeOf(page) === PAGE_TYPES.CALENDAR
 export const isSchedulePage = (page) => typeOf(page) === PAGE_TYPES.SCHEDULE
 export const isPayrollPage = (page) => typeOf(page) === PAGE_TYPES.PAYROLL
 export const isDashboardPage = (page) => typeOf(page) === PAGE_TYPES.DASHBOARD
+export const isMembersPage = (page) => typeOf(page) === PAGE_TYPES.MEMBERS
 
 // 일반 페이지 = 명시적 'normal' 또는 미설정(legacy NULL). 기존 비교 로직과 동일.
 export const isNormalPage = (page) => {

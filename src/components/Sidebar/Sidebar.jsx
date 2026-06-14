@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt, LayoutDashboard } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt, LayoutDashboard, Users } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -14,7 +14,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage } from '../../utils/pageTypes'
+import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage } from '../../utils/pageTypes'
 import './Sidebar.css'
 
 /**
@@ -290,6 +290,52 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
                 >
                   <Receipt size={16} />
                   <span>급여명세서</span>
+                </button>
+
+                <button
+                  className={`sidebar-worklog-btn ${currentPageId && isMembersPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
+                  title="멤버 관리 (마스터 전용)"
+                  onClick={async () => {
+                    let membersPage = pages.find(p => isMembersPage(p))
+
+                    if (!membersPage) {
+                      const { data, error } = await supabase
+                        .from('pages')
+                        .select('id')
+                        .eq('page_type', 'members')
+                        .is('deleted_at', null)
+                        .limit(1)
+                        .maybeSingle()
+                      if (error) { alert('멤버 관리 조회 실패: ' + error.message); return }
+                      if (data) membersPage = { id: data.id, page_type: 'members' }
+                    }
+
+                    if (!membersPage) {
+                      const newPageId = generateUUID()
+                      const { error } = await supabase
+                        .from('pages')
+                        .insert([{
+                          id: newPageId,
+                          user_id: effectiveSession.user.id,
+                          name: '멤버 관리',
+                          page_type: 'members',
+                          project_id: null,
+                          parent_id: null,
+                          position: -2,
+                        }])
+                      if (error) {
+                        alert('멤버 관리 페이지 생성 실패: ' + error.message)
+                        return
+                      }
+                      membersPage = { id: newPageId, page_type: 'members' }
+                    }
+
+                    if (typeof fetchPages === 'function') await fetchPages()
+                    handlePageSelect(membersPage.id)
+                  }}
+                >
+                  <Users size={16} />
+                  <span>멤버 관리</span>
                 </button>
               </>
             )}

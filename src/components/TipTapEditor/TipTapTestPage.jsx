@@ -78,6 +78,7 @@ import { useFavoritesContext } from '../../contexts/FavoritesContext'
 import { FileText, Star, ChevronDown, X, CalendarDays } from 'lucide-react'
 import { CalendarView } from '../CalendarView/CalendarView'
 import WorklogHeader from './WorklogHeader'
+import RosterCard from '../Roster/RosterCard'
 import ToggleControlDropdown from './ToggleControlDropdown'
 import WorklogComments from './WorklogComments'
 import CommentPopover from './CommentPopover'
@@ -1524,6 +1525,17 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               await deletePage(currentPageId)
               if (parentId) setCurrentPageId(parentId)
             } : null}
+          />
+        )}
+
+        {isDailyPage(currentPage) && (
+          <RosterCard
+            boardId={currentPage.parent_id}
+            pageId={currentPageId}
+            workDate={currentPage.page_date}
+            session={session}
+            isMaster={isMaster}
+            canEdit={!isImpersonating}
           />
         )}
 
