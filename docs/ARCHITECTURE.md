@@ -85,6 +85,7 @@ ThinkMap 은 두 개의 데이터 plane 으로 구성된다.
 | 도메인 | 상태 | 데이터 위치 | 명세서 |
 |---|---|---|---|
 | **업무일지 (Worklog)** | v1 → v2 리팩토링 기획 (2026-04-28) | v1: `pages.content_tiptap` (JSON) → v2: `daily_blocks` (row) | [WORKLOG-SPEC.md](./WORKLOG-SPEC.md) |
+| **멤버 & 배치도 (Member/Roster)** | Phase 1 구현 중 (2026-06-13) | `members`, `member_private`, `member_records`, `roster_assignments` (row) | [MEMBER-SPEC.md](./MEMBER-SPEC.md) |
 | **회계 (Accounting)** | 향후 | 미정 (예: `accounting_entries`, `accounting_accounts`) | _미작성_ |
 | **물자 관리 (Inventory)** | 향후 | 미정 (예: `inventory_items`, `inventory_movements`) | _미작성_ |
 | _도메인 추가시 여기에..._ | | | |
