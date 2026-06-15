@@ -294,6 +294,33 @@
 .roster-edit-count { font-size: 12px; color: rgba(255, 255, 255, 0.4); }
 .roster-edit-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
+/* ── 드래그 배치(Phase C, dnd-kit) ───────────────────────────────────────── */
+/* 드래그 핸들(터치에서 스크롤 대신 드래그가 잡히도록 touch-action 차단) */
+.roster-chip-name.as-btn:not(:disabled) { touch-action: none; }
+.roster-pool-chip:not(:disabled) { touch-action: none; }
+/* 끌고 있는 원본은 흐리게(실제 칩은 DragOverlay로 따라다님) */
+.roster-chip.is-dragging, .roster-pool-chip.is-dragging { opacity: 0.4; }
+/* 드롭 대상 강조 */
+.roster-fieldslot.is-over,
+.roster-slot.is-over {
+  border-style: solid;
+  border-color: rgba(120, 170, 255, 0.95);
+  background: rgba(120, 170, 255, 0.18);
+}
+.roster-slot.can-drop { cursor: pointer; }
+/* 풀로 끌면 빼기 — 위험(빨강) 힌트 */
+.roster-pool.is-over-remove {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.1);
+}
+/* 커서를 따라다니는 드래그 오버레이 칩 */
+.roster-chip-overlay {
+  cursor: grabbing;
+  background: rgba(40, 40, 40, 0.98);
+  border-color: rgba(120, 170, 255, 0.7);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
 /* 보드 뷰에서 모달을 넓게 — 작전판 공간 확보 */
 .roster-modal.is-board { max-width: 940px; }
 
