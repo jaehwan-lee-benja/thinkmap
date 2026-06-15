@@ -324,6 +324,108 @@
 /* 보드 뷰에서 모달을 넓게 — 작전판 공간 확보 */
 .roster-modal.is-board { max-width: 940px; }
 
+/* ── 출력/풀스크린 읽기 뷰 (Phase E) ──────────────────────────────────────── */
+/* 항상 흰 종이 스타일 — 앱 다크테마와 무관하게 화면표시·인쇄가 깔끔. */
+.roster-print-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px; overflow: auto;
+}
+.roster-print-toolbar {
+  width: 100%; max-width: 1100px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; color: #fff;
+}
+.roster-print-toolbar-title { font-size: 14px; font-weight: 600; }
+.roster-print-toolbar-actions { display: flex; gap: 8px; }
+.roster-print-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #fff; border: 1px solid #fff; color: #111;
+  font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 8px; cursor: pointer;
+}
+.roster-print-btn.ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.5); }
+.roster-print-btn:hover { opacity: 0.9; }
+
+.roster-print-sheet {
+  width: 100%; max-width: 1100px;
+  background: #fff; color: #1a1a1a;
+  border-radius: 8px; padding: 28px 32px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+.roster-print-head {
+  display: flex; align-items: baseline; gap: 12px;
+  border-bottom: 2px solid #1a1a1a; padding-bottom: 10px; margin-bottom: 18px;
+}
+.roster-print-title { font-size: 22px; font-weight: 800; margin: 0; letter-spacing: 1px; }
+.roster-print-date { font-size: 14px; color: #555; font-variant-numeric: tabular-nums; }
+.roster-print-empty { padding: 40px; text-align: center; color: #999; }
+
+.roster-print-field {
+  position: relative; width: 100%; aspect-ratio: 16 / 10;
+  border: 1.5px solid #333; border-radius: 8px; background: #fafafa;
+  overflow: hidden;
+}
+.roster-print-hall {
+  position: absolute; top: 8px; left: 12px;
+  font-size: 11px; letter-spacing: 2px; color: #aaa;
+}
+.roster-print-kitchen {
+  position: absolute; border: 1.5px solid #999; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.03);
+}
+.roster-print-kitchen-label {
+  position: absolute; top: 6px; left: 10px;
+  font-size: 11px; letter-spacing: 1px; color: #999;
+}
+.roster-print-slot {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 140px; box-sizing: border-box;
+  border: 1.5px solid #333; border-radius: 8px; background: #fff;
+  padding: 7px 9px; display: flex; flex-direction: column; gap: 4px;
+}
+.roster-print-slot-role { font-size: 13px; font-weight: 700; color: #111; }
+.roster-print-slot-tasks { font-size: 10px; color: #777; line-height: 1.3; }
+.roster-print-slot-members { display: flex; flex-wrap: wrap; gap: 4px; }
+.roster-print-slot-empty { font-size: 11px; color: #ccc; }
+
+.roster-print-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;
+}
+.roster-print-card {
+  border: 1.5px solid #333; border-radius: 8px; background: #fff;
+  padding: 9px 11px; display: flex; flex-direction: column; gap: 6px;
+}
+
+.roster-print-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid #bbb; border-radius: 999px;
+  padding: 2px 8px; font-size: 12px; background: #fff;
+}
+.roster-print-chip.is-worked { background: #e8f5e9; border-color: #66bb6a; }
+.roster-print-chip-name { font-weight: 600; color: #111; }
+.roster-print-chip-temp {
+  font-size: 9px; padding: 0 4px; border-radius: 3px; background: #fff3cd; color: #8a6d00;
+}
+.roster-print-chip-status { font-size: 10px; color: #888; }
+
+.roster-print-unassigned {
+  margin-top: 16px; padding-top: 12px; border-top: 1px dashed #bbb;
+}
+.roster-print-unassigned-label { display: block; font-size: 12px; font-weight: 700; color: #999; margin-bottom: 6px; }
+
+/* 인쇄: 오버레이만 보이게 격리 + 가로 페이지 */
+@page { size: landscape; margin: 12mm; }
+@media print {
+  body * { visibility: hidden; }
+  .roster-print-overlay, .roster-print-overlay * { visibility: visible; }
+  .roster-print-overlay {
+    position: absolute; inset: 0; padding: 0; background: #fff; overflow: visible; display: block;
+  }
+  .no-print { display: none !important; }
+  .roster-print-sheet { box-shadow: none; max-width: none; border-radius: 0; padding: 0; }
+}
+
 /* 라이트 테마 대응(앱이 라이트일 때) */
 @media (prefers-color-scheme: light) {
   .roster-card { background: #f5f5f5; border-color: #e0e0e0; color: #333; }

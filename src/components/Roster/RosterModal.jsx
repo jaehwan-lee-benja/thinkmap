@@ -12,6 +12,7 @@ import {
 } from '../../utils/rosterPresets'
 import RosterBoardView from './RosterBoardView'
 import RosterBoardEditor from './RosterBoardEditor'
+import RosterPrintView from './RosterPrintView'
 import './Roster.css'
 
 function formatDateKo(dateStr) {
@@ -33,6 +34,8 @@ export default function RosterModal({
   const [adding, setAdding] = useState(false)
   // 보드(시각) / 표(빠른입력) 토글. 기본은 보드 — 슬라이드 작전보드 대체. (PLAN-roster-visual-board Phase A)
   const [view, setView] = useState('board')
+  // 출력/풀스크린 읽기 뷰(Phase E). canEdit 무관.
+  const [printMode, setPrintMode] = useState(false)
 
   // 선택된 체제(템플릿). 미선택('') = 폴백(역할 그룹핑). 날짜/인원 기반 자동 추천을 기본값으로.
   const [templateId, setTemplateId] = useState('')
@@ -180,6 +183,9 @@ export default function RosterModal({
                     </option>
                   ))}
                 </select>
+                {!editMode && (
+                  <button className="roster-add-custom" onClick={() => setPrintMode(true)} title="현장 표시·인쇄용 읽기 전용 보기">전체화면·인쇄</button>
+                )}
                 {canEdit && template && !editMode && (
                   <button className="roster-add-custom" onClick={enterEdit} title="자리 위치/구성 편집">레이아웃 편집</button>
                 )}
@@ -289,6 +295,13 @@ export default function RosterModal({
         <datalist id="roster-role-presets">
           {ROSTER_ROLE_PRESETS.map((r) => <option key={r} value={r} />)}
         </datalist>
+
+        {printMode && (
+          <RosterPrintView
+            rows={rows} template={template} workDate={workDate}
+            onClose={() => setPrintMode(false)}
+          />
+        )}
       </div>
     </div>,
     document.body
