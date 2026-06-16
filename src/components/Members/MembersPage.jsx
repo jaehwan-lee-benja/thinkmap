@@ -125,6 +125,7 @@ function EditableMembersTable({ members, privById, updateMember, createMember, o
 
   // 표시 컬럼(기본/민감 혼합). priv = 민감정보(member_private) 행.
   const COLS = [
+    { k: 'display_order', label: '순서', kind: 'basic', ph: '0', cls: 'members-cell--num', get: (m) => (m.display_order ?? '') },
     { k: 'work_days', label: '근무일', kind: 'basic', ph: '월·화', get: (m) => (m.work_days || []).join('·') },
     { k: 'name', label: '이름', kind: 'basic', get: (m) => m.name || '' },
     { k: 'seniority', label: '직급', kind: 'basic', get: (m) => m.seniority || '' },
@@ -136,9 +137,13 @@ function EditableMembersTable({ members, privById, updateMember, createMember, o
   ]
 
   const saveBasic = async (m, field, raw) => {
-    const val = field === 'work_days'
-      ? WEEKDAYS.filter((d) => raw.includes(d))
-      : ((raw ?? '').trim() || null)
+    let val
+    if (field === 'work_days') val = WEEKDAYS.filter((d) => raw.includes(d))
+    else if (field === 'display_order') {
+      const n = parseInt(raw, 10)
+      if (!Number.isFinite(n)) return // 빈칸/비숫자는 무시 (NOT NULL 보호)
+      val = n
+    } else val = (raw ?? '').trim() || null
     const cur = field === 'work_days' ? (m.work_days || []) : (m[field] ?? null)
     const unchanged = field === 'work_days' ? (val.join() === cur.join()) : (val === cur)
     if (unchanged) return
@@ -192,9 +197,10 @@ function EditableMembersTable({ members, privById, updateMember, createMember, o
                   {COLS.map((c) => (
                     <td key={c.k}>
                       <input
-                        className="members-cell"
+                        className={`members-cell ${c.cls || ''}`}
                         defaultValue={c.get(m, p)}
                         placeholder={c.ph || ''}
+                        inputMode={c.k === 'display_order' ? 'numeric' : undefined}
                         onKeyDown={enterBlurs}
                         onBlur={(e) => {
                           if (c.k === 'name' && !e.target.value.trim()) { e.target.value = m.name; return }

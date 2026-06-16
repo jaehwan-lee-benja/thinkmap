@@ -108,6 +108,7 @@
 .members-table--edit select.members-cell option { background: #1e1e1e; }
 .members-row-new td { border-bottom: none; padding-top: 6px; }
 .members-cell--new { color: #cfe0ff; }
+.members-cell--num { max-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
 
 @media (prefers-color-scheme: light) {
   .members-page { color: #222; }
