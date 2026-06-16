@@ -8,6 +8,11 @@ export const multiSelectPluginKey = new PluginKey('multiSelect')
 export const focusHighlightPluginKey = new PluginKey('toggleFocusHighlight')
 const blockDragPluginKey = new PluginKey('blockDrag')
 
+// 섹션(h2) 드래그로 순서 재배치 — 현재 보류(섹션 이동은 ⋮ 버튼으로만).
+// 부활: 이 값을 true 로 + TipTapPage.css 의 "섹션 이동 모드 핸들 노출" 규칙 주석 해제.
+// (드래그 타겟팅/병합 확인/인디케이터 색 코드는 그대로 보존 — 이 플래그로만 잠금)
+const SECTION_DRAG_ENABLED = false
+
 // 섹션 카드 색상 팔레트 — daily 페이지 h2 섹션이 "입는" 색.
 // value 는 base hue hex. 카드 테두리/배경 틴트는 CSS color-mix 로 파생 (TipTapEditor.css).
 // 일반 블록 배경색(BG_COLORS, rgba 색면)과는 별개 개념.
@@ -539,6 +544,19 @@ export const Toggle = Node.create({
         },
         renderHTML: attributes => attributes.maybeDuplicate ? { 'data-maybe-duplicate': String(attributes.maybeDuplicate) } : {},
       },
+      // 리스트뷰 2단 좌/우 배치 (1=좌, 2=우). transient — daily_blocks 엔 저장 안 함.
+      // 출처는 worklog_board_user_settings.section_cols (DailyPageV2 가 오버레이).
+      col: {
+        default: 1,
+        parseHTML: element => element.getAttribute('data-col') === '2' ? 2 : 1,
+        renderHTML: attributes => attributes.col === 2 ? { 'data-col': '2' } : {},
+      },
+      // 멀티컬럼 강제 break 표식 — 좌→우 그룹 경계의 첫 우측 섹션에만 true.
+      colBreak: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-col-break') === 'true',
+        renderHTML: attributes => attributes.colBreak ? { 'data-col-break': 'true' } : {},
+      },
     }
   },
 
@@ -591,6 +609,15 @@ export const Toggle = Node.create({
       dom.setAttribute('data-block-type', node.attrs.blockType || 'paragraph')
       if (node.attrs.blockId) dom.setAttribute('data-block-id', node.attrs.blockId)
 
+      // 리스트뷰 2단 좌/우 배치 attr → DOM (CSS 멀티컬럼 / 강제 break 용)
+      const applyColAttrs = (attrs) => {
+        if (attrs.col === 2) dom.setAttribute('data-col', '2')
+        else dom.removeAttribute('data-col')
+        if (attrs.colBreak) dom.setAttribute('data-col-break', 'true')
+        else dom.removeAttribute('data-col-break')
+      }
+      applyColAttrs(node.attrs)
+
       // 고아(삭제된) 페이지 블록 숨김 상태 적용.
       // pageId 가 storage.activePageIds(미삭제 페이지)에 없으면 삭제된 자식 → 숨김.
       // pageIdsLoaded=false(로딩 중)면 판정 보류해 오인 숨김 방지.
@@ -624,6 +651,8 @@ export const Toggle = Node.create({
       if (hasMultiSelectClass(decorations)) dom.classList.add('toggle-block-multiselected')
 
       // 드래그 핸들 (블록 내부에 배치)
+      // 자식 블록(줄)은 항상 드래그 가능. h2 섹션 핸들은 '섹션 이동 모드'에서만 CSS 로 노출되고
+      // 드래그도 그때만 허용(dragstart 가드) — 섹션 순서 재배치 전용.
       const dragHandle = document.createElement('div')
       dragHandle.classList.add('toggle-drag-handle')
       dragHandle.contentEditable = 'false'
@@ -634,6 +663,12 @@ export const Toggle = Node.create({
       dragHandle.addEventListener('dragstart', (e) => {
         // ProseMirror dragstart가 dispatch→DOM교체→드래그 취소하므로 버블링 차단
         e.stopPropagation()
+
+        // h2 섹션 드래그: 현재 보류(SECTION_DRAG_ENABLED=false). 활성 시엔 '섹션 이동 모드'에서만 허용.
+        if (node.attrs.blockType === 'h2' && (!SECTION_DRAG_ENABLED || !editor.view.dom.closest('.daily-page-v2--move-mode'))) {
+          e.preventDefault()
+          return
+        }
 
         if (typeof getPos !== 'function') return
         const pos = getPos()
@@ -1316,8 +1351,29 @@ export const Toggle = Node.create({
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 6 5 5 5-5"/><path d="m7 13 5 5 5-5"/></svg>
           <span>제일 아래로</span>
         </button>
+        <div class="section-move-divider"></div>
+        <button data-action="col-left" class="section-move-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          <span>왼쪽 단으로</span>
+        </button>
+        <button data-action="col-right" class="section-move-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          <span>오른쪽 단으로</span>
+        </button>
       `
       document.body.appendChild(movePopup)
+
+      // 섹션 좌/우 단 변경 → DailyPageV2 가 수신할 이벤트 dispatch (editor dom 에서 bubble)
+      const dispatchColChange = (col) => {
+        const pos = getPos()
+        if (pos == null) return
+        const n = editor.state.doc.nodeAt(pos)
+        if (!n) return
+        editor.view.dom.dispatchEvent(new CustomEvent('section-col-change', {
+          bubbles: true,
+          detail: { sectionMasterId: n.attrs.sectionMasterId, blockId: n.attrs.blockId, col },
+        }))
+      }
 
       const showMovePopup = () => {
         const rect = moveButton.getBoundingClientRect()
@@ -1369,7 +1425,9 @@ export const Toggle = Node.create({
         const btn = e.target.closest('.section-move-item')
         if (!btn || btn.classList.contains('disabled')) return
         const action = btn.dataset.action
-        moveH2SectionAtPos(editor, getPos(), action)
+        if (action === 'col-left') dispatchColChange(1)
+        else if (action === 'col-right') dispatchColChange(2)
+        else moveH2SectionAtPos(editor, getPos(), action)
         hideMovePopup()
       })
 
@@ -1483,6 +1541,7 @@ export const Toggle = Node.create({
             title,
             anchorRect: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right },
             pos,
+            editor,  // 2단 분할 시 어느 패널 에디터인지 — 별표 등 pos 기반 동작이 올바른 doc 을 참조하도록
           }
         }))
       })
@@ -1600,6 +1659,9 @@ export const Toggle = Node.create({
           // master-only 섹션에 시각적 표시
           dom.classList.toggle('toggle-master-only', isMasterVis && updatedNode.attrs.blockType === 'h2')
 
+          // 리스트뷰 2단 좌/우 배치 attr 반영
+          applyColAttrs(updatedNode.attrs)
+
           // 섹션 이동 버튼 상태 업데이트
           const showMove = updatedNode.attrs.blockType === 'h2' && editor.storage.toggle?.isDailyPage
           moveButton.style.display = showMove ? '' : 'none'
@@ -1694,19 +1756,37 @@ export const Toggle = Node.create({
             const { state } = editorView
             const $pos = state.doc.resolve(coords.pos)
 
-            // 가장 가까운 토글 찾기 (깊이 무관)
+            // 드래그 중인 게 h2 섹션인가 — 섹션 드래그면 타겟을 '최상위 섹션' 단위로 잡는다
+            // (자식 줄에 잡히면 위치가 어긋나고 자기 섹션 안으로 떨어져 무효가 됨)
+            const crossDrag = window.__crossPaneDrag
+            let draggedIsSection = false
+            if (SECTION_DRAG_ENABLED && crossDrag?.sourcePositions?.length === 1) {
+              const dn = crossDrag.sourceEditor?.state.doc.nodeAt(crossDrag.sourcePositions[0])
+              draggedIsSection = !!(dn && dn.type.name === 'toggle' && dn.attrs.blockType === 'h2')
+            }
+
+            // 토글 찾기: 섹션 드래그면 최상위(가장 얕은) 토글, 아니면 가장 가까운(가장 깊은) 토글
             let togglePos = null, toggleNode = null
-            for (let d = $pos.depth; d >= 1; d--) {
-              if ($pos.node(d).type.name === 'toggle') {
-                togglePos = $pos.before(d)
-                toggleNode = $pos.node(d)
-                break
+            if (draggedIsSection) {
+              for (let d = 1; d <= $pos.depth; d++) {
+                if ($pos.node(d).type.name === 'toggle') {
+                  togglePos = $pos.before(d)
+                  toggleNode = $pos.node(d)
+                  break
+                }
+              }
+            } else {
+              for (let d = $pos.depth; d >= 1; d--) {
+                if ($pos.node(d).type.name === 'toggle') {
+                  togglePos = $pos.before(d)
+                  toggleNode = $pos.node(d)
+                  break
+                }
               }
             }
             if (togglePos == null) { clearIndicator(); return }
 
             // 자기 자신 드래그 중이면 무시
-            const crossDrag = window.__crossPaneDrag
             if (crossDrag && crossDrag.sourceEditor?.view === editorView && togglePos === crossDrag.sourcePos) return
 
             // DOM rect로 모드 결정
@@ -1714,15 +1794,24 @@ export const Toggle = Node.create({
             if (!targetDom?.getBoundingClientRect) { clearIndicator(); return }
             const rect = targetDom.getBoundingClientRect()
             const yInBlock = e.clientY - rect.top
-            const EDGE = 8
 
             let mode
-            if (yInBlock <= EDGE) mode = 'before'
-            else if (yInBlock >= rect.height - EDGE) mode = 'after'
-            else mode = 'inside'
+            if (draggedIsSection) {
+              // 섹션 재배치: 위/아래 넓게(각 35%) before/after, 가운데 30% 만 통합(merge)
+              // (섹션은 키가 커서 가장자리만 재배치로 두면 거의 통합으로 잡힘)
+              if (yInBlock < rect.height * 0.35) mode = 'before'
+              else if (yInBlock > rect.height * 0.65) mode = 'after'
+              else mode = 'inside'
+            } else {
+              const EDGE = 8
+              if (yInBlock <= EDGE) mode = 'before'
+              else if (yInBlock >= rect.height - EDGE) mode = 'after'
+              else mode = 'inside'
+            }
 
             if (mode === 'inside') {
-              indicator.className = 'block-drop-indicator drop-box'
+              // 섹션을 섹션 내부로 = 통합 → 호박색 박스로 구분 (단순 재배치인 파란 줄과 명확히 다름)
+              indicator.className = 'block-drop-indicator drop-box' + (draggedIsSection ? ' drop-box--merge' : '')
               indicator.style.top = rect.top + 'px'
               indicator.style.left = rect.left + 'px'
               indicator.style.width = rect.width + 'px'
@@ -1765,16 +1854,28 @@ export const Toggle = Node.create({
             }
           }
 
-          editorView.dom.addEventListener('dragover', onDragOver)
-          editorView.dom.addEventListener('dragleave', (e) => {
+          const onDragLeave = (e) => {
             // 에디터 밖으로 나갔을 때만 정리
             if (!editorView.dom.contains(e.relatedTarget)) clearIndicator()
-          })
+          }
+          // 드롭/드래그 종료(취소·ESC 포함) 시 인디케이터 즉시 제거 — 디바운스만으로는 손 뗀 뒤에도 선이 남음.
+          // dragend 는 소스 요소에서 발생하므로 document 레벨에서 듣는다.
+          const onDragEndGlobal = () => clearIndicator()
+
+          editorView.dom.addEventListener('dragover', onDragOver)
+          editorView.dom.addEventListener('dragleave', onDragLeave)
+          editorView.dom.addEventListener('drop', onDragEndGlobal)
+          document.addEventListener('dragend', onDragEndGlobal)
+          document.addEventListener('drop', onDragEndGlobal)
 
           return {
             destroy() {
               indicator.remove()
               editorView.dom.removeEventListener('dragover', onDragOver)
+              editorView.dom.removeEventListener('dragleave', onDragLeave)
+              editorView.dom.removeEventListener('drop', onDragEndGlobal)
+              document.removeEventListener('dragend', onDragEndGlobal)
+              document.removeEventListener('drop', onDragEndGlobal)
               clearIndicator()
             }
           }
@@ -1923,6 +2024,17 @@ export const Toggle = Node.create({
                 if (nodes.length) contentToInsert = Fragment.fromArray(nodes.map(n => n.copy(n.content)))
               }
               if (!contentToInsert) { view.dragging = null; window.__crossPaneDrag = null; return true }
+
+              // 섹션(h2)을 다른 섹션 내부로 떨굼 = 통합 → 사용자 확인. 취소 시 드롭 무효.
+              const draggedFirst = contentToInsert.firstChild
+              const draggedIsSection = SECTION_DRAG_ENABLED && draggedFirst?.type.name === 'toggle' && draggedFirst.attrs.blockType === 'h2'
+              if (draggedIsSection && target?.mode === 'inside') {
+                if (!window.confirm('섹션 내부로 통합하시겠습니까?')) {
+                  view.dragging = null
+                  window.__crossPaneDrag = null
+                  return true
+                }
+              }
 
               // 소스 정보 — 단일/다중 통합 (sourcePositions[] / sourceSizes[])
               let sourcePositions = null, sourceSizes = null

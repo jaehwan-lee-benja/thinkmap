@@ -296,11 +296,12 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     },
   })
 
-  // editor 인스턴스를 ref에 할당
+  // editor 인스턴스를 ref에 할당 + DOM 역참조(마키 선택이 2단 패널별 에디터를 찾도록)
   React.useEffect(() => {
     if (editorRef && editor) {
       editorRef.current = editor
     }
+    if (editor?.view?.dom) editor.view.dom.__paneEditor = editor
   }, [editor, editorRef])
 
   // content가 외부에서 변경되었을 때 에디터 업데이트

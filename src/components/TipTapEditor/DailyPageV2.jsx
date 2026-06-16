@@ -12,59 +12,31 @@
 
 import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { LayoutList, Columns3, Square, ChevronLeft, ChevronRight, History, Trash2, Star, MessageSquare, MoreHorizontal } from 'lucide-react'
-import TipTapEditor from './TipTapEditor'
+import { LayoutList, Columns2, Columns3, Square, ChevronLeft, ChevronRight, History, Trash2, Star, MessageSquare, MoreHorizontal, Move } from 'lucide-react'
+import DailyColumnPane from './DailyColumnPane'
 import { useDailyBlocks } from '../../hooks/useDailyBlocks'
-import { blocksToDoc } from '../../utils/blocksToDoc'
-import { docToBlocks } from '../../utils/docToBlocks'
-import { syncThreadCheckbox } from '../../utils/dailyBlockOps'
 import { carryOverLazy } from '../../utils/carryOverPipelineV2'
 import { newBlockId } from '../../utils/blockIdV2'
 import { supabase } from '../../supabaseClient'
 import { logError } from '../../utils/supabaseError'
 
-const SAVE_DEBOUNCE_MS = 500
-
-function diffEmpty(diff) {
-  return (!diff.insert || !diff.insert.length)
-      && (!diff.update || !diff.update.length)
-      && (!diff.softDelete || !diff.softDelete.length)
-}
-
-function findCheckboxToggleUpdates(diff) {
-  // patch 에 todoChecked 가 포함된 update 만 추출 — thread 동기화 대상.
-  return (diff.update || []).filter(u =>
-    u.patch && Object.prototype.hasOwnProperty.call(u.patch, 'todoChecked')
-  )
-}
-
-// nextDoc 의 최상위 h2 섹션 토글에서 sectionMasterId 순서대로 추출 (드래그 후 새 순서).
-function extractSectionMasterOrder(doc) {
-  if (!doc || !Array.isArray(doc.content)) return []
-  return doc.content
-    .filter(n => n && n.type === 'toggle' && n.attrs?.blockType === 'h2')
-    .map(n => n.attrs?.sectionMasterId)
-    .filter(Boolean)
-}
-
-function arraysEqual(a, b) {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
-  return true
-}
-
-// 자유 섹션 (scope='user') 의 master id 만 추출. fixed_* 는 절대 폐기 안 함.
-function userSectionMasterIdsBeingDeleted(diff, blocksMap) {
-  const masters = new Set()
-  for (const blockId of (diff.softDelete || [])) {
-    const row = blocksMap.get(blockId)
-    if (!row || row.blockType !== 'section') continue
-    const m = row.sectionMasterId
-    if (!m) continue
-    if (typeof m === 'string' && m.startsWith('fixed_')) continue
-    masters.add(m)
+// 블록을 좌(col=1)/우(col=2) 두 부분집합으로 분리 — 각 섹션의 col 에 따라 그 섹션 + 자식 블록을 묶음.
+//   섹션 row 는 sectionId === 자기 blockId(self-ref), 자식 row 는 sectionId === 조상 섹션 blockId.
+function splitBlocksByColumn(blocks, colMap) {
+  const sectionCol = new Map() // section blockId → 1|2
+  for (const b of blocks) {
+    if (b.blockType === 'section') {
+      const key = b.sectionMasterId || b.blockId
+      sectionCol.set(b.blockId, colMap[key] === 2 ? 2 : 1)
+    }
   }
-  return [...masters]
+  const left = [], right = []
+  for (const b of blocks) {
+    const col = sectionCol.get(b.sectionId) || 1
+    if (col === 2) right.push(b)
+    else left.push(b)
+  }
+  return { left, right }
 }
 
 export default function DailyPageV2({
@@ -84,9 +56,6 @@ export default function DailyPageV2({
 
   const { blocks, loading, error, applyDiff, refetch, initialLoaded } = useDailyBlocks(pageId)
 
-  // row → doc
-  const sourceDoc = useMemo(() => blocksToDoc(blocks), [blocks])
-
   // viewMode: 'list' (기본, 위→아래) | 'column' (Trello 식 가로) | 'card' (집중 모드, 한 카드씩 풀폭)
   // localStorage 에 사용자별 저장.
   const VALID_VIEW_MODES = ['list', 'column', 'card']
@@ -103,31 +72,45 @@ export default function DailyPageV2({
   // 'column' 과 'card' 는 가로 carousel — 같은 인프라 (scroll-snap, drag-to-scroll, 가로 wheel)
   const isCarousel = viewMode === 'column' || viewMode === 'card'
 
-  // stableDoc: TipTapEditor 에 전달할 doc.
-  //   - 마운트 / 외부 변경 (realtime, refetch) 시 sourceDoc 으로 갱신
-  //   - 사용자가 타이핑 중일 땐 갱신 skip → setContent 가 selection 리셋하지 않음
-  const [stableDoc, setStableDoc] = useState(sourceDoc)
-  const lastSavedDocRef = useRef(sourceDoc)
-  const saveTimerRef = useRef(null)
-  const userTypingAtRef = useRef(0)
+  // 리스트뷰 단 수 (1 | 2) — list 뷰 한정. localStorage 에 사용자별 저장.
+  const [listCols, setListColsState] = useState(() => {
+    if (typeof window === 'undefined') return 1
+    return Number(localStorage.getItem('thinkmap.dailyListCols')) === 2 ? 2 : 1
+  })
+  const setListCols = useCallback((n) => {
+    const v = n === 2 ? 2 : 1
+    setListColsState(v)
+    try { localStorage.setItem('thinkmap.dailyListCols', String(v)) } catch {}
+  }, [])
+  const is2col = viewMode === 'list' && listCols === 2
+
+  // 섹션 좌/우 배치 맵 (sectionMasterId → 1|2). 출처: worklog_board_user_settings.section_cols.
+  // board 단위라 날짜를 넘어 유지. 기본 1(좌). ref 는 setSectionColumn 의 즉시 read 용.
+  const [colMap, setColMap] = useState({})
+  const colMapRef = useRef(colMap)
+  useEffect(() => { colMapRef.current = colMap }, [colMap])
+
+  // 2단 좌/우 분할 — colMap 으로 블록을 좌(col=1)/우(col=2) 부분집합으로 나눠 각 패널에 공급.
+  const { left: leftBlocks, right: rightBlocks } = useMemo(
+    () => splitBlocksByColumn(blocks, colMap),
+    [blocks, colMap]
+  )
+
+  // 섹션 이동 모드 — ON 이면 섹션 조작 버튼 항상 노출 + 강조 (애플 정렬 모드식).
+  const [moveMode, setMoveMode] = useState(false)
+
+  // 현재 페이지의 모든 최상위 섹션 key (sectionMasterId ?? blockId) — 일괄 좌/우 배정용
+  const sectionKeys = useMemo(
+    () => blocks
+      .filter(b => b.blockType === 'section')
+      .map(b => b.sectionMasterId || b.blockId)
+      .filter(Boolean),
+    [blocks]
+  )
+
   const rootRef = useRef(null)
   const internalEditorRef = useRef(null)
   const editorRef = externalEditorRef || internalEditorRef
-  const TYPING_GUARD_MS = 2000
-
-  useEffect(() => {
-    // stableDoc 이 비어있고 sourceDoc 가 콘텐츠 있으면 typing 가드 무시 — 첫 fill 우선 (마운트 흐름 보호)
-    const stableHasContent = (stableDoc?.content?.length || 0) > 0
-    const sourceHasContent = (sourceDoc?.content?.length || 0) > 0
-    if (!stableHasContent && sourceHasContent) {
-      setStableDoc(sourceDoc)
-      lastSavedDocRef.current = sourceDoc
-      return
-    }
-    if (Date.now() - userTypingAtRef.current < TYPING_GUARD_MS) return
-    setStableDoc(sourceDoc)
-    lastSavedDocRef.current = sourceDoc
-  }, [sourceDoc])
 
   // 마운트 시 lazy 이월 — 직전 daily 의 신규 미완료 todo 를 추가
   const lazyDoneRef = useRef(false)
@@ -180,109 +163,87 @@ export default function DailyPageV2({
     return () => document.removeEventListener('section-visibility-toggle', onVisibilityToggle)
   }, [])
 
-  // 에디터 변경 → diff → applyDiff (debounce)
-  const handleUpdate = useCallback((nextDoc) => {
-    // Mount race 근본 차단: 초기 fetch 완료 전 onUpdate 는 mount 흐름의 부수효과.
-    // 이 시점엔 사용자가 친 게 아니므로 어떤 save 도 발사하지 않는다.
-    // (2026-05-13 사고의 출발점: 빈 doc onUpdate 가 setTimeout 으로 예약되고,
-    //  그 사이 lastSavedDocRef 가 79-row doc 으로 업데이트되어 diff 가 mass softDelete 가 됨.)
-    if (!initialLoaded) return
-
-    // 마운트 직후 TipTapEditor 의 setContent 부수효과로 onUpdate 가 호출될 수 있음.
-    // 그 경우 nextDoc 이 lastSavedDoc 와 같으므로 typing 가드 갱신 안 함 (4섹션 mount 흐름 보호).
-    try {
-      const same = JSON.stringify(nextDoc) === JSON.stringify(lastSavedDocRef.current)
-      if (!same) userTypingAtRef.current = Date.now()
-    } catch {
-      userTypingAtRef.current = Date.now()
-    }
-
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        // 진단: doc 의 최상위 토글 attrs 출력 — section row 의 blockType='h2' 가 보존되는지 확인용
-        if (typeof window !== 'undefined' && window.__DEBUG_V2) {
-          console.log('[DailyPageV2.handleUpdate] doc roots:', (nextDoc?.content || []).map(n => ({
-            type: n?.type, blockType: n?.attrs?.blockType, blockId: n?.attrs?.blockId,
-          })))
-        }
-        const diff = docToBlocks(lastSavedDocRef.current, nextDoc, ctx)
-        if (diffEmpty(diff)) return
-
-        // 대량 softDelete 가드 — mount race / doc 깨짐으로 빈 nextDoc 과 비교해 모든 row 가
-        // softDelete 로 묶이는 사고 방지 (2026-05-13 사고). 사용자는 한 번에 거의 모든 row 를
-        // 지우지 않으므로, insert/update 가 없고 softDelete 가 active row 의 절반 이상이면 차단.
-        const delCount = diff.softDelete?.length || 0
-        const insCount = diff.insert?.length || 0
-        const updCount = diff.update?.length || 0
-        const activeCount = blocks.length
-        if (delCount >= 5 && delCount >= activeCount * 0.5 && insCount === 0 && updCount === 0) {
-          console.warn('[DailyPageV2] mass softDelete blocked', {
-            delCount, activeCount, pageId, pageDate,
-          })
-          refetch()
-          return
-        }
-
-        const checkboxUpdates = findCheckboxToggleUpdates(diff)
-
-        // 자유 섹션 master 폐기 (사용자가 daily 에서 자유 섹션을 삭제하면 master 도 비활성화 → 다음 daily 에 등장 안 함)
-        const blocksMap = new Map(blocks.map(b => [b.blockId, b]))
-        const userMasters = userSectionMasterIdsBeingDeleted(diff, blocksMap)
-
-        // 드래그 등으로 섹션 순서가 변경되면 user_settings.section_order 도 갱신 → 다음 daily 페이지에 반영
-        const prevOrder = extractSectionMasterOrder(lastSavedDocRef.current)
-        const nextOrder = extractSectionMasterOrder(nextDoc)
-        const sectionOrderChanged = !arraysEqual(prevOrder, nextOrder) && nextOrder.length > 0
-
-        await applyDiff(diff)
-        lastSavedDocRef.current = nextDoc
-
-        if (sectionOrderChanged && userId && parentId) {
-          supabase
-            .from('worklog_board_user_settings')
-            .upsert({ user_id: userId, board_id: parentId, section_order: nextOrder, updated_at: new Date().toISOString() }, { onConflict: 'user_id,board_id' })
-            .then(({ error }) => {
-              if (error) logError('worklog_board_user_settings.section_order 동기화', error)
-            })
-        }
-
-        // 자동 폐기 비활성화 (race / 페이지 삭제 / doc 깨짐 등 의도치 않은 흐름에서
-        // section row 가 사라진 것으로 인식되어 worklog_sections master 까지 일괄 deleted_at 박히는
-        // 위험 케이스 발생. master 관리는 사용자가 명시적으로 별도 UI 에서 처리하도록.)
-        // if (userMasters.length > 0) {
-        //   supabase
-        //     .from('worklog_sections')
-        //     .update({ deleted_at: new Date().toISOString() })
-        //     .in('id', userMasters)
-        //     .eq('created_by', userId)
-        //     .then(({ error }) => { if (error) logError('DailyPageV2.softDeleteSectionMaster', error) })
-        // }
-        void userMasters
-
-        // thread 동기화 — 체크박스가 토글된 row 들에 한해.
-        // schema cache stale 등으로 실패해도 사이트 동작에 영향 없음 → silent.
-        for (const u of checkboxUpdates) {
-          syncThreadCheckbox(supabase, u.blockId, u.patch.todoChecked)
-            .catch(() => {})
-        }
-      } catch (err) {
-        logError('DailyPageV2.handleUpdate', err)
-        // 실패 시 일관성 회복: refetch 로 row 재조회 → useEffect 가 sourceDoc 다시 박음
-        refetch()
-      }
-    }, SAVE_DEBOUNCE_MS)
-  }, [applyDiff, ctx, refetch, blocks, userId, initialLoaded, pageId, pageDate])
-
-  // 컴포넌트 unmount 또는 pageId 변경 시 pending save flush
+  // section_cols 조회 (user+board 단위) — 2단 좌/우 배치 출처
   useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current)
-        saveTimerRef.current = null
-      }
+    if (!userId || !parentId) return
+    let cancelled = false
+    ;(async () => {
+      const { data, error: scErr } = await supabase
+        .from('worklog_board_user_settings')
+        .select('section_cols')
+        .eq('user_id', userId)
+        .eq('board_id', parentId)
+        .maybeSingle()
+      if (cancelled) return
+      if (scErr) { logError('DailyPageV2.fetchSectionCols', scErr); return }
+      if (data?.section_cols && typeof data.section_cols === 'object') setColMap(data.section_cols)
+    })()
+    return () => { cancelled = true }
+  }, [userId, parentId])
+
+  // colMap 저장 (section_order 와 동일 패턴). col 은 daily_blocks 에 안 들어가므로
+  // sourceDoc 재빌드(colMap dep)로만 반영됨.
+  const persistColMap = useCallback((next) => {
+    setColMap(next)
+    if (!userId || !parentId) return
+    supabase
+      .from('worklog_board_user_settings')
+      .upsert({ user_id: userId, board_id: parentId, section_cols: next, updated_at: new Date().toISOString() }, { onConflict: 'user_id,board_id' })
+      .then(({ error }) => { if (error) logError('worklog_board_user_settings.section_cols 동기화', error) })
+  }, [userId, parentId])
+
+  // 단일 섹션 좌/우 단 변경
+  const setSectionColumn = useCallback((masterKey, newCol) => {
+    if (!masterKey) return
+    const next = { ...colMapRef.current, [masterKey]: newCol === 2 ? 2 : 1 }
+    persistColMap(next)
+  }, [persistColMap])
+
+  // 일괄: 모든 섹션을 한쪽 단으로
+  const setAllSectionColumns = useCallback((col) => {
+    const v = col === 2 ? 2 : 1
+    const next = {}
+    for (const k of sectionKeys) next[k] = v
+    persistColMap(next)
+  }, [sectionKeys, persistColMap])
+
+  // 섹션 헤더의 좌/우 이동 버튼·드래그(ToggleExtension) 가 dispatch 하는 이벤트 수신
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    const onColChange = (e) => {
+      const { sectionMasterId, blockId, col } = e.detail || {}
+      setSectionColumn(sectionMasterId || blockId, col)
     }
-  }, [pageId])
+    root.addEventListener('section-col-change', onColChange)
+    return () => root.removeEventListener('section-col-change', onColChange)
+  }, [setSectionColumn, initialLoaded])
+
+  // section_order 전역 동기화 — 좌(col=1)→우(col=2) 그룹, 각 그룹은 position 순.
+  //   1단/컬럼/카드: 좌 그룹 = 전체(우 비어있음) → 기존과 동일한 전체 순서.
+  //   2단: 좌 그룹 + 우 그룹 이어붙임 → 다음 daily templating 에 반영.
+  //   blocks 기반(DB position)이라 패널 저장 직후 refetch/realtime 으로 반영됨.
+  const lastOrderRef = useRef(null)
+  useEffect(() => {
+    if (!initialLoaded || !userId || !parentId) return
+    const masters = (subset) => subset
+      .filter(b => b.blockType === 'section' && b.sectionMasterId)
+      .slice()
+      .sort((a, b) => (a.position || 0) - (b.position || 0))
+      .map(b => b.sectionMasterId)
+    const next = [...masters(leftBlocks), ...masters(rightBlocks)]
+    if (next.length === 0) return
+    const prev = lastOrderRef.current
+    lastOrderRef.current = next
+    if (prev === null) return  // 첫 계산은 seed 만 (로드 시 불필요한 write 방지)
+    if (prev.length === next.length && prev.every((v, i) => v === next[i])) return
+    supabase
+      .from('worklog_board_user_settings')
+      .upsert({ user_id: userId, board_id: parentId, section_order: next, updated_at: new Date().toISOString() }, { onConflict: 'user_id,board_id' })
+      .then(({ error }) => { if (error) logError('worklog_board_user_settings.section_order(global)', error) })
+  }, [leftBlocks, rightBlocks, initialLoaded, userId, parentId])
+
+  // (에디터 변경→저장 파이프라인은 DailyColumnPane 으로 이전됨)
 
   // 이월 리프레시 — 직전 페이지의 새 자유 섹션 master 반영 + 신규 미완료 todo 추가
   const [refreshing, setRefreshing] = useState(false)
@@ -674,7 +635,8 @@ export default function DailyPageV2({
     const target = moreMenu
     setMoreMenu(null)
     if (target?.pos == null) return
-    const editor = editorRef.current
+    // 2단 분할: 이벤트를 보낸 패널 에디터를 사용 (editorRef 는 좌패널만 가리킴)
+    const editor = target.editor || editorRef.current
     if (!editor) return
     const node = editor.state.doc.nodeAt(target.pos)
     if (!node) return
@@ -724,7 +686,7 @@ export default function DailyPageV2({
   return (
     <div
       ref={rootRef}
-      className={`daily-page-v2 daily-page-v2--${viewMode}${isCarousel ? ' daily-page-v2--carousel' : ''}`}
+      className={`daily-page-v2 daily-page-v2--${viewMode}${isCarousel ? ' daily-page-v2--carousel' : ''}${is2col ? ' daily-page-v2--list-2col' : ''}${moveMode ? ' daily-page-v2--move-mode' : ''}`}
     >
       <div className="daily-page-v2-toolbar">
         <button
@@ -754,15 +716,96 @@ export default function DailyPageV2({
           <Square size={14} />
           <span>카드</span>
         </button>
+        {/* list 뷰 한정: 1단/2단 토글 (2단 = 좌우 CSS 멀티컬럼) */}
+        {viewMode === 'list' && (
+          <div className="list-cols-toggle">
+            <button
+              type="button"
+              className={`view-mode-btn ${listCols === 1 ? 'active' : ''}`}
+              onClick={() => setListCols(1)}
+              title="1단 (한 줄로)"
+            >
+              <LayoutList size={14} />
+              <span>1단</span>
+            </button>
+            <button
+              type="button"
+              className={`view-mode-btn ${listCols === 2 ? 'active' : ''}`}
+              onClick={() => setListCols(2)}
+              title="2단 (좌우 분할)"
+            >
+              <Columns2 size={14} />
+              <span>2단</span>
+            </button>
+          </div>
+        )}
+        {/* 섹션 이동 모드 — 켜면 섹션 정리 버튼이 항상 노출(모바일 대비). 세부: 모두 왼쪽/오른쪽 */}
+        {viewMode === 'list' && (
+          <div className="list-move-mode">
+            <button
+              type="button"
+              className={`view-mode-btn ${moveMode ? 'active' : ''}`}
+              onClick={() => setMoveMode(m => !m)}
+              title="섹션 이동 모드 — 켜면 섹션 정리 버튼이 항상 보입니다"
+            >
+              <Move size={14} />
+              <span>섹션 이동{moveMode ? ' 켜짐' : ''}</span>
+            </button>
+            {moveMode && listCols === 2 && (
+              <>
+                <button
+                  type="button"
+                  className="view-mode-btn"
+                  onClick={() => setAllSectionColumns(1)}
+                  title="모든 섹션을 왼쪽 단으로"
+                >
+                  <ChevronLeft size={14} />
+                  <span>모두 왼쪽</span>
+                </button>
+                <button
+                  type="button"
+                  className="view-mode-btn"
+                  onClick={() => setAllSectionColumns(2)}
+                  title="모든 섹션을 오른쪽 단으로"
+                >
+                  <span>모두 오른쪽</span>
+                  <ChevronRight size={14} />
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
-      <TipTapEditor
-        content={stableDoc}
-        onUpdate={handleUpdate}
-        placeholder={placeholder}
-        isMaster={isMaster}
-        isDailyPage={true}
-        editorRef={editorRef}
-      />
+      {is2col ? (
+        <div className="daily-two-pane">
+          <DailyColumnPane
+            blocks={leftBlocks}
+            applyDiff={applyDiff} ctx={ctx} refetch={refetch} initialLoaded={initialLoaded}
+            isMaster={isMaster} placeholder={placeholder}
+            userId={userId} parentId={parentId} pageId={pageId} pageDate={pageDate}
+            editorRef={editorRef}
+            scrollable manageSectionOrder={false}
+            emptyHint="이 칸이 비었습니다"
+          />
+          <DailyColumnPane
+            blocks={rightBlocks}
+            applyDiff={applyDiff} ctx={ctx} refetch={refetch} initialLoaded={initialLoaded}
+            isMaster={isMaster} placeholder={placeholder}
+            userId={userId} parentId={parentId} pageId={pageId} pageDate={pageDate}
+            scrollable manageSectionOrder={false}
+            emptyHint="오른쪽 단 — '섹션 이동'으로 여기에 보내세요"
+          />
+        </div>
+      ) : (
+        <DailyColumnPane
+          blocks={blocks}
+          applyDiff={applyDiff} ctx={ctx} refetch={refetch} initialLoaded={initialLoaded}
+          isMaster={isMaster} placeholder={placeholder}
+          userId={userId} parentId={parentId} pageId={pageId} pageDate={pageDate}
+          editorRef={editorRef}
+          manageSectionOrder={false}
+        />
+      )}
       {viewMode === 'card' && cardCount > 0 && (
         <div className="card-nav-row">
           <button
