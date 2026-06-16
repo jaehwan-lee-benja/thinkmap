@@ -35,9 +35,12 @@ export const ROLE_TASKS = {
   '이사': '운영 이사',
 }
 
-// 배치 상태 — planned/worked 가 Phase 1 주력. 나머지는 근무요청 허브(Phase 2)용.
+// 배치 상태 — 그날 인원 구성 워크플로우(PLAN §12): confirmed(확정)/off(오프)가 주력.
+// planned=추가 예정. worked 이하는 근무요청 허브(Phase 2)·급여 매칭용.
 export const ROSTER_STATUS = [
+  { value: 'confirmed', label: '확정' },
   { value: 'planned', label: '예정' },
+  { value: 'off', label: '오프' },
   { value: 'worked', label: '근무확정' },
   { value: 'requested', label: '요청중' },
   { value: 'accepted', label: '수락' },
@@ -49,8 +52,8 @@ export const ROSTER_STATUS_LABEL = Object.fromEntries(
   ROSTER_STATUS.map((s) => [s.value, s.label])
 )
 
-// 급여 매칭(Phase 3)에서 "근무로 셈" 대상 상태.
-export const ROSTER_COUNTED_STATUSES = ['planned', 'worked', 'accepted']
+// 급여 매칭(Phase 3)에서 "근무로 셈" 대상 상태. 'off'(휴가)는 제외.
+export const ROSTER_COUNTED_STATUSES = ['confirmed', 'planned', 'worked', 'accepted']
 
 export const MEMBER_STATUS = [
   { value: 'active', label: '재직' },

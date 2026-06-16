@@ -1,6 +1,6 @@
-// 배치도 작전판 — 레이아웃 편집 (Phase D). 멤버 자리(블럭)를 추가/삭제, 드래그로 이동,
-// 블럭 위에서 역할·세부설명을 직접 편집. 주방/바 사각형도 이동/리사이즈. 저장은 모달(replaceSlots/createTemplate).
-// 좌표: grid_col=x%, grid_row=y% (2~98 클램프, 정수 스냅). PLAN-roster-visual-board.md §6.1b.
+// 배치도 작전판 — 레이아웃 편집 (Phase D + §12). 자리(블럭) 추가/삭제·드래그 이동·역할 편집은
+// 체제별(slots). 홀·주방/바 네모는 보드 공통(layout) — 모든 체제에 공유.
+// 좌표: %(2~98 클램프). PLAN-roster-visual-board.md §6.1b·§12.
 
 import React, { useRef } from 'react'
 import { X, Plus, GripVertical } from 'lucide-react'
@@ -9,11 +9,12 @@ import { ROSTER_ROLE_PRESETS, ROLE_TASKS } from '../../utils/rosterPresets'
 let TMP = 0
 const tmpKey = () => `tmp-${++TMP}`
 const clamp = (v) => Math.max(2, Math.min(98, Math.round(v)))
+const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)))
 
-export default function RosterBoardEditor({ slots, setSlots, kitchen, setKitchen }) {
+export default function RosterBoardEditor({ slots, setSlots, layout, setLayout }) {
   const fieldRef = useRef(null)
   const dragRef = useRef(null)
-  const kitchenRef = useRef(null)
+  const rectRef = useRef(null)
 
   const pct = (e) => {
     const rect = fieldRef.current.getBoundingClientRect()
@@ -36,26 +37,31 @@ export default function RosterBoardEditor({ slots, setSlots, kitchen, setKitchen
   }
   const onGripUp = () => { dragRef.current = null }
 
-  // ── 주방 사각형 이동/리사이즈 ──────────────────────────────────────────────
-  const onKitchenDown = (e, mode) => {
+  // ── 홀·주방 네모 이동/리사이즈 (보드 공통 layout) ──────────────────────────
+  const rects = [
+    { key: 'hall', label: '홀', cls: 'roster-field-hall', x: layout.hall_x, y: layout.hall_y, w: layout.hall_w, h: layout.hall_h },
+    { key: 'kitchen', label: '주방 · 바', cls: 'roster-field-kitchen', x: layout.kitchen_x, y: layout.kitchen_y, w: layout.kitchen_w, h: layout.kitchen_h },
+  ]
+  const onRectDown = (e, rect, mode) => {
     e.stopPropagation()
     const p = pct(e)
-    kitchenRef.current = { mode, startX: p.x, startY: p.y, orig: { ...kitchen } }
+    rectRef.current = { key: rect.key, mode, startX: p.x, startY: p.y, orig: { x: rect.x, y: rect.y, w: rect.w, h: rect.h } }
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* noop */ }
   }
-  const onKitchenMove = (e) => {
-    if (!kitchenRef.current || !fieldRef.current) return
+  const onRectMove = (e) => {
+    if (!rectRef.current || !fieldRef.current) return
     const p = pct(e)
-    const { mode, startX, startY, orig } = kitchenRef.current
-    const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)))
+    const { key, mode, startX, startY, orig } = rectRef.current
+    let nx = orig.x, ny = orig.y, nw = orig.w, nh = orig.h
     if (mode === 'move') {
       const dx = p.x - startX, dy = p.y - startY
-      setKitchen({ ...orig, x: cl(orig.x + dx, 0, 100 - orig.w), y: cl(orig.y + dy, 0, 100 - orig.h) })
+      nx = cl(orig.x + dx, 0, 100 - orig.w); ny = cl(orig.y + dy, 0, 100 - orig.h)
     } else {
-      setKitchen({ ...orig, w: cl(p.x - orig.x, 15, 100 - orig.x), h: cl(p.y - orig.y, 15, 100 - orig.y) })
+      nw = cl(p.x - orig.x, 10, 100 - orig.x); nh = cl(p.y - orig.y, 10, 100 - orig.y)
     }
+    setLayout((prev) => ({ ...prev, [`${key}_x`]: nx, [`${key}_y`]: ny, [`${key}_w`]: nw, [`${key}_h`]: nh }))
   }
-  const onKitchenUp = () => { kitchenRef.current = null }
+  const onRectUp = () => { rectRef.current = null }
 
   // ── 자리 블럭 추가/삭제/편집 ───────────────────────────────────────────────
   const addSlot = () => {
@@ -70,22 +76,21 @@ export default function RosterBoardEditor({ slots, setSlots, kitchen, setKitchen
   return (
     <div className="roster-board">
       <div className="roster-edit-hint">
-        <b>멤버 자리(블럭)</b>를 추가하고, 그립(⋮⋮)으로 드래그해 옮기세요. 블럭 안에서 역할·설명을 바로 편집할 수 있습니다.
+        <b>홀·주방 네모</b>는 드래그/모서리로 조절(모든 체제 공통). <b>자리 블럭</b>은 추가 후 그립(⋮⋮)으로 옮기고 역할·설명을 편집합니다.
       </div>
 
-      <div className="roster-field is-editing" ref={fieldRef}>
-        <span className="roster-field-hall-label">홀</span>
-        <div
-          className="roster-field-kitchen is-editing"
-          style={{ left: `${kitchen.x}%`, top: `${kitchen.y}%`, width: `${kitchen.w}%`, height: `${kitchen.h}%` }}
-          onPointerDown={(e) => onKitchenDown(e, 'move')}
-          onPointerMove={onKitchenMove}
-          onPointerUp={onKitchenUp}
-        >
-          <span className="roster-field-kitchen-label">주방 · 바 (드래그/모서리로 조절)</span>
-          <div className="roster-kitchen-resize"
-            onPointerDown={(e) => onKitchenDown(e, 'resize')} onPointerMove={onKitchenMove} onPointerUp={onKitchenUp} />
-        </div>
+      <div className="roster-field is-editing" ref={fieldRef} style={{ '--roster-field-ratio': layout.field_ratio ?? 1.6 }}>
+        {rects.map((r) => (
+          <div
+            key={r.key} className={`${r.cls} is-editing`}
+            style={{ left: `${r.x}%`, top: `${r.y}%`, width: `${r.w}%`, height: `${r.h}%` }}
+            onPointerDown={(e) => onRectDown(e, r, 'move')} onPointerMove={onRectMove} onPointerUp={onRectUp}
+          >
+            <span className={r.key === 'hall' ? 'roster-field-hall-label' : 'roster-field-kitchen-label'}>{r.label} (드래그/모서리)</span>
+            <div className="roster-kitchen-resize"
+              onPointerDown={(e) => onRectDown(e, r, 'resize')} onPointerMove={onRectMove} onPointerUp={onRectUp} />
+          </div>
+        ))}
 
         {slots.map((s) => (
           <div key={s._key} className="roster-fieldslot editing" style={{ left: `${s.grid_col}%`, top: `${s.grid_row}%` }}>
@@ -115,6 +120,13 @@ export default function RosterBoardEditor({ slots, setSlots, kitchen, setKitchen
       <div className="roster-edit-toolbar">
         <button type="button" className="roster-add-btn" onClick={addSlot}><Plus size={14} /> 멤버 자리(블럭) 추가</button>
         <span className="roster-edit-count">자리 {slots.length}개</span>
+        <label className="roster-ratio-ctrl" title="배경 캔버스 가로:세로 비율 (낮을수록 덜 가로로 김)">
+          배경 비율
+          <input type="range" min="0.8" max="2.2" step="0.05"
+            value={layout.field_ratio ?? 1.6}
+            onChange={(e) => setLayout((prev) => ({ ...prev, field_ratio: parseFloat(e.target.value) }))} />
+          <span className="roster-ratio-val">{Number(layout.field_ratio ?? 1.6).toFixed(2)}</span>
+        </label>
       </div>
 
       <datalist id="roster-edit-roles">

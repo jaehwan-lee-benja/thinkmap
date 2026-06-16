@@ -30,7 +30,8 @@ function PrintChip({ row }) {
   )
 }
 
-export default function RosterPrintView({ rows = [], template, workDate, onClose }) {
+export default function RosterPrintView({ rows = [], template, layout, workDate, onClose }) {
+  const L = layout || {}
   // 슬롯별 배치 매핑(역할 기준) + 미배치 — 보드 뷰와 동일 규칙.
   const { slotRows, unassigned } = useMemo(() => {
     const consumed = new Set()
@@ -83,12 +84,14 @@ export default function RosterPrintView({ rows = [], template, workDate, onClose
         ) : template ? (
           // ── 작전판(캔버스 + 주방 사각형) ──
           <div className="roster-print-field">
-            <span className="roster-print-hall">홀</span>
+            <div className="roster-print-hall" style={{ left: `${L.hall_x ?? 6}%`, top: `${L.hall_y ?? 4}%`, width: `${L.hall_w ?? 88}%`, height: `${L.hall_h ?? 36}%` }}>
+              <span className="roster-print-hall-label">홀</span>
+            </div>
             <div
               className="roster-print-kitchen"
               style={{
-                left: `${template.kitchen_x ?? 6}%`, top: `${template.kitchen_y ?? 44}%`,
-                width: `${template.kitchen_w ?? 88}%`, height: `${template.kitchen_h ?? 52}%`,
+                left: `${L.kitchen_x ?? 6}%`, top: `${L.kitchen_y ?? 44}%`,
+                width: `${L.kitchen_w ?? 88}%`, height: `${L.kitchen_h ?? 52}%`,
               }}
             >
               <span className="roster-print-kitchen-label">주방 · 바</span>

@@ -226,16 +226,28 @@
 /* ── 작전판(필드) ─────────────────────────────────────────────────────────── */
 .roster-field {
   position: relative;
-  width: 100%;
-  min-height: 420px;
+  height: 56vh;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: var(--roster-field-ratio, 1.6);
+  margin: 0 auto;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 12px;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(120, 170, 255, 0.04), transparent 70%),
-    rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.02);
   overflow: hidden;
 }
-/* 안쪽 사각형 = 주방/바, 바깥(상위 배경) = 홀. 위치/크기는 인라인 style(체제별 좌표). */
+/* 홀·주방 = 보드 공통 네모(모든 체제 공유). 위치/크기는 인라인 style(layout 좌표). */
+.roster-field-hall {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.roster-field-hall.is-editing { cursor: move; touch-action: none; border-style: dashed; border-color: rgba(120, 170, 255, 0.4); }
+.roster-field-hint {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center; font-size: 12px; color: rgba(255, 255, 255, 0.4); line-height: 1.6;
+}
 .roster-field-kitchen {
   position: absolute;
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -293,6 +305,9 @@
 .roster-edit-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px; }
 .roster-edit-toolbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .roster-edit-count { font-size: 12px; color: rgba(255, 255, 255, 0.4); }
+.roster-ratio-ctrl { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255, 255, 255, 0.5); margin-left: auto; }
+.roster-ratio-ctrl input[type="range"] { width: 110px; }
+.roster-ratio-val { font-variant-numeric: tabular-nums; min-width: 30px; }
 .roster-edit-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
 /* ── 드래그 배치(Phase C, dnd-kit) ───────────────────────────────────────── */
@@ -324,6 +339,63 @@
 
 /* 보드 뷰에서 모달을 넓게 — 작전판 공간 확보 */
 .roster-modal.is-board { max-width: 940px; }
+/* 그날 인원 구성: 풀스크린 좌우 분할 (PLAN §12) */
+.roster-modal.is-fullscreen { max-width: 96vw; width: 96vw; height: 92vh; max-height: 92vh; }
+.roster-split { display: flex; gap: 14px; height: 100%; align-items: stretch; }
+.roster-split-left { flex: 1 1 62%; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
+.roster-split-right {
+  flex: 0 0 320px; max-width: 360px; overflow-y: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.08); padding-left: 14px;
+}
+@media (max-width: 880px) {
+  .roster-modal.is-fullscreen { width: 100vw; max-width: 100vw; height: 96vh; max-height: 96vh; }
+  .roster-split { flex-direction: column; }
+  .roster-split-right { flex-basis: auto; max-width: none; border-left: none; padding-left: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px; }
+}
+
+/* 우측 명단 관리 패널 */
+.roster-panel { display: flex; flex-direction: column; gap: 16px; }
+.roster-panel-sec h4 { font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.6); margin: 0 0 7px; display: flex; align-items: center; gap: 6px; }
+.roster-panel-dow { color: rgba(255, 255, 255, 0.4); font-weight: 400; font-size: 11px; }
+.roster-panel-count { background: rgba(74, 222, 128, 0.2); color: #bbf7d0; border-radius: 999px; padding: 0 8px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.roster-panel-list { display: flex; flex-direction: column; gap: 4px; }
+.roster-panel-empty { font-size: 12px; color: rgba(255, 255, 255, 0.3); padding: 2px 0; }
+.roster-panel-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 7px; background: rgba(255, 255, 255, 0.02); }
+.roster-panel-row.is-off { opacity: 0.65; }
+.roster-panel-row.is-confirmed { border-color: rgba(74, 222, 128, 0.25); background: rgba(74, 222, 128, 0.06); }
+.roster-panel-name { font-size: 13px; display: flex; align-items: center; gap: 5px; }
+.roster-panel-name em { font-style: normal; font-size: 10px; color: rgba(255, 255, 255, 0.4); }
+.roster-panel-role { font-size: 11px; color: rgba(255, 255, 255, 0.45); margin-left: auto; margin-right: 2px; }
+.roster-panel-acts { display: flex; gap: 3px; margin-left: auto; }
+.roster-panel-row.is-confirmed .roster-panel-acts { margin-left: 0; }
+.rp-btn { display: inline-flex; align-items: center; gap: 3px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.7); font-size: 11px; padding: 3px 8px; border-radius: 6px; cursor: pointer; }
+.rp-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.rp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.rp-confirm { background: rgba(74, 222, 128, 0.18); border-color: rgba(74, 222, 128, 0.35); color: #bbf7d0; }
+.rp-off { background: rgba(234, 179, 8, 0.15); border-color: rgba(234, 179, 8, 0.3); color: #fde68a; }
+.rp-cancel { color: rgba(255, 255, 255, 0.4); }
+.rp-cancel:hover { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.roster-panel-add { display: flex; gap: 5px; margin-top: 7px; }
+.roster-panel-add .roster-select { flex: 1; }
+/* 우측 확정 칩 = 좌측 자리로 끄는 드래그 핸들 */
+.roster-panel-name.as-grab { background: none; border: none; padding: 0; margin: 0; font: inherit; color: rgba(255, 255, 255, 0.9); cursor: grab; text-align: left; touch-action: none; }
+.roster-panel-name.as-grab:disabled { cursor: default; }
+.roster-panel-name.is-held { outline: 2px solid rgba(120, 170, 255, 0.75); border-radius: 5px; }
+.roster-panel-name.is-dragging { opacity: 0.4; }
+/* 확정 섹션 = 미배치 드롭존(자리 칩을 여기로 끌면 빼기) */
+.roster-panel-confirmed.is-unplace-over { outline: 2px dashed rgba(239, 68, 68, 0.5); outline-offset: 2px; border-radius: 8px; }
+.roster-panel-droplabel { font-size: 11px; color: #fca5a5; text-align: center; padding: 4px 0 0; }
+
+@media (prefers-color-scheme: light) {
+  .roster-split-right { border-color: #e2e2e2; }
+  .roster-panel-sec h4 { color: #555; }
+  .roster-panel-row { background: #fafafa; border-color: #e2e2e2; }
+  .roster-panel-name { color: #222; }
+  .roster-panel-name.as-grab { color: #222; }
+  .rp-btn { background: #f0f0f0; border-color: #ddd; color: #555; }
+  .rp-confirm { background: #dcfce7; border-color: #86efac; color: #166534; }
+  .rp-off { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
+}
 
 /* ── 출력/풀스크린 읽기 뷰 (Phase E) ──────────────────────────────────────── */
 /* 항상 흰 종이 스타일 — 앱 다크테마와 무관하게 화면표시·인쇄가 깔끔. */
@@ -368,8 +440,11 @@
   overflow: hidden;
 }
 .roster-print-hall {
-  position: absolute; top: 8px; left: 12px;
-  font-size: 11px; letter-spacing: 2px; color: #aaa;
+  position: absolute; border: 1.5px solid #999; border-radius: 6px; background: rgba(0, 0, 0, 0.015);
+}
+.roster-print-hall-label {
+  position: absolute; top: 6px; left: 10px;
+  font-size: 11px; letter-spacing: 1px; color: #999;
 }
 .roster-print-kitchen {
   position: absolute; border: 1.5px solid #999; border-radius: 6px;
@@ -454,6 +529,7 @@
   .roster-pool-chip:hover { background: #f0f0f0; }
   .roster-slot-empty { color: #bbb; }
   .roster-field { border-color: #ddd; background: #fafafa; }
+  .roster-field-hall { border-color: #e2e2e2; background: rgba(0,0,0,0.01); }
   .roster-field-kitchen { border-color: #ddd; background: rgba(0,0,0,0.02); }
   .roster-field-kitchen-label, .roster-field-hall-label { color: #aaa; }
   .roster-fieldslot { background: #fff; border-color: #ccc; }
