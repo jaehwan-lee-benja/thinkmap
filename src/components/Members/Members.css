@@ -83,10 +83,44 @@
 .members-rec-add select, .members-rec-add input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: rgba(255,255,255,0.9); font-size: 12px; padding: 6px 7px; }
 .members-rec-add .members-save-btn { margin-top: 0; padding: 6px 10px; }
 
+/* 읽기/표 편집 모드 토글 */
+.members-mode-toggle { display: inline-flex; gap: 2px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; padding: 2px; }
+.members-mode-toggle button { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 12px; padding: 4px 10px; border-radius: 5px; cursor: pointer; }
+.members-mode-toggle button:hover { color: rgba(255,255,255,0.85); }
+.members-mode-toggle button.active { background: rgba(255,255,255,0.12); color: #fff; }
+
+/* 엑셀식 표 편집 */
+.members-edit-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.members-edit-hint { font-size: 12px; color: rgba(255,255,255,0.4); }
+.members-save-state { font-size: 12px; min-width: 52px; text-align: right; }
+.members-save-state--saving { color: rgba(255,255,255,0.5); }
+.members-save-state--saved { color: #86efac; }
+.members-save-state--error { color: #fca5a5; }
+.members-table--edit { min-width: 880px; }
+.members-table--edit td { padding: 2px; }
+.members-cell {
+  width: 100%; box-sizing: border-box;
+  background: transparent; border: 1px solid transparent; border-radius: 5px;
+  color: rgba(255,255,255,0.9); font-size: 13px; padding: 6px 7px;
+}
+.members-cell:hover { border-color: rgba(255,255,255,0.12); }
+.members-cell:focus { outline: none; border-color: rgba(120,170,255,0.6); background: rgba(120,170,255,0.08); }
+.members-table--edit select.members-cell option { background: #1e1e1e; }
+.members-row-new td { border-bottom: none; padding-top: 6px; }
+.members-cell--new { color: #cfe0ff; }
+
 @media (prefers-color-scheme: light) {
   .members-page { color: #222; }
   .members-modal { background: #fff; color: #222; }
   .members-form input, .members-form select, .members-form textarea,
   .members-rec-add select, .members-rec-add input { background: #fafafa; border-color: #ddd; color: #222; }
   .members-form select option { background: #fff; }
+  .members-mode-toggle { background: #f0f0f0; border-color: #ddd; }
+  .members-mode-toggle button { color: #888; }
+  .members-mode-toggle button.active { background: #fff; color: #111; }
+  .members-cell { color: #222; }
+  .members-cell:hover { border-color: #ddd; }
+  .members-cell:focus { background: rgba(120,170,255,0.12); }
+  .members-table--edit select.members-cell option { background: #fff; }
+  .members-cell--new { color: #3b6fb0; }
 }

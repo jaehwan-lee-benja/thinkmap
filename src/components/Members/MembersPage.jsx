@@ -1,7 +1,7 @@
 // 멤버 관리 페이지 (page_type='members') — 마스터 전용 진입.
 // docs/MEMBER-SPEC.md §7.1. 기본정보 + 민감정보(member_private) + 인사 이력(member_records).
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Plus, X, Trash2, Pencil, Save } from 'lucide-react'
 import {
   useMembers, loadMemberPrivate, saveMemberPrivate, loadAllMemberPrivate,
@@ -20,6 +20,7 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
   const { members, loading, createMember, updateMember, removeMember } = useMembers({ includeInactive: showInactive })
   const [editing, setEditing] = useState(null) // null | 'new' | memberObject
   const [privById, setPrivById] = useState({})
+  const [mode, setMode] = useState('read') // 'read'(한 명씩 모달) | 'edit'(엑셀식 표 편집)
 
   const loadPriv = async () => {
     if (!isMaster) return
@@ -37,6 +38,10 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
       <div className="members-header">
         <h2>멤버 관리</h2>
         <div className="members-header-actions">
+          <div className="members-mode-toggle" role="tablist" aria-label="편집 방식">
+            <button className={mode === 'read' ? 'active' : ''} onClick={() => setMode('read')} aria-selected={mode === 'read'}>읽기</button>
+            <button className={mode === 'edit' ? 'active' : ''} onClick={() => setMode('edit')} aria-selected={mode === 'edit'}>표 편집</button>
+          </div>
           <label className="members-toggle">
             <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
             비활성·퇴사 포함
@@ -49,6 +54,14 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
 
       {loading ? (
         <div className="members-empty">불러오는 중…</div>
+      ) : mode === 'edit' ? (
+        <EditableMembersTable
+          members={members}
+          privById={privById}
+          updateMember={updateMember}
+          createMember={createMember}
+          onReloadPriv={loadPriv}
+        />
       ) : members.length === 0 ? (
         <div className="members-empty">등록된 멤버가 없습니다.</div>
       ) : (
@@ -99,6 +112,122 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
         />
       )}
     </div>
+  )
+}
+
+// 엑셀식 표 편집 — 셀을 직접 고치고 칸을 벗어나면(blur)/Enter 시 해당 필드만 저장.
+// 기본정보는 updateMember, 민감정보는 saveMemberPrivate. 하단 빈 행으로 빠른 추가.
+// 입력은 uncontrolled(defaultValue) — 저장 후 내부 refetch 재렌더가 입력 중 텍스트를 건드리지 않게 함.
+function EditableMembersTable({ members, privById, updateMember, createMember, onReloadPriv }) {
+  const [status, setStatus] = useState('idle') // idle | saving | saved | error
+  const [newName, setNewName] = useState('')
+  const addingRef = useRef(false)
+
+  // 표시 컬럼(기본/민감 혼합). priv = 민감정보(member_private) 행.
+  const COLS = [
+    { k: 'work_days', label: '근무일', kind: 'basic', ph: '월·화', get: (m) => (m.work_days || []).join('·') },
+    { k: 'name', label: '이름', kind: 'basic', get: (m) => m.name || '' },
+    { k: 'seniority', label: '직급', kind: 'basic', get: (m) => m.seniority || '' },
+    { k: 'phone', label: '전화번호', kind: 'basic', get: (m) => m.phone || '' },
+    { k: 'payslip_email', label: '급여명세서 메일', kind: 'priv', get: (m, p) => p.payslip_email || '' },
+    { k: 'bank_account', label: '급여 계좌', kind: 'priv', get: (m, p) => p.bank_account || '' },
+    { k: 'birth', label: '생일', kind: 'priv', ph: 'YYYY-MM-DD', get: (m, p) => p.birth || '' },
+    { k: 'email_gmail', label: 'gmail', kind: 'priv', get: (m, p) => p.email_gmail || '' },
+  ]
+
+  const saveBasic = async (m, field, raw) => {
+    const val = field === 'work_days'
+      ? WEEKDAYS.filter((d) => raw.includes(d))
+      : ((raw ?? '').trim() || null)
+    const cur = field === 'work_days' ? (m.work_days || []) : (m[field] ?? null)
+    const unchanged = field === 'work_days' ? (val.join() === cur.join()) : (val === cur)
+    if (unchanged) return
+    setStatus('saving')
+    const { error } = await updateMember(m.id, { [field]: val })
+    if (error) { setStatus('error'); alert('저장 실패: ' + error.message) } else setStatus('saved')
+  }
+
+  const savePriv = async (m, field, raw) => {
+    const val = (raw ?? '').trim() || null
+    const cur = (privById[m.id]?.[field]) ?? null
+    if (val === cur) return
+    setStatus('saving')
+    const { error } = await saveMemberPrivate(m.id, { [field]: val })
+    if (error) { setStatus('error'); alert('민감정보 저장 실패: ' + error.message); return }
+    setStatus('saved')
+    await onReloadPriv()
+  }
+
+  const enterBlurs = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur() } }
+
+  const addNew = async () => {
+    const name = newName.trim()
+    if (!name || addingRef.current) return
+    addingRef.current = true
+    setStatus('saving')
+    const { error } = await createMember({ name })
+    addingRef.current = false
+    if (error) { setStatus('error'); alert('추가 실패: ' + error.message); return }
+    setStatus('saved'); setNewName('')
+  }
+
+  return (
+    <>
+      <div className="members-edit-bar">
+        <span className="members-edit-hint">셀을 클릭해 바로 수정 · Tab/Enter로 이동 · 칸을 벗어나면 자동 저장</span>
+        <span className={`members-save-state members-save-state--${status}`}>
+          {status === 'saving' ? '저장 중…' : status === 'saved' ? '저장됨' : status === 'error' ? '저장 오류' : ''}
+        </span>
+      </div>
+      <div className="members-table-wrap">
+        <table className="members-table members-table--edit">
+          <thead>
+            <tr>{COLS.map((c) => <th key={c.k}>{c.label}</th>)}<th>상태</th></tr>
+          </thead>
+          <tbody>
+            {members.map((m) => {
+              const p = privById[m.id] || {}
+              return (
+                <tr key={m.id} className={m.status !== 'active' ? 'is-inactive' : ''}>
+                  {COLS.map((c) => (
+                    <td key={c.k}>
+                      <input
+                        className="members-cell"
+                        defaultValue={c.get(m, p)}
+                        placeholder={c.ph || ''}
+                        onKeyDown={enterBlurs}
+                        onBlur={(e) => {
+                          if (c.k === 'name' && !e.target.value.trim()) { e.target.value = m.name; return }
+                          if (c.kind === 'priv') savePriv(m, c.k, e.target.value)
+                          else saveBasic(m, c.k, e.target.value)
+                        }}
+                      />
+                    </td>
+                  ))}
+                  <td>
+                    <select className="members-cell" defaultValue={m.status} onChange={(e) => saveBasic(m, 'status', e.target.value)}>
+                      {MEMBER_STATUS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
+                  </td>
+                </tr>
+              )
+            })}
+            <tr className="members-row-new">
+              <td colSpan={COLS.length + 1}>
+                <input
+                  className="members-cell members-cell--new"
+                  value={newName}
+                  placeholder="＋ 새 멤버 이름 입력 후 Enter (추가 뒤 셀을 채우세요)"
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNew() } }}
+                  onBlur={addNew}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </>
   )
 }
 
