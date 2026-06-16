@@ -16,6 +16,11 @@
       "contains": ["carryOver", "ensureDailyPage", "dailyBlock", "createDailyPageV2", "DailyPageV2"],
       "guardian": "carryover-debugger",
       "desc": "데일리 이월 파이프라인"
+    },
+    {
+      "endsWith": [".css"],
+      "guardian": "design-guardian",
+      "desc": "건조한 스타일·모바일 기준(DESIGN-PHILOSOPHY/MOBILE-DESIGN) 준수. 단 TipTapEditor 토글 CSS는 위 toggle 라우트가 먼저 잡음(첫 매칭)"
     }
   ]
 }

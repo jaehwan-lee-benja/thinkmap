@@ -1,6 +1,6 @@
 ---
 name: spec-auditor
-description: 기능 코드 변경이 해당 docs/*-SPEC.md를 지키는지 대조 검수한다. schedule(캘린더)·worklog(업무일지)·member(멤버)·payroll(급여)·dashboard·toggle 관련 작업을 완료한 뒤, 코드가 SPEC의 데이터 모델·인터랙션·제약·RLS를 벗어나지 않았는지 확인할 때 사용한다. 읽기 전용 — 불일치만 보고하고 SPEC 갱신이 필요한 부분도 짚는다.
+description: 기능 코드 변경이 해당 docs/*-SPEC.md를 지키는지 대조 검수한다. schedule(캘린더)·worklog(업무일지)·member(멤버)·payroll(급여)·dashboard 관련 작업, 그리고 toggle의 데이터모델/SPEC 정합(layout·복붙 세부는 toggle-guardian 담당 — 여기선 제외)을 완료한 뒤, 코드가 SPEC의 데이터 모델·인터랙션·제약·RLS를 벗어나지 않았는지 확인할 때 사용한다. 읽기 전용 — 불일치만 보고하고 SPEC 갱신이 필요한 부분도 짚는다.
 tools: Read, Grep, Glob
 model: sonnet
 ---

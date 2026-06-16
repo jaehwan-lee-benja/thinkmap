@@ -1,6 +1,6 @@
 ---
 name: toggle-guardian
-description: TipTap 토글/블록/테이블 코드를 수정한 직후, layout·우측정렬·들여쓰기·복붙 규칙 위반과 React+TipTap 통합 위반을 검수한다. "오른쪽 정렬 안 맞음 / 들여쓰기 어긋남 / padding 침범 / 토글이 잘림 / 토글 복붙 깨짐" 같은 신고가 있거나, ToggleExtension·FoldableTable·toggleNodeFactory·blocksToDoc 등을 건드린 뒤 사용한다. 읽기 전용 검수자 — 코드를 직접 고치지 않고 위반 목록과 수정 위치만 보고한다.
+description: TipTap 토글/블록/테이블 코드를 수정한 직후, layout·우측정렬·들여쓰기·복붙 규칙 위반과 React+TipTap 통합 위반을 검수한다. "오른쪽 정렬 안 맞음 / 들여쓰기 어긋남 / padding 침범 / 토글이 잘림 / 토글 복붙 깨짐" 같은 신고가 있거나, ToggleExtension·FoldableTable·toggleNodeFactory·blocksToDoc 등을 건드린 뒤 사용한다. 일반 UI/CSS 디자인(건조 스타일·모바일 기준)은 다루지 않는다 — 그건 design-guardian 담당. 읽기 전용 검수자 — 코드를 직접 고치지 않고 위반 목록과 수정 위치만 보고한다.
 tools: Read, Grep, Glob
 model: haiku
 ---

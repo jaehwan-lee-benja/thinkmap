@@ -19,4 +19,4 @@ model: haiku
 - 위반/원인만 보고한다. 수정 코드를 작성하거나 파일을 편집하지 않는다.
 - 형식: `[위반] 위치 — 규칙 — 근거` / `[확인] 통과 항목 요약`.
 
-> ThinkMap 예시: toggle-guardian(layout 규칙, haiku), supabase-guardian(RLS/SQL 적용 전, sonnet), spec-auditor(코드↔SPEC 대조, opus), carryover-debugger(데이터 파이프라인 진단, sonnet+Bash 읽기).
+> ThinkMap 예시: toggle-guardian(토글 layout, haiku), supabase-guardian(RLS/SQL 적용 전, sonnet), spec-auditor(코드↔SPEC 대조, sonnet), carryover-debugger(데이터 파이프라인 진단, sonnet), design-guardian(건조 스타일·모바일 기준, haiku). (검수형은 모두 Read/Grep/Glob만 — 실행이 정말 필요할 때만 Bash 추가)
