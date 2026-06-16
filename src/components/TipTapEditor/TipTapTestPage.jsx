@@ -1015,7 +1015,12 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       if (e.button !== 0) return
       if (isExcludedUI(e.target)) return
 
-      const editor = editorRef.current
+      // 섹션 이동 모드에선 드래그가 '섹션 이동' 전용 → 마키 선택 비활성 (상호 배제)
+      if (e.target.closest && e.target.closest('.daily-page-v2--move-mode')) return
+
+      // 2단 분할: 드래그를 시작한 패널의 에디터를 사용 (각 .ProseMirror 에 __paneEditor 역참조)
+      const startPm = e.target.closest && e.target.closest('.ProseMirror')
+      const editor = (startPm && startPm.__paneEditor) || editorRef.current
       if (!editor) return
 
       const hasModifier = e.metaKey || e.ctrlKey
