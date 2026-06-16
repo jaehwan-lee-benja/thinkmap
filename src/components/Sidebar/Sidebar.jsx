@@ -15,6 +15,7 @@ import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
 import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage } from '../../utils/pageTypes'
+import { findOrCreateMembersPage } from '../../utils/membersPage'
 import './Sidebar.css'
 
 /**
@@ -296,42 +297,12 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
                   className={`sidebar-worklog-btn ${currentPageId && isMembersPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
                   title="멤버 관리 (마스터 전용)"
                   onClick={async () => {
-                    let membersPage = pages.find(p => isMembersPage(p))
-
-                    if (!membersPage) {
-                      const { data, error } = await supabase
-                        .from('pages')
-                        .select('id')
-                        .eq('page_type', 'members')
-                        .is('deleted_at', null)
-                        .limit(1)
-                        .maybeSingle()
-                      if (error) { alert('멤버 관리 조회 실패: ' + error.message); return }
-                      if (data) membersPage = { id: data.id, page_type: 'members' }
-                    }
-
-                    if (!membersPage) {
-                      const newPageId = generateUUID()
-                      const { error } = await supabase
-                        .from('pages')
-                        .insert([{
-                          id: newPageId,
-                          user_id: effectiveSession.user.id,
-                          name: '멤버 관리',
-                          page_type: 'members',
-                          project_id: null,
-                          parent_id: null,
-                          position: -2,
-                        }])
-                      if (error) {
-                        alert('멤버 관리 페이지 생성 실패: ' + error.message)
-                        return
-                      }
-                      membersPage = { id: newPageId, page_type: 'members' }
-                    }
-
+                    // 캐시 우선 → 없으면 공유 헬퍼로 find-or-create (배치도 모달과 동일 경로)
+                    let pageId = pages.find(p => isMembersPage(p))?.id
+                    if (!pageId) pageId = await findOrCreateMembersPage(effectiveSession.user.id)
+                    if (!pageId) return
                     if (typeof fetchPages === 'function') await fetchPages()
-                    handlePageSelect(membersPage.id)
+                    handlePageSelect(pageId)
                   }}
                 >
                   <Users size={16} />

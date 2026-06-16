@@ -23,7 +23,7 @@ function formatDateKo(dateStr) {
 }
 
 export default function RosterModal({
-  boardId, workDate, pageId, session, isMaster = false, canEdit = true, onClose,
+  boardId, workDate, pageId, session, isMaster = false, canEdit = true, onClose, onNavigateToMembers,
 }) {
   const userId = session?.user?.id || null
   const { rows, loading, addAssignment, updateAssignment, removeAssignment } = useRoster(boardId, workDate, pageId)
@@ -289,6 +289,15 @@ export default function RosterModal({
               <Plus size={14} /> 배치 추가
             </button>
             <button className="roster-add-custom" onClick={handleAddCustom} title="멤버 마스터에 없는 임시 인원">임시 인원</button>
+            {isMaster && onNavigateToMembers && (
+              <button
+                className="roster-add-custom roster-manage-members"
+                onClick={() => { onClose(); onNavigateToMembers() }}
+                title="전체 멤버 리스트 관리 페이지로 이동 (마스터 전용)"
+              >
+                <Users size={14} /> 멤버 관리하기
+              </button>
+            )}
           </div>
         )}
 

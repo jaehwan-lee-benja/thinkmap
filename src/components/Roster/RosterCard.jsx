@@ -7,7 +7,7 @@ import { fetchRosterCount } from '../../hooks/useRoster'
 import RosterModal from './RosterModal'
 import './Roster.css'
 
-export default function RosterCard({ boardId, pageId, workDate, session, isMaster = false, canEdit = true }) {
+export default function RosterCard({ boardId, pageId, workDate, session, isMaster = false, canEdit = true, onNavigateToMembers }) {
   const [count, setCount] = useState(null)
   const [open, setOpen] = useState(false)
 
@@ -46,6 +46,7 @@ export default function RosterCard({ boardId, pageId, workDate, session, isMaste
           session={session}
           isMaster={isMaster}
           canEdit={canEdit}
+          onNavigateToMembers={onNavigateToMembers}
           onClose={() => { setOpen(false); refreshCount() }}
         />
       )}

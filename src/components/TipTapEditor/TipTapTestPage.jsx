@@ -89,7 +89,8 @@ import { useWorklogComments } from '../../hooks/useWorklogComments'
 import { useCalendarCommentCounts } from '../../hooks/useCalendarCommentCounts'
 import { useCalendarTodoStats } from '../../hooks/useCalendarTodoStats'
 import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
-import { isDailyPage, isCalendarPage } from '../../utils/pageTypes'
+import { isDailyPage, isCalendarPage, isMembersPage } from '../../utils/pageTypes'
+import { findOrCreateMembersPage } from '../../utils/membersPage'
 import './TipTapPage.css'
 
 /**
@@ -119,6 +120,15 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const authCtx = useAuthContext()
   const isMaster = authCtx?.isMaster ?? false
   const { pages, setCurrentPageId, createPage, deletePage, updatePageIcon, goBack, goForward, canGoBack, canGoForward, fetchPages } = usePageContext()
+
+  // 배치도 모달 "멤버 관리하기" → 멤버 관리 섹션으로 이동 (사이드바 버튼과 동일 동작).
+  const handleOpenMembersPage = useCallback(async () => {
+    let pageId = pages.find((p) => isMembersPage(p))?.id
+    if (!pageId) pageId = await findOrCreateMembersPage(session.user.id)
+    if (!pageId) return
+    if (typeof fetchPages === 'function') await fetchPages()
+    setCurrentPageId(pageId)
+  }, [pages, session, fetchPages, setCurrentPageId])
   const { projects, currentProjectId } = useProjectContext()
   const { toggleFavorite, isFavorite } = useFavoritesContext()
   const currentPage = pages.find(p => p.id === currentPageId)
@@ -1536,6 +1546,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             session={session}
             isMaster={isMaster}
             canEdit={!isImpersonating}
+            onNavigateToMembers={handleOpenMembersPage}
           />
         )}
 
