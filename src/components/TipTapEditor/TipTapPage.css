@@ -1480,6 +1480,12 @@
   text-align: center;
   padding: 24px 8px;
 }
+/* 2단: '섹션 추가' 행이 왼쪽 칸 스크롤 내부 맨 아래(콘텐츠 흐름 끝)에 위치 — 콘텐츠와 구분선 */
+.daily-page-v2--list-2col .daily-pane-scroll .worklog-actions-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
 
 /* 툴바 안 토글 그룹들(1단/2단, 섹션 이동 모드) — 앞 그룹과 구분선으로 분리 */
 .list-cols-toggle,

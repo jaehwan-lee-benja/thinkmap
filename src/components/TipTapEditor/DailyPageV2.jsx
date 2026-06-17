@@ -683,6 +683,48 @@ export default function DailyPageV2({
   // 첫 fetch 완료 전엔 에디터 마운트 안 함 — 빈 doc → 채워진 doc 전환 시 BubbleMenu race 회피
   if (!initialLoaded) return <div className="daily-page-v2-loading">로딩...</div>
 
+  // 액션 행(섹션 추가/코멘트/리프레시). 2단에선 왼쪽 칸 스크롤 내부 맨 아래에,
+  // 그 외(1단/컬럼/카드)에선 페이지 맨 아래에 렌더한다.
+  const actionsRow = (
+    <div className="worklog-actions-row">
+      <button
+        type="button"
+        className="worklog-add-section-btn"
+        onClick={handleAddSection}
+      >
+        + 섹션 추가
+      </button>
+      {onCommentsClick && (
+        <button
+          type="button"
+          className="worklog-comments-modal-trigger"
+          onClick={onCommentsClick}
+        >
+          💬 코멘트 ({commentsCount})
+        </button>
+      )}
+      <button
+        type="button"
+        className="worklog-refresh-btn"
+        onClick={handleRefreshCarryOver}
+        disabled={refreshing}
+        title="직전 페이지의 새 섹션과 미완료 todo 를 가져옵니다"
+      >
+        {refreshing ? '리프레시 중...' : '↻ 이월 리프레시'}
+      </button>
+      {/* 모바일 한정 ⋯ 더보기 — 데스크톱에서는 CSS 로 hide. 위 3 버튼은 모바일에서 hide. */}
+      <button
+        type="button"
+        className="worklog-actions-more-btn"
+        onClick={() => setShowActionsMenu(prev => !prev)}
+        title="더보기"
+        aria-label="더보기"
+      >
+        <MoreHorizontal size={18} />
+      </button>
+    </div>
+  )
+
   return (
     <div
       ref={rootRef}
@@ -786,6 +828,7 @@ export default function DailyPageV2({
             editorRef={editorRef}
             scrollable manageSectionOrder={false}
             emptyHint="이 칸이 비었습니다"
+            footer={actionsRow}
           />
           <DailyColumnPane
             blocks={rightBlocks}
@@ -831,43 +874,8 @@ export default function DailyPageV2({
           </button>
         </div>
       )}
-      <div className="worklog-actions-row">
-        <button
-          type="button"
-          className="worklog-add-section-btn"
-          onClick={handleAddSection}
-        >
-          + 섹션 추가
-        </button>
-        {onCommentsClick && (
-          <button
-            type="button"
-            className="worklog-comments-modal-trigger"
-            onClick={onCommentsClick}
-          >
-            💬 코멘트 ({commentsCount})
-          </button>
-        )}
-        <button
-          type="button"
-          className="worklog-refresh-btn"
-          onClick={handleRefreshCarryOver}
-          disabled={refreshing}
-          title="직전 페이지의 새 섹션과 미완료 todo 를 가져옵니다"
-        >
-          {refreshing ? '리프레시 중...' : '↻ 이월 리프레시'}
-        </button>
-        {/* 모바일 한정 ⋯ 더보기 — 데스크톱에서는 CSS 로 hide. 위 3 버튼은 모바일에서 hide. */}
-        <button
-          type="button"
-          className="worklog-actions-more-btn"
-          onClick={() => setShowActionsMenu(prev => !prev)}
-          title="더보기"
-          aria-label="더보기"
-        >
-          <MoreHorizontal size={18} />
-        </button>
-      </div>
+      {/* 2단에선 위 왼쪽 칸 footer 로 옮겨 렌더하므로 페이지 하단엔 1단 등에서만 표시 */}
+      {!is2col && actionsRow}
 
       {showActionsMenu && createPortal(
         <div

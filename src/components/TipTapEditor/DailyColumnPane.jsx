@@ -73,6 +73,7 @@ export default function DailyColumnPane({
   scrollable = false,         // 2단 분할 패널이면 자체 스크롤 컨테이너로 감쌈
   manageSectionOrder = true,  // 전체 섹션을 가진 패널만 section_order 를 갱신 (2단 분할 패널은 false → 상위에서 처리)
   emptyHint,                  // 비어있을 때 표시할 placeholder 텍스트 (2단 빈 칸)
+  footer,                     // 스크롤 컨테이너 내부 맨 아래에 렌더할 노드 (2단 왼쪽 칸의 '섹션 추가' 행 등)
 }) {
   const sourceDoc = useMemo(() => blocksToDoc(blocks), [blocks])
 
@@ -208,6 +209,7 @@ export default function DailyColumnPane({
       {isEmpty && emptyHint && (
         <div className="daily-pane-empty-hint">{emptyHint}</div>
       )}
+      {footer}
     </div>
   )
 }

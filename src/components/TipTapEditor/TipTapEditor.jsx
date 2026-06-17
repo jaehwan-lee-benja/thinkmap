@@ -298,10 +298,22 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
   // editor 인스턴스를 ref에 할당 + DOM 역참조(마키 선택이 2단 패널별 에디터를 찾도록)
   React.useEffect(() => {
-    if (editorRef && editor) {
-      editorRef.current = editor
+    if (!editor) return
+    if (editorRef) editorRef.current = editor
+    // TipTap v3: view 미마운트 시 editor.view 는 접근하면 throw 하는 Proxy 라
+    // `editor?.view?.dom` 옵셔널 체이닝이 가드가 되지 않는다(.dom 에서 throw → 크래시).
+    // try/catch 로 즉시 시도하고, 아직이면 view 마운트 후 발생하는 'create' 에서 설정.
+    const tagPaneEditor = () => {
+      try {
+        const dom = editor.view?.dom
+        if (dom) dom.__paneEditor = editor
+      } catch {
+        /* view 아직 미마운트 — 'create' 에서 재시도 */
+      }
     }
-    if (editor?.view?.dom) editor.view.dom.__paneEditor = editor
+    tagPaneEditor()
+    editor.on('create', tagPaneEditor)
+    return () => { editor.off('create', tagPaneEditor) }
   }, [editor, editorRef])
 
   // content가 외부에서 변경되었을 때 에디터 업데이트
