@@ -29,6 +29,9 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Phase 1 데일리 이월 Edge 경로 활성화. .env 는 보안상 미추적(22385cb)이라
+          # CI 빌드엔 안 들어가므로 여기서 명시 주입한다. (PHASE1-deploy-verify.md)
+          VITE_USE_EDGE_DAILY: 'true'
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
