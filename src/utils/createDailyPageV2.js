@@ -11,7 +11,7 @@
 
 import { rowToDb } from './dailyBlockMapper.js'
 import { buildDailyTemplateRows } from './worklogTemplateV2.js'
-import { carryOverEager } from './carryOverPipelineV2.js'
+import { carryOverEager, carryOverLazy } from './carryOverPipelineV2.js'
 import { newBlockId } from './blockIdV2.js'
 
 // fixed_todo / fixed_daily_issue 처럼 todo 섹션이면 빈 자식의 isTodo=true.
@@ -91,7 +91,31 @@ async function createDailyPageV2Impl({
   let pageId
   let created = false
   if (dup?.length) {
-    return { pageId: dup[0].id, created: false }
+    // 기존 페이지: 생성/시드는 건너뛰되 직전 페이지의 신규 미완료 todo 를 멱등 이월한다(Phase 2).
+    // 이 함수가 ensure-daily-page(Edge, service_role) 의 단일 서버 연산이라, 비마스터가 페이지를
+    // 다시 열거나 리프레시해도 master 섹션 콘텐츠가 빠짐없이 따라온다(클라 RLS 권한 이월의 누락 해소).
+    // carryOverLazy 는 filterNewThreads dedup 으로 중복 0 → 생성/열람/리프레시 모두 안전하게 통합.
+    const existingPageId = dup[0].id
+    let inserted = 0
+    const { data: prev } = await supabase
+      .from('pages')
+      .select('id')
+      .eq('parent_id', parentId)
+      .eq('page_type', 'daily')
+      .is('deleted_at', null)
+      .lt('page_date', dateKey)
+      .order('page_date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (prev?.id) {
+      const result = await carryOverLazy(supabase, prev.id, {
+        pageId: existingPageId,
+        pageDate: dateKey,
+        userId,
+      })
+      inserted = result.inserted || 0
+    }
+    return { pageId: existingPageId, created: false, inserted }
   }
 
   // 2. pages INSERT (이미 존재하면 skip — 빈 페이지 회복 모드)

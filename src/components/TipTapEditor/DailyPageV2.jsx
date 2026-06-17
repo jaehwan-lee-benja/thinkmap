@@ -15,7 +15,7 @@ import { createPortal } from 'react-dom'
 import { LayoutList, Columns2, Columns3, Square, ChevronLeft, ChevronRight, History, Trash2, Star, MessageSquare, MoreHorizontal, Move } from 'lucide-react'
 import DailyColumnPane from './DailyColumnPane'
 import { useDailyBlocks } from '../../hooks/useDailyBlocks'
-import { carryOverLazy } from '../../utils/carryOverPipelineV2'
+import { ensureDailyPage } from '../../utils/ensureDailyPage'
 import { newBlockId } from '../../utils/blockIdV2'
 import { supabase } from '../../supabaseClient'
 import { logError } from '../../utils/supabaseError'
@@ -112,19 +112,23 @@ export default function DailyPageV2({
   const internalEditorRef = useRef(null)
   const editorRef = externalEditorRef || internalEditorRef
 
-  // 마운트 시 lazy 이월 — 직전 daily 의 신규 미완료 todo 를 추가
+  // 마운트 시 lazy 이월 — 직전 daily 의 신규 미완료 todo 를 추가.
+  // Phase 2: 클라 직접 carryOverLazy(호출자 RLS 권한) 대신 ensureDailyPage 로 일원화.
+  //   플래그 ON 이면 Edge(service_role)가 master 콘텐츠까지 이월(비마스터 누락 해소),
+  //   OFF/Edge 실패 시 로컬 createDailyPageV2(기존 페이지 분기 = lazy 이월) 폴백으로 무중단.
+  //   prevPageId 는 "직전 페이지 존재" 신호로만 사용(실제 직전 검색은 서버가 수행).
   const lazyDoneRef = useRef(false)
   useEffect(() => {
     if (!pageId || !userId || !pageDate) return
     if (!prevPageId) return
     if (lazyDoneRef.current) return
     lazyDoneRef.current = true
-    carryOverLazy(supabase, prevPageId, ctx)
+    ensureDailyPage({ supabase, parentId, dateKey: pageDate, userId })
       .then(result => {
-        if (result.inserted > 0) refetch()
+        if (result?.inserted > 0) refetch()
       })
-      .catch(err => logError('DailyPageV2.carryOverLazy', err))
-  }, [pageId, userId, pageDate, prevPageId, ctx, refetch])
+      .catch(err => logError('DailyPageV2.ensureDailyPage(lazy)', err))
+  }, [pageId, userId, pageDate, prevPageId, parentId, refetch])
 
   // Quick Todo 외부 INSERT 이벤트 → 재조회
   useEffect(() => {
@@ -334,20 +338,10 @@ export default function DailyPageV2({
         await applyDiff({ insert: newRows, update: [], softDelete: [] })
       }
 
-      // 3. 직전 daily 페이지의 신규 미완료 todo 이월 (carryOverLazy)
-      const { data: prev } = await supabase
-        .from('pages')
-        .select('id')
-        .eq('parent_id', parentId)
-        .eq('page_type', 'daily')
-        .is('deleted_at', null)
-        .lt('page_date', pageDate)
-        .order('page_date', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (prev?.id) {
-        await carryOverLazy(supabase, prev.id, ctx)
-      }
+      // 3. 직전 daily 페이지의 신규 미완료 todo 이월 — ensureDailyPage 로 일원화(Phase 2).
+      //    "리프레시 카로버" = 동일 서버 연산 재호출하는 얇은 트리거. Edge(service_role) 경로면
+      //    master 콘텐츠까지 이월, 폴백 시 로컬 lazy 이월. 직전 페이지 검색은 서버가 수행.
+      await ensureDailyPage({ supabase, parentId, dateKey: pageDate, userId })
 
       await refetch()
     } catch (err) {
