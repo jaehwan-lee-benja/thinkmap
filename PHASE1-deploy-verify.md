@@ -4,6 +4,13 @@
 > 브랜치 `feature/edge-ensure-daily-page`. 코드/스캐폴드 완료, **배포 + 검증만 남음**.
 > 프로젝트 ref: `sqisntxippjzcekyhqyo`
 
+## ⓘ 현재 상태 (2026-06-18 갱신)
+
+- **Edge 함수**: 배포·라이브 확정 (함수 URL POST 시 자체 검증응답 `{"error":"parentId, dateKey 필수"}` 400 — 미배포면 404).
+- **라이브 플래그**: ✅ `deploy.yml` 빌드 env 에 `VITE_USE_EDGE_DAILY: 'true'` 주입 + main push(`7896562`). `.env` 미추적(22385cb) 이후 CI 가 플래그를 안 넘기던 갭을 메움 → 라이브 Edge 경로 ON.
+- **남은 것(Phase 1)**: 아래 **§3 라이브 검증만**. (향후 사용자가 사용하며 진행 예정.)
+- **Phase 2**: 코드 완료, 브랜치 `feat/edge-carryover-unify`. 클라 lazy 이월을 Edge 로 일원화. **라이브 반영 = Edge 함수 재배포(§1) 필요** — 재배포 전 머지하면 lazy 이월이 끊기는 회귀 주의. → §6.
+
 ## 0. 무엇이 끝났나 (코드)
 
 - `supabase/functions/ensure-daily-page/index.ts` — 보드 권한(service_role) 서버 이월. 검증된
