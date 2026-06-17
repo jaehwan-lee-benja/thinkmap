@@ -48,6 +48,32 @@ function buildEmptyChildToggle(sectionRow) {
 
 const EMPTY_DOC = { type: 'doc', content: [] }
 
+// 마스터(app_users.role='master')가 이 보드에서 정렬한 section_order 를 가져온다.
+// 자기 순서가 없는 멤버(파트너)의 새 페이지가 마스터 레이아웃을 따르게 하는 기본값(P6).
+// service_role(Edge)이면 RLS 우회로 항상 읽힌다. 로컬 폴백(호출자 권한)은 RLS 로 막히면
+// 빈 배열을 반환해 sort_order 기본 정렬로 자연 degrade 한다.
+async function fetchMasterSectionOrder(supabase, boardId) {
+  const { data: masters } = await supabase
+    .from('app_users')
+    .select('auth_uid')
+    .eq('role', 'master')
+    .not('auth_uid', 'is', null)
+  const masterIds = (masters || []).map(m => m.auth_uid).filter(Boolean)
+  if (masterIds.length === 0) return []
+
+  const { data: rows } = await supabase
+    .from('worklog_board_user_settings')
+    .select('section_order')
+    .in('user_id', masterIds)
+    .eq('board_id', boardId)
+  for (const r of (rows || [])) {
+    if (Array.isArray(r.section_order) && r.section_order.length > 0) {
+      return r.section_order
+    }
+  }
+  return []
+}
+
 // 동시 호출 race 차단 — 같은 (parentId, dateKey, userId) 로 들어온 요청은 첫 promise 를 공유.
 // 화살표 / 캘린더 / 다른 진입점에서 동시에 호출돼도 페이지/섹션 row 가 한 번만 INSERT.
 const inFlight = new Map()
@@ -194,7 +220,11 @@ async function createDailyPageV2Impl({
   if (globalRes.error) throw globalRes.error
   if (boardRes.error)  throw boardRes.error
   const sections = [...(globalRes.data || []), ...(boardRes.data || [])]
-  const sectionOrder = settingsRes.data?.section_order || []
+  // 섹션 순서: 요청자 본인 순서 우선. 없으면(파트너 등) 마스터가 정한 순서를 기본값으로(P6).
+  let sectionOrder = settingsRes.data?.section_order || []
+  if (sectionOrder.length === 0) {
+    sectionOrder = await fetchMasterSectionOrder(supabase, parentId)
+  }
 
   // 4. section row + 각 섹션의 빈 자식 토글 INSERT
   //    빈 자식 토글: 사용자가 섹션 헤더 아래에서 바로 입력 가능. position=999 라 carry-over 다음에 위치.
