@@ -251,7 +251,10 @@ async function createDailyPageV2Impl({
     .maybeSingle()
   let inserted = sectionRows.length
   if (prev?.id) {
-    const result = await carryOverEager(supabase, prev.id, ctx)
+    // 방금 INSERT 한 섹션 row(initialRows)를 그대로 넘긴다 → eager 가 새 페이지를 DB 에서
+    // 되읽지 않는다. 재조회가 빈/부분 결과를 주면 sectionIdMap 이 비어 이월 0건(빈 카드)이 나던
+    // 생성-타이밍 버그 차단(이후 재진입 lazy 이월에서야 채워지던 증상). carryOverPipelineV2 참조.
+    const result = await carryOverEager(supabase, prev.id, ctx, initialRows)
     inserted += result.inserted || 0
   }
 

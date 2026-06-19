@@ -256,19 +256,26 @@ function hasUnfinishedDescendantTodo(row, childrenByParent) {
 // Eager 이월: 새 daily 페이지 직후, 직전 daily 의 미완료/pinned 를 한 번에 복제 (트리 보존).
 // 새 페이지에 이미 section row 들이 INSERT 되어 있어야 한다 (worklogTemplateV2 결과).
 // 그 row 들을 기준으로 §9.9 옵션 A self-ref sectionId 매핑.
-export async function carryOverEager(supabase, fromPageId, ctx) {
+//
+// currentRows (선택): 새 페이지의 section row 들. createDailyPageV2 가 방금 INSERT 한
+//   메모리 상의 row 를 그대로 넘긴다 → eager 가 *자기 자신이 막 쓴* section row 를 DB 에서
+//   다시 읽는(read-after-write) 재조회를 건너뛴다. 재조회가 (replica lag·가시성 타이밍으로)
+//   빈/부분 결과를 주면 buildSectionIdMap 이 비어 모든 후보가 skip → 이월 0건(빈 카드) 버그가
+//   났다. 생성 직후엔 호출자가 가진 in-memory row 가 항상 권위 있는 최신본이므로 이를 우선한다.
+//   넘기지 않으면(기존 호환) 종전대로 DB 재조회.
+export async function carryOverEager(supabase, fromPageId, ctx, currentRows = null) {
   if (!fromPageId || !ctx?.pageId) return { inserted: 0 }
 
-  const [prevRows, currentRows] = await Promise.all([
+  const [prevRows, currentRowsResolved] = await Promise.all([
     fetchBlocks(supabase, fromPageId),
-    fetchBlocks(supabase, ctx.pageId),
+    currentRows ? Promise.resolve(currentRows) : fetchBlocks(supabase, ctx.pageId),
   ])
   const allCands = selectCarryOverCandidates(prevRows)
   const rootCands = filterRootCandidates(allCands)
   if (rootCands.length === 0) return { inserted: 0 }
 
-  const sectionIdMap = buildSectionIdMap(prevRows, currentRows)
-  const sectionVisMap = buildSectionVisibilityMap(currentRows)
+  const sectionIdMap = buildSectionIdMap(prevRows, currentRowsResolved)
+  const sectionVisMap = buildSectionVisibilityMap(currentRowsResolved)
 
   // 섹션별로 root 후보 그룹 + position 1, 2, 3... 매김.
   // → createDailyPageV2 가 박은 빈 자식 (position=999) 위에 자연 배치.
