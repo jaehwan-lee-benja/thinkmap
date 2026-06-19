@@ -649,6 +649,8 @@ export const Toggle = Node.create({
       if (hasFocusClass(decorations)) dom.classList.add('toggle-block-focused')
       if (hasCheckboxFocusClass(decorations)) dom.classList.add('toggle-checkbox-focused')
       if (hasMultiSelectClass(decorations)) dom.classList.add('toggle-block-multiselected')
+      // 선택(멀티셀렉트)된 블록만 본문 드래그 가능 — 미선택은 텍스트 선택/클릭 유지
+      dom.draggable = hasMultiSelectClass(decorations)
 
       // 드래그 핸들 (블록 내부에 배치)
       // 자식 블록(줄)은 항상 드래그 가능. h2 섹션 핸들은 '섹션 이동 모드'에서만 CSS 로 노출되고
@@ -659,8 +661,10 @@ export const Toggle = Node.create({
       dragHandle.draggable = true
 
 
-      // 드래그 시작 이벤트
-      dragHandle.addEventListener('dragstart', (e) => {
+      // 드래그 시작 로직 (드래그 핸들 ⠿ + 선택된 블록 본문 공용)
+      // fromHandle=false(본문 드래그)일 땐 멀티셀렉트에 포함된 블록에서만 시작한다 —
+      // 미선택 블록 본문은 기존처럼 텍스트 선택/클릭 동작을 유지(dom.draggable=false 이므로 애초에 발화 안 함).
+      const startBlockDrag = (e, fromHandle) => {
         // ProseMirror dragstart가 dispatch→DOM교체→드래그 취소하므로 버블링 차단
         e.stopPropagation()
 
@@ -678,7 +682,11 @@ export const Toggle = Node.create({
         // multi-select 활성 + 현재 블록이 포함되면 모든 선택 블록 묶음 드래그
         const multiState = multiSelectPluginKey.getState(editor.state)
         const selectedSet = new Set(multiState?.selectedPositions || [])
-        const isMulti = selectedSet.size > 1 && selectedSet.has(pos)
+        const isSelected = selectedSet.has(pos)
+        const isMulti = selectedSet.size > 1 && isSelected
+
+        // 본문 드래그는 선택된 블록에서만 — 안전 가드(미선택 본문은 기본 동작에 맡김)
+        if (!fromHandle && !isSelected) return
 
         let dragPositions, dragNodes
         if (isMulti) {
@@ -706,14 +714,23 @@ export const Toggle = Node.create({
         const slice = new Slice(Fragment.fromArray(dragNodes), 0, 0)
         editor.view.dragging = { slice, move: true }
         // CSS 클래스 변경 없음 — dragstart 중 어떤 DOM/스타일 변경도 브라우저가 드래그를 취소시킴
-      })
+      }
 
-      // 드래그 종료
-      dragHandle.addEventListener('dragend', () => {
-        // stale state 정리 — 다음 드래그가 오인되지 않도록
+      // 드래그 종료 — stale state 정리(다음 드래그 오인 방지). 핸들/본문 드래그 공용.
+      const endBlockDrag = () => {
         window.__crossPaneDrag = null
         editor.view.dragging = null
-      })
+      }
+
+      // 드래그 시작 이벤트 (핸들 ⠿)
+      dragHandle.addEventListener('dragstart', (e) => startBlockDrag(e, true))
+      dragHandle.addEventListener('dragend', endBlockDrag)
+
+      // 선택된 블록은 본문 어디를 잡아도 드래그 — 바탕화면 아이콘 선택→이동 메타포 완성.
+      // dom.draggable 은 멀티셀렉트 상태에서만 true(초기 설정 + update() 에서 동기화).
+      // 핸들 드래그는 위 핸들 dragstart 가 stopPropagation 하므로 여기 도달하지 않음.
+      dom.addEventListener('dragstart', (e) => startBlockDrag(e, false))
+      dom.addEventListener('dragend', endBlockDrag)
 
       // 드래그 핸들 클릭 시 블록 선택 + 컨텍스트 메뉴 (멀티셀렉트 지원)
       dragHandle.addEventListener('click', (e) => {
@@ -1691,6 +1708,8 @@ export const Toggle = Node.create({
           dom.classList.toggle('toggle-block-focused', hasFocusClass(outerDecorations))
           dom.classList.toggle('toggle-checkbox-focused', hasCheckboxFocusClass(outerDecorations))
           dom.classList.toggle('toggle-block-multiselected', hasMultiSelectClass(outerDecorations))
+          // 선택 상태 변화에 맞춰 본문 드래그 가능 여부 동기화 (A: 선택 블록 본문 드래그)
+          dom.draggable = hasMultiSelectClass(outerDecorations)
 
           return true
         },
@@ -1711,6 +1730,59 @@ export const Toggle = Node.create({
     const extensionThis = this
     // 글로벌 드롭 인디케이터 상태 (Plugin view ↔ handleDrop 공유)
     const _dropState = { target: null }
+
+    // 드롭 좌표로부터 타겟 토글/모드(before/after/inside)를 직접 계산한다.
+    // handleDrop 이 디바운스/별도 drop 리스너로 비워질 수 있는 _dropState.target 에
+    // 의존하면, inside 인디케이터가 보였는데도 형제로 떨어지는 경합이 생긴다.
+    // → 드롭 순간 좌표(authoritative)로 재계산해 경합을 제거. dragover 와 동일 로직.
+    const computeDropTarget = (view, clientX, clientY) => {
+      const coords = view.posAtCoords({ left: clientX, top: clientY })
+      if (!coords) return null
+      const $pos = view.state.doc.resolve(coords.pos)
+
+      const crossDrag = window.__crossPaneDrag
+      let draggedIsSection = false
+      if (SECTION_DRAG_ENABLED && crossDrag?.sourcePositions?.length === 1) {
+        const dn = crossDrag.sourceEditor?.state.doc.nodeAt(crossDrag.sourcePositions[0])
+        draggedIsSection = !!(dn && dn.type.name === 'toggle' && dn.attrs.blockType === 'h2')
+      }
+
+      let togglePos = null, toggleNode = null
+      if (draggedIsSection) {
+        for (let d = 1; d <= $pos.depth; d++) {
+          if ($pos.node(d).type.name === 'toggle') { togglePos = $pos.before(d); toggleNode = $pos.node(d); break }
+        }
+      } else {
+        for (let d = $pos.depth; d >= 1; d--) {
+          if ($pos.node(d).type.name === 'toggle') { togglePos = $pos.before(d); toggleNode = $pos.node(d); break }
+        }
+      }
+      if (togglePos == null) return null
+
+      const targetDom = view.nodeDOM(togglePos)
+      if (!targetDom?.getBoundingClientRect) return null
+      const rect = targetDom.getBoundingClientRect()
+      const yInBlock = clientY - rect.top
+
+      let mode
+      if (draggedIsSection) {
+        if (yInBlock < rect.height * 0.35) mode = 'before'
+        else if (yInBlock > rect.height * 0.65) mode = 'after'
+        else mode = 'inside'
+      } else {
+        const EDGE = 8
+        if (yInBlock <= EDGE) mode = 'before'
+        else if (yInBlock >= rect.height - EDGE) mode = 'after'
+        else mode = 'inside'
+      }
+
+      return {
+        pos: mode === 'after' ? togglePos + toggleNode.nodeSize : togglePos,
+        mode,
+        togglePos,
+        toggleNodeSize: toggleNode.nodeSize,
+      }
+    }
 
     return [
       // ── 글로벌 블록 드래그 인디케이터 ──
@@ -2001,7 +2073,9 @@ export const Toggle = Node.create({
               || !!window.__crossPaneDrag
 
             if (isBlockDrag) {
-              const target = _dropState.target
+              // 드롭 순간 좌표로 타겟 재계산(authoritative). 경합으로 비워졌을 수 있는
+              // _dropState.target 은 fallback 으로만 사용 → inside 가 형제로 새는 문제 방지.
+              const target = computeDropTarget(view, event.clientX, event.clientY) || _dropState.target
               const crossDrag = window.__crossPaneDrag
               const { state } = view
 

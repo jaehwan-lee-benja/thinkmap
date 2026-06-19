@@ -2552,6 +2552,16 @@ th .paragraph-drag-handle {
 
 .toggle-block-multiselected {
   position: relative;
+  /* 선택된 블록은 본문을 잡아도 텍스트 선택이 아니라 '요소 드래그'가 시작되도록
+     (A: 선택 블록 본문 드래그). user-select 가 켜져 있으면 텍스트 선택 드래그가 우선해
+     본문 드래그가 동작하지 않는다. 핸들 ⠿ 은 텍스트가 아니라 영향 없음. */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.toggle-block-multiselected:active {
+  cursor: grabbing;
 }
 
 .toggle-block-multiselected::before {
