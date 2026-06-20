@@ -1,8 +1,17 @@
-# PLAN — 멀티셀렉트 → 컨테이너 드래그 통합 (진행 중, inside 드롭 미해결)
+# PLAN — 멀티셀렉트 → 컨테이너 드래그 통합 (TipTap inside 드롭 해결)
 
-> 브랜치: `feat/unified-multiselect-drag` (base `main` = f8f4924)
-> 상태: **Phase 1 부분 완료 + 1건 미해결로 세션 중단** (2026-06-19)
+> 브랜치: `feat/unified-multiselect-drag` → 이어서 `feat/dnd-inside-drop`
+> 상태: **Phase 1(TipTap) 완료 — inside 드롭 해결 (2026-06-20)**. ColumnView/CardView는 미착수.
 > 진입 문서. 다음 세션은 이 문서부터 읽고 이어간다.
+
+## ✅ inside 드롭 해결 (2026-06-20)
+
+- **근본 원인:** 마키 다중선택은 **뷰어 모드(editable=false)**에서 동작하는데, ProseMirror는 editable=false면 drop을 editHandlers로 분류해 **`handleDrop` prop을 호출하지 않는다.** 그래서 드롭이 통째로 무시되고 형제 자리에 남았다(인디케이터는 dragover 경로라 정상 표시 → 오인 유발). 가설 4종(노드 복원/PM 선점/정규화 롤백/리스너 순서)은 모두 빗나갔고, 진짜 원인은 editable 게이팅이었다.
+- **해결:** 블록 드롭 로직을 `handleBlockDrop()`으로 추출 → PM `handleDrop`(편집모드) + `editorView.dom` capture-phase drop 리스너(뷰어 모드, editable 분기로 중복 방지) 공유 호출. + 자기포함 가드 off-by-one(`<= sp+ss` → `< sp+ss`).
+- 상세: `docs/TOGGLE-BLOCK-SPEC.md` §11.7 / §13. toggle-guardian 검수 통과, dev 서버 확인.
+- 진단 교훈은 공유 기억(`thinkmap-memory/viewer-mode-pm-handledrop-skip.md`)에도 기록.
+
+> 아래 2~4절은 해결 전 디버깅 기록(보존). 가설들은 결과적으로 빗나갔음에 유의.
 
 ## 0. 목표 (사용자 기획)
 

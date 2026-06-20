@@ -200,12 +200,13 @@ priority: 200
 |------|-------------------|----------------------|
 | `application/x-thinkmap-block` | 설정됨 (dragstart에서) | 없음 |
 | `window.__crossPaneDrag` | 설정됨 | null |
-| 처리 경로 | Plugin `handleDrop` (블록 분기) | Plugin `handleDrop` (텍스트 분기) |
+| 처리 경로 | `handleBlockDrop()` 공용 함수 (편집모드=PM `handleDrop`, 뷰어모드=DOM drop 리스너) | Plugin `handleDrop` (텍스트 분기) |
 
 **주의사항:**
 - ProseMirror의 dragstart 핸들러가 `dispatch`하면 DOM 재구성으로 브라우저가 드래그를 즉시 취소한다. 따라서 NodeView dragstart에서 `e.stopPropagation()`으로 PM 핸들러를 차단하고, `dispatch`를 하지 않는다.
 - PM이 drop 시 토글을 paragraph로 분해하여 slice를 전달하므로, handleDrop에서 `application/x-thinkmap-block` JSON 데이터로 토글을 복원한다.
 - 같은 에디터 판정: `crossDrag.sourceEditor.view === view` (TipTap Editor ≠ PM EditorView이므로 `.view` 비교 필요).
+- **뷰어 모드(editable=false) 드롭**: ProseMirror는 editable=false면 drop을 editHandlers로 분류해 `handleDrop` prop을 호출하지 않는다. 마키 다중선택 드래그는 뷰어 모드에서도 동작하므로, 블록 드롭 로직을 `handleBlockDrop()`으로 추출해 PM `handleDrop`(편집모드)과 `editorView.dom`의 **capture-phase drop 리스너**(뷰어 모드, `if (editorView.editable) return`으로 중복 방지) 양쪽에서 공유 호출한다. `view.dispatch`는 editable과 무관하게 동작. 상세는 §11.7.
 
 ### 6.4 알려진 이슈 및 디버깅 기록
 
@@ -392,6 +393,18 @@ if (insideChild) return
 
 상세: `docs/WORKLOG-SPEC.md` §4.8.
 
+### 11.7 뷰어 모드 inside 드롭 미동작 (2026-06-20, 해결)
+
+**현상:** 마키로 여러 블록을 다중선택해 토글 **내부(inside)**로 드롭하면 형제 레벨에 그대로 남는다. inside 인디케이터(파란 박스)는 정상 표시되어 "표시는 되는데 안 들어가는" 형태로 오인하기 쉬웠다. 편집모드에서 핸들(⠿)로 하는 단일 inside 드롭은 동작 → "단일 됨 / 다중 안 됨" 비대칭.
+
+**원인:** 마키 다중선택은 **뷰어 모드(editor `editable=false`)**에서 동작한다. 그런데 ProseMirror는 `editable=false`면 drop을 editHandlers로 분류해 **plugin의 `handleDrop` prop을 호출하지 않는다.** 그래서 뷰어 모드 드롭이 통째로 무시됐다. (편집모드 단일 드롭이 됐던 것은 그 경우 PM이 handleDrop을 호출했기 때문 — 비대칭의 정체.)
+
+**해결:**
+1. **드롭 로직 추출·공유** — 블록 드롭 처리를 `handleBlockDrop(view, event)` 공용 함수로 추출. ① PM `handleDrop`(편집모드) ② `editorView.dom`의 **capture-phase** `drop` 리스너(뷰어 모드, `if (editorView.editable) return`으로 편집모드 중복 방지, `e.preventDefault()` 후 호출) 양쪽에서 공유. `view.dispatch`는 editable과 무관하게 동작하므로 뷰어 모드에서도 안전. destroy()에서 capture 플래그(`true`)까지 맞춰 removeEventListener.
+2. **자기포함 가드 off-by-one 정정** — `insertPos <= sp + ss` → `insertPos < sp + ss`. `sp+ss`는 소스 닫는 토큰 '다음' = 소스 밖 형제 경계인데, 인접 블록을 다음 형제 토글 inside로 떨굴 때 `insertPos == sp+ss`가 되어 정상 경계를 "자기 포함"으로 오판, 드롭이 통째로 무효화되던 버그.
+
+위치: `src/components/TipTapEditor/extensions/ToggleExtension.js`. toggle-guardian 검수 통과, dev 서버 동작 확인.
+
 ---
 
 ## 13. 절대 깨뜨리면 안 되는 기능 (회귀 테스트 대상)
@@ -414,7 +427,8 @@ ProseMirror에서 콘텐츠가 에디터에 삽입되는 경로는 **3가지**�
 |------|-----------------|-----------|
 | Cmd+V 붙여넣기 | `handlePaste` | 해결됨 (2026-04-02) |
 | 텍스트 드래그 드롭 | `handleDrop` plugin prop (텍스트 분기) | 해결됨 (2026-04-02) |
-| 블록 드래그 드롭 | Plugin `handleDrop` (블록 분기) + 글로벌 `blockDropIndicator` Plugin | **리팩토링 완료** (2026-04-20) — 섹션 6.2 |
+| 블록 드래그 드롭 (편집모드) | Plugin `handleDrop` (블록 분기) → `handleBlockDrop()` + 글로벌 `blockDropIndicator` Plugin | **리팩토링 완료** (2026-04-20) — 섹션 6.2 |
+| 블록 드래그 드롭 (뷰어모드) | `editorView.dom` capture-phase drop 리스너 → `handleBlockDrop()` | **해결됨** (2026-06-20) — editable=false면 PM이 handleDrop 미호출, §11.7 |
 | 블록 드래그 시각 피드백 | 글로벌 position:fixed 오버레이 (CSS `.drop-line` / `.drop-box`) | **해결됨** (2026-04-20) |
 
 **원칙:**
