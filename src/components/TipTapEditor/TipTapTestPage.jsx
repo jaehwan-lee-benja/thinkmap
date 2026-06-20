@@ -89,8 +89,9 @@ import { useWorklogComments } from '../../hooks/useWorklogComments'
 import { useCalendarCommentCounts } from '../../hooks/useCalendarCommentCounts'
 import { useCalendarTodoStats } from '../../hooks/useCalendarTodoStats'
 import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
-import { isDailyPage, isCalendarPage, isMembersPage } from '../../utils/pageTypes'
+import { isDailyPage, isCalendarPage, isMembersPage, isGoalPage } from '../../utils/pageTypes'
 import { findOrCreateMembersPage } from '../../utils/membersPage'
+import GoalClaudeAccess from '../Goal/GoalClaudeAccess'
 import './TipTapPage.css'
 
 /**
@@ -1471,6 +1472,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
                 </div>
               )}
             </div>
+            {isGoalPage(currentPage) && <GoalClaudeAccess pageId={currentPageId} />}
             <button
               onClick={() => {
                 const projectName = projects?.find(p => p.id === currentProjectId)?.name || ''

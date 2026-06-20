@@ -1,0 +1,37 @@
+/* 모달 본문 여백 — 공통 .modal-body 엔 패딩이 없어 직접 부여 */
+.goal-claude-modal .modal-body {
+  padding: var(--spacing-md);
+}
+
+.goal-claude-steps {
+  margin: 0 0 var(--spacing-md);
+  padding-left: 20px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+}
+
+.goal-claude-prompt {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px;
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--border-radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  resize: vertical;
+  white-space: pre;
+  overflow: auto;
+}
+
+.goal-claude-copy {
+  margin-top: var(--spacing-md);
+}
+
+.goal-claude-note {
+  margin: var(--spacing-md) 0 0;
+  color: var(--color-text-tertiary);
+  line-height: 1.5;
+}
