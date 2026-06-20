@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt, LayoutDashboard, Users } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt, LayoutDashboard, Users, Flag } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -14,7 +14,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage } from '../../utils/pageTypes'
+import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage } from '../../utils/pageTypes'
 import { findOrCreateMembersPage } from '../../utils/membersPage'
 import './Sidebar.css'
 
@@ -84,6 +84,57 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             [향후] 계정별 개인 업무일지 분리 시, 여기서 owner_id 기반 필터링 추가
           */}
           <div className="sidebar-worklog-fixed">
+            {/* 목표 — 최상위 레이어. 일반 페이지처럼 자유 텍스트로 동작(독립 엔티티).
+                계정별 단일 목표 페이지를 find-or-create. 트리에서는 이 아래로 페이지를 끌어 모은다. */}
+            <button
+              className={`sidebar-worklog-btn ${currentPageId && isGoalPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
+              onClick={async () => {
+                // 메모리 캐시 우선 (fetchPages 가 owner 범위로 가져온 내 목표)
+                let goalPage = pages.find(p => isGoalPage(p))
+
+                // DB 직접 조회 (캐시에 없을 수 있음) — 내 소유로 한정 (마스터는 전부 보이므로 user_id 필터 필수)
+                if (!goalPage) {
+                  const { data } = await supabase
+                    .from('pages')
+                    .select('id')
+                    .eq('page_type', 'goal')
+                    .eq('user_id', effectiveSession.user.id)
+                    .is('deleted_at', null)
+                    .limit(1)
+                    .maybeSingle()
+                  if (data) goalPage = { id: data.id, page_type: 'goal' }
+                }
+
+                // 없으면 신규 생성 (독립 엔티티 — project_id=null, 트리 최상단)
+                if (!goalPage) {
+                  const newPageId = generateUUID()
+                  const { error } = await supabase
+                    .from('pages')
+                    .insert([{
+                      id: newPageId,
+                      user_id: effectiveSession.user.id,
+                      name: '목표',
+                      page_type: 'goal',
+                      project_id: null,
+                      parent_id: null,
+                      position: -2,    // 캘린더(-1)보다 위
+                    }])
+                  if (error) {
+                    console.error('목표 페이지 생성 실패:', error)
+                    return
+                  }
+                  goalPage = { id: newPageId, page_type: 'goal' }
+                }
+
+                // 캐시 갱신 후 선택 (reload 없음)
+                if (typeof fetchPages === 'function') await fetchPages()
+                handlePageSelect(goalPage.id)
+              }}
+            >
+              <Flag size={16} />
+              <span>목표</span>
+            </button>
+
             {/* 캘린더 — 업무일지 위쪽 */}
             <button
               className={`sidebar-worklog-btn ${currentPageId && isSchedulePage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
