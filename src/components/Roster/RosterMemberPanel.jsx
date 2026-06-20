@@ -26,6 +26,7 @@ function PanelChip({ item, canEdit, held, onPick }) {
 export default function RosterMemberPanel({
   items = [], offRows = [], addable = [], weekday, canEdit = true, held, dragging,
   onPick, onOffItem, onRemoveRow, onAddConfirmed, onAddCustom, onReturnRow,
+  weekdayDefaultCount = 0, onSaveWeekdayDefault, onApplyWeekdayDefault, onClearWeekdayDefault,
 }) {
   const { setNodeRef: unplaceRef, isOver: unplaceOver } = useDroppable({ id: 'unplace', data: { kind: 'unplace' } })
   const [pick, setPick] = useState('')
@@ -34,12 +35,12 @@ export default function RosterMemberPanel({
     <div className="roster-panel">
       <section ref={unplaceRef} className={`roster-panel-sec roster-panel-confirmed ${unplaceOver ? 'is-unplace-over' : ''}`}>
         <h4>확정 인원 <span className="roster-panel-count">{items.length}</span>
-          {weekday && <span className="roster-panel-dow">{weekday}요일 기본 자동 포함</span>}
+          {weekday && <span className="roster-panel-dow">{weekday}요일 근무자 자동 포함</span>}
         </h4>
         <div className="roster-panel-list">
           {items.length === 0 && <span className="roster-panel-empty">확정 인원이 없습니다. 아래에서 추가하세요.</span>}
           {items.map((it) => (
-            <div key={it.kind === 'row' ? `r${it.assignmentId}` : `m${it.memberId}`} className="roster-panel-row is-confirmed">
+            <div key={it.kind === 'row' ? `r${it.assignmentId}` : `m${it.memberId}`} className={`roster-panel-row is-confirmed ${it.role ? '' : 'is-unplaced'}`}>
               <PanelChip item={it} canEdit={canEdit} held={held} onPick={onPick} />
               <span className="roster-panel-role">{it.role || '미배치'}</span>
               {canEdit && (
@@ -63,6 +64,21 @@ export default function RosterMemberPanel({
               <Plus size={12} /> 확정
             </button>
             <button type="button" className="rp-btn" onClick={onAddCustom} title="멤버 마스터에 없는 임시 인원">임시</button>
+          </div>
+        )}
+        {canEdit && weekday && (
+          <div className="roster-panel-wkdef">
+            <button type="button" className="rp-btn" onClick={onSaveWeekdayDefault}
+              title="현재 인원 배치(누가 어느 역할)를 이 요일 기본으로 저장 — 다음 주부터 빈 날짜를 열면 자동 적용">
+              {weekday}요일 인원배치 기본으로 저장
+            </button>
+            {weekdayDefaultCount > 0 && (
+              <span className="roster-panel-wkdef-info">
+                {weekday}요일 인원 기본 {weekdayDefaultCount}명
+                <button type="button" className="rp-link" onClick={onApplyWeekdayDefault} title="기본 인원배치를 지금 채우기 (이미 있는 인원은 건너뜀)">채우기</button>
+                <button type="button" className="rp-link" onClick={onClearWeekdayDefault} title="이 요일 인원배치 기본 삭제">비우기</button>
+              </span>
+            )}
           </div>
         )}
       </section>

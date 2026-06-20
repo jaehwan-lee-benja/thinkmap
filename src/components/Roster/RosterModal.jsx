@@ -1,16 +1,18 @@
 // 배치도 모달 — 특정 (board, 날짜)의 멤버×역할 배치를 입력/편집.
 // docs/MEMBER-SPEC.md §7.2. daily 본문(daily_blocks)과 분리된 독립 테이블(roster_assignments).
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { DndContext, DragOverlay, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { X, Plus, Trash2, Users, LayoutGrid, List } from 'lucide-react'
 import { useRoster } from '../../hooks/useRoster'
 import { useMembers } from '../../hooks/useMembers'
-import { useRosterTemplates, suggestTemplate } from '../../hooks/useRosterTemplates'
+import { useRosterTemplates } from '../../hooks/useRosterTemplates'
+import { useRosterSchedule } from '../../hooks/useRosterSchedule'
+import { useRosterWeekdayDefault } from '../../hooks/useRosterWeekdayDefault'
 import { useRosterLayout, DEFAULT_LAYOUT } from '../../hooks/useRosterLayout'
 import {
-  ROSTER_ROLE_PRESETS, ROSTER_SHIFTS, ROSTER_STATUS, ROSTER_STATUS_LABEL,
+  ROSTER_ROLE_PRESETS, ROSTER_SHIFTS, ROSTER_STATUS, ROSTER_STATUS_LABEL, WEEKDAYS,
 } from '../../utils/rosterPresets'
 import RosterBoardView from './RosterBoardView'
 import RosterBoardEditor from './RosterBoardEditor'
@@ -29,66 +31,100 @@ export default function RosterModal({
   boardId, workDate, pageId, session, isMaster = false, canEdit = true, onClose, onNavigateToMembers,
 }) {
   const userId = session?.user?.id || null
-  const { rows, loading, addAssignment, updateAssignment, removeAssignment } = useRoster(boardId, workDate, pageId)
+  const { rows, loading, addAssignment, seedAssignments, updateAssignment, removeAssignment } = useRoster(boardId, workDate, pageId)
   const { members } = useMembers({ includeInactive: false })
-  const { templates, replaceSlots, createTemplate } = useRosterTemplates(boardId)
+  const { templates, replaceSlots, createTemplate, markMaster } = useRosterTemplates(boardId)
   const { layout, saveLayout } = useRosterLayout(boardId)
+  const schedule = useRosterSchedule(boardId)
+  const wkDefault = useRosterWeekdayDefault(boardId)
 
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [adding, setAdding] = useState(false)
+  // 요일→버전 배정 패널 토글
+  const [schedOpen, setSchedOpen] = useState(false)
   // 보드(시각) / 표(빠른입력) 토글. 기본은 보드 — 슬라이드 작전보드 대체. (PLAN-roster-visual-board Phase A)
   const [view, setView] = useState('board')
   // 출력/풀스크린 읽기 뷰(Phase E). canEdit 무관.
   const [printMode, setPrintMode] = useState(false)
 
-  // 선택된 체제(템플릿). 미선택('') = 폴백(역할 그룹핑). 날짜/인원 기반 자동 추천을 기본값으로.
+  // 선택된 체제(버전). 미선택('') = 폴백(역할 그룹핑). 요일/날짜 배정(schedule)으로 자동 선택.
   const [templateId, setTemplateId] = useState('')
   const [templateTouched, setTemplateTouched] = useState(false)
+  // 그날 적용 버전 해석: 날짜 오버라이드 > 요일 기본 > 없음.
+  const resolved = useMemo(() => schedule.resolve(workDate), [schedule.resolve, workDate])
   useEffect(() => {
-    if (templateTouched || !templates.length) return
-    const sug = suggestTemplate(templates, workDate, rows.length || null)
-    if (sug) setTemplateId(sug.id)
-  }, [templates, workDate, rows.length, templateTouched])
+    if (templateTouched || !schedule.loaded) return
+    setTemplateId(resolved.id || '')
+  }, [resolved, schedule.loaded, templateTouched])
   const template = useMemo(() => templates.find((t) => t.id === templateId) || null, [templates, templateId])
+  // 풀 배치(전체 마스터) — 보드당 1개(is_default). 다른 체제는 여기서 빼서 파생.
+  const masterTemplate = useMemo(() => templates.find((t) => t.is_default && t.board_id) || null, [templates])
 
   // ── 레이아웃 편집(Phase D) ───────────────────────────────────────────────
   const [editMode, setEditMode] = useState(false)
   const [draftSlots, setDraftSlots] = useState([])
   const [draftLayout, setDraftLayout] = useState(DEFAULT_LAYOUT)
   const [savingTpl, setSavingTpl] = useState(false)
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  // '현재 체제 갱신' 대상(편집 시작 출처). 풀배치/빈 편집은 null → 새로 저장 유도.
+  const [editTarget, setEditTarget] = useState(null)
 
-  const enterEdit = () => {
-    if (!template) return
-    setDraftSlots((template.slots || []).map((s) => ({ ...s, _key: s.id })))
+  const beginEdit = (slots, target) => {
+    setDraftSlots((slots || []).map((s) => ({ ...s, _key: s.id ?? s._key })))
     setDraftLayout(layout) // 홀·주방 = 보드 공통
+    setEditTarget(target)
+    setSaveMenuOpen(false)
     setEditMode(true)
   }
-  const cancelEdit = () => { setEditMode(false); setDraftSlots([]) }
+  const enterEdit = () => { if (template) beginEdit(template.slots, template) }            // 현재 체제 편집
+  const enterEditFromMaster = () => { if (masterTemplate) beginEdit(masterTemplate.slots, null) } // 풀배치에서 빼기(새로 저장)
+  const enterMaster = () => beginEdit(masterTemplate ? masterTemplate.slots : [], masterTemplate || null) // 풀 배치 설정(수정/신규)
+  const cancelEdit = () => { setEditMode(false); setDraftSlots([]); setEditTarget(null); setSaveMenuOpen(false) }
 
-  const saveUpdate = async () => {
-    if (!template) return
+  const finishSave = (tplId) => { setTemplateId(tplId); setTemplateTouched(true); setEditMode(false); setDraftSlots([]); setEditTarget(null); setSaveMenuOpen(false) }
+
+  // 기존 체제 덮어쓰기(현재 또는 목록에서 고른 다른 체제) + 홀·주방 공통 레이아웃 저장.
+  const saveToExisting = async (tplId) => {
+    if (!tplId) return
     setSavingTpl(true)
-    const { error } = await replaceSlots(template.id, draftSlots)
-    const { error: e2 } = await saveLayout(draftLayout) // 홀·주방 = 보드 공통
+    const { error } = await replaceSlots(tplId, draftSlots)
+    const { error: e2 } = await saveLayout(draftLayout)
     setSavingTpl(false)
     if (error || e2) { alert('갱신 실패: 권한이 없거나 오류입니다. (전역 체제=마스터, 홀·주방=마스터·보드멤버)'); return }
-    setEditMode(false); setDraftSlots([])
+    finishSave(tplId)
   }
+  const saveUpdate = () => editTarget && saveToExisting(editTarget.id)
 
   const saveAsNew = async () => {
-    if (!template) return
-    const name = prompt('새 체제 이름:', `${template.name} (수정)`)
+    const name = prompt('새 체제 이름:', editTarget ? `${editTarget.name} (수정)` : '새 체제')
     if (!name?.trim()) return
     setSavingTpl(true)
-    const { data, error } = await createTemplate({
-      name: name.trim(), weekday: template.weekday, headcount: template.headcount,
-      slots: draftSlots, scope: 'board', createdBy: userId,
-    })
-    if (!error && data) await saveLayout(draftLayout) // 홀·주방 = 보드 공통
+    const { data, error } = await createTemplate({ name: name.trim(), slots: draftSlots, scope: 'board', createdBy: userId })
+    if (!error && data) await saveLayout(draftLayout)
     setSavingTpl(false)
-    if (error || !data) { alert('새 버전 저장 실패: 권한이 없거나 오류입니다.'); return }
-    setTemplateId(data.id); setTemplateTouched(true)
-    setEditMode(false); setDraftSlots([])
+    if (error || !data) { alert('새 체제 저장 실패: 권한이 없거나 오류입니다.'); return }
+    finishSave(data.id)
+  }
+
+  // 풀 배치로 저장 — 기존 마스터가 있으면 갱신, 없으면 새로 만들어 마스터 지정.
+  const saveAsMaster = async () => {
+    setSavingTpl(true)
+    let targetId = masterTemplate?.id
+    if (targetId) {
+      const { error } = await replaceSlots(targetId, draftSlots)
+      if (error) { setSavingTpl(false); alert('풀 배치 갱신 실패: 권한이 없거나 오류입니다.'); return }
+    } else {
+      const name = prompt('풀 배치 이름:', '풀 배치')
+      if (!name?.trim()) { setSavingTpl(false); return }
+      const { data, error } = await createTemplate({ name: name.trim(), slots: draftSlots, scope: 'board', createdBy: userId })
+      if (error || !data) { setSavingTpl(false); alert('풀 배치 저장 실패: 권한이 없거나 오류입니다.'); return }
+      targetId = data.id
+    }
+    const { error: e3 } = await markMaster(targetId)
+    const { error: e2 } = await saveLayout(draftLayout)
+    setSavingTpl(false)
+    if (e3 || e2) { alert('풀 배치 지정 일부 실패: 권한이 없거나 오류입니다.'); return }
+    finishSave(targetId)
   }
 
   // ── 그날 명단 ↔ 배치 핸들러 (PLAN §12) ─────────────────────────────────────
@@ -101,10 +137,42 @@ export default function RosterModal({
     [members, weekday, assignedIds]
   )
 
+  // ── 요일 기본 배치(사람→역할): 빈 날짜를 열면 자동으로 깐다 ──────────────────
+  const weekdayDefaults = useMemo(() => (weekday ? wkDefault.byWeekday[weekday] || [] : []), [wkDefault.byWeekday, weekday])
+  const seededRef = useRef({})
+  useEffect(() => {
+    // 가드: 로드 완료 + 그날 배치 0개 + 그 요일 기본 존재 + 이 세션에서 이 날짜에 아직 안 깖.
+    if (loading || !wkDefault.loaded || !canEdit || !weekday) return
+    if (rows.length > 0 || !weekdayDefaults.length) return
+    if (seededRef.current[workDate]) return
+    seededRef.current[workDate] = true
+    seedAssignments(weekdayDefaults, userId)
+  }, [loading, wkDefault.loaded, canEdit, weekday, workDate, rows.length, weekdayDefaults, seedAssignments, userId])
+
+  const saveWeekdayDefault = async () => {
+    if (!weekday) return
+    const placements = confirmedRows.map((r) => ({ member_id: r.member_id, member_name: r.member_name, role: r.role || null, shift: r.shift || null, status: r.status }))
+    if (!placements.length && !confirm(`${weekday}요일 기본 배치를 비울까요? (현재 확정 인원이 없습니다)`)) return
+    const { error } = await wkDefault.saveDefault(weekday, placements)
+    if (error) alert('요일 기본 저장 실패: 권한이 없거나 오류입니다.')
+  }
+  // 기본 배치를 지금 채우기(이미 배치된 인원은 건너뜀 → 중복 방지)
+  const applyWeekdayDefault = async () => {
+    const have = new Set(rows.map((r) => r.member_id).filter(Boolean))
+    const toAdd = weekdayDefaults.filter((d) => !d.member_id || !have.has(d.member_id))
+    if (!toAdd.length) return
+    await seedAssignments(toAdd, userId)
+  }
+  const clearWeekdayDefault = async () => {
+    if (!weekday) return
+    if (!confirm(`${weekday}요일 기본 배치를 삭제할까요?`)) return
+    await wkDefault.clearDefault(weekday)
+  }
+
   // 보드: 파생 멤버 → 확정 row 생성+role / 기존 row → role 갱신. 빼기 = role=null.
   const placeItem = (item, role) => {
     if (item.kind === 'member') {
-      addAssignment({ memberId: item.memberId, memberName: item.memberName, role: role || null, status: 'confirmed', createdBy: userId })
+      addAssignment({ memberId: item.memberId, memberName: item.name, role: role || null, status: 'confirmed', createdBy: userId })
     } else {
       updateAssignment(item.assignmentId, { role: role || null })
     }
@@ -237,24 +305,93 @@ export default function RosterModal({
                   <option value="">— 체제 미선택 (역할 그룹) —</option>
                   {templates.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name}{t.board_id ? ' (이 보드)' : ''}
+                      {t.name}{t.is_default && t.board_id ? ' ★풀배치' : t.board_id ? ' (이 보드)' : ''}
                     </option>
                   ))}
                 </select>
                 {!editMode && (
+                  <span className="roster-template-source" title="이 날짜에 적용된 자리판(역할카드 버전)의 출처">
+                    {templateTouched ? '수동 선택'
+                      : resolved.source === 'date' ? '이 날짜 자리판'
+                      : resolved.source === 'weekday' ? `${weekday}요일 자리판`
+                      : '자리판 미배정'}
+                  </span>
+                )}
+                {!editMode && (
                   <button className="roster-add-custom" onClick={() => setPrintMode(true)} title="현장 표시·인쇄용 읽기 전용 보기">전체화면·인쇄</button>
                 )}
+                {canEdit && !editMode && (
+                  <button className={`roster-add-custom ${schedOpen ? 'is-active' : ''}`} onClick={() => setSchedOpen((v) => !v)} title="요일/날짜에 어떤 자리판(역할카드 버전)을 쓸지 배정">요일별 자리판</button>
+                )}
+                {canEdit && !editMode && (
+                  <button className={`roster-add-custom ${masterTemplate ? '' : 'is-active'}`} onClick={enterMaster}
+                    title={masterTemplate ? '풀 배치(전체 마스터) 수정' : '풀 배치(전체 마스터) 새로 만들기 — 최대 인원으로 깔고 저장 ▾ → 풀 배치로 저장'}>
+                    풀 배치 설정
+                  </button>
+                )}
+                {canEdit && masterTemplate && !editMode && (
+                  <button className="roster-add-custom" onClick={enterEditFromMaster} title="풀 배치를 불러와 카드를 빼서 새 체제로 저장(파생 버전)">풀 배치에서 빼기</button>
+                )}
                 {canEdit && template && !editMode && (
-                  <button className="roster-add-custom" onClick={enterEdit} title="자리 위치/구성 편집">레이아웃 편집</button>
+                  <button className="roster-add-custom" onClick={enterEdit} title="현재 선택된 체제의 자리 위치/구성 편집">레이아웃 편집</button>
                 )}
                 {editMode && (
                   <div className="roster-edit-actions">
-                    <button className="roster-add-btn" disabled={savingTpl} onClick={saveUpdate}>이 체제 갱신</button>
-                    <button className="roster-add-custom" disabled={savingTpl} onClick={saveAsNew}>새 버전 저장</button>
+                    <div className="roster-savemenu">
+                      <button className="roster-add-btn" disabled={savingTpl} onClick={() => setSaveMenuOpen((v) => !v)}>저장 ▾</button>
+                      {saveMenuOpen && (
+                        <div className="roster-savemenu-pop" onClick={(e) => e.stopPropagation()}>
+                          <button className="roster-savemenu-item" disabled={savingTpl || !editTarget} onClick={saveUpdate}>
+                            현재 체제 갱신{editTarget ? ` · ${editTarget.name}` : ' (없음)'}
+                          </button>
+                          <label className="roster-savemenu-item roster-savemenu-pick">
+                            다른 체제 갱신…
+                            <select className="roster-select" defaultValue="" disabled={savingTpl}
+                              onChange={(e) => { const id = e.target.value; e.target.value = ''; if (id) saveToExisting(id) }}>
+                              <option value="">체제 선택…</option>
+                              {templates.filter((t) => t.board_id).map((t) => (
+                                <option key={t.id} value={t.id}>{t.is_default ? '★ ' : ''}{t.name}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <button className="roster-savemenu-item" disabled={savingTpl} onClick={saveAsNew}>새 이름으로 저장…</button>
+                          <button className="roster-savemenu-item" disabled={savingTpl} onClick={saveAsMaster}>
+                            풀 배치로 저장{masterTemplate ? ` · ${masterTemplate.name} 갱신` : ' (새로 지정)'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <button className="roster-add-custom" disabled={savingTpl} onClick={cancelEdit}>취소</button>
                   </div>
                 )}
               </div>
+              {canEdit && !editMode && schedOpen && (
+                <div className="roster-sched-panel">
+                  <div className="roster-sched-title">요일별 자리판 (역할카드 버전)</div>
+                  <div className="roster-sched-grid">
+                    {WEEKDAYS.map((wd) => (
+                      <label key={wd} className="roster-sched-row">
+                        <span className="roster-sched-dow">{wd}</span>
+                        <select className="roster-select" value={schedule.weekdayMap[wd] || ''}
+                          onChange={(e) => schedule.setWeekday(wd, e.target.value || null)}>
+                          <option value="">— 없음 —</option>
+                          {templates.map((t) => <option key={t.id} value={t.id}>{t.is_default && t.board_id ? '★ ' : ''}{t.name}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="roster-sched-title">이 날짜만 자리판 바꾸기 ({workDate})</div>
+                  <label className="roster-sched-row">
+                    <span className="roster-sched-dow">{weekday}</span>
+                    <select className="roster-select" value={schedule.dateMap[workDate] || ''}
+                      onChange={(e) => { schedule.setDate(workDate, e.target.value || null); setTemplateTouched(false) }}>
+                      <option value="">— 요일 자리판 사용 —</option>
+                      {templates.map((t) => <option key={t.id} value={t.id}>{t.is_default && t.board_id ? '★ ' : ''}{t.name}</option>)}
+                    </select>
+                  </label>
+                  <div className="roster-sched-hint">자리판(역할카드 버전)은 "레이아웃 편집/풀 배치에서 시작 → 저장"으로 만들고, 여기서 요일·날짜에 꽂습니다. ★=풀 배치(전체 마스터). · 사람 배치 기본은 우측 명단의 "○요일 인원배치 기본"에서 따로 저장합니다.</div>
+                </div>
+              )}
               {editMode ? (
                 <RosterBoardEditor
                   slots={draftSlots} setSlots={setDraftSlots}
@@ -275,6 +412,10 @@ export default function RosterModal({
                     canEdit={canEdit} held={held} dragging={!!activeDrag}
                     onPick={pick} onOffItem={offItem} onRemoveRow={removeRow}
                     onAddConfirmed={addConfirmed} onAddCustom={handleAddCustom} onReturnRow={returnRow}
+                    weekdayDefaultCount={weekdayDefaults.length}
+                    onSaveWeekdayDefault={saveWeekdayDefault}
+                    onApplyWeekdayDefault={applyWeekdayDefault}
+                    onClearWeekdayDefault={clearWeekdayDefault}
                   />
                 </div>
               )}

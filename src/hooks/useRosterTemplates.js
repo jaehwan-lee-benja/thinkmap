@@ -46,13 +46,14 @@ export function useRosterTemplates(boardId) {
 
   useEffect(() => { refetch() }, [refetch])
 
-  // 새 체제(버전) 생성 — slots: [{grid_row,grid_col,role,tasks,shift,label,capacity}]
-  const createTemplate = useCallback(async ({ name, weekday = null, headcount = null, slots = [], scope = 'board', kitchen = null, createdBy = null }) => {
+  // 새 체제(버전) 생성 — 요일 무관(이름+슬롯). 요일/날짜 배정은 useRosterSchedule이 담당.
+  // slots: [{grid_row,grid_col,role,tasks,shift,label,capacity}]
+  const createTemplate = useCallback(async ({ name, slots = [], scope = 'board', kitchen = null, createdBy = null }) => {
     const board_id = scope === 'global' ? null : (boardId || null)
     const k = kitchen ? { kitchen_x: kitchen.x, kitchen_y: kitchen.y, kitchen_w: kitchen.w, kitchen_h: kitchen.h } : {}
     const { data: tpl, error } = await supabase
       .from('roster_templates')
-      .insert({ board_id, name, weekday, headcount, created_by: createdBy, ...k })
+      .insert({ board_id, name, created_by: createdBy, ...k })
       .select()
       .maybeSingle()
     if (error || !tpl) { logError('useRosterTemplates.createTemplate', error); return { error } }
@@ -105,7 +106,22 @@ export function useRosterTemplates(boardId) {
     return { error }
   }, [refetch])
 
-  return { templates, loading, refetch, createTemplate, replaceSlots, renameTemplate, deleteTemplate }
+  // 풀 배치(전체 마스터) 지정 — 보드당 1개. is_default=true, 같은 보드의 다른 마스터는 해제.
+  const markMaster = useCallback(async (templateId) => {
+    if (!boardId) return { error: new Error('보드 없음') }
+    const { error: e1 } = await supabase
+      .from('roster_templates')
+      .update({ is_default: false }).eq('board_id', boardId).neq('id', templateId)
+    if (e1) { logError('useRosterTemplates.markMaster.unset', e1); return { error: e1 } }
+    const { error: e2 } = await supabase
+      .from('roster_templates')
+      .update({ is_default: true }).eq('id', templateId)
+    if (e2) { logError('useRosterTemplates.markMaster.set', e2); return { error: e2 } }
+    await refetch()
+    return {}
+  }, [boardId, refetch])
+
+  return { templates, loading, refetch, createTemplate, replaceSlots, renameTemplate, deleteTemplate, markMaster }
 }
 
 // 요일 문자열 ('일'~'토') from 'YYYY-MM-DD'
@@ -113,23 +129,4 @@ export function weekdayKo(dateStr) {
   if (!dateStr) return null
   const d = new Date(dateStr + 'T00:00:00')
   return ['일', '월', '화', '수', '목', '금', '토'][d.getDay()]
-}
-
-// 날짜 + 현재 배치 인원수로 가장 알맞은 체제 추천. 없으면 전역 첫 항목.
-export function suggestTemplate(templates, dateStr, headcount) {
-  if (!templates.length) return null
-  const wd = weekdayKo(dateStr)
-  const isWeekend = wd === '토' || wd === '일'
-  const wdKey = isWeekend ? wd : '평일'
-  // 1) 요일+인원 정확 일치
-  let hit = templates.find((t) => (t.weekday === wdKey || (t.weekday == null && isWeekend)) && t.headcount === headcount)
-  // 2) 요일 일치 중 인원 가장 가까운
-  if (!hit) {
-    const byWd = templates.filter((t) => t.weekday === wdKey || t.weekday == null)
-    if (byWd.length) {
-      hit = byWd.reduce((best, t) =>
-        Math.abs((t.headcount ?? 99) - (headcount || 0)) < Math.abs((best.headcount ?? 99) - (headcount || 0)) ? t : best)
-    }
-  }
-  return hit || templates[0]
 }

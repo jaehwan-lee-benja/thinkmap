@@ -27,13 +27,16 @@ export default function RosterBoardEditor({ slots, setSlots, layout, setLayout }
   // ── 자리 블럭 드래그(그립 핸들) ────────────────────────────────────────────
   const onGripDown = (e, slot) => {
     e.stopPropagation()
-    dragRef.current = { key: slot._key }
+    // 잡은 지점과 카드 중앙(grid_col/row)의 오프셋을 기억 → 이동 중 핸들이 커서를 따라오게(중앙 점프 방지).
+    const p = fieldRef.current ? pct(e) : { x: slot.grid_col, y: slot.grid_row }
+    dragRef.current = { key: slot._key, offX: p.x - slot.grid_col, offY: p.y - slot.grid_row }
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* noop */ }
   }
   const onGripMove = (e) => {
     if (!dragRef.current || !fieldRef.current) return
     const p = pct(e)
-    setSlots((prev) => prev.map((s) => (s._key === dragRef.current.key ? { ...s, grid_col: clamp(p.x), grid_row: clamp(p.y) } : s)))
+    const { key, offX, offY } = dragRef.current
+    setSlots((prev) => prev.map((s) => (s._key === key ? { ...s, grid_col: clamp(p.x - offX), grid_row: clamp(p.y - offY) } : s)))
   }
   const onGripUp = () => { dragRef.current = null }
 
@@ -79,7 +82,7 @@ export default function RosterBoardEditor({ slots, setSlots, layout, setLayout }
         <b>홀·주방 네모</b>는 드래그/모서리로 조절(모든 체제 공통). <b>자리 블럭</b>은 추가 후 그립(⋮⋮)으로 옮기고 역할·설명을 편집합니다.
       </div>
 
-      <div className="roster-field is-editing" ref={fieldRef} style={{ '--roster-field-ratio': layout.field_ratio ?? 1.6 }}>
+      <div className="roster-field is-editing" ref={fieldRef} style={{ '--roster-field-ratio': layout.field_ratio ?? 1.6, '--roster-field-size': `${layout.field_size ?? 56}vh` }}>
         {rects.map((r) => (
           <div
             key={r.key} className={`${r.cls} is-editing`}
@@ -126,6 +129,13 @@ export default function RosterBoardEditor({ slots, setSlots, layout, setLayout }
             value={layout.field_ratio ?? 1.6}
             onChange={(e) => setLayout((prev) => ({ ...prev, field_ratio: parseFloat(e.target.value) }))} />
           <span className="roster-ratio-val">{Number(layout.field_ratio ?? 1.6).toFixed(2)}</span>
+        </label>
+        <label className="roster-ratio-ctrl" title="배경 캔버스 크기 (클수록 배경이 커져 자리 카드가 상대적으로 작아짐)">
+          배경 크기
+          <input type="range" min="40" max="92" step="2"
+            value={layout.field_size ?? 56}
+            onChange={(e) => setLayout((prev) => ({ ...prev, field_size: parseInt(e.target.value, 10) }))} />
+          <span className="roster-ratio-val">{layout.field_size ?? 56}</span>
         </label>
       </div>
 
