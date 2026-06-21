@@ -1,5 +1,5 @@
 {
-  "_comment": "전역 PostToolUse 라우터(~/.claude/hooks/guardian-router.js)가 읽는 이 프로젝트의 guardian 라우팅 표. 파일을 수정하면 경로가 어떤 영역에 속하는지 판단해 해당 guardian 검수를 제안한다. 위에서부터 첫 매칭만 사용.",
+  "_comment": "가디언 검수는 자동 PostToolUse 라우터가 아니라 `/검수` 커맨드(수동 디스패치)로 돈다 — 전역 라우터 훅(~/.claude/hooks/guardian-router.js)은 미설치이며, 그게 없으면 이 표는 동작하지 않는다. 이 표는 /검수가 '변경 성격→guardian'을 고를 때 참고하는 힌트표다. 머지 전 브랜치 매니저가 변경 성격에 맞는 guardian을 /검수로 돌리는 것이 규율. (※ 코드↔SPEC 정합은 spec-auditor, .jsx 로직은 해당 SPEC guardian을 /검수에서 수동 선택. 향후 자동 라우터 도입 시: route는 위에서부터 첫 매칭, 한 route 내 조건은 모두 충족.)",
   "routes": [
     {
       "contains": ["ToggleExtension", "FoldableTable", "toggleNodeFactory", "blocksToDoc", "TipTapEditor"],
@@ -8,9 +8,8 @@
     },
     {
       "endsWith": [".sql"],
-      "contains": ["/supabase/functions/"],
       "guardian": "supabase-guardian",
-      "desc": "RLS/SQL 마이그레이션/Edge Function 보안·정합성"
+      "desc": "RLS/SQL 마이그레이션(루트 migrate-*.sql 포함)·Edge Function 보안·정합성. 이 프로젝트의 .sql은 대부분 repo 루트에 있으므로 functions 경로 조건을 두지 않는다."
     },
     {
       "contains": ["carryOver", "ensureDailyPage", "dailyBlock", "createDailyPageV2", "DailyPageV2"],

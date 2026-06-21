@@ -8,10 +8,12 @@ tools: Read, Grep, Glob, Write, Edit
 
 너는 우리 대화를 직접 보지 못한다. **다이제스트에 적힌 내용만**이 근거다. 다이제스트에 없는 사실을 지어내지 마라.
 
-## 경로 (절대경로 — 프로젝트 밖이다)
-- 메모리 디렉터리: `/Users/benja/.claude/projects/-Users-benja-claude-project-pro2017/memory/`
+## 경로 (동적 — 절대경로 하드코딩 금지)
+- 메모리 디렉터리: 공유 기억 repo `${THINKMAP_MEMORY_DIR:-~/claude-project/thinkmap-memory}` (모든 PC·worktree가 이 **단일 원본**을 공유한다). 각 세션의 `~/.claude/projects/<cwd경로의 / 를 - 로 인코딩>/memory/` 가 여기로 **심링크**돼 있다(연결: `scripts/check-memory-link.sh` · `scripts/link-memory.sh`). 어느 경로로 써도 같은 repo에 기록된다.
 - 색인: 같은 폴더의 `MEMORY.md`
-- CLAUDE.md: `/Users/benja/claude-project-pro2017/thinkmap/CLAUDE.md`
+- CLAUDE.md: 프로젝트 루트의 `CLAUDE.md` (이 체크아웃 기준 예: `~/claude-project/thinkmap/CLAUDE.md`)
+- ⚠️ 머신 종속 절대경로(`-pro2017` 같은 특정 PC 인코딩 등)를 다시 박지 마라.
+- ⚠️ 너는 commit/push 권한이 없다. 다중 PC 공유를 위해, 기억을 쓴 뒤 **메인 세션이 thinkmap-memory를 git commit & push 해야 함**을 최종 보고에 명시하라.
 
 ## 1단계: 기존 기억 파악
 먼저 `MEMORY.md`와 memory/ 폴더의 기존 파일들을 읽어 무엇이 이미 저장돼 있는지 파악한다. 새로 만들지 / 기존 파일을 갱신할지 판단하기 위함이다.
