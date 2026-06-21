@@ -565,7 +565,6 @@
 
 /* 에디터 래퍼 */
 .tiptap-editor-wrapper {
-  border: 1px solid var(--color-border-medium, #374151);
   border-radius: 0.5rem;
   background-color: var(--color-bg-editor, #2d2d2d);
   min-height: 500px;
@@ -1469,9 +1468,21 @@
   flex: 1 1 0;
   min-width: 0;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
   padding: 8px 12px;
+  /* 스크롤바 간결화 — 트랙(배경) 투명, 얇게 (Firefox) */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+/* 스크롤바 간결화 — 트랙 배경 숨김 (WebKit) */
+.daily-page-v2--list-2col .daily-pane-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.daily-page-v2--list-2col .daily-pane-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.daily-page-v2--list-2col .daily-pane-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
 }
 /* 2단 패널 안에서는 에디터가 일반 세로 흐름 + 콘텐츠만큼 높이 */
 .daily-page-v2--list-2col .daily-pane-scroll .tiptap-wrapper,

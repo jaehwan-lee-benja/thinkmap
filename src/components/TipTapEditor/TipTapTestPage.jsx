@@ -92,6 +92,7 @@ import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
 import { isDailyPage, isCalendarPage, isMembersPage, isGoalPage } from '../../utils/pageTypes'
 import { findOrCreateMembersPage } from '../../utils/membersPage'
 import GoalClaudeAccess from '../Goal/GoalClaudeAccess'
+import GoalCaptureDrawer from '../Goal/GoalCaptureDrawer'
 import './TipTapPage.css'
 
 /**
@@ -1685,6 +1686,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           )}
 
         </div>
+
+        {/* 목표 페이지 캡처 드로어 — body 로 portal 되는 오버레이(본문 레이아웃 무영향).
+            anchorRef(pageRef)로 페이지 콘텐츠 시작 라인(제목 div 아래)에 top 을 맞춘다. */}
+        {isGoalPage(currentPage) && <GoalCaptureDrawer pageId={currentPageId} anchorRef={pageRef} />}
 
         {/* 모달 — 페이지 전체 코멘트 */}
         {isDailyPage(currentPage) && showWorklogCommentsModal && createPortal(
