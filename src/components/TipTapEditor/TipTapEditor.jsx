@@ -135,6 +135,9 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   // 래퍼 ref (이벤트 스코프 제한용)
   const wrapperRef = useRef(null)
 
+  // 터치 더블탭 → 편집 진입 시, 항상 최신 handleWrapperDoubleClick 을 가리키도록 보관
+  const handleWrapperDoubleClickRef = useRef(null)
+
   const editor = useEditor({
     editable: false,  // 더블클릭/더블탭 시에만 편집 활성화 (UX: 단일 클릭으로 caret 안 뜸)
     extensions: [
@@ -675,6 +678,55 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     )
     editor.chain().focus().insertContentAt(0, toggleNode.toJSON()).run()
   }
+  // 최신 핸들러 참조 유지 (터치 더블탭 useEffect 가 stale closure 없이 호출하도록)
+  handleWrapperDoubleClickRef.current = handleWrapperDoubleClick
+
+  // 터치 더블탭으로 편집 진입 (모바일: dblclick 미발생/가로채임 대응)
+  // 데스크톱 onDoubleClick 은 그대로 두고, 터치 디바이스에서만 추가 감지한다.
+  useEffect(() => {
+    if (!editor) return
+    const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+    if (!isTouch) return
+
+    let lastTapTime = 0
+    let lastTapPos = null
+
+    const handleTouchEndTap = (e) => {
+      const touch = e.changedTouches && e.changedTouches[0]
+      if (!touch) return
+      const now = e.timeStamp
+      const x = touch.clientX
+      const y = touch.clientY
+      // 직전 탭과 ≤300ms + 좌표 근접(≤40px) 이면 더블탭으로 판정
+      if (
+        lastTapPos &&
+        now - lastTapTime <= 300 &&
+        Math.abs(x - lastTapPos.x) <= 40 &&
+        Math.abs(y - lastTapPos.y) <= 40
+      ) {
+        lastTapTime = 0
+        lastTapPos = null
+        const handler = handleWrapperDoubleClickRef.current
+        // 데스크톱 더블클릭과 동일 경로 호출 (clientX/Y + target 만 사용)
+        if (handler) handler({ clientX: x, clientY: y, target: e.target })
+      } else {
+        lastTapTime = now
+        lastTapPos = { x, y }
+      }
+    }
+
+    let wrapperDom = null
+    const rafId = requestAnimationFrame(() => {
+      wrapperDom = wrapperRef.current
+      if (!wrapperDom) return
+      wrapperDom.addEventListener('touchend', handleTouchEndTap, { passive: true })
+    })
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      if (wrapperDom) wrapperDom.removeEventListener('touchend', handleTouchEndTap)
+    }
+  }, [editor])
 
   // 외부로 focus 이동 시 editable false 로 — 단일 클릭 시 caret 안 뜨도록 다시 잠금
   useEffect(() => {
