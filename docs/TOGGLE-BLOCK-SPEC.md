@@ -662,3 +662,62 @@ console.log([...new Set(o)].sort().join('\n'))
 - [ ] 깊이당 화살표 증가가 일정한가 (얕음/과함 없는지)
 - [ ] 우측 정렬 유지 (margin-left 마다 width 짝이 있는가 — §17/§19)
 - [ ] 데스크톱·모바일·터치 모두 동일 체계인가 (화면 전용 들여쓰기 규칙이 새로 생기지 않았는가)
+
+## 21. 토글 수직 정렬 통일 (선두 요소 중앙선)
+
+> 수직 정렬(체크박스/화살표/핸들/글씨가 한 중앙선에 오는지)도 들여쓰기(§20)와 똑같이 과거 손댈 때마다 화면별로 틀어지던 영역이다. 근본 원인이 **화면별로 분산된 height/margin/크기**였던 것까지 §20과 동형이다. 2026-06 작업에서 "한 변수 + 화면별로 양만" 체계로 통일했다. 수정 전 반드시 읽을 것.
+
+### 21.1 기준 = 선두 라인 박스 한 개
+
+- 토글 한 줄의 선두 요소 = **드래그핸들 · 화살표(▼/▶/▽/▷) · todo 체크박스**. 이들의 수직 중앙이 **텍스트 첫 줄 중앙**과 한 선에 와야 "맞다".
+- 통일 원리: 선두 요소를 모두 **높이 = `--toggle-line-h`(= 텍스트 첫 줄 높이)** 인 박스로 만들고, `align-items: flex-start` 로 같은 top 에서 시작시킨다 → 중앙이 전부 `top + line-h/2` 로 자동 일치. 화면이 달라도 `line-h` 만 같으면 일치.
+
+### 21.2 변수와 규칙 (현재 구조)
+
+base `.toggle-block` 에 정의(전 화면 공통):
+- `--toggle-line-h` (기본 `1rem*1.6`=25.6px): 선두 라인 박스 높이 = 텍스트 첫 줄 높이.
+- `--toggle-checkbox-size` (16px): 체크박스 **내용** 한 변(터치 20px).
+- `--toggle-checkbox-border` (1.5px): 체크박스 테두리 두께. 전역 `box-sizing` 이 없어 체크박스는 **content-box** → 실제 footprint = `size + 2*border`.
+- `--toggle-checkbox-nudge` (0.5px): 테두리 반픽셀 렌더링으로 체크박스가 0.5px 위로 떠 측정되는 것을 내리는 **측정 기반** 미세 보정.
+
+규칙:
+- handle / chevron: `height: var(--toggle-line-h)` (화면별 `height:24px`·`margin-top:0` override **제거**).
+- checkbox: `width/height: var(--toggle-checkbox-size)`, `margin-top: calc((line-h - size - 2*border)/2 + nudge)`.
+  - margin-top 은 체크박스 **footprint(테두리 포함) 기준** 으로 박스 안 정중앙을 잡는다. (이전 버그: 상수 `20px` 를 빼고 테두리도 무시 → 16px 박스가 위로 떠 있었다.)
+
+### 21.3 화면 통일 원칙 (핵심)
+
+- **체계(규칙)는 전 화면 공통.** 데스크톱·모바일·터치가 같은 base 규칙을 쓴다. 과거의 화면별 `height:24` / `margin-top:0` / `margin-top:2px` 분산은 **제거**했다 — 화면마다 다른 값이 곧 중앙선 어긋남의 근원이었다(데스크톱은 체크박스가 위로, 모바일은 아래로 **방향까지 반대**라 한 값으로 못 맞췄다).
+- **화면별로 바꾸는 것은 '양' 하나뿐.**
+  - 터치: 체크박스 탭 타겟만 키우려면 `.toggle-todo-checkbox { --toggle-checkbox-size: 20px }` 만. 중앙 정렬은 공식이 size 변화에 맞춰 자동 처리(margin-top 직접 지정 금지).
+  - ≤480: 본문 `p` line-height 가 1.5 로 줄므로 `.toggle-block { --toggle-line-h: calc(1rem*1.5) }` 로 선두 박스도 같이 줄인다(텍스트 줄과 계속 일치).
+- chevron 의 `width`(모바일/터치 24px)·`font-size`(터치 0.85rem)·`::after`(터치 탭 영역)는 **세로 정렬에 영향 없으므로** 화면별로 두어도 무방.
+
+### 21.4 시행착오 기록 (2026-06)
+
+1. **화면별 분산 = 불일치** — 선두 박스 높이가 데스크톱 25.6 vs 모바일/터치 24 로 갈렸고, 체크박스 margin 공식이 자기 높이가 아니라 상수 `20px` 를 빼고 있었다. 측정상 데스크톱 체크박스 1px 위 / 모바일 1~2px 아래로 **방향이 반대** → 한 값 보정 불가. → `--toggle-line-h` 한 박스로 통일.
+2. **content-box 테두리 누락** — 전역 `box-sizing:border-box` 가 없어 체크박스 실제 높이 = `16 + 1.5*2 = 19px`. footprint 를 무시한 공식은 1px 어긋남. → `- 2*border` 를 공식에 넣어 정정.
+3. **반픽셀 잔차** — 테두리 1.5px 의 반픽셀 렌더링으로 체크박스가 전 화면 일관 0.5px 위. 순수 기하로는 안 잡히는 렌더 노이즈라 **측정 기반** `--toggle-checkbox-nudge: 0.5px` 로 보정(추측 아님 — 전 화면 0.5px 일관 확인 후).
+4. **글리프 착시 오해 경계** — 닫힘 화살표 ▶(세로로 긴 삼각형)가 펼침 ▼ 과 무게중심이 달라 "떠 보일" 수 있다고 의심했으나, 측정·육안 모두 화살표=텍스트 일치 → 착시 보정 불필요. (글리프별 보정은 측정으로 근거가 설 때만.)
+
+### 21.5 측정 방법 (수직 중앙 y)
+
+토글 펼친 상태에서 콘솔(데스크톱·모바일 폭 둘 다):
+```js
+let b=document.querySelector('.toggle-block.toggle-todo')
+let f=s=>{let e=b&&b.querySelector(s);if(!e)return'X';let r=e.getBoundingClientRect();return Math.round((r.top+r.height/2)*10)/10}
+console.log('handle',f('.toggle-drag-handle'),'화살표',f('.toggle-button'),'체크박스',f('.toggle-todo-checkbox'),'텍스트',f('.toggle-content p'))
+```
+- **네 값이 ±0.5px 안으로 모이는지**, **화면을 바꿔도 같은 방향·같은 값인지**로 판정.
+- 앱 로그인 없이 검증하려면: 위 CSS 를 `<link>` 한 정적 토글 하니스를 만들어 헤드리스 Chrome(+CDP `Emulation.setDeviceMetricsOverride`/`setEmulatedMedia` 로 폭·`pointer:coarse` 에뮬레이션)로 폭별·터치별 측정 가능(2026-06 이 방식으로 검증).
+
+### 21.6 수정 원칙 / 체크리스트
+
+- **추측 금지. 측정 → 목표 합의 → 한 번에 하나 → 전 케이스(데스크톱/≤768/≤480/터치 × todo/일반 × 열림 ▼·▽/닫힘 ▶·▷) 검증 → 깨지면 baseline 롤백.**
+- 선두 박스 높이를 바꿀 땐 `--toggle-line-h` **값만**. 체크박스 중앙 공식(footprint 기준)·`align-items:flex-start` 구조는 건드리지 않는다.
+- 화면 차이는 해당 미디어쿼리에서 변수(`--toggle-line-h` 또는 `--toggle-checkbox-size`) **값만** 재정의. 화면 전용 `height`/`margin-top` 을 새로 만들지 말 것(과거 회귀의 근원).
+- 체크박스 `margin-top` 을 **직접 px 로** 지정 금지 — 반드시 공식으로(크기/테두리 변화에 자동 추종).
+- [ ] handle·화살표·체크박스·텍스트 중앙이 ±0.5px 안에 모이는가
+- [ ] 데스크톱·≤768·≤480·터치에서 같은 방향·값인가 (화면별 분산이 재발하지 않았는가)
+- [ ] 체크박스 크기(16/20)가 달라져도 중앙이 유지되는가 (공식이 size 를 받는가)
+- [ ] 열림(▼/▽)·닫힘(▶/▷) 화살표 모두 텍스트와 한 선인가

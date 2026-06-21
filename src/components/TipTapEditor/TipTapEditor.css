@@ -1036,6 +1036,15 @@ th .paragraph-drag-handle {
 .toggle-block {
   --toggle-checkbox-offset: 24px;  /* todo 체크박스 상쇄 — 데스크톱 todo-부모 자식 보정 전용(§19, line 1446) */
   --toggle-indent-reduce: 24px;    /* 자식 들여쓰기 축소량(전 화면 공통) — full(≈48) 대비 당기는 음수마진. 우측은 width 쌍으로 상쇄(§17/§19). 모바일에서 더 줄이려면 미디어쿼리에서 이 값만 키운다 */
+  /* ── 수직 정렬 통일(§21) — 들여쓰기(§20)와 같은 "한 변수 + 화면별로 양만" 체계.
+     선두 요소(handle·chevron·checkbox)는 모두 높이 = --toggle-line-h 박스로 맞추고,
+     체크박스는 자기 크기 기준 (line-h - size)/2 마진으로 그 박스 안 정중앙에 놓는다.
+     → 모든 선두 요소 중앙 = top + line-h/2, 텍스트 첫 줄 중앙(line-height 1.6)과 일치.
+     화면 차이는 값 하나만: 터치 --toggle-checkbox-size 20px, ≤480 --toggle-line-h 1.5배. */
+  --toggle-line-h: calc(1rem * 1.6);   /* 선두 라인 박스 높이 = 텍스트 첫 줄 높이 */
+  --toggle-checkbox-size: 16px;        /* 체크박스 내용 한 변(터치에서 20px로 override) */
+  --toggle-checkbox-border: 1.5px;     /* 체크박스 테두리 두께 — 중앙 공식이 실제 footprint(=size+2*border) 계산에 사용. 전역 box-sizing 없음(content-box)이라 테두리가 높이에 더해짐 */
+  --toggle-checkbox-nudge: 0.5px;      /* 측정 기반 미세 보정: 테두리 반픽셀 렌더링으로 체크박스가 0.5px 위로 떠 측정됨(전 화면 일관) → 0.5px 내려 화살표·텍스트 중앙과 일치 */
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -1054,7 +1063,7 @@ th .paragraph-drag-handle {
 .toggle-drag-handle {
   flex-shrink: 0;
   width: 16px;
-  height: calc(1em * 1.6);
+  height: var(--toggle-line-h);  /* §21 선두 라인 박스 — 화면 무관 동일 높이 */
   cursor: grab;
   opacity: 0;
   transition: opacity 0.15s;
@@ -1088,7 +1097,7 @@ th .paragraph-drag-handle {
 .toggle-button {
   flex-shrink: 0;
   width: 20px;
-  height: calc(1rem * 1.6);
+  height: var(--toggle-line-h);  /* §21 선두 라인 박스 — 화면 무관 동일 높이 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1113,10 +1122,13 @@ th .paragraph-drag-handle {
 /* Todo 체크박스 */
 .toggle-todo-checkbox {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  margin: calc((1rem * 1.6 - 20px) / 2) 0.25rem calc((1rem * 1.6 - 20px) / 2) 0;
-  border: 1.5px solid #6b7280;
+  width: var(--toggle-checkbox-size);
+  height: var(--toggle-checkbox-size);
+  /* §21 자기 footprint 기준 중앙: 실제 높이 = size + 2*border (content-box, 전역 box-sizing 없음).
+     margin-top = (line-h - footprint)/2 → 중앙 = top + line-h/2 로 handle·chevron·텍스트와 정확히 일치.
+     (이전: 20px 상수로 빼고 테두리도 무시 → 박스가 위로 떠 있었음 — checkbox 어긋남의 원인) */
+  margin: calc((var(--toggle-line-h) - var(--toggle-checkbox-size) - 2 * var(--toggle-checkbox-border)) / 2 + var(--toggle-checkbox-nudge)) 0.25rem calc((var(--toggle-line-h) - var(--toggle-checkbox-size) - 2 * var(--toggle-checkbox-border)) / 2) 0;
+  border: var(--toggle-checkbox-border) solid #6b7280;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1913,7 +1925,7 @@ th .paragraph-drag-handle {
 .toggle-page-link {
   flex-shrink: 0;
   width: 20px;
-  height: calc(1rem * 1.6);
+  height: var(--toggle-line-h);  /* §21 선두 라인 박스 — handle·chevron 과 동일 높이로 통일 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2371,15 +2383,14 @@ th .paragraph-drag-handle {
     display: none;
   }
 
+  /* §21: 높이/margin-top override 제거 — 선두 박스(--toggle-line-h) 공통 상속으로 중앙선 통일.
+     모바일은 가로 탭 폭만 width 로 키운다(세로 정렬엔 영향 없음). */
   .toggle-drag-handle {
     opacity: 0.5;
-    margin-top: 0;
   }
 
   .toggle-button {
-    margin-top: 0;
     width: 24px;
-    height: 24px;
   }
 
   /* 표 모바일 최적화 */
@@ -2455,6 +2466,9 @@ th .paragraph-drag-handle {
   /* 토글 모바일 */
   .toggle-block {
     padding: 0.125rem;
+    /* §21: ≤480 에서 본문 p line-height 가 1.5 로 줄므로(위 .tiptap-editor p) 선두 박스도 1.5 로 맞춰
+       텍스트 첫 줄 중앙과 선두 요소 중앙을 계속 일치시킨다(화면 차이는 '양' 하나만 — 들여쓰기 §20 과 동일 철학). */
+    --toggle-line-h: calc(1rem * 1.5);
   }
 
   /* (제거됨) .toggle-content > .toggle-block { margin-left: -40px } —
@@ -2501,11 +2515,10 @@ th .paragraph-drag-handle {
     opacity: 0.4;
   }
 
-  /* 토글 버튼: 시각적 크기는 줄 높이에 맞추고, 터치 영역은 ::after로 확보 */
+  /* 토글 버튼: 시각적 크기는 줄 높이(--toggle-line-h)에 맞추고, 터치 영역은 ::after로 확보.
+     §21: height/margin-top override 제거 — 선두 박스 공통 상속으로 중앙선 통일(width·font·::after만 유지). */
   .toggle-button {
     width: 24px;
-    height: 24px;
-    margin-top: 0;
     font-size: 0.85rem;
     position: relative;
   }
@@ -2522,18 +2535,16 @@ th .paragraph-drag-handle {
   /* 토글 들여쓰기 축소(터치) 제거 — 데스크톱 체계 상속(화면 무관 통일).
      (이전 margin-left:-40 은 width 짝도 없어 우측 정렬까지 깨던 규칙) */
 
-  /* 토글 드래그 핸들: 첫 줄 중앙 정렬 */
+  /* 토글 드래그 핸들: 첫 줄 중앙 정렬.
+     §21: height/margin-top override 제거 — 선두 박스(--toggle-line-h) 공통 상속. width 만 유지(base 와 동일). */
   .toggle-drag-handle {
     width: 16px;
-    height: 24px;
-    margin-top: 0;
   }
 
-  /* 투두 체크박스: 첫 줄 중앙 정렬 */
+  /* 투두 체크박스: 터치는 탭 타겟을 위해 크기만 20px 로.
+     §21: 중앙 정렬은 base 공식((line-h - size)/2)이 size 변화에 맞춰 자동 처리 — margin-top 직접 지정 불필요. */
   .toggle-todo-checkbox {
-    width: 20px;
-    height: 20px;
-    margin-top: 2px;
+    --toggle-checkbox-size: 20px;
   }
 
   /* 테이블 툴바 터치 타겟 */
