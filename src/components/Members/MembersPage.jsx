@@ -1,12 +1,13 @@
 // 멤버 관리 페이지 (page_type='members') — 마스터 전용 진입.
 // docs/MEMBER-SPEC.md §7.1. 기본정보 + 민감정보(member_private) + 인사 이력(member_records).
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, X, Trash2, Pencil, Save } from 'lucide-react'
 import {
   useMembers, loadMemberPrivate, saveMemberPrivate, loadAllMemberPrivate,
   loadMemberRecords, saveMemberRecord, deleteMemberRecord,
 } from '../../hooks/useMembers'
+import { sortMembers } from '../../utils/membersPage'
 import {
   WEEKDAYS, MEMBER_STATUS, MEMBER_STATUS_LABEL,
   MEMBER_RECORD_TYPES, MEMBER_RECORD_TYPE_LABEL,
@@ -15,12 +16,35 @@ import './Members.css'
 
 const EMPTY_DRAFT = { name: '', work_days: [], seniority: '', phone: '', status: 'active', note: '' }
 
+// 정렬 가능한 표 헤더 셀. 현재 정렬 칼럼이면 방향을 ▲/▼로 표시.
+function SortableTh({ sortKey, sort, onSort, children, className }) {
+  const active = sort.key === sortKey
+  const arrow = active ? (sort.dir === 'asc' ? '▲' : '▼') : ''
+  return (
+    <th
+      className={`members-th-sort${active ? ' is-sorted' : ''}${className ? ' ' + className : ''}`}
+      onClick={() => onSort(sortKey)}
+      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      {children}<span className="members-sort-arrow">{arrow}</span>
+    </th>
+  )
+}
+
 export default function MembersPage({ pageId, session, isMaster = false }) {
   const [showInactive, setShowInactive] = useState(true)
   const { members, loading, createMember, updateMember, removeMember } = useMembers({ includeInactive: showInactive })
   const [editing, setEditing] = useState(null) // null | 'new' | memberObject
   const [privById, setPrivById] = useState({})
   const [mode, setMode] = useState('read') // 'read'(한 명씩 모달) | 'edit'(엑셀식 표 편집)
+  // 칼럼 정렬: key=null이면 기본 순서(display_order→name). 헤더 클릭: asc→desc→기본.
+  const [sort, setSort] = useState({ key: null, dir: 'asc' })
+  const toggleSort = (key) => setSort((s) => {
+    if (s.key !== key) return { key, dir: 'asc' }
+    if (s.dir === 'asc') return { key, dir: 'desc' }
+    return { key: null, dir: 'asc' } // 3번째 클릭 → 기본 복귀
+  })
+  const sortedMembers = useMemo(() => sortMembers(members, privById, sort), [members, privById, sort])
 
   const loadPriv = async () => {
     if (!isMaster) return
@@ -56,11 +80,13 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
         <div className="members-empty">불러오는 중…</div>
       ) : mode === 'edit' ? (
         <EditableMembersTable
-          members={members}
+          members={sortedMembers}
           privById={privById}
           updateMember={updateMember}
           createMember={createMember}
           onReloadPriv={loadPriv}
+          sort={sort}
+          onSort={toggleSort}
         />
       ) : members.length === 0 ? (
         <div className="members-empty">등록된 멤버가 없습니다.</div>
@@ -69,13 +95,20 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
           <table className="members-table members-table--roster">
             <thead>
               <tr>
-                <th>근무일</th><th>이름</th><th>직급</th><th>전화번호</th>
-                <th>급여명세서 메일</th><th>급여 계좌</th><th>생일</th><th>gmail</th>
-                <th>상태</th><th></th>
+                <SortableTh sortKey="work_days" sort={sort} onSort={toggleSort}>근무일</SortableTh>
+                <SortableTh sortKey="name" sort={sort} onSort={toggleSort}>이름</SortableTh>
+                <SortableTh sortKey="seniority" sort={sort} onSort={toggleSort}>직급</SortableTh>
+                <SortableTh sortKey="phone" sort={sort} onSort={toggleSort}>전화번호</SortableTh>
+                <SortableTh sortKey="payslip_email" sort={sort} onSort={toggleSort}>급여명세서 메일</SortableTh>
+                <SortableTh sortKey="bank_account" sort={sort} onSort={toggleSort}>급여 계좌</SortableTh>
+                <SortableTh sortKey="birth" sort={sort} onSort={toggleSort}>생일</SortableTh>
+                <SortableTh sortKey="email_gmail" sort={sort} onSort={toggleSort}>gmail</SortableTh>
+                <SortableTh sortKey="status" sort={sort} onSort={toggleSort}>상태</SortableTh>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {members.map((m) => {
+              {sortedMembers.map((m) => {
                 const p = privById[m.id] || {}
                 return (
                   <tr key={m.id} className={m.status !== 'active' ? 'is-inactive' : ''}>
@@ -118,7 +151,7 @@ export default function MembersPage({ pageId, session, isMaster = false }) {
 // 엑셀식 표 편집 — 셀을 직접 고치고 칸을 벗어나면(blur)/Enter 시 해당 필드만 저장.
 // 기본정보는 updateMember, 민감정보는 saveMemberPrivate. 하단 빈 행으로 빠른 추가.
 // 입력은 uncontrolled(defaultValue) — 저장 후 내부 refetch 재렌더가 입력 중 텍스트를 건드리지 않게 함.
-function EditableMembersTable({ members, privById, updateMember, createMember, onReloadPriv }) {
+function EditableMembersTable({ members, privById, updateMember, createMember, onReloadPriv, sort, onSort }) {
   const [status, setStatus] = useState('idle') // idle | saving | saved | error
   const [newName, setNewName] = useState('')
   const addingRef = useRef(false)
@@ -187,7 +220,12 @@ function EditableMembersTable({ members, privById, updateMember, createMember, o
       <div className="members-table-wrap">
         <table className="members-table members-table--edit">
           <thead>
-            <tr>{COLS.map((c) => <th key={c.k}>{c.label}</th>)}<th>상태</th></tr>
+            <tr>
+              {COLS.map((c) => (
+                <SortableTh key={c.k} sortKey={c.k} sort={sort} onSort={onSort}>{c.label}</SortableTh>
+              ))}
+              <SortableTh sortKey="status" sort={sort} onSort={onSort}>상태</SortableTh>
+            </tr>
           </thead>
           <tbody>
             {members.map((m) => {
