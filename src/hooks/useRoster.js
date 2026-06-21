@@ -68,6 +68,25 @@ export function useRoster(boardId, workDate, pageId = null) {
     return { data, error }
   }, [boardId, workDate, pageId, rows, refetch])
 
+  // 요일 기본 배치 일괄 삽입(한 번의 insert로 원자적). placements=[{member_id,member_name,role,shift,status}]
+  const seedAssignments = useCallback(async (placements, createdBy = null) => {
+    if (!boardId || !workDate || !placements?.length) return { error: null }
+    const base = rows.reduce((m, r) => Math.max(m, Number(r.position) || 0), 0)
+    const insertRows = placements
+      .filter((p) => p.member_name)
+      .map((p, i) => ({
+        board_id: boardId, page_id: pageId, work_date: workDate,
+        member_id: p.member_id || null, member_name: p.member_name,
+        role: p.role ?? null, shift: p.shift ?? null, status: p.status || 'confirmed',
+        position: base + i + 1, created_by: createdBy,
+      }))
+    if (!insertRows.length) return { error: null }
+    const { error } = await supabase.from('roster_assignments').insert(insertRows)
+    if (error) logError('useRoster.seedAssignments', error)
+    else refetch()
+    return { error }
+  }, [boardId, workDate, pageId, rows, refetch])
+
   const updateAssignment = useCallback(async (id, patch) => {
     const { error } = await supabase.from('roster_assignments').update(patch).eq('id', id)
     if (error) logError('useRoster.updateAssignment', error)
@@ -85,7 +104,7 @@ export function useRoster(boardId, workDate, pageId = null) {
     return { error }
   }, [refetch])
 
-  return { rows, loading, refetch, addAssignment, updateAssignment, removeAssignment }
+  return { rows, loading, refetch, addAssignment, seedAssignments, updateAssignment, removeAssignment }
 }
 
 /**

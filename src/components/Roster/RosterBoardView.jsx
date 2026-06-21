@@ -46,7 +46,7 @@ export default function RosterBoardView({ template, layout, slotItems, canEdit, 
   const chipProps = { canEdit, held, onPick, onUnplace }
   const L = layout || {}
   return (
-    <div className="roster-field" onClick={onDeselect} style={{ '--roster-field-ratio': L.field_ratio ?? 1.6 }}>
+    <div className="roster-field" onClick={onDeselect} style={{ '--roster-field-ratio': L.field_ratio ?? 1.6, '--roster-field-size': `${L.field_size ?? 56}vh` }}>
       {/* 홀·주방 네모 = 보드 공통 레이아웃 (모든 체제 공유) */}
       <div className="roster-field-hall" style={{ left: `${L.hall_x ?? 6}%`, top: `${L.hall_y ?? 4}%`, width: `${L.hall_w ?? 88}%`, height: `${L.hall_h ?? 36}%` }}>
         <span className="roster-field-hall-label">홀</span>

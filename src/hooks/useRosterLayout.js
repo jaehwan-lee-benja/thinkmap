@@ -9,6 +9,7 @@ export const DEFAULT_LAYOUT = {
   hall_x: 6, hall_y: 4, hall_w: 88, hall_h: 36,
   kitchen_x: 6, kitchen_y: 44, kitchen_w: 88, kitchen_h: 52,
   field_ratio: 1.6, // 캔버스 가로:세로 비율(낮을수록 덜 가로로 김)
+  field_size: 56, // 캔버스 높이(vh). 클수록 배경이 커져 자리 카드가 상대적으로 작아짐
 }
 
 export function useRosterLayout(boardId) {
@@ -42,6 +43,7 @@ export function useRosterLayout(boardId) {
       hall_x: patch.hall_x, hall_y: patch.hall_y, hall_w: patch.hall_w, hall_h: patch.hall_h,
       kitchen_x: patch.kitchen_x, kitchen_y: patch.kitchen_y, kitchen_w: patch.kitchen_w, kitchen_h: patch.kitchen_h,
       field_ratio: patch.field_ratio ?? 1.6,
+      field_size: patch.field_size ?? 56,
       updated_at: new Date().toISOString(),
     }
     const { error } = await supabase.from('roster_board_layout').upsert(row, { onConflict: 'board_id' })
