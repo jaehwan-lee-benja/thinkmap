@@ -601,3 +601,64 @@ ProseMirror에서 콘텐츠가 에디터에 삽입되는 경로는 **3가지**�
 **CSS variable cascading 함정:**
 - `--toggle-pr` 같은 변수를 base `.toggle-block` 에 박으면 자식도 자기 자신의 값을 inherit (부모 값 안 받음)
 - 변수는 **부모에서만** 정의하고 자식은 정의 없이 inherit 받게 두기 (또는 자식이 명시적 reset)
+
+## 20. 토글 들여쓰기 체계 (깊이 / 체크박스 / 화면 통일)
+
+> 들여쓰기는 과거 수없이 손댈 때마다 다른 케이스가 깨진 영역이다. 4개 항목(부모 padding·actions-group·자식 width/margin·box-sizing)이 강결합돼 있고, 거기에 **체크박스·화면별 미디어쿼리**가 더해져 분산됐던 것이 근본 원인이다. 2026-06 작업에서 이를 한 변수 체계로 통일했다. 수정 전 반드시 읽을 것.
+
+### 20.1 들여쓰기의 기준 = 토글 화살표(▸) 위치
+
+- 사용자 기준선은 **텍스트가 아니라 토글 화살표(`.toggle-button`)의 위치**다. 같은 깊이면 todo든 일반이든 화살표가 한 세로선에 있어야 "맞다".
+- **체크박스는 콘텐츠의 선두**다(글씨가 아니라 콘텐츠의 일부). 화살표 옆에 내용(체크박스+글씨)이 **붙어** 있어야 하고, 화살표-내용 사이를 비우면 안 된다. → 따라서 todo 블록의 *글씨*가 체크박스 폭만큼 더 들어가는 것은 **정상**이며, 맞춰야 하는 것은 *화살표* 정렬이다.
+- **진단·측정은 글씨(p)가 아니라 화살표(`.toggle-button`)의 left 로** 한다. (§20.5 스니펫)
+
+### 20.2 변수와 규칙 (현재 구조)
+
+base `.toggle-block` 에 정의(전 화면 공통):
+- `--toggle-indent-reduce` (기본 24px): 자식 토글을 full 들여쓰기에서 당기는 **깊이당 축소량**. 깊이당 시각 들여쓰기 ≈ (자연증가 ≈48) − reduce.
+- `--toggle-checkbox-offset` (24px): **todo 부모**의 자식이 체크박스 때문에 추가로 밀리는 것을 되돌리는 **상쇄값**.
+
+자식 토글 규칙 (둘 다 `margin-left(−)/width(+)` **쌍** — 좌측만 이동, 우측은 상쇄되어 정렬 보존):
+- 비-todo 부모의 자식: `margin-left: -reduce; width: 100%+reduce`
+- todo 부모의 자식: `margin-left: -(checkbox-offset + reduce); width: 100% + (checkbox-offset + reduce)` — 상쇄와 축소를 **합성**
+
+### 20.3 화면 통일 원칙 (핵심)
+
+- **체계(규칙)는 전 화면 공통.** 데스크톱·모바일·터치가 같은 1435/1446 규칙을 쓴다. 모바일 전용 들여쓰기 규칙(과거 `--toggle-mobile-indent`, 터치 `margin-left:-40`)은 **제거**했다 — 화면마다 다른 체계가 곧 불일치의 근원이었다.
+- **화면별로 바꾸는 것은 '양' 하나뿐.** 모바일에서 덜 들여쓰려면 그 미디어쿼리에서 `--toggle-indent-reduce` 값만 키운다(현재 모바일 30px). 규칙·todo 상쇄는 손대지 않는다 → todo/일반 일치가 자동 유지.
+
+### 20.4 시행착오 기록 (2026-06)
+
+1. **기준 오해** — 처음 *텍스트* 위치로 진단했으나 사용자 기준은 *화살표* 위치였다. 텍스트는 체크박스 폭만큼 차이나는 게 정상이라, 텍스트로 보면 오진한다. → §20.1.
+2. **체크박스 상쇄 off-by-one** — `--toggle-checkbox-offset` 가 28px 였다. 체크박스 순(net) footprint = box16 + margin-right4 + gap4 = **24**. (양쪽 gap 을 다 세면 28 이지만, 비-todo 에도 있던 chevron↔content gap 4 는 중복이므로 한 번만 센다.) 28 은 4px 과보정 → todo 부모 자식이 4px 어긋남. **24 로 정정.**
+3. **변수 결합** — 하나의 변수(`checkbox-offset`)가 "데스크톱 todo 상쇄"와 "모바일 전체 축소" 두 목적에 공유돼, 한쪽을 고치면 다른 쪽이 움직였다. → 목적별 변수로 **분리**(`indent-reduce` 도입) 후 값 조정.
+4. **화면 분산 → 불일치** — 모바일이 데스크톱과 다른 체계(`mobile-indent` -28 전체 + 미디어쿼리 밖 todo 보정과 어긋남, 터치 `-40` 은 width 짝도 없어 우측 정렬까지 깸)였다. 측정상 모바일 깊이당 +4px(데스크톱 +20), todo/일반 부모 자식 화살표 20px 어긋남. → 모바일을 **데스크톱 체계로 통일**, 양만 변수.
+
+### 20.5 들여쓰기 측정 방법 (화살표 기준)
+
+토글 펼친 상태에서 콘솔(필요시 창을 모바일 폭으로):
+```js
+let o=[]
+document.querySelectorAll('.toggle-content>.toggle-block').forEach(b=>{
+let d=0,n=b.parentElement
+while(n){if(n.classList&&n.classList.contains('toggle-block'))d++;n=n.parentElement}
+let p=b.parentElement.closest('.toggle-block')
+let tp=p&&p.classList.contains('toggle-todo')?'todo부모':'일반부모'
+let dl=b.closest('.tiptap-page--daily')?'데일리':'일반'
+let a=b.querySelector(':scope>.toggle-button')
+let x=a?Math.round(a.getBoundingClientRect().left):0
+if(x)o.push(dl+'|깊이'+d+'|'+tp+'|화살표'+x)
+})
+console.log([...new Set(o)].sort().join('\n'))
+```
+- **깊이당 화살표 증가가 일정**한지(데스크톱 ≈+20px), **같은 깊이의 todo부모/일반부모 화살표가 일치**하는지로 판정.
+
+### 20.6 수정 원칙 / 체크리스트
+
+- **추측 금지. 진단(측정) → 목표 합의 → 한 번에 하나 → 매번 전 케이스 검증 → 깨지면 즉시 baseline 롤백.**
+- 들여쓰기 양을 바꿀 땐 `--toggle-indent-reduce` **값만** 조정한다. 규칙(1435/1446)의 구조나 todo 상쇄(`checkbox-offset`)는 건드리지 않는다.
+- 화면 차이가 필요하면 해당 미디어쿼리에서 `--toggle-indent-reduce` 만 재정의(체계는 공통 유지).
+- [ ] 같은 깊이 todo부모/일반부모 자식의 **화살표**가 일치하는가
+- [ ] 깊이당 화살표 증가가 일정한가 (얕음/과함 없는지)
+- [ ] 우측 정렬 유지 (margin-left 마다 width 짝이 있는가 — §17/§19)
+- [ ] 데스크톱·모바일·터치 모두 동일 체계인가 (화면 전용 들여쓰기 규칙이 새로 생기지 않았는가)
