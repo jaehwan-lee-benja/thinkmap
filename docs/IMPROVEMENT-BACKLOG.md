@@ -14,6 +14,7 @@
 | B-2 | 자리배치도 | 자동 채움 가드가 모달 재오픈 시 재발(일부러 비운 날 다시 채워짐) | 🟠 중간 | 🆕 backlog |
 | B-3 | 자리배치도 | 동시 오픈 시 빈 날짜 중복 일괄 insert 가능 | 🟡 낮음 | 🆕 backlog |
 | B-4 | 문서/SPEC | 로스터 비주얼보드 SPEC 공백(MEMBER-SPEC 미반영 + PLAN-roster-visual-board.md 부재) | 🟠 중간 | 🆕 backlog |
+| B-5 | 목표/드로어 | 캡처 드로어 포커스 트랩 + 4폭 육안 검증(z-index·세로쓰기 손잡이) | 🟡 낮음 | 🆕 backlog |
 
 ## 상세
 
