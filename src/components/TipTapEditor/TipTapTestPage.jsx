@@ -114,6 +114,12 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     viewerToastTimer.current = setTimeout(() => setViewerToast(false), 2000)
   }, [])
   const editorRef = useRef(null)
+  // 토글 제어(전체 닫기 등): 2단 데일리는 DailyPageV2 가 여기에 양쪽 pane getter 를 등록. 그 외엔 단일 editorRef.
+  const dailyGetEditorsRef = useRef(null)
+  const getToggleEditors = useCallback(() => {
+    if (dailyGetEditorsRef.current) return dailyGetEditorsRef.current()
+    return editorRef.current ? [editorRef.current] : []
+  }, [])
   const imageInputRef = useRef(null)
   const pageRef = useRef(null)
   const { isTablet } = useIsMobile()
@@ -1533,7 +1539,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             onGoToCalendar={currentPage.parent_id ? () => setCurrentPageId(currentPage.parent_id) : null}
             onPrevDay={goToPrevWorklog}
             onNextDay={goToNextWorklog}
-            extraActions={!isImpersonating ? <ToggleControlDropdown editorRef={editorRef} variant="header" resetKey={currentPageId} /> : null}
+            extraActions={!isImpersonating ? <ToggleControlDropdown editorRef={editorRef} getEditors={getToggleEditors} variant="header" resetKey={currentPageId} /> : null}
             onDelete={!isImpersonating ? async () => {
               if (!confirm(`${currentPage.page_date} 업무일지를 삭제하시겠습니까?`)) return
               const parentId = currentPage.parent_id
@@ -1574,7 +1580,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             전체 토글화
           </button>
 
-          <ToggleControlDropdown editorRef={editorRef} variant="toolbar" resetKey={currentPageId} />
+          <ToggleControlDropdown editorRef={editorRef} getEditors={getToggleEditors} variant="toolbar" resetKey={currentPageId} />
           <button
             onClick={() => editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run()}
             className="tiptap-btn tiptap-btn-secondary"
@@ -1659,6 +1665,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
               onCommentsClick={() => setShowWorklogCommentsModal(true)}
               commentsCount={comments.length}
               editorRef={editorRef}
+              getEditorsRef={dailyGetEditorsRef}
             />
           ) : content ? (
             <TipTapEditor

@@ -614,6 +614,12 @@
   margin-right: -16px;
 }
 
+/* 이월 태그 보기/끄기 — 데일리 툴바 토글(기본 끄기). 루트에 .daily-hide-carry-tags 면 일괄 숨김.
+   NodeView 가 표시 시 inline display 를 '' 로 두므로 이 규칙이 우선 적용된다. */
+.daily-hide-carry-tags .toggle-carry-over-tag {
+  display: none !important;
+}
+
 /* daily 카드 헤더 — 본문보다 약간 큰 폰트.
    paragraph 가 ParagraphWithHandle NodeView 라 실제 구조는 .toggle-content > .paragraph-block > p */
 .tiptap-page--daily .tiptap-editor > [data-block-type="h2"] > .toggle-content > .paragraph-block:first-child p {
