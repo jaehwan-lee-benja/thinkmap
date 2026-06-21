@@ -21,6 +21,11 @@
 .members-table th { text-align: left; font-weight: 500; font-size: 11px; color: rgba(255,255,255,0.4); padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); white-space: nowrap; }
 .members-table td { padding: 9px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .members-table tr.is-inactive { opacity: 0.5; }
+/* 정렬 가능한 헤더 — 클릭 가능 표시 + 현재 정렬 칼럼만 또렷하게(장식선 없음) */
+.members-table th.members-th-sort { cursor: pointer; user-select: none; }
+.members-table th.members-th-sort:hover { color: rgba(255,255,255,0.7); }
+.members-table th.members-th-sort.is-sorted { color: rgba(255,255,255,0.85); }
+.members-sort-arrow { display: inline-block; width: 1em; margin-left: 2px; font-size: 9px; }
 .members-table .col-name { font-weight: 600; white-space: nowrap; }
 .members-table .col-actions { text-align: right; white-space: nowrap; }
 /* 연명부 표 — 가로로 넓음. 메일/계좌는 줄바꿈 없이, 길면 가로 스크롤 */
