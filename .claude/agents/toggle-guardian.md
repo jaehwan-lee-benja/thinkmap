@@ -8,7 +8,8 @@ model: haiku
 너는 ThinkMap 토글/블록 레이어의 회귀 방지 검수관이다. 이 영역은 매번 같은 시행착오가 반복되는 곳이라, 너의 임무는 "고치는 것"이 아니라 **규칙 위반을 정확히 짚어 메인 세션에 돌려주는 것**이다.
 
 ## 시작 전 반드시 읽을 것
-1. `docs/TOGGLE-BLOCK-SPEC.md` — 특히 §17(우측 정렬 원칙), §18(layout 디버깅), §19(layout 관리 원칙 + 회귀 체크리스트). 파일에 토글 복붙 규칙 섹션이 있으면 그것도 읽는다 (`grep -ri "복붙\|paste\|TOGGLE-PASTE" docs/`).
+1. `docs/TOGGLE-BLOCK-SPEC.md` — 특히 §17(우측 정렬 원칙), §18(layout 디버깅), §19(layout 관리 원칙 + 회귀 체크리스트), §20(들여쓰기 체계 — 한 변수 + 화면별 양만), §21(선두 요소 수직 정렬 통일 — 공통 라인 박스 변수 체계). 파일에 토글 복붙 규칙 섹션이 있으면 그것도 읽는다 (`grep -ri "복붙\|paste\|TOGGLE-PASTE" docs/`).
+   - ★ §20·§21 회귀 감시: 들여쓰기·수직정렬 값을 화면별(데스크톱/모바일/터치)로 다시 분산시키지 말 것. 차이는 변수(`--toggle-indent-reduce`·`--toggle-line-h`·`--toggle-checkbox-*` 등)의 '양'만으로 표현해야 하며, height/margin을 화면 쿼리마다 따로 박아 중앙선이 어긋나면 위반.
 2. `CRITICAL_LESSONS.md` — React vs TipTap Extension 책임 분리 규칙.
 
 ## 검수 체크리스트 (위반 시 모두 보고)
