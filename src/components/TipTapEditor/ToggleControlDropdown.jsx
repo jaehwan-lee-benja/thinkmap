@@ -10,7 +10,7 @@ import { ChevronDown, ChevronRight, List, ListTree } from 'lucide-react'
  *  - "toolbar": 툴바용 — 'tiptap-btn tiptap-btn-secondary' 스타일
  *  - "header":  WorklogHeader 용 — 'worklog-calendar-btn' 톤
  */
-export default function ToggleControlDropdown({ editorRef, variant = 'toolbar', resetKey }) {
+export default function ToggleControlDropdown({ editorRef, getEditors, variant = 'toolbar', resetKey }) {
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef(null)
 
@@ -26,10 +26,16 @@ export default function ToggleControlDropdown({ editorRef, variant = 'toolbar', 
   useEffect(() => { setOpen(false) }, [resetKey])
 
   const applyDepth = useCallback((depth) => {
-    const ed = editorRef?.current
-    if (!ed) return
-    ed.chain().focus().setAllTogglesOpen(depth).run()
-  }, [editorRef])
+    // 2단 데일리는 좌/우 두 에디터가 따로다 — getEditors 가 있으면 양쪽 모두에 적용.
+    // (단일 페이지/1단은 editorRef 하나로 기존과 동일 동작)
+    const eds = getEditors ? getEditors() : (editorRef?.current ? [editorRef.current] : [])
+    eds.forEach((ed, i) => {
+      if (!ed) return
+      const chain = ed.chain()
+      if (i === 0) chain.focus()   // 첫 에디터만 포커스 — 둘째 pane 포커스 탈취/스크롤 점프 방지
+      chain.setAllTogglesOpen(depth).run()
+    })
+  }, [editorRef, getEditors])
 
   const promptDepth = useCallback(() => {
     const raw = window.prompt('몇 단까지 열까요? (1 이상의 정수)', '2')

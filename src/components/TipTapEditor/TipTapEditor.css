@@ -1030,10 +1030,12 @@ th .paragraph-drag-handle {
 }
 
 /* Toggle Block 스타일 - 노션 스타일.
-   --toggle-checkbox-offset: todo checkbox 영역 폭 (box 16 + flex gap 양쪽 4+4 + margin-right 4 = 28).
+   --toggle-checkbox-offset: todo 체크박스가 자식 들여쓰기에 더하는 순(net) 변위 = box 16 + margin-right 4 + gap 4 = 24.
+   (비-todo 에도 이미 있던 chevron↔content gap 4 는 중복이라 한 번만 셈. 양쪽 gap 을 다 세면 28 → 4px 과보정.)
    변경 시 .toggle-todo-checkbox 의 width/margin/부모 .toggle-block 의 gap 도 함께 조정. */
 .toggle-block {
-  --toggle-checkbox-offset: 28px;
+  --toggle-checkbox-offset: 24px;  /* todo 체크박스 상쇄 — 데스크톱 todo-부모 자식 보정 전용(§19, line 1446) */
+  --toggle-indent-reduce: 24px;    /* 자식 들여쓰기 축소량(전 화면 공통) — full(≈48) 대비 당기는 음수마진. 우측은 width 쌍으로 상쇄(§17/§19). 모바일에서 더 줄이려면 미디어쿼리에서 이 값만 키운다 */
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -1114,7 +1116,7 @@ th .paragraph-drag-handle {
   width: 16px;
   height: 16px;
   margin: calc((1rem * 1.6 - 20px) / 2) 0.25rem calc((1rem * 1.6 - 20px) / 2) 0;
-  border: 2px solid #6b7280;
+  border: 1.5px solid #6b7280;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1434,7 +1436,9 @@ th .paragraph-drag-handle {
    ============================================================================ */
 .toggle-content > .toggle-block {
   box-sizing: border-box;
-  width: 100%;
+  /* 들여쓰기 축소(-) + 우측 보존(+) 쌍 — §17/§19. full 들여쓰기에서 --toggle-indent-reduce 만큼 당김 */
+  margin-left: calc(-1 * var(--toggle-indent-reduce));
+  width: calc(100% + var(--toggle-indent-reduce));
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
   padding: 0;
@@ -1444,8 +1448,9 @@ th .paragraph-drag-handle {
 /* ⚠️ docs/TOGGLE-BLOCK-SPEC.md §19 의 todo 부모 보정 원칙. margin-left 와 width 반드시 한 쌍.
    margin-left 만 박으면 우측 boundary 도 같이 좌측 이동해서 정렬 깨짐. */
 .toggle-block.toggle-todo > .toggle-content > .toggle-block {
-  margin-left: calc(-1 * var(--toggle-checkbox-offset));
-  width: calc(100% + var(--toggle-checkbox-offset));
+  /* todo 부모 자식 = 체크박스 상쇄 + 들여쓰기 축소 합성. margin-left/width 쌍 유지 */
+  margin-left: calc(-1 * (var(--toggle-checkbox-offset) + var(--toggle-indent-reduce)));
+  width: calc(100% + var(--toggle-checkbox-offset) + var(--toggle-indent-reduce));
 }
 
 /* 마지막 하위 블록: 부모 margin과 중첩 방지 */
@@ -2349,17 +2354,14 @@ th .paragraph-drag-handle {
 
   .toggle-block {
     gap: 0.125rem;
+    /* 변경 2: 모바일은 들여쓰기 '양'만 데스크톱(24)보다 더 당겨 살짝 축소(체계·일치는 동일).
+       깊이당 시각 들여쓰기 ≈ 데스크톱 20 → 모바일 약 14px. 값만 바꾸면 양 조절 가능. */
+    --toggle-indent-reduce: 30px;
   }
 
-  /* 모바일 들여쓰기 축소 — TOGGLE-BLOCK-SPEC.md §17/§19 원칙:
-     margin-left 와 width 는 반드시 같은 절대값 쌍. margin-left 만 박으면 우측 boundary 도
-     같이 좌측 이동해서 우측 정렬 깨짐 (= 우측 들여쓰기처럼 보이는 회귀).
-     값 (-28px) 은 --toggle-checkbox-offset 과 동일 — todo 부모 override (line 1362) 와 호환.
-     깊이당 시각 indent ≈ (48 - 28) = 20px → 깊이 3 누적 ≈ 60px. */
-  .toggle-content > .toggle-block {
-    margin-left: calc(-1 * var(--toggle-checkbox-offset));
-    width: calc(100% + var(--toggle-checkbox-offset));
-  }
+  /* 모바일 전용 들여쓰기 축소 제거 — 데스크톱 체계(1435/1446)를 그대로 상속해 화면 무관 통일.
+     (이전: --toggle-mobile-indent 로 모든 자식 -28 → 데스크톱과 다른 체계 + todo 보정과 어긋나 깊이당/정렬 불일치)
+     모바일에서 들여쓰기 '양'만 줄이려면 이 미디어쿼리에서 --toggle-indent-reduce 만 키운다(변경 2). */
 
   /* (제거) 모바일 .toggle-content padding-right: 80 — 손자 width:100% 가 그 좁은 영역 기준이라
      깊이마다 우측 정렬 안쪽으로 밀림. actions-group 은 absolute + z-index:2 라 텍스트 위에 떠서 가독성 OK. */
@@ -2517,10 +2519,8 @@ th .paragraph-drag-handle {
     bottom: -10px;
   }
 
-  /* 토글 들여쓰기 축소 (터치) */
-  .toggle-content > .toggle-block {
-    margin-left: -40px;
-  }
+  /* 토글 들여쓰기 축소(터치) 제거 — 데스크톱 체계 상속(화면 무관 통일).
+     (이전 margin-left:-40 은 width 짝도 없어 우측 정렬까지 깨던 규칙) */
 
   /* 토글 드래그 핸들: 첫 줄 중앙 정렬 */
   .toggle-drag-handle {

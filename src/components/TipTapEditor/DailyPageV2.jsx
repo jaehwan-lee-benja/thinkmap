@@ -12,7 +12,7 @@
 
 import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { LayoutList, Columns2, Columns3, Square, ChevronLeft, ChevronRight, History, Trash2, Star, MessageSquare, MoreHorizontal, Move } from 'lucide-react'
+import { LayoutList, Columns2, Columns3, Square, ChevronLeft, ChevronRight, History, Trash2, Star, MessageSquare, MoreHorizontal, Move, Tag } from 'lucide-react'
 import DailyColumnPane from './DailyColumnPane'
 import { useDailyBlocks } from '../../hooks/useDailyBlocks'
 import { ensureDailyPage } from '../../utils/ensureDailyPage'
@@ -50,6 +50,7 @@ export default function DailyPageV2({
   onCommentsClick,    // 코멘트 모달 트리거 (옵션)
   commentsCount = 0,
   editorRef: externalEditorRef,  // 부모(TipTapTestPage)와 editor 공유 — 마키 드래그 선택 핸들러가 부모에서 editorRef.current 를 참조한다
+  getEditorsRef,                 // 부모의 토글 제어(전체 닫기 등)가 양쪽 pane 에디터에 적용되도록, 여기에 getter 를 등록
 }) {
   const userId = session?.user?.id
   const ctx = useMemo(() => ({ pageId, pageDate, userId }), [pageId, pageDate, userId])
@@ -82,6 +83,20 @@ export default function DailyPageV2({
     setListColsState(v)
     try { localStorage.setItem('thinkmap.dailyListCols', String(v)) } catch {}
   }, [])
+
+  // 이월 태그 보기/끄기 — 기본 끄기(false). localStorage 에 사용자별 저장.
+  const [showCarryTags, setShowCarryTagsState] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('thinkmap.dailyShowCarryTags') === '1'
+  })
+  const toggleCarryTags = useCallback(() => {
+    setShowCarryTagsState(prev => {
+      const next = !prev
+      try { localStorage.setItem('thinkmap.dailyShowCarryTags', next ? '1' : '0') } catch {}
+      return next
+    })
+  }, [])
+
   const is2col = viewMode === 'list' && listCols === 2
 
   // 섹션 좌/우 배치 맵 (sectionMasterId → 1|2). 출처: worklog_board_user_settings.section_cols.
@@ -111,6 +126,18 @@ export default function DailyPageV2({
   const rootRef = useRef(null)
   const internalEditorRef = useRef(null)
   const editorRef = externalEditorRef || internalEditorRef
+  const rightEditorRef = useRef(null)  // 2단 우패널 에디터 (좌패널은 editorRef)
+
+  // 부모(토글 제어 드롭다운)가 양쪽 pane 에디터에 명령할 수 있도록 getter 등록.
+  // 2단이면 [좌, 우] 두 에디터, 그 외엔 [단일]. 클릭 시점에 실행되므로 ref.current 는 채워져 있다.
+  useEffect(() => {
+    if (!getEditorsRef) return
+    getEditorsRef.current = () => {
+      const list = is2col ? [editorRef.current, rightEditorRef.current] : [editorRef.current]
+      return list.filter(Boolean)
+    }
+    return () => { if (getEditorsRef) getEditorsRef.current = null }
+  }, [getEditorsRef, is2col, editorRef])
 
   // 마운트 시 lazy 이월 — 직전 daily 의 신규 미완료 todo 를 추가.
   // Phase 2: 클라 직접 carryOverLazy(호출자 RLS 권한) 대신 ensureDailyPage 로 일원화.
@@ -722,7 +749,7 @@ export default function DailyPageV2({
   return (
     <div
       ref={rootRef}
-      className={`daily-page-v2 daily-page-v2--${viewMode}${isCarousel ? ' daily-page-v2--carousel' : ''}${is2col ? ' daily-page-v2--list-2col' : ''}${moveMode ? ' daily-page-v2--move-mode' : ''}`}
+      className={`daily-page-v2 daily-page-v2--${viewMode}${isCarousel ? ' daily-page-v2--carousel' : ''}${is2col ? ' daily-page-v2--list-2col' : ''}${moveMode ? ' daily-page-v2--move-mode' : ''}${showCarryTags ? '' : ' daily-hide-carry-tags'}`}
     >
       <div className="daily-page-v2-toolbar">
         <button
@@ -751,6 +778,16 @@ export default function DailyPageV2({
         >
           <Square size={14} />
           <span>카드</span>
+        </button>
+        {/* 이월 태그 보기/끄기 — 기본 끄기. 모든 뷰에서 표시 */}
+        <button
+          type="button"
+          className={`view-mode-btn ${showCarryTags ? 'active' : ''}`}
+          onClick={toggleCarryTags}
+          title={showCarryTags ? '이월 태그 숨기기' : '이월 태그 보기'}
+        >
+          <Tag size={14} />
+          <span>이월</span>
         </button>
         {/* list 뷰 한정: 1단/2단 토글 (2단 = 좌우 CSS 멀티컬럼) */}
         {viewMode === 'list' && (
@@ -829,6 +866,7 @@ export default function DailyPageV2({
             applyDiff={applyDiff} ctx={ctx} refetch={refetch} initialLoaded={initialLoaded}
             isMaster={isMaster} placeholder={placeholder}
             userId={userId} parentId={parentId} pageId={pageId} pageDate={pageDate}
+            editorRef={rightEditorRef}
             scrollable manageSectionOrder={false}
             emptyHint="오른쪽 단 — '섹션 이동'으로 여기에 보내세요"
           />
