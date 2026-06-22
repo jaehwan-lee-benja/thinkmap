@@ -21,6 +21,9 @@
 멤버(직원 인사 마스터)/배치도(날짜별 근무 배치, 급여 매칭) 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
 - [docs/MEMBER-SPEC.md](docs/MEMBER-SPEC.md) — 멤버 & 배치도 명세서 (데이터 모델, 권한/RLS, 진입점, 급여 매칭, 근무 요청 허브, Phase 로드맵, 체크리스트)
 
+자리후 시스템(seat — 카페 주방 자리후·올리기 실시간 협업) 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
+- [docs/SEAT-SPEC.md](docs/SEAT-SPEC.md) — 자리후 시스템 명세서 (4역할 모델, seat_orders·seat_station_status 데이터 모델, board_id 테넌시·RLS, Realtime 동기화, 규칙 R1~R7, 카메라 슬롯, Phase 로드맵, 체크리스트)
+
 ## 디자인 / UI 작업
 
 UI·스타일을 만들거나 다듬기 전에 아래 기준을 따른다:

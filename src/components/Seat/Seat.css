@@ -1,0 +1,122 @@
+/* 자리후 시스템 — 건조한 스타일(장식 최소·기능적 레이아웃). 태블릿 키오스크 기준.
+   터치 타겟 ≥36px, 입력 폰트 16px. (DESIGN-PHILOSOPHY / MOBILE-DESIGN) */
+
+.seat-app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: #111;
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 상단: 날짜 + 역할 탭 */
+.seat-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.seat-header-date { font-weight: 700; }
+.seat-role-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.seat-role-tab {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  background: #f5f5f5;
+  font-size: 16px;
+  cursor: pointer;
+}
+.seat-role-tab.is-active { background: #111; color: #fff; font-weight: 700; }
+
+.seat-main { flex: 1 1 auto; overflow: auto; padding: 12px; }
+
+/* 레이아웃 — mobile-first: 기본 1열(본문 위, 사이드 아래). 넓은 화면에서 2열로 보강. */
+.seat-screen-grid { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.seat-col-main { flex: 1 1 auto; min-width: 0; }
+.seat-col-side { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+
+.seat-toolbar { margin-bottom: 8px; }
+.seat-btn {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.seat-btn-primary { background: #111; color: #fff; font-weight: 700; }
+
+/* 주문 테이블(행 기반). mobile-first: 좁으면 셀이 줄바꿈(가로 스크롤 회피), 넓으면 한 줄. */
+.seat-table { display: flex; flex-direction: column; }
+.seat-row { display: flex; flex-wrap: wrap; align-items: stretch; min-height: 44px; border-bottom: 1px solid #eee; }
+.seat-row-head { font-weight: 700; border-bottom: 2px solid #111; }
+.seat-cell { padding: 6px 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.seat-cell-no { flex: 0 0 48px; font-weight: 700; }
+.seat-cell-order { flex: 0 0 120px; }
+.seat-cell-status { flex: 0 0 110px; }
+.seat-cell-opts { flex: 1 1 180px; }
+.seat-cell-seat { flex: 0 0 170px; }
+.seat-cell-raise { flex: 0 0 170px; }
+.seat-cell-notes { flex: 1 1 160px; }
+
+.seat-input,
+.seat-select {
+  width: 100%;
+  min-height: 36px;
+  font-size: 16px;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+}
+.seat-check { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; }
+.seat-check input { width: 20px; height: 20px; }
+
+.seat-toggle {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.seat-toggle.is-on { background: #111; color: #fff; font-weight: 700; }
+.seat-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.seat-empty { padding: 24px; color: #888; }
+
+/* 거울(자리안내 하단) / 사이드 패널 */
+.seat-mirror { margin-top: 16px; }
+.seat-mirror-title { font-weight: 700; margin-bottom: 8px; }
+.seat-mirror-stations { display: flex; gap: 12px; }
+.seat-mirror-col { flex: 1 1 0; border: 1px solid #e5e5e5; }
+.seat-mirror-col-title { font-weight: 700; padding: 6px 8px; }
+.seat-mirror-col-body { padding: 8px; color: #888; }
+
+.seat-panel { border: 1px solid #e5e5e5; }
+.seat-panel-title { font-weight: 700; padding: 8px; }
+.seat-panel-body { padding: 8px; color: #888; }
+
+/* 카메라 슬롯(순수 표시) */
+.seat-camera {
+  aspect-ratio: 4 / 3;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.seat-camera-stream { width: 100%; height: 100%; object-fit: cover; }
+.seat-camera-placeholder { color: #aaa; text-align: center; padding: 12px; }
+.seat-camera-placeholder-title { font-weight: 700; margin-bottom: 4px; }
+.seat-camera-placeholder-sub { color: #888; }
+
+/* 넓은 화면(가로 태블릿/데스크톱): 2열 레이아웃 + 주문 행 한 줄 정렬 */
+@media (min-width: 1024px) {
+  .seat-screen-grid { flex-direction: row; align-items: flex-start; }
+  .seat-col-side { flex: 0 0 280px; width: auto; }
+  .seat-row { flex-wrap: nowrap; }
+}
