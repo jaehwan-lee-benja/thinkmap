@@ -2,7 +2,7 @@
 
 브랜치 매니저 세션이 유지하는 개선/버그 목록. **세션 안배(어떤 작업을 어느 브랜치/세션으로 묶을지) 계획**에 사용한다.
 
-- 상태 표기: 🆕 backlog · 🔄 진행 중(브랜치) · ✅ 완료(main 머지) · 🚀 배포됨
+- 상태 표기: 🆕 backlog · 🔄 진행 중(브랜치) · ✅ 완료(main 머지) · 🚀 배포됨 · 📋 계획완료·적용 대기
 - 심각도: 🔴 높음 · 🟠 중간 · 🟡 낮음 · ⚪ 미정
 - 새 항목은 아래 "상세"에 추가하고, 표에 한 줄 요약을 더한다.
 
@@ -15,6 +15,7 @@
 | B-3 | 자리배치도 | 동시 오픈 시 빈 날짜 중복 일괄 insert 가능 | 🟡 낮음 | 🆕 backlog |
 | B-4 | 문서/SPEC | 로스터 비주얼보드 SPEC 공백(MEMBER-SPEC 미반영 + PLAN-roster-visual-board.md 부재) | 🟠 중간 | 🆕 backlog |
 | B-5 | 목표/드로어 | 캡처 드로어 포커스 트랩 + 4폭 육안 검증(z-index·세로쓰기 손잡이) | 🟡 낮음 | 🆕 backlog |
+| B-6 | 권한/RLS | ACCESS-TIERS Phase C 이관(권한 cutover) — 계획 완료, 단계별 적용 대기 | 🟠 중간 | 📋 계획완료·대기 |
 
 ## 상세
 
@@ -49,3 +50,14 @@
 - **심각도**: 🟠 중간 (대조 기준 부재 → 향후 로스터 변경이 누적되면 위험)
 - **제안 세션 묶음**: 문서 정비(MEMBER-SPEC 갱신 + PLAN 복원/흡수)
 - **상태**: 🆕 backlog · **등록일**: 2026-06-21
+
+### B-6 · ACCESS-TIERS Phase C 이관 (권한 cutover)
+- **영역**: 권한/RLS (노드×능력 grant 모델)
+- **배경**: Phase A(토대: workspaces/grants/page_type_access + can()) 프로덕션 적용·main 머지 완료(ea531be). 이후 기존 RLS를 grants 기반 can()으로 점진 전환하는 cutover가 남음.
+- **실행 문서(SSOT)**: docs/ACCESS-TIERS-MIGRATION-PLAN.md (순서·dual-run 불변식·검증 시나리오)
+- **순서(위험 오름차순)**: C-P payroll 파일럿 → C-1 goals/dashboard → C-2 members·daily·roster → C-3 shares→grants+개인plane → C-4 임퍼소네이션 제거 → C-5(선택) is_master shim
+- **게이트**: 각 단계 SQL 제시 → supabase-guardian → 사용자 승인 → 통합 세션 적용. 프로덕션 직접 적용 금지.
+- **진입 전 사용자 결정 2건**: roster 쓰기 확대(C-2 시점) / sarurufarm.partner 데이터 귀속(C-3 무렵, 기본=워크스페이스 자산, SPEC §2.7)
+- **미완 후속**: ACCESS-MODEL §5를 새 모델 언어로 갱신(문서) / 프론트가 page_type_access 읽게(SSOT 완성)
+- **안전**: Phase A는 inert(접근 변화 0). 반쯤 적용된 것 없음. is_master는 C-5까지 무변경.
+- **상태**: 📋 계획완료·적용 대기 · **등록일**: 2026-06-25
