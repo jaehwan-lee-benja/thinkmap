@@ -1,0 +1,87 @@
+/* 재고 관리 — 건조한 스타일. 색은 전역 테마 토큰(variables.css, 다크 기본)만 사용. */
+
+.inv-page {
+  padding: 16px; height: 100%; overflow: auto; box-sizing: border-box;
+  color: var(--color-text-primary);
+}
+.inv-loading { padding: 24px; color: var(--color-text-tertiary); }
+
+.inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 12px; }
+.inv-title { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+
+.inv-datenav { display: flex; align-items: center; gap: 6px; }
+.inv-datenav input[type="date"] {
+  font-size: 16px; padding: 4px 6px;
+  background: var(--color-bg-input); border: 1px solid var(--color-border-medium);
+  color: var(--color-text-primary); border-radius: 4px;
+}
+.inv-weekday { color: var(--color-text-secondary); font-size: 14px; }
+
+.inv-basis { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--color-text-secondary); }
+
+.inv-datenav button,
+.inv-basis button,
+.inv-actions button {
+  min-height: 36px; padding: 4px 10px; border-radius: 4px;
+  background: none; border: 1px solid var(--color-border-medium);
+  color: var(--color-text-secondary); cursor: pointer; font-size: 14px;
+}
+.inv-datenav button:hover,
+.inv-basis button:hover,
+.inv-actions button:hover { background: var(--color-bg-hover); }
+.inv-basis button.active {
+  font-weight: 700; color: var(--color-text-primary);
+  border-color: var(--color-border-strong); background: var(--color-bg-active);
+}
+
+.inv-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.inv-dirty { color: var(--color-warning-text); font-size: 13px; }
+.inv-save:disabled { opacity: 0.4; cursor: default; }
+
+.inv-banner {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border, rgba(255, 193, 7, 0.3));
+  color: var(--color-warning-text);
+  padding: 8px 12px; font-size: 13px; margin-bottom: 12px; border-radius: 4px;
+}
+.inv-banner code { font-size: 12px; }
+
+.inv-tablewrap { overflow-x: auto; }
+.inv-table { border-collapse: collapse; font-size: 14px; }
+.inv-table th,
+.inv-table td {
+  border: 1px solid var(--color-border-light);
+  padding: 2px 6px; text-align: right; white-space: nowrap;
+}
+.inv-table th {
+  font-weight: 600; color: var(--color-text-tertiary);
+  background: var(--color-bg-secondary); position: sticky; top: 0; z-index: 1;
+}
+.inv-table th.inv-name,
+.inv-table td.inv-name {
+  text-align: left; position: sticky; left: 0;
+  background: var(--color-bg-primary); z-index: 2;
+}
+.inv-table th.inv-name { background: var(--color-bg-secondary); z-index: 3; }
+.inv-par { color: var(--color-text-disabled); font-size: 12px; }
+
+.inv-secrow td {
+  background: var(--color-bg-active); color: var(--color-text-primary);
+  font-weight: 700; text-align: left;
+}
+.inv-calc { background: var(--color-bg-input); color: var(--color-text-secondary); }
+.inv-need { color: var(--color-danger); font-weight: 700; }
+.inv-derived { color: var(--color-text-disabled); text-align: left; }
+
+.inv-input {
+  width: 60px; font-size: 16px; padding: 3px 4px; border-radius: 3px;
+  border: 1px solid transparent; text-align: right;
+  background: none; color: var(--color-text-primary);
+}
+.inv-input::placeholder { color: var(--color-text-disabled); }
+.inv-input:focus {
+  border-color: var(--color-border-medium); outline: none;
+  background: var(--color-bg-input);
+}
+.inv-note-input { width: 120px; text-align: left; }
+.inv-table th.inv-note { text-align: left; }

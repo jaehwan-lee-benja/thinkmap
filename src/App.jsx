@@ -11,6 +11,7 @@ import SchedulePage from './components/Schedule/SchedulePage'
 const DashboardPage = lazy(() => import('./components/Dashboard/DashboardPage'))
 import PayrollPage from './components/Payroll/PayrollPage'
 import MembersPage from './components/Members/MembersPage'
+import InventoryPage from './components/Inventory/InventoryPage'
 // 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능
 // import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
 import { useAuth } from './hooks/useAuth'
@@ -30,7 +31,7 @@ import FavoritesContext from './contexts/FavoritesContext'
 import { supabase } from './supabaseClient'
 import { generateUUID } from './utils/uuid'
 import { dailyPageName } from './utils/dateUtils'
-import { PAGE_TYPES, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage } from './utils/pageTypes'
+import { PAGE_TYPES, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isInventoryPage } from './utils/pageTypes'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -207,6 +208,16 @@ function PaneInner({
                   pageId={pageId}
                   session={effectiveSession}
                   isMaster={isMaster}
+                />
+              )
+            }
+            if (isInventoryPage(pageType)) {
+              // 재고 관리 — 권한(파트너 레벨) 확정 전까지 진입 게이트 없이 노출. #6에서 RLS·게이트 결합.
+              return (
+                <InventoryPage
+                  key={`pane-${paneIndex}-${pageId}`}
+                  pageId={pageId}
+                  session={effectiveSession}
                 />
               )
             }
