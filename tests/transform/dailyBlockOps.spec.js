@@ -15,6 +15,7 @@ function makeMockChain(finalResult) {
     _calls: [],
     select: vi.fn(function (...args) { this._calls.push(['select', args]); return this }),
     insert: vi.fn(function (...args) { this._calls.push(['insert', args]); return this }),
+    upsert: vi.fn(function (...args) { this._calls.push(['upsert', args]); return this }),
     update: vi.fn(function (...args) { this._calls.push(['update', args]); return this }),
     eq: vi.fn(function (...args) { this._calls.push(['eq', args]); return this }),
     in: vi.fn(function (...args) { this._calls.push(['in', args]); return this }),
@@ -99,7 +100,7 @@ describe('applyDiffToSupabase', () => {
     expect(supabase.from).not.toHaveBeenCalled()
   })
 
-  test('insert: rowToDb 변환 후 insert 호출', async () => {
+  test('insert: rowToDb 변환 후 upsert(onConflict block_id, deleted_at null) 호출', async () => {
     const chain = makeMockChain({ data: null, error: null })
     const supabase = makeSupabase({ daily_blocks: chain })
     const row = {
@@ -111,10 +112,13 @@ describe('applyDiffToSupabase', () => {
       isPinned: false, visibility: 'all', isFixedSection: false,
     }
     await applyDiffToSupabase(supabase, { insert: [row], update: [], softDelete: [] })
-    const insertCall = chain._calls.find(c => c[0] === 'insert')
-    expect(insertCall).toBeDefined()
-    expect(insertCall[1][0][0].block_id).toBe('blk-1')
-    expect(insertCall[1][0][0]).not.toHaveProperty('blockId')
+    // cross-page 이동 무손실: plain insert 가 아니라 upsert(onConflict: block_id) 로 발사
+    const upsertCall = chain._calls.find(c => c[0] === 'upsert')
+    expect(upsertCall).toBeDefined()
+    expect(upsertCall[1][0][0].block_id).toBe('blk-1')
+    expect(upsertCall[1][0][0]).not.toHaveProperty('blockId')
+    expect(upsertCall[1][0][0].deleted_at).toBeNull()   // revive — 이동 시 소스 soft-delete 잔재 무효화
+    expect(upsertCall[1][1]).toEqual({ onConflict: 'block_id' })
   })
 
   test('update: 각 patch 마다 update().eq() 호출', async () => {
@@ -169,7 +173,7 @@ describe('applyDiffToSupabase', () => {
       update: [{ blockId: 'blk-1', patch: { todoChecked: true } }],
       softDelete: ['blk-2'],
     })
-    expect(chain._calls.some(c => c[0] === 'insert')).toBe(true)
+    expect(chain._calls.some(c => c[0] === 'upsert')).toBe(true)
     expect(chain._calls.filter(c => c[0] === 'update').length).toBeGreaterThanOrEqual(2)
     expect(chain._calls.some(c => c[0] === 'in')).toBe(true)
   })
