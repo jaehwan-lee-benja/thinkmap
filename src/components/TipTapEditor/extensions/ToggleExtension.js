@@ -425,13 +425,21 @@ export const Toggle = Node.create({
   // Enter/Backspace 등은 모두 커스텀 핸들러로 제어하므로 defining 불필요.
   defining: false,
 
+  addOptions() {
+    // isDailyPage: 데일리 페이지 여부를 NodeView 빌드 시점에 알 수 있게 옵션으로 받는다.
+    // (storage 만으로는 useEffect 가 첫 렌더 커밋 뒤에 세팅돼, h2 섹션 배경이 카드 틴트가
+    //  아닌 불투명 색면 분기로 빌드되는 타이밍 버그가 있었음 — applyBlockBackground 참조.)
+    return { isDailyPage: false }
+  },
+
   addStorage() {
     // isReloading: setContent 등으로 문서 전체를 교체하는 동안 true
     // 이월 블록 삭제 감지 plugin이 이 플래그를 보고 감지를 건너뛴다.
     // activePageIds: 삭제되지 않은(deleted_at IS NULL) 페이지 id 집합. React 레이어가 갱신.
     //   page 블록의 pageId 가 이 집합에 없으면 = 삭제된 자식 → 고아 블록으로 숨김.
     // pageIdsLoaded: pages 목록이 로드됐는지. 로딩 중 오인 숨김 방지용.
-    return { viewerMode: false, isMaster: false, isReloading: false, activePageIds: null, pageIdsLoaded: false }
+    // isDailyPage: 옵션 기본값으로 초기화 → 첫 NodeView 빌드부터 올바른 분기. useEffect 가 런타임에 갱신.
+    return { viewerMode: false, isMaster: false, isReloading: false, activePageIds: null, pageIdsLoaded: false, isDailyPage: this.options.isDailyPage }
   },
 
   addAttributes() {
@@ -2373,17 +2381,31 @@ export const Toggle = Node.create({
           return tr
         },
       }),
-      // daily 페이지: blockId가 없는 모든 토글에 자동 부여
+      // daily 페이지: blockId 유일성 불변식 보장.
+      //  ① blockId 가 없는 토글 → 발급 (기존 동작)
+      //  ② blockId 가 doc 안에서 이미 등장한 적 있으면(중복) → 새 id 재발급
+      // block_id 는 daily_blocks 의 글로벌 PRIMARY KEY 다. 같은 blockId 토글이 둘이면
+      // docToBlocks.flattenDoc 의 Map(set by blockId) 에서 뒤가 앞을 덮어써 한 블록이 조용히
+      // 사라지고(저장 누락), cross-page insert 는 PK 위반으로 throw→refetch 되며 유실된다.
+      // 중복본을 독립 블록으로 분리(새 id)해 양쪽 모두 보존한다. (붙여넣기는 transformPasted 가
+      // 이미 regenToggleIds 로 처리 → 여기선 드래그 복원/undo/프로그램 삽입 등 잔여 경로를 커버.)
       new Plugin({
         appendTransaction(transactions, _oldState, newState) {
           if (!transactions.some(tr => tr.docChanged)) return null
           if (!extensionThis.storage.isDailyPage) return null
           const fixes = []
+          const seen = new Set()
           newState.doc.descendants((node, pos) => {
-            if (node.type.name === 'toggle' && !node.attrs.blockId) {
-              // h2 섹션은 sectionId가 있으므로 제외
-              if (node.attrs.blockType === 'h2' || node.attrs.blockType === 'h3') return true
-              fixes.push({ pos, attrs: node.attrs })
+            if (node.type.name !== 'toggle') return true
+            // h2/h3 섹션은 sectionId 체계 → blockId 부여 대상 아님
+            if (node.attrs.blockType === 'h2' || node.attrs.blockType === 'h3') return true
+            const id = node.attrs.blockId
+            if (!id) {
+              fixes.push({ pos, attrs: node.attrs })        // ① 누락 → 발급
+            } else if (seen.has(id)) {
+              fixes.push({ pos, attrs: node.attrs })        // ② 중복 → 재발급
+            } else {
+              seen.add(id)
             }
             return true
           })

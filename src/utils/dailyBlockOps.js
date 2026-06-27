@@ -59,8 +59,16 @@ export async function applyDiffToSupabase(supabase, diff) {
   const ops = []
 
   if (diff.insert && diff.insert.length > 0) {
+    // upsert(onConflict: block_id) + deleted_at:null — cross-page/cross-pane 이동 무손실.
+    // block_id 는 글로벌 PK 라, 이동 시 타겟엔 insert·소스엔 softDelete 가 같이 발사되는데
+    // 소스의 soft-deleted row 가 남아있어 plain insert 는 PK 위반 → throw→refetch 로 블록이
+    // 유실됐다. upsert 는 "이 블록은 이제 여기 살아있다"로 row 를 되살려(revive) 덮어쓴다.
+    // (신규 블록은 충돌이 없으므로 plain insert 와 동일. doc 내 유일성은 blockIdAssign plugin 이 보장.)
     ops.push(
-      supabase.from('daily_blocks').insert(diff.insert.map(rowToDb))
+      supabase.from('daily_blocks').upsert(
+        diff.insert.map(r => ({ ...rowToDb(r), deleted_at: null })),
+        { onConflict: 'block_id' }
+      )
     )
   }
 

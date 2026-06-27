@@ -190,7 +190,9 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
       Image,
       TextStyle,
       Color,
-      Toggle,
+      // isDailyPage 를 옵션으로 주입 → h2 섹션 배경이 첫 렌더부터 카드 틴트 분기로 빌드됨
+      // (storage useEffect 는 첫 NodeView 빌드 뒤에 세팅돼 새로고침 시 불투명 색면으로 떴음).
+      Toggle.configure({ isDailyPage }),
       ParagraphWithHandle,
       ...(isViewerMode ? [ViewerModeExtension.configure({ onEditAttempt: onViewerEditAttempt })] : []),
     ],
