@@ -1,0 +1,204 @@
+/* 자리후 시스템 — 다크 모드(ThinkMap 디자인 토큰 재사용). 건조한 스타일·태블릿 키오스크 기준.
+   토큰(src/styles/variables.css)을 var()로 쓰되, 미리보기 등 토큰 미로드 환경 대비 fallback 지정.
+   터치 타겟 ≥36px, 입력 폰트 16px. (DESIGN-PHILOSOPHY / MOBILE-DESIGN) */
+
+.seat-app {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; /* 키오스크: 탭바/사이드바 등 크롬 위를 덮는다 */
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-primary, #242424);
+  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
+  font-size: 16px;
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 상단: 날짜 + 역할 탭 */
+.seat-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border-light, rgba(255, 255, 255, 0.08));
+}
+.seat-header-date { font-weight: 700; }
+.seat-role-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.seat-role-tab {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
+  background: var(--color-bg-input, rgba(255, 255, 255, 0.03));
+  color: var(--color-text-secondary, rgba(255, 255, 255, 0.7));
+  font-size: 16px;
+  cursor: pointer;
+}
+.seat-role-tab.is-active {
+  background: var(--color-primary, #646cff);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.seat-main { flex: 1 1 auto; overflow: auto; padding: 12px; }
+
+/* 레이아웃 — mobile-first: 기본 1열(본문 위, 사이드 아래). 넓은 화면에서 2열로 보강. */
+.seat-screen-grid { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.seat-col-main { flex: 1 1 auto; min-width: 0; }
+.seat-col-side { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+
+.seat-toolbar { margin-bottom: 8px; }
+.seat-btn {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
+  background: var(--color-bg-input, rgba(255, 255, 255, 0.03));
+  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
+  font-size: 16px;
+  cursor: pointer;
+}
+.seat-btn-primary {
+  background: var(--color-primary, #646cff);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+/* 주문 테이블(행 기반). mobile-first: 좁으면 셀이 줄바꿈(가로 스크롤 회피), 넓으면 한 줄. */
+.seat-table { display: flex; flex-direction: column; }
+.seat-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  min-height: 44px;
+  border-bottom: 1px solid var(--color-border-light, rgba(255, 255, 255, 0.08));
+}
+.seat-row-head { font-weight: 700; border-bottom: 2px solid var(--color-border-strong, rgba(255, 255, 255, 0.3)); }
+.seat-cell { padding: 6px 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.seat-cell-no { flex: 0 0 44px; font-weight: 700; }
+.seat-cell-order { flex: 0 0 104px; }
+.seat-cell-deliver { flex: 0 0 100px; }
+.seat-cell-status { flex: 0 0 100px; }
+.seat-cell-opts { flex: 1 1 168px; }
+.seat-cell-seat { flex: 0 0 100px; }
+.seat-cell-raise { flex: 0 0 198px; }
+.seat-cell-notes { flex: 1 1 140px; }
+.seat-cell-broadcast { flex: 0 0 116px; }
+.seat-cell-confirm { flex: 0 0 92px; }
+
+.seat-input,
+.seat-select {
+  width: 100%;
+  min-height: 36px;
+  font-size: 16px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
+  background: var(--color-bg-input, rgba(255, 255, 255, 0.03));
+  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
+}
+.seat-input::placeholder { color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
+.seat-check { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; }
+.seat-check input { width: 20px; height: 20px; accent-color: var(--color-primary, #646cff); }
+
+.seat-toggle {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
+  background: var(--color-bg-input, rgba(255, 255, 255, 0.03));
+  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
+  font-size: 16px;
+  cursor: pointer;
+}
+.seat-toggle.is-on { background: var(--color-primary, #646cff); color: #fff; border-color: transparent; font-weight: 700; }
+.seat-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+/* 전달 버튼 라벨 줄바꿈 방지(자리후 전달 / 전체에게 전달 등) */
+.seat-cell-deliver .seat-toggle,
+.seat-cell-broadcast .seat-toggle,
+.seat-cell-confirm .seat-toggle { white-space: nowrap; }
+
+.seat-empty { padding: 24px; color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
+
+/* 거울(자리안내 하단) / 사이드 패널 */
+.seat-mirror { margin-top: 16px; }
+.seat-mirror-title { font-weight: 700; margin-bottom: 8px; }
+.seat-mirror-stations { display: flex; flex-wrap: wrap; gap: 12px; }
+.seat-mirror-col { flex: 1 1 240px; min-width: 0; border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12)); }
+.seat-mirror-col-title { font-weight: 700; padding: 6px 8px; }
+.seat-mirror-col-body { padding: 8px; color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
+
+.seat-panel { border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12)); }
+.seat-panel-title { font-weight: 700; padding: 8px; }
+.seat-panel-hint { font-weight: 400; color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
+.seat-panel-body { padding: 8px; }
+
+/* 번호 칩(자리후 대기·올림·완료) */
+.seat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.seat-chips-empty { color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
+.seat-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  font-weight: 700;
+}
+.seat-chip-done { opacity: 0.5; text-decoration: line-through; }
+
+/* 올림(자리잡음) 카드 — 번호 + 변동사항 + 완료 */
+.seat-raised-list { display: flex; flex-direction: column; gap: 8px; }
+.seat-raised-card { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.seat-raised-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border-strong, rgba(255, 255, 255, 0.3));
+  border-radius: 6px;
+  font-weight: 700;
+}
+.seat-raised-note { flex: 1 1 160px; }
+
+/* 제조매니저: 입력 테이블 아래 가로 배치(카메라 + 요약 패널) */
+.seat-manager-side { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; align-items: flex-start; }
+.seat-manager-side .seat-camera { flex: 0 0 240px; }
+.seat-manager-side .seat-panel { flex: 1 1 200px; }
+
+/* 카이막/커피: 슬라이드 레이아웃 [카메라 大 좌] · [올림+완료 중] · [자리후 우]
+   mobile-first: 기본 세로(카메라 위), 넓을 때 3열. */
+.seat-station-grid { display: flex; flex-direction: column; gap: 12px; }
+.seat-station-work { display: flex; flex-direction: column; gap: 12px; }
+.seat-station-camera .seat-camera { min-height: 220px; }
+@media (min-width: 1024px) {
+  .seat-station-grid { flex-direction: row; align-items: stretch; }
+  .seat-station-camera { flex: 1.2 1 0; }
+  .seat-station-work { flex: 1 1 0; }
+  .seat-station-waiting { flex: 0 0 200px; }
+  .seat-station-camera .seat-camera { aspect-ratio: auto; height: 100%; min-height: 420px; }
+}
+
+/* 카메라 슬롯(순수 표시) */
+.seat-camera {
+  aspect-ratio: 4 / 3;
+  background: var(--color-bg-secondary, #1a1a1a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.seat-camera-stream { width: 100%; height: 100%; object-fit: cover; }
+.seat-camera-placeholder { color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); text-align: center; padding: 12px; }
+.seat-camera-placeholder-title { font-weight: 700; margin-bottom: 4px; }
+.seat-camera-placeholder-sub { color: var(--color-text-disabled, rgba(255, 255, 255, 0.35)); }
+
+/* 넓은 화면(가로 태블릿/데스크톱): 2열 레이아웃 + 주문 행 한 줄 정렬 */
+@media (min-width: 1024px) {
+  .seat-screen-grid { flex-direction: row; align-items: flex-start; }
+  .seat-col-side { flex: 0 0 280px; width: auto; }
+  .seat-row { flex-wrap: nowrap; }
+}

@@ -18,6 +18,7 @@ export const PAGE_TYPES = {
   MEMBERS: 'members',
   GOAL: 'goal',
   INVENTORY: 'inventory',
+  SEAT: 'seat',
 }
 
 // 독립 엔티티(project_id = null, 프로젝트에 소속되지 않음) 페이지 타입.
@@ -33,6 +34,7 @@ export const INDEPENDENT_PAGE_TYPES = [
   PAGE_TYPES.MEMBERS,
   PAGE_TYPES.GOAL,
   PAGE_TYPES.INVENTORY,
+  PAGE_TYPES.SEAT,
 ]
 
 // 마스터에게만 사이드바 트리에 노출되는 타입.
@@ -56,6 +58,8 @@ export const isMembersPage = (page) => typeOf(page) === PAGE_TYPES.MEMBERS
 export const isGoalPage = (page) => typeOf(page) === PAGE_TYPES.GOAL
 // 재고 관리 = 독립 엔티티(전역 단일). 권한 게이트는 #6(파트너 레벨 확정)에서 결합.
 export const isInventoryPage = (page) => typeOf(page) === PAGE_TYPES.INVENTORY
+// 자리후 시스템 = 키오스크 풀스크린 모듈(워크스페이스 editor면 진입). 마스터 전용 아님.
+export const isSeatPage = (page) => typeOf(page) === PAGE_TYPES.SEAT
 
 // 일반 페이지 = 명시적 'normal' 또는 미설정(legacy NULL). 기존 비교 로직과 동일.
 export const isNormalPage = (page) => {

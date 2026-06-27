@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt, LayoutDashboard, Users, Flag, Package } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt, LayoutDashboard, Users, Flag, Package, Coffee } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -14,7 +14,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage } from '../../utils/pageTypes'
+import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage, isSeatPage } from '../../utils/pageTypes'
 import { findOrCreateMembersPage } from '../../utils/membersPage'
 import './Sidebar.css'
 
@@ -182,6 +182,48 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             >
               <Calendar size={16} />
               <span>캘린더</span>
+            </button>
+
+            {/* 자리후 시스템 — 워크스페이스 공유 키오스크 모듈. find-or-create. */}
+            <button
+              className={`sidebar-worklog-btn ${currentPageId && isSeatPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
+              onClick={async () => {
+                let seatPage = pages.find(p => isSeatPage(p))
+                if (!seatPage) {
+                  const { data } = await supabase
+                    .from('pages')
+                    .select('id')
+                    .eq('page_type', 'seat')
+                    .is('deleted_at', null)
+                    .limit(1)
+                    .maybeSingle()
+                  if (data) seatPage = { id: data.id, page_type: 'seat' }
+                }
+                if (!seatPage) {
+                  const newPageId = generateUUID()
+                  const { error } = await supabase
+                    .from('pages')
+                    .insert([{
+                      id: newPageId,
+                      user_id: effectiveSession.user.id,
+                      name: '자리후',
+                      page_type: 'seat',
+                      project_id: null,
+                      parent_id: null,
+                      position: -3,    // 캘린더(-1)·목표(-2)보다 위
+                    }])
+                  if (error) {
+                    console.error('자리후 페이지 생성 실패:', error)
+                    return
+                  }
+                  seatPage = { id: newPageId, page_type: 'seat' }
+                }
+                if (typeof fetchPages === 'function') await fetchPages()
+                handlePageSelect(seatPage.id)
+              }}
+            >
+              <Coffee size={16} />
+              <span>자리후</span>
             </button>
 
             {/* 대시보드 — 캘린더 아래. 마스터 전용 (비마스터에겐 진입 자체를 숨김). */}
