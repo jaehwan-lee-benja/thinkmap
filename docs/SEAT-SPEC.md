@@ -57,7 +57,7 @@
 - 영상 OCR 자동 주문번호 인식(별도 PC 과제 · 백로그).
 - POS / 영수증 프린터 연동.
 - 소요시간(자리후→올림→완료) 분석 리포트 — 타임스탬프는 지금부터 남겨 둠(후속에서 집계).
-- 다매장 동시 운영(현재 단일 매장 = 단일 board 전제. 스키마는 board_id로 이미 다매장 대비).
+- 다매장 동시 운영(현재 단일 워크스페이스. 스키마는 workspace_id로 다중 워크스페이스 대비).
 
 ## 3. 도메인 용어
 
@@ -69,16 +69,17 @@
 | 영업일(business_date) | 그 날의 운영 단위. 매일 queue_no 리셋 |
 | 스테이션(station) | 제조 거점. `'kaymak'`(카이막) / `'coffee'`(커피) / 확장. text라 추가에 스키마 불변 |
 | 역할(role) | 화면 주체. 자리안내·제조매니저·카이막·커피. 태블릿 1대 = 1역할(탭 전환 가능) |
-| 보드(board) | 4명 직원이 멤버로 속한 업무일지 보드(`pages`). 자리후 데이터의 테넌시 기준 |
+| 워크스페이스(workspace) | 자리후 자산이 속한 테넌트. 단일 매장=단일 워크스페이스(`current_workspace()`) |
 
 ## 4. 핵심 결정
 
 1. **신규 모듈로 격리**: 기존 ThinkMap 기능(토글/목표/로스터/데일리)과 코드·테이블을 섞지 않는다.
    테이블은 `seat_` 프리픽스, 컴포넌트는 `src/components/Seat/`. daily 본문(`daily_blocks`)·TipTap에
    절대 얽지 않는다(독립 구조 데이터).
-2. **roster와 같은 테넌시·권한 패턴 재사용**: 자리후 데이터는 "날짜별 · 같은 매장 직원이 공유·편집"
-   으로 `roster_assignments`와 성격이 동일하다. 따라서 **board_id 테넌시 + `is_board_member()`**를
-   그대로 쓴다. 새 권한 패러다임·새 헬퍼·`businesses` 같은 신규 테넌시 테이블을 **만들지 않는다**.
+2. **워크스페이스 grant 권한 모델**: 자리후 데이터는 "워크스페이스 자산"이다. 읽기·쓰기 모두
+   `can_in_workspace(workspace_id, 'editor')` 단일 기준(능력 서열 owner>editor>viewer). board 멤버십·
+   `is_board_member`는 쓰지 않는다(Phase A grant 토대로 이관). 4역할은 권한 등급이 아니라 운영 역할/
+   기기 모드 → RLS로 가르지 않고 앱 레벨 가드(예: 메뉴나감=매니저만).
 3. **키오스크 전용 풀스크린**: 진입하면 사이드바/페인 크롬 없이 전체화면(태블릿 항상 켜둠). 단
    ThinkMap 페이지 시스템과는 `page_type='seat'` 1개로 연결(진입·생성은 기존 패턴).
 4. **역할은 화면 내 탭 전환**: 상단 역할 탭(자리안내·매니저·카이막·커피)으로 전환. 태블릿당 보통
@@ -105,16 +106,17 @@
 ## 6. 데이터 모델
 
 > 마이그레이션: `migrate-create-seat-system.sql` (단일 트랜잭션, 재실행 안전 / 통합 세션 승인 후 적용).
-> 전제: `is_master()`(migrate-dynamic-master.sql), `is_board_member(board_id)`(migrate-create-members.sql).
+> 전제(Phase A 토대, 라이브): `current_workspace() → uuid`(단일 테넌트: 사루루팜),
+> `can_in_workspace(workspace uuid, need text) → bool`(능력 서열 owner>editor>viewer).
 
-### 6.1 `seat_orders` — 주문 행 (로그인 읽기 / 마스터·보드멤버 쓰기)
+### 6.1 `seat_orders` — 주문 행 (워크스페이스 editor 읽기·쓰기)
 
 ```sql
 seat_orders (
   id              uuid PK DEFAULT gen_random_uuid(),
-  board_id        uuid NOT NULL REFERENCES pages(id) ON DELETE CASCADE,  -- 테넌시(매장)
+  workspace_id    uuid NOT NULL DEFAULT current_workspace(),             -- 테넌시(워크스페이스 자산)
   business_date   date NOT NULL DEFAULT current_date,
-  queue_no        int  NOT NULL,                       -- (board,date)별 1,2,3… 트리거 자동
+  queue_no        int  NOT NULL,                       -- (workspace,date)별 1,2,3… 트리거 자동
   order_no        text,                                -- 주문번호(수기, 자유 텍스트)
   seat_status     text NOT NULL DEFAULT 'pending'
                     CHECK (seat_status IN ('pending','raised','canceled')),
@@ -126,16 +128,19 @@ seat_orders (
   seat_order_alive     boolean NOT NULL DEFAULT true,  -- R4: 살아있음 / false=순서없이(취소)
   seated          boolean NOT NULL DEFAULT false,      -- 자리앉음
   raised          boolean NOT NULL DEFAULT false,      -- 올리기 전달
+  raised_at       timestamptz,                         -- 올림 시각(후속 소요시간 분석)
   menu_out        boolean NOT NULL DEFAULT false,      -- R5: 제조매니저만
+  confirm_flag    boolean NOT NULL DEFAULT false,      -- 확인필요(상태선택과 별개의 행 플래그)
   notes           text,                                -- 특이사항
   created_by_role text,                                -- 입력 주체 역할 key(스냅샷)
+  created_by      uuid DEFAULT auth.uid(),             -- 작성자(감사용 보조; 공용계정 운영)
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now(),
   deleted_at      timestamptz                          -- soft delete
 )
 ```
 
-### 6.2 `seat_station_status` — 스테이션별 진행 (로그인 읽기 / 마스터·보드멤버 쓰기)
+### 6.2 `seat_station_status` — 스테이션별 진행 (워크스페이스 editor 읽기·쓰기)
 
 스테이션을 행으로 분리해, 카이막·커피가 **서로 독립**(R6)으로 받음/완료를 누른다.
 
@@ -143,7 +148,7 @@ seat_orders (
 seat_station_status (
   id            uuid PK DEFAULT gen_random_uuid(),
   order_id      uuid NOT NULL REFERENCES seat_orders(id) ON DELETE CASCADE,
-  board_id      uuid NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  workspace_id  uuid NOT NULL DEFAULT current_workspace(),    -- 테넌시(부모 order 와 동일 워크스페이스)
   business_date date NOT NULL DEFAULT current_date,    -- Realtime 필터용 비정규화
   station       text NOT NULL,                         -- 'kaymak' | 'coffee' | 확장
   received      boolean NOT NULL DEFAULT false,        -- 자리잡음(올림)을 그 스테이션이 받음
@@ -166,7 +171,7 @@ RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.queue_no IS NULL OR NEW.queue_no = 0 THEN
     SELECT COALESCE(MAX(queue_no), 0) + 1 INTO NEW.queue_no
-    FROM seat_orders WHERE board_id = NEW.board_id AND business_date = NEW.business_date;
+    FROM seat_orders WHERE workspace_id = NEW.workspace_id AND business_date = NEW.business_date;
   END IF;
   RETURN NEW;
 END; $$;
@@ -174,46 +179,48 @@ CREATE TRIGGER trg_seat_orders_queue_no
   BEFORE INSERT ON seat_orders FOR EACH ROW EXECUTE FUNCTION seat_orders_assign_queue_no();
 ```
 
-- `updated_at`은 기존 컨벤션대로 클라이언트가 갱신 시 `new Date().toISOString()`로 세팅(useProjects 선례).
-- 인덱스: `seat_orders(board_id, business_date, queue_no)`,
-  `seat_station_status(board_id, business_date)`, `seat_station_status(order_id)`.
+- BEFORE INSERT 트리거가 `workspace_id`를 `current_workspace()`로 **강제**(클라 위조 차단), advisory lock으로
+  queue_no 동시성 직렬화. `seat_station_status.workspace_id`는 부모 order에서 트리거로 강제(크로스테넌트 차단).
+- `updated_at`은 BEFORE UPDATE 트리거가 자동 갱신(클라 의존 제거).
+- 인덱스: `seat_orders(workspace_id, business_date, queue_no)` **UNIQUE**(중복 안전망),
+  `seat_station_status(workspace_id, business_date)`, `seat_station_status(order_id)`.
 
 ## 7. 권한 / RLS
 
-> [ACCESS-MODEL.md §5](./ACCESS-MODEL.md) 결정 순서를 따른다. 새 패러다임을 만들지 않는다.
-> `roster_assignments`(MEMBER-SPEC §6)와 **동일 패턴**.
+> 워크스페이스 grant 모델(docs/ACCESS-TIERS-SPEC.md, main). Phase A 토대 라이브.
+> orders/station_status 는 **워크스페이스 자산** → 읽기·쓰기 모두 워크스페이스 editor 기준.
 
-| 테이블 | SELECT | INSERT/UPDATE/DELETE | 패러다임 |
-| --- | --- | --- | --- |
-| `seat_orders` | 로그인 사용자(`auth.uid() IS NOT NULL`) | `is_master() OR is_board_member(board_id)` | B(공개) + 보드멤버/마스터 쓰기 |
-| `seat_station_status` | 로그인 사용자 | `is_master() OR is_board_member(board_id)` | B(공개) + 보드멤버/마스터 쓰기 |
+| 테이블 | SELECT / INSERT / UPDATE / DELETE | 기준 |
+| --- | --- | --- |
+| `seat_orders` | `can_in_workspace(workspace_id, 'editor')` | 워크스페이스 editor 단일(owner 포함) |
+| `seat_station_status` | `can_in_workspace(workspace_id, 'editor')` | 워크스페이스 editor 단일 |
 
 ```sql
 ALTER TABLE seat_orders         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE seat_station_status ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY seat_orders_select ON seat_orders FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY seat_orders_write  ON seat_orders FOR ALL
-  USING (is_master() OR is_board_member(board_id))
-  WITH CHECK (is_master() OR is_board_member(board_id));
+CREATE POLICY seat_orders_rw ON seat_orders FOR ALL
+  USING      (can_in_workspace(workspace_id, 'editor'))
+  WITH CHECK (can_in_workspace(workspace_id, 'editor'));
 
-CREATE POLICY seat_station_select ON seat_station_status FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY seat_station_write  ON seat_station_status FOR ALL
-  USING (is_master() OR is_board_member(board_id))
-  WITH CHECK (is_master() OR is_board_member(board_id));
+CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
+  USING      (can_in_workspace(workspace_id, 'editor'))
+  WITH CHECK (can_in_workspace(workspace_id, 'editor'));
 ```
 
-- **board_id 배선**: 4명 직원이 멤버(`worklog_board_members`)로 속한 기존 보드 1개. 구현 시
-  "어느 보드인가"만 확정(스키마 영향 없음). 미존재 시 직원을 그 보드 멤버로 등록하는 선행 필요.
-- 새 헬퍼·새 테넌시 테이블 도입 없음. `is_master()`·`is_board_member()` 재사용만.
+- **4역할은 권한 등급이 아니라 운영 역할/기기 모드** → RLS로 가르지 않는다. RLS는 워크스페이스 editor
+  단일 기준이고, 역할별 제약(예: 메뉴나감=매니저만)은 **앱 레벨 가드**로 처리한다.
+- 공용 파트너 계정(`sarurufarm.partner`)·멤버는 이미 워크스페이스 editor grant 보유 → 태블릿이 어느
+  계정으로 로그인하든 editor 면 동작. board 멤버십/`is_board_member`는 쓰지 않는다.
+- 마스터(owner)는 능력 서열(owner>editor>viewer)상 editor 체크를 자동 통과.
 
 ## 8. 실시간 동기화
 
 > 기존 `useDailyBlocks`/`useWorklogComments` 패턴(채널 + cleanup + mountedRef) 준수.
 
-- 훅: `useSeatOrders(boardId, businessDate)` · `useStationStatus(boardId, businessDate)`.
+- 훅: `useSeatOrders(businessDate)` · `useStationStatus(businessDate)`.
 - 채널: `seat_orders:${businessDate}` / `seat_stations:${businessDate}`.
-  필터 `business_date=eq.${today}`(페이로드 경량, 매일 리셋). 매장 구분은 RLS(board_id)가 보장.
+  필터 `business_date=eq.${today}`(페이로드 경량, 매일 리셋). 워크스페이스 격리는 RLS(editor)가 보장.
 - 이벤트 `*`(INSERT/UPDATE/DELETE). 콜백은 로컬 상태 머지(낙관적 UI) 또는 단순 리페치.
 - 충돌 = **last-write-wins**. `created_at`·`completed_at` 등 타임스탬프를 남겨 후속 소요시간 분석.
 - cleanup: `supabase.removeChannel(channel)`. 언마운트 보호 `mountedRef`.
@@ -223,19 +230,25 @@ CREATE POLICY seat_station_write  ON seat_station_status FOR ALL
 
 공통: 상단에 오늘 날짜 + 역할 탭. 주문은 행 리스트, queue_no 1,2,3… 자동.
 
-### 9.1 자리안내 (`guide`) — 입력 핵심
-- 행: queue_no / order_no(텍스트) / [자리후 전달] / 상태선택(확인필요·주문중·차후주문, 기본 '-')
+### 9.1 자리안내 (`guide`) — 입력 핵심 (원본 슬라이드 열 구성 기준)
+- 행: queue_no / order_no(텍스트) / **[자리후 전달]**(명시 버튼) / 상태선택(확인필요·주문중·차후주문, 기본 '-')
   / 제조옵션 체크(야외·포장·야외병행) / 자리순서 살아있음·자리순서없이(취소)
-  / 자리앉음 → [제조 올리기·올리기 전달] / 특이사항.
-- 하단: 카이막·커피 현황 거울 표시(읽기).
+  / 자리앉음 → **[올리기 전달]**(명시 버튼, R2) / 특이사항 / **[전체에게 전달]**(명시 버튼, R7)
+  / **확인필요**(상태선택과 별개의 행 플래그 = `confirm_flag`).
+- **전달 흐름 = 명시 버튼 방식(A안)**: 입력 후 [자리후 전달]/[올리기 전달]/[전체에게 전달]을 눌러 공유
+  (주방 실수 방지). 누른 순간 Realtime push. (자동 전파가 아니라 명시 트리거 — 결정 로그 §14)
+- 하단: 카이막·커피 현황 거울(각 '올라감 / 제조완료함', 읽기).
 - 카메라 없음.
 
 ### 9.2 제조매니저 (`manager`)
-- 자리안내와 유사 입력부 + **메뉴 나감**(이 역할만, R5) + 카메라 슬롯.
-- 자리잡음(올림)/완료/완료된 리스트 + 자리후(대기중) 목록.
+- 자리안내와 유사 입력부(전체폭 테이블) + **메뉴 나감**(이 역할만, R5).
+- 입력부 아래 가로 배치: 카메라 슬롯 + 자리후(대기중)/올림/완료된 리스트 요약.
+- ※ 원본 슬라이드의 매니저 페이지엔 카메라가 그려져 있지 않으나, 기획서 §9(매니저에도 카메라 슬롯)
+  에 따라 **카메라 유지**(2026-06-25 결정). 매니저도 주방을 모니터하므로 둔다.
 
-### 9.3 카이막 / 커피 (`kaymak`/`coffee`) — 동일 컴포넌트·독립
-- 카메라 슬롯 + 자리후(대기중) 목록 + 자리잡음(올림) + 각 번호 [완료] + 변동사항("포장으로 변경" 등).
+### 9.3 카이막 / 커피 (`kaymak`/`coffee`) — 동일 컴포넌트·독립 (원본 슬라이드 레이아웃)
+- **3열 배치: [카메라 라이브 大 — 좌측] · [자리잡음(올림)+완료된 리스트 — 중앙] · [자리후(대기중) — 우측].**
+- 올림 카드 = 번호 + 변동사항("포장으로 변경" 등) + [완료] 버튼.
 - 내가 누른 완료만 "완료된 리스트"로(스테이션 독립, R6).
 
 ## 10. 비즈니스 규칙 R1~R7
@@ -297,22 +310,28 @@ src/components/Seat/
 - 신규 모듈로 격리(`seat_` 테이블 / `src/components/Seat/`). daily 본문·TipTap과 분리.
 - 진입 = `page_type='seat'` + 키오스크 풀스크린(사이드바/크롬 없음).
 - 역할 = 화면 내 탭 전환(태블릿당 1역할 운용, localStorage로 마지막 역할 기억).
-- 테넌시 = `board_id` + `is_board_member()`(roster와 동일). 새 헬퍼·새 테넌시 테이블 없음.
-- RLS = 로그인 SELECT 공개 / 쓰기 = `is_master() OR is_board_member(board_id)`.
 - 역할·스테이션 = `config` 상수로 데이터화(별도 DB 테이블 보류 = 과설계 회피).
-- queue_no = (board, business_date)별 DB 트리거 자동 부여.
+- queue_no = (workspace, business_date)별 DB 트리거 자동 부여.
+- (※ 초기엔 board_id 테넌시였으나 2026-06-25 워크스페이스 grant 모델로 이관 — 아래 참조.)
 - 카메라 = 순수 슬롯(데이터 로직과 결합 금지), 지금은 placeholder.
 
+**결정됨 (2026-06-25, 원본 기획서·슬라이드 대조)**
+- 자리안내 전달 흐름 = **명시 버튼 방식(A안)**: [자리후 전달]·[올리기 전달]·[전체에게 전달].
+  모든 변경 자동 전파가 아니라, 버튼을 눌러 공유하는 명시 트리거(주방 실수 방지). 향후 개선 가능.
+- '확인필요'는 상태선택(확인필요/주문중/차후주문)과 **별개의 행 플래그**(`confirm_flag`).
+- 분석용 `raised_at`(올림 시각) 컬럼 추가.
+- ★ **권한 = 워크스페이스 grant 모델로 이관**(Phase A 토대 라이브). `board_id`+`is_board_member` 폐기 →
+  `workspace_id` + `can_in_workspace(workspace_id, 'editor')`. 4역할은 RLS가 아닌 앱 가드. 공용 파트너
+  계정(`sarurufarm.partner`)·멤버는 워크스페이스 editor grant 보유(멤버십·로그인 계정 무관).
+
 **미해결 (진행하며 합의)**
-- [ ] board_id 소스 확정 — 4명 직원이 멤버로 속한 보드가 이미 있는가, 신규 등록 필요한가.
-- [ ] 로그인 운용 — 태블릿이 공용 계정 1개로 로그인할지, 직원별 계정일지(RLS 보드멤버 판정 영향).
+- [x] 권한·로그인 = 워크스페이스 grant(editor)로 확정. 태블릿이 어느 계정으로 로그인하든 editor 면 동작.
 - [ ] 완료 처리 후 행 표시 — 완료 행을 리스트에서 숨길지/접을지/유지할지.
-- [ ] "전체에게 전달" 버튼을 별도 액션으로 둘지, 모든 변경이 자동 실시간이라 생략할지.
 - [ ] 카메라 enabled/streamUrl 저장 위치(env vs Supabase config 레코드) 최종 결정.
 
 ## 15. 수정 전 체크리스트
 
-- [ ] RLS 변경 시 [ACCESS-MODEL.md](./ACCESS-MODEL.md) 패러다임을 새로 만들지 않았는가(`is_board_member` 재사용).
+- [ ] RLS 변경 시 워크스페이스 grant 모델(`can_in_workspace`/`current_workspace`)을 따랐는가(역할로 RLS 가르지 않기).
 - [ ] 자리후 데이터를 daily 본문(`daily_blocks`)·TipTap에 섞지 않았는가(독립 테이블 유지).
 - [ ] 역할·스테이션을 하드코딩하지 않고 `config`/text 컬럼으로 두었는가(역할 추가 시 스키마 불변).
 - [ ] 카메라 컴포넌트가 orders/station_status 데이터 로직과 결합되지 않았는가(순수 슬롯).
