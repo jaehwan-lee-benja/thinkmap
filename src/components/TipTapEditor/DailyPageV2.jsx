@@ -170,28 +170,62 @@ export default function DailyPageV2({
   //   1) worklog_sections.visibility — 다음 daily 페이지 templating 시 반영
   //   2) daily_blocks 의 그 master 의 모든 section row.visibility — 이미 만들어진 페이지에서도 즉시 반영
   useEffect(() => {
-    const onVisibilityToggle = (e) => {
+    const onVisibilityToggle = async (e) => {
       const { masterId, newVisibility } = e.detail || {}
       if (!masterId || !newVisibility) return
-      supabase
-        .from('worklog_sections')
-        .update({ visibility: newVisibility })
-        .eq('id', masterId)
-        .then(({ error }) => {
-          if (error) logError('worklog_sections.visibility 동기화', error)
-        })
-      supabase
+      // 1) worklog_sections 마스터 동기화 — 다음 daily / 리프레시 templating 에 반영
+      {
+        const { error } = await supabase
+          .from('worklog_sections')
+          .update({ visibility: newVisibility })
+          .eq('id', masterId)
+        if (error) logError('worklog_sections.visibility 동기화', error)
+      }
+      // 2) 이미 만들어진 모든 페이지의 그 master 의 section row 동기화
+      const { data: secRows, error: secErr } = await supabase
         .from('daily_blocks')
         .update({ visibility: newVisibility })
         .eq('section_master_id', masterId)
         .eq('block_type', 'section')
         .is('deleted_at', null)
-        .then(({ error }) => {
-          if (error) logError('daily_blocks.visibility 동기화', error)
-        })
+        .select('block_id')
+      if (secErr) { logError('daily_blocks.visibility(section) 동기화', secErr); return }
+      // 3) 그 섹션들의 자식 콘텐츠까지 cascade — 섹션=공유 단위라 자식 visibility 가 섹션과
+      //    항상 일치해야 RLS 누수(공개 섹션에 master 자식 숨김) / 고아 토글(master 섹션에 공개 자식)이 없다.
+      const sectionBlockIds = (secRows || []).map(r => r.block_id).filter(Boolean)
+      if (sectionBlockIds.length > 0) {
+        const { error: childErr } = await supabase
+          .from('daily_blocks')
+          .update({ visibility: newVisibility })
+          .in('section_id', sectionBlockIds)
+          .neq('block_type', 'section')
+          .is('deleted_at', null)
+        if (childErr) logError('daily_blocks.visibility(children) cascade', childErr)
+      }
     }
     document.addEventListener('section-visibility-toggle', onVisibilityToggle)
     return () => document.removeEventListener('section-visibility-toggle', onVisibilityToggle)
+  }, [])
+
+  // [5] 섹션 표시상태(배경색·접힘) write-through → worklog_sections 마스터.
+  //   색/접힘은 섹션 "정체성"이라 마스터에 저장해야 다음 날 데일리(templating)가 그대로 승계한다.
+  //   (전엔 그날치 daily_blocks 에만 저장돼 이월 시 색 null·전부 펼침으로 "섹션 카드 풀림" 발생)
+  useEffect(() => {
+    const onPresentationChange = (e) => {
+      const { masterId, backgroundColor, isOpen } = e.detail || {}
+      if (!masterId) return
+      const patch = {}
+      if (backgroundColor !== undefined) patch.background_color = backgroundColor
+      if (isOpen !== undefined) patch.is_open = isOpen
+      if (Object.keys(patch).length === 0) return
+      supabase
+        .from('worklog_sections')
+        .update(patch)
+        .eq('id', masterId)
+        .then(({ error }) => { if (error) logError('worklog_sections 표시상태(색/접힘) 동기화', error) })
+    }
+    document.addEventListener('section-presentation-change', onPresentationChange)
+    return () => document.removeEventListener('section-presentation-change', onPresentationChange)
   }, [])
 
   // section_cols 조회 (user+board 단위) — 2단 좌/우 배치 출처
@@ -343,7 +377,7 @@ export default function DailyPageV2({
             isTodo: false, todoChecked: false, todoStatus: 'open',
             isCarryOver: false, carryOverFrom: null, originBlockId: null,
             isPinned: false,
-            visibility: s.visibility || 'all',
+            visibility: s.visibility || 'master',
             isFixedSection: false,
           })
           newRows.push({
@@ -359,7 +393,7 @@ export default function DailyPageV2({
             isCarryOver: false, carryOverFrom: null, originBlockId: null,
             // P1: 빈 자식은 부모 섹션의 visibility 를 상속한다('all' 하드코딩 금지).
             // master 섹션 아래 'all' 자식은 비마스터 화면에서 헤더 없는 고아가 된다.
-            isPinned: false, visibility: s.visibility || 'all', isFixedSection: false,
+            isPinned: false, visibility: s.visibility || 'master', isFixedSection: false,
           })
         })
         await applyDiff({ insert: newRows, update: [], softDelete: [] })
@@ -397,7 +431,8 @@ export default function DailyPageV2({
           board_id: parentId,
           section_type: 'user',
           created_by: userId,
-          visibility: 'all',
+          // [A] 새 섹션은 기본 비공개(마스터 전용). 공유는 헤더 크라운 토글로 명시.
+          visibility: 'master',
           is_default: false,
           sort_order: 999,
         })
@@ -426,7 +461,7 @@ export default function DailyPageV2({
         carryOverFrom: null,
         originBlockId: null,
         isPinned: false,
-        visibility: 'all',
+        visibility: 'master',
         isFixedSection: false,
       }
       // 빈 자식 토글 — 섹션 헤더 아래 입력 시작점
@@ -449,7 +484,7 @@ export default function DailyPageV2({
         carryOverFrom: null,
         originBlockId: null,
         isPinned: false,
-        visibility: 'all',
+        visibility: 'master',
         isFixedSection: false,
       }
       await applyDiff({ insert: [sectionRow, emptyChildRow], update: [], softDelete: [] })

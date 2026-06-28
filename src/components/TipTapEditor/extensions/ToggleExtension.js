@@ -636,9 +636,9 @@ export const Toggle = Node.create({
         dom.classList.toggle('toggle-page-block-deleted', !!(isPage && loaded && ids && !ids.has(attrs.pageId)))
       }
 
-      // 초기 클래스
-      if (node.attrs.visibility === 'master' && node.attrs.blockType === 'h2') {
-        dom.classList.add('toggle-master-only')
+      // 초기 클래스 — 기본=마스터 전용이 norm 이므로 공유('all') 섹션만 시각 강조
+      if (node.attrs.visibility === 'all' && node.attrs.blockType === 'h2') {
+        dom.classList.add('toggle-shared')
       }
       if (node.attrs.isStarred) {
         dom.classList.add('toggle-starred')
@@ -858,6 +858,17 @@ export const Toggle = Node.create({
         tr.setNodeMarkup(pos, null, { ...currentNode.attrs, isOpen: newIsOpen })
         // 버튼 클릭임을 표시 → 플러그인이 자동 열기를 건너뜀
         tr.setMeta('toggleButtonClick', true)
+        // [5] 섹션 접힘 상태는 섹션 "정체성" → worklog_sections 마스터에 write-through.
+        //     (다음 날 데일리 templating 이 그대로 승계해 "섹션 카드 풀림"(전부 펼침) 방지)
+        {
+          const sectionMasterId = currentNode.attrs.sectionMasterId || null
+          if (sectionMasterId) {
+            dom.dispatchEvent(new CustomEvent('section-presentation-change', {
+              bubbles: true,
+              detail: { masterId: sectionMasterId, isOpen: newIsOpen },
+            }))
+          }
+        }
 
         const isViewer = editor.storage.toggle?.viewerMode
 
@@ -1297,21 +1308,22 @@ export const Toggle = Node.create({
         duplicateTag.style.display = 'none'
       }
 
-      // 마스터 권한 버튼 (h2 섹션 전용, 마스터만 조작) — 왕관 아이콘.
-      // 활성 = "마스터 권한" (master 만 보임), 비활성 = "공개" (모두 보임).
+      // 공유 버튼 (h2 섹션 전용, 마스터만 조작). 기본=마스터 전용이 norm 이므로
+      // 공유('all')일 때만 "공유" 배지로 강조, 마스터 전용(기본)일 땐 조용한 자물쇠(hover).
       const visibilityButton = document.createElement('button')
       visibilityButton.classList.add('toggle-visibility-button')
       visibilityButton.contentEditable = 'false'
-      const isVisibilityMaster = node.attrs.visibility === 'master'
-      visibilityButton.title = isVisibilityMaster ? '마스터 권한 해제 (공개로 전환)' : '마스터 권한 부여 (마스터만 보기)'
-      if (isVisibilityMaster) visibilityButton.classList.add('master-only')
+      const isShared = node.attrs.visibility === 'all'
+      visibilityButton.title = isShared ? '공유 해제 (마스터 전용으로 전환)' : '멤버에게 공유 (모두 보기)'
+      if (isShared) visibilityButton.classList.add('shared')
       const showVisBtn = node.attrs.blockType === 'h2' && editor.storage.toggle?.isMaster
       visibilityButton.style.display = showVisBtn ? '' : 'none'
-      // Lucide Crown — 왕관. 활성(master) 시 강조 + "마스터 권한" 라벨, 비활성 시 아이콘만.
-      const crownSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg>'
-      visibilityButton.innerHTML = isVisibilityMaster
-        ? `${crownSvg}<span>마스터 권한</span>`
-        : crownSvg
+      // Lucide Users(공유) / Lock(마스터 전용=기본). 공유 시 강조 + "공유" 라벨, 기본은 아이콘만.
+      const usersSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+      const lockSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+      visibilityButton.innerHTML = isShared
+        ? `${usersSvg}<span>공유</span>`
+        : lockSvg
       visibilityButton.addEventListener('mousedown', (e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -1539,6 +1551,15 @@ export const Toggle = Node.create({
           editor.view.dispatch(
             editor.state.tr.setNodeMarkup(pos, null, { ...currentNode.attrs, backgroundColor: value })
           )
+          // [5] 섹션 배경색은 섹션 "정체성" → worklog_sections 마스터에 write-through.
+          //     (다음 날 데일리 templating 이 승계해 "섹션색 유실" 방지)
+          const masterId = currentNode.attrs.sectionMasterId || null
+          if (masterId) {
+            dom.dispatchEvent(new CustomEvent('section-presentation-change', {
+              bubbles: true,
+              detail: { masterId, backgroundColor: value },
+            }))
+          }
         }
         hideColorPopup()
       })
@@ -1685,15 +1706,16 @@ export const Toggle = Node.create({
           // Visibility 버튼 상태 업데이트
           const showVis = updatedNode.attrs.blockType === 'h2' && editor.storage.toggle?.isMaster
           visibilityButton.style.display = showVis ? '' : 'none'
-          const isMasterVis = updatedNode.attrs.visibility === 'master'
-          visibilityButton.classList.toggle('master-only', isMasterVis)
-          visibilityButton.title = isMasterVis ? '마스터 권한 해제 (공개로 전환)' : '마스터 권한 부여 (마스터만 보기)'
-          const crownSvg2 = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg>'
-          visibilityButton.innerHTML = isMasterVis
-            ? `${crownSvg2}<span>마스터 권한</span>`
-            : crownSvg2
-          // master-only 섹션에 시각적 표시
-          dom.classList.toggle('toggle-master-only', isMasterVis && updatedNode.attrs.blockType === 'h2')
+          const isSharedVis = updatedNode.attrs.visibility === 'all'
+          visibilityButton.classList.toggle('shared', isSharedVis)
+          visibilityButton.title = isSharedVis ? '공유 해제 (마스터 전용으로 전환)' : '멤버에게 공유 (모두 보기)'
+          const usersSvg2 = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+          const lockSvg2 = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+          visibilityButton.innerHTML = isSharedVis
+            ? `${usersSvg2}<span>공유</span>`
+            : lockSvg2
+          // 공유 섹션에 시각적 표시 (기본=마스터 전용은 표시 없음)
+          dom.classList.toggle('toggle-shared', isSharedVis && updatedNode.attrs.blockType === 'h2')
 
           // 리스트뷰 2단 좌/우 배치 attr 반영
           applyColAttrs(updatedNode.attrs)

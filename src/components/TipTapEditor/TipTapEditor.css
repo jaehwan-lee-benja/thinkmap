@@ -1538,26 +1538,27 @@ th .paragraph-drag-handle {
   background: rgba(255, 255, 255, 0.06);
 }
 
-.toggle-visibility-button.master-only {
+/* 기본(마스터 전용)이 norm 이므로 표시 안 함. 공유 섹션만 강조한다(아래 .shared). */
+.toggle-visibility-button.shared {
   opacity: 1 !important;
-  color: #a78bfa;
+  color: #34d399;
 }
 
-.toggle-visibility-button.master-only:hover {
-  color: #c4b5fd;
-  background: rgba(167, 139, 250, 0.1);
+.toggle-visibility-button.shared:hover {
+  color: #6ee7b7;
+  background: rgba(52, 211, 153, 0.1);
 }
 
-/* ── 마스터 전용 섹션 시각 표시 ── */
-.tiptap-page--daily .tiptap-editor > .toggle-block.toggle-master-only {
-  border-color: rgba(167, 139, 250, 0.3);
-  background: rgba(167, 139, 250, 0.04) !important;
+/* ── 멤버 공유 섹션 시각 표시 (기본=마스터 전용은 표시 없음) ── */
+.tiptap-page--daily .tiptap-editor > .toggle-block.toggle-shared {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.04) !important;
 }
 
 /* ── 섹션 카드 색상 — 카드가 선택한 색을 "입음" (테두리 + 은은한 배경 틴트 + 헤더 강조) ──
    --card-color (base hue) 는 ToggleExtension nodeView 가 세팅. color-mix 로 파생.
    !important + 동일/상위 명시도 + 소스 순서로 위의 마스터 보라색 처리보다 우선.
-   (왕관 배지는 별도 버튼 색이라 그대로 유지 → 마스터 여부는 계속 식별 가능) */
+   (공유 배지는 별도 버튼 색이라 그대로 유지 → 공유 여부는 계속 식별 가능) */
 .tiptap-page--daily .tiptap-editor > [data-block-type="h2"][data-card-color] {
   background: color-mix(in srgb, var(--card-color) 12%, var(--color-bg-editor, #2d2d2d)) !important;
   border-color: color-mix(in srgb, var(--card-color) 55%, transparent) !important;

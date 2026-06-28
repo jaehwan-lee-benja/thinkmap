@@ -57,7 +57,13 @@ export function buildDailyTemplateRows(sections, ctx, opts = {}) {
     const parentMasterId = read(s, 'parent_id', 'parentId') || null
     const parentBlockId = parentMasterId ? (idMap.get(parentMasterId) || null) : null
     const sectionType = read(s, 'section_type', 'sectionType') || 'fixed'
-    const visibility = s.visibility || 'all'
+    // [A] 데일리 섹션 기본 비공개(마스터 전용). 마스터가 visibility 미지정이면 'master'.
+    // (고정 운영 섹션 4종은 마이그에서 visibility='all' 로 시드 → 멤버 공개 유지)
+    const visibility = s.visibility || 'master'
+    // [5] 섹션 표시상태(색/접힘)는 마스터(worklog_sections)에 저장된 "정체성"을 매일 승계한다.
+    //     (전엔 미설정 → 매일 색 null + is_open=true 로 리셋되며 "섹션 카드 풀림" 발생)
+    const backgroundColor = read(s, 'background_color', 'backgroundColor') ?? null
+    const isOpenRaw = read(s, 'is_open', 'isOpen')
 
     return {
       blockId,
@@ -80,6 +86,8 @@ export function buildDailyTemplateRows(sections, ctx, opts = {}) {
       isPinned: false,
       visibility,
       isFixedSection: sectionType === 'fixed',
+      backgroundColor,
+      isOpen: isOpenRaw === undefined ? true : isOpenRaw !== false,
     }
   })
 }

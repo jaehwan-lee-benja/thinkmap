@@ -140,4 +140,39 @@ describe('buildDailyTemplateRows', () => {
       expect(r.isPinned).toBe(false)
     }
   })
+
+  // [A] 데일리 섹션 기본 비공개 — visibility 미지정 마스터는 'master' 로 떨어진다.
+  test('[A] visibility 미지정 섹션은 기본 master(비공개)', () => {
+    const noVis = { id: 'no-vis', title: '신규 섹션', section_type: 'user', sort_order: 9 }
+    const rows = buildDailyTemplateRows([noVis], ctx)
+    expect(rows[0].visibility).toBe('master')
+  })
+
+  test('[A] 명시 visibility="all" 은 그대로 공개', () => {
+    const shared = { id: 'shared', title: '공유 섹션', section_type: 'user', sort_order: 9, visibility: 'all' }
+    const rows = buildDailyTemplateRows([shared], ctx)
+    expect(rows[0].visibility).toBe('all')
+  })
+
+  // [5] 섹션 색/접힘은 마스터(worklog_sections)에서 승계 — 이월 시 "섹션 카드 풀림" 방지.
+  test('[5] 마스터의 background_color / is_open 을 섹션 row 가 승계', () => {
+    const colored = { id: 'c1', title: '색 섹션', section_type: 'user', sort_order: 9, visibility: 'all', background_color: '#ec4899', is_open: false }
+    const rows = buildDailyTemplateRows([colored], ctx)
+    expect(rows[0].backgroundColor).toBe('#ec4899')
+    expect(rows[0].isOpen).toBe(false)
+  })
+
+  test('[5] 마스터에 색/접힘 미지정이면 backgroundColor=null, isOpen=true 기본', () => {
+    const plain = { id: 'p1', title: '무색 섹션', section_type: 'user', sort_order: 9, visibility: 'all' }
+    const rows = buildDailyTemplateRows([plain], ctx)
+    expect(rows[0].backgroundColor).toBeNull()
+    expect(rows[0].isOpen).toBe(true)
+  })
+
+  test('[5] camelCase(backgroundColor/isOpen) 입력도 승계', () => {
+    const camel = { id: 'cc', title: 'CC', sectionType: 'user', sortOrder: 9, visibility: 'all', backgroundColor: '#22c55e', isOpen: false }
+    const rows = buildDailyTemplateRows([camel], ctx)
+    expect(rows[0].backgroundColor).toBe('#22c55e')
+    expect(rows[0].isOpen).toBe(false)
+  })
 })

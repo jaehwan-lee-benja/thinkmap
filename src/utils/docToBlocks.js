@@ -71,34 +71,38 @@ function flattenDoc(doc, ctx) {
   // 이후 형제 토글들의 sectionId 로 상속 (v1 의 isH2Section 패턴).
   const roots = doc.content.filter(n => n && n.type === 'toggle')
   let currentSectionId = null
+  let currentSectionVisibility = null
   for (let i = 0; i < roots.length; i++) {
     const node = roots[i]
     const attrs = node.attrs || {}
     const isSection = attrs.blockType === 'h2' || attrs.blockType === 'h3'
     if (isSection) {
       currentSectionId = attrs.blockId
+      currentSectionVisibility = attrs.visibility ?? null
     }
-    walkNode(node, i + 1, null, currentSectionId, map, ctx)
+    walkNode(node, i + 1, null, currentSectionId, currentSectionVisibility, map, ctx)
   }
   return map
 }
 
-function walkNode(node, position, parentBlockId, ancestorSectionId, map, ctx) {
+function walkNode(node, position, parentBlockId, ancestorSectionId, ancestorSectionVisibility, map, ctx) {
   if (!node || node.type !== 'toggle') return
 
-  const row = makeRow(node, position, parentBlockId, ancestorSectionId, ctx)
+  const row = makeRow(node, position, parentBlockId, ancestorSectionId, ancestorSectionVisibility, ctx)
   map.set(row.blockId, row)
 
   const isSection = row.blockType === 'section'
   const passDownSectionId = isSection ? row.blockId : ancestorSectionId
+  // [A] 섹션 = 공유 단위. 자식 콘텐츠의 visibility 는 항상 조상 섹션을 따른다(타이핑 블록 누수 차단).
+  const passDownVisibility = isSection ? row.visibility : ancestorSectionVisibility
 
   const children = (node.content || []).filter(c => c && c.type === 'toggle')
   for (let i = 0; i < children.length; i++) {
-    walkNode(children[i], i + 1, row.blockId, passDownSectionId, map, ctx)
+    walkNode(children[i], i + 1, row.blockId, passDownSectionId, passDownVisibility, map, ctx)
   }
 }
 
-function makeRow(node, position, parentBlockId, ancestorSectionId, ctx) {
+function makeRow(node, position, parentBlockId, ancestorSectionId, ancestorSectionVisibility, ctx) {
   const attrs = node.attrs || {}
   const isSection = attrs.blockType === 'h2' || attrs.blockType === 'h3'
 
@@ -156,7 +160,9 @@ function makeRow(node, position, parentBlockId, ancestorSectionId, ctx) {
     isPinned: !!attrs.isPinned,
     isOpen: attrs.isOpen !== false,
     backgroundColor: attrs.backgroundColor ?? null,
-    visibility: attrs.visibility ?? 'all',
+    // [A] 자식 콘텐츠는 조상 섹션의 visibility 를 강제 상속(섹션=공유 단위). 섹션 조상이 없는
+    //     최상위 고아 블록만 자기 attr(기본 'all'=본인 가시) 보존.
+    visibility: ancestorSectionVisibility ?? attrs.visibility ?? 'all',
     isFixedSection: false,
   }
 }
