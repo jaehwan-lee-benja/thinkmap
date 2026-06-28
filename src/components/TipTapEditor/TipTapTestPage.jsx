@@ -211,20 +211,41 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   // 두 탭/디바이스가 동시 저장 시 stale state 가 최신을 덮어쓰는 사고 방지
   // (2026-05-22 "개발할 것들" 데이터 손실 원인. block_history 에 ms 차이로 두 자동 백업이 찍힘)
   const pageUpdatedAtsRef = useRef(new Map())
+  // 이 탭이 직접 쓴 updated_at 들의 집합 (값→기록시각ms). 실시간 에코 정확 판별용.
+  // 단일 슬롯(pageUpdatedAtsRef)은 연속 자동저장 시 직전 값만 기억해, 지연 도착한 내 과거
+  // 저장 에코를 "남의 편집"으로 오인(오탐)했다. 집합으로 두면 순서·지연 무관하게 내 에코를 거른다.
+  const ownWritesRef = useRef(new Map())
+  const rememberOwnWrite = useCallback((updatedAt) => {
+    if (!updatedAt) return
+    const now = Date.now()
+    const m = ownWritesRef.current
+    m.set(updatedAt, now)
+    // 30초 지난 기록은 정리 (실시간 에코는 보통 수 초 내 도착)
+    for (const [k, t] of m) { if (now - t > 30000) m.delete(k) }
+  }, [])
 
   // ── 실시간 동기화 (일반 페이지) ──
   // 충돌 배너: 내가 편집 중인데 다른 탭/사용자가 저장했을 때만 표시 (덮어쓰지 않고 선택 유도)
-  const [syncConflict, setSyncConflict] = useState(null)   // { byName }
-  // 동기화 토스트: 내가 편집 중이 아닐 때 원격 변경이 부드럽게 반영됨을 알림
-  const [syncToast, setSyncToast] = useState(null)         // { byName }
+  const [syncConflict, setSyncConflict] = useState(null)   // { byName, at }  — 진짜 다른 사용자 동시편집일 때만
+  // 동기화 토스트: 내가 편집 중이 아닐 때(또는 내 다른 창/기기) 원격 변경이 부드럽게 반영됨을 알림
+  const [syncToast, setSyncToast] = useState(null)         // { byName, sameAccount }
   const syncToastTimer = useRef(null)
+  // 충돌 처리 후 무손실 되돌리기: 직전 동작이 백업한 스냅샷(block_history.id) 안내
+  const [undoHint, setUndoHint] = useState(null)           // { versionId, label }
+  const undoHintTimer = useRef(null)
   const syncConflictRef = useRef(false)   // 충돌 미해결 동안 자동저장 보류 (반복 실패/덮어쓰기 방지)
   const lastSaveConflictRef = useRef(false) // saveImmediately 가 낙관적 잠금 0-row 로 막혔는지
   const loadContentRef = useRef(null)     // 구독 콜백에서 최신 loadContent 호출용 (재구독 churn 방지)
-  const showSyncToast = useCallback((byName) => {
-    setSyncToast({ byName })
+  const showSyncToast = useCallback((byName, sameAccount = false) => {
+    setSyncToast({ byName, sameAccount })
     if (syncToastTimer.current) clearTimeout(syncToastTimer.current)
     syncToastTimer.current = setTimeout(() => setSyncToast(null), 2500)
+  }, [])
+  const showUndoHint = useCallback((versionId, label) => {
+    if (!versionId) return
+    setUndoHint({ versionId, label })
+    if (undoHintTimer.current) clearTimeout(undoHintTimer.current)
+    undoHintTimer.current = setTimeout(() => setUndoHint(null), 12000)
   }, [])
 
   // 히스토리 관련 상태
@@ -582,24 +603,34 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         (payload) => {
           const row = payload.new
           if (!row || isDailyPage(row)) return
-          // 내 저장이 만든 에코는 무시 (updated_at baseline 일치)
-          if (row.updated_at && row.updated_at === pageUpdatedAtsRef.current.get(pid)) return
+          // ① 이 탭이 직접 쓴 에코는 무시 — ownWrites 집합으로 정확 판별(순서·지연 무관).
+          //    단일 슬롯 비교는 연속 자동저장 시 내 과거 에코를 남의 편집으로 오인했다(오탐 원인).
+          if (row.updated_at && ownWritesRef.current.has(row.updated_at)) return
 
+          // ② 계정 정체성: 같은 내 계정이 다른 창/기기에서 저장한 것인지 구분.
+          const isSameAccount = !!(row.last_edited_by && session?.user?.id && row.last_edited_by === session.user.id)
           const byEmail = row.last_edited_by_email || ''
-          const byName = byEmail ? byEmail.split('@')[0] : '다른 사용자'
+          const byName = byEmail ? byEmail.split('@')[0] : (isSameAccount ? '내 계정' : '다른 사용자')
 
           // "내가 실제로 편집 중" = 편집을 시작했고(!initialLoad) 미저장 변경이 있음.
           const iAmEditing = !isImpersonating && !isInitialLoadRef.current && hasUnsavedChanges.current
+
           if (!iAmEditing) {
-            // 부드럽게 최신 내용 반영 (재저장 에코는 initialLoad 가드로 차단)
+            // 편집 중 아님 → 부드럽게 최신 반영 + 토스트(누구의 변경인지)
             isInitialLoadRef.current = true
             if (loadContentRef.current) loadContentRef.current(pid)
-            showSyncToast(byName)
-          } else {
-            // 덮어쓰지 않고 배너로 선택 유도
-            syncConflictRef.current = true
-            setSyncConflict({ byName })
+            showSyncToast(byName, isSameAccount)
+            return
           }
+          if (isSameAccount) {
+            // 내 다른 창/기기 — 타이핑을 끊지 않는다. 실제 덮어쓰기 위험은 저장 시 낙관적 잠금이 막는다.
+            showSyncToast(byName, true)
+            return
+          }
+          // ③ 편집 중 + 진짜 다른 사용자 → 차단 배너로 선택 유도(덮어쓰지 않음).
+          //    여기 도달은 (내 에코 아님 + 내 계정 아님)이라 오탐이 아니다.
+          syncConflictRef.current = true
+          setSyncConflict({ byName, at: row.updated_at || null })
         }
       )
       .subscribe()
@@ -676,11 +707,14 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       // Optimistic lock: 마지막으로 본 updated_at 과 DB 의 현재 값이 일치할 때만 UPDATE.
       // 다른 탭/디바이스가 먼저 저장했으면 expected != DB 라서 0 row 반환 — stale 덮어쓰기 차단.
       const expectedUpdatedAt = pageUpdatedAtsRef.current.get(pageIdToSave)
+      const nowIso = new Date().toISOString()
+      // 보낼 updated_at 을 먼저 ownWrites 에 기록 → 실시간 에코가 .select 응답보다 먼저 와도 자기-에코로 인식.
+      rememberOwnWrite(nowIso)
       let query = supabase
         .from('pages')
         .update({
           content_tiptap: finalContent,
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
           // 실시간 "OOO님이 수정" 표시용 (payload.new 로 바로 실려옴)
           last_edited_by: session.user.id,
           last_edited_by_email: session.user.email,
@@ -700,28 +734,59 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       }
       lastSaveConflictRef.current = false
       pageUpdatedAtsRef.current.set(pageIdToSave, updatedRows[0].updated_at)
+      // DB 가 반환한 값도 기록 (혹시 서버가 형식을 정규화했을 때 에코 누락 방지)
+      rememberOwnWrite(updatedRows[0].updated_at)
       return true
     } catch (err) {
       console.error('저장 오류:', err)
       return false
     }
-  }, [session, isMaster, pages])
+  }, [session, isMaster, pages, rememberOwnWrite])
 
-  // 충돌 해결 ① 최신 내용 불러오기 (내 미저장 변경 버림)
-  const resolveSyncReload = useCallback(() => {
-    if (!window.confirm('작성 중이던 변경을 버리고 최신 내용을 불러올까요?')) return
+  // 무손실 안전망: 덮어쓰기/버리기 전에 해당 내용을 block_history 에 스냅샷.
+  // 기존 '히스토리' UI(action='tiptap_snapshot')에 그대로 떠서 restoreVersion 으로 복구 가능.
+  const snapshotToHistory = useCallback(async (contentToBackup, description) => {
+    if (!contentToBackup || !session?.user?.id || !currentPageId || isImpersonating) return null
+    try {
+      const { data, error } = await supabase
+        .from('block_history')
+        .insert([{
+          block_id: null,
+          user_id: session.user.id,
+          page_id: currentPageId,
+          content_before: null,
+          content_after: contentToBackup,
+          action: 'tiptap_snapshot',
+          description,
+        }])
+        .select('id')
+        .single()
+      if (error) { console.warn('충돌 스냅샷 실패:', error.message); return null }
+      return data?.id || null
+    } catch (err) {
+      console.warn('충돌 스냅샷 오류:', err)
+      return null
+    }
+  }, [session?.user?.id, currentPageId, isImpersonating])
+
+  // 충돌 해결 ① 상대 내용 받기 (내 미저장 변경은 히스토리에 백업 후 버림 — 되돌리기 가능)
+  const resolveSyncReload = useCallback(async () => {
+    // 버리기 전에 내 현재 편집본을 무손실 백업
+    const backupId = await snapshotToHistory(contentRef.current, '충돌·내 편집 보관(상대 내용 받기 전)')
     isInitialLoadRef.current = true
     hasUnsavedChanges.current = false
     syncConflictRef.current = false
     lastSaveConflictRef.current = false
     setSyncConflict(null)
     if (loadContentRef.current) loadContentRef.current(currentPageId)
-  }, [currentPageId])
+    showUndoHint(backupId, '내 편집을 되돌리기')
+  }, [currentPageId, snapshotToHistory, showUndoHint])
 
-  // 충돌 해결 ② 내 변경으로 저장 (상대 내용 덮어쓰기)
+  // 충돌 해결 ② 내 내용으로 덮어쓰기 (상대본은 히스토리에 백업 후 덮어씀 — 되돌리기 가능)
   const resolveSyncOverwrite = useCallback(async () => {
-    // 최신 updated_at 으로 baseline 을 맞춰 낙관적 잠금을 통과 → 내 버전으로 강제 저장
-    const { data } = await supabase.from('pages').select('updated_at').eq('id', currentPageId).single()
+    // 최신 updated_at + 상대가 저장한 현재 내용을 함께 읽어, 덮어쓰기 전에 상대본을 무손실 백업
+    const { data } = await supabase.from('pages').select('updated_at, content_tiptap').eq('id', currentPageId).single()
+    const backupId = await snapshotToHistory(data?.content_tiptap, '충돌·상대본 보관(내 내용으로 덮어쓰기 전)')
     if (data?.updated_at) pageUpdatedAtsRef.current.set(currentPageId, data.updated_at)
     syncConflictRef.current = false
     const ok = await saveImmediately(contentRef.current, currentPageId)
@@ -729,11 +794,12 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       hasUnsavedChanges.current = false
       setLastSaved(new Date())
       setSyncConflict(null)
+      showUndoHint(backupId, '상대 내용을 되돌리기')
     } else {
       // 그 사이 또 바뀜 — 배너 유지하고 자동저장 보류 지속
       syncConflictRef.current = true
     }
-  }, [currentPageId, saveImmediately])
+  }, [currentPageId, saveImmediately, snapshotToHistory, showUndoHint])
 
   // 충돌 해결 ③ 나중에 — 배너만 닫음. 계속 편집하면 자동저장이 다시 충돌을 감지해 배너 재표시.
   const dismissSyncConflict = useCallback(() => {
@@ -823,11 +889,13 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       setIsSaving(true)
       const success = await saveImmediately(content, currentPageId)
       if (!success && lastSaveConflictRef.current) {
-        // 낙관적 잠금 충돌 backstop — 누가 바꿨는지 조회해 배너 표시
-        const { data } = await supabase.from('pages').select('last_edited_by_email').eq('id', currentPageId).single()
+        // 낙관적 잠금 충돌 backstop — 누가·언제 바꿨는지 조회해 배너 표시 (권위 신호)
+        const { data } = await supabase.from('pages').select('last_edited_by, last_edited_by_email, updated_at').eq('id', currentPageId).single()
+        const isSameAccount = !!(data?.last_edited_by && session?.user?.id && data.last_edited_by === session.user.id)
         const byEmail = data?.last_edited_by_email || ''
+        const byName = byEmail ? byEmail.split('@')[0] : (isSameAccount ? '내 계정' : '다른 사용자')
         syncConflictRef.current = true
-        setSyncConflict({ byName: byEmail ? byEmail.split('@')[0] : '다른 사용자' })
+        setSyncConflict({ byName, at: data?.updated_at || null })
       }
       if (success) {
         setLastSaved(new Date())
@@ -1341,16 +1409,20 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
             fontSize: 14,
           }}>
             <span style={{ flex: 1, minWidth: 200 }}>
-              ⚠️ <strong>{syncConflict.byName}</strong>님이 이 페이지를 수정했어요. 어떻게 할까요?
+              ⚠️ <strong>{syncConflict.byName}</strong>님이
+              {syncConflict.at ? ` ${new Date(syncConflict.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}에` : ''}
+              {' '}이 페이지를 저장했어요. 저장되지 않은 내 편집이 있어요 — 어느 쪽을 남길까요?
             </span>
             <button
               onClick={resolveSyncReload}
+              title="상대가 저장한 최신 내용을 화면에 불러옵니다. 내 편집은 히스토리에 백업돼 되돌릴 수 있어요."
               style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #FFB74D', background: '#fff', color: '#7A4F01', cursor: 'pointer' }}
-            >최신 내용 불러오기</button>
+            >상대 내용 받기<span style={{ opacity: 0.7, fontSize: 12 }}> (내 편집 백업)</span></button>
             <button
               onClick={resolveSyncOverwrite}
+              title="내 편집으로 상대가 저장한 내용을 덮어씁니다. 상대본은 히스토리에 백업돼 되돌릴 수 있어요."
               style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#FB8C00', color: '#fff', cursor: 'pointer' }}
-            >내 변경으로 저장</button>
+            >내 내용으로 덮어쓰기<span style={{ opacity: 0.85, fontSize: 12 }}> (상대본 백업)</span></button>
             <button
               onClick={dismissSyncConflict}
               title="나중에" aria-label="나중에"
@@ -1746,9 +1818,24 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           <div className="viewer-toast">뷰어모드입니다</div>
         )}
 
-        {/* 실시간 동기화 토스트 — 다른 사용자의 수정이 부드럽게 반영됨 */}
+        {/* 실시간 동기화 토스트 — 다른 사용자(또는 내 다른 창/기기)의 수정이 부드럽게 반영됨 */}
         {syncToast && (
-          <div className="viewer-toast">{syncToast.byName}님의 수정이 반영되었어요</div>
+          <div className="viewer-toast">
+            {syncToast.sameAccount
+              ? `${syncToast.byName}(내 다른 창/기기)의 수정이 반영되었어요`
+              : `${syncToast.byName}님의 수정이 반영되었어요`}
+          </div>
+        )}
+
+        {/* 무손실 되돌리기 — 충돌 처리 직후, 백업한 스냅샷으로 한 번에 복구 */}
+        {undoHint && undoHint.versionId && (
+          <div className="viewer-toast" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>처리했어요. 잘못 골랐다면 되돌릴 수 있어요.</span>
+            <button
+              onClick={() => { restoreVersion(undoHint.versionId); setUndoHint(null) }}
+              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid currentColor', background: 'transparent', color: 'inherit', cursor: 'pointer' }}
+            >{undoHint.label || '되돌리기'}</button>
+          </div>
         )}
       </div>
 
