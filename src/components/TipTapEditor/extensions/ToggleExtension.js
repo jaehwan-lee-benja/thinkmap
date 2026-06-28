@@ -804,9 +804,20 @@ export const Toggle = Node.create({
         editor.view.dispatch(editor.state.tr.setSelection(selection))
 
         const rect = dragHandle.getBoundingClientRect()
+        // 메뉴가 대상 블록을 가리지 않도록 블록 전체 사각형(anchorRect)도 함께 전달 → 메뉴는 블록 아래/위에 배치.
+        const blockRect = dom.getBoundingClientRect()
         dom.dispatchEvent(new CustomEvent('toggle-context-menu', {
           bubbles: true,
-          detail: { pos, top: rect.bottom + 5, left: rect.left }
+          detail: {
+            pos,
+            top: rect.bottom + 5,
+            left: rect.left,
+            anchorRect: {
+              top: blockRect.top, bottom: blockRect.bottom,
+              left: blockRect.left, right: blockRect.right,
+              width: blockRect.width, height: blockRect.height,
+            },
+          }
         }))
       })
 

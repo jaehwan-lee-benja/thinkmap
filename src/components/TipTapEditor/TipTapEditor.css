@@ -2107,6 +2107,50 @@ th .paragraph-drag-handle {
   margin: 4px 0;
 }
 
+/* 들여쓰기/내어쓰기 — 크게(라벨 포함), 두 개를 같은 폭으로 나란히. 메뉴를 닫지 않고 연속 조작. */
+.context-menu-indent-row {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.context-menu-indent-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 8px;
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #e5e7eb;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.context-menu-indent-button:hover:not(:disabled) {
+  background: #374151;
+}
+
+.context-menu-indent-button:active:not(:disabled) {
+  background: #4b5563;
+}
+
+.context-menu-indent-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* 더보기 토글 — 일반 항목과 구분되게 회색 라벨 (메타 라벨 크기) */
+.context-menu-more-toggle {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
 /* =====================================================
    색상 선택기
    ===================================================== */
@@ -2510,6 +2554,17 @@ th .paragraph-drag-handle {
   .format-button {
     min-width: var(--touch-target-min);
     min-height: var(--touch-target-min);
+  }
+
+  /* 들여쓰기/내어쓰기 버튼 터치 타겟 확보 */
+  .context-menu-indent-button {
+    min-height: var(--touch-target-min);
+  }
+
+  /* 버블(텍스트 서식) 버튼: 기본 30px → 터치에서 36px 이상으로 (MOBILE-DESIGN 터치 타겟) */
+  .bubble-btn {
+    min-width: 36px;
+    min-height: 36px;
   }
 
   /* paragraph 드래그 핸들 터치에서 항상 표시 */
