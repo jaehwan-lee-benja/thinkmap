@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, CalendarDays, Target, Calendar, Receipt, LayoutDashboard, Users, Flag, Package, Coffee } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, Target, Calendar, Receipt, LayoutDashboard, Users, Flag, Package, Coffee } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -14,7 +14,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isCalendarPage, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage, isSeatPage } from '../../utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage, isSeatPage } from '../../utils/pageTypes'
 import { findOrCreateMembersPage } from '../../utils/membersPage'
 import './Sidebar.css'
 
@@ -277,54 +277,8 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             </button>
             )}
 
-            <button
-              className={`sidebar-worklog-btn ${currentPageId && isCalendarPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
-              onClick={async () => {
-                // page_type='calendar'인 페이지 찾기 (프로젝트 무관 — 업무일지는 독립 엔티티)
-                let calendarPage = pages.find(p => isCalendarPage(p))
-
-                if (!calendarPage) {
-                  // DB에서 page_type='calendar' 확인 (project_id 필터 없음)
-                  const { data } = await supabase
-                    .from('pages')
-                    .select('id')
-                    .eq('page_type', 'calendar')
-                    .is('deleted_at', null)
-                    .limit(1)
-                    .single()
-
-                  if (data) {
-                    handlePageSelect(data.id)
-                    window.location.reload()
-                    return
-                  }
-
-                  // calendar 페이지가 없으면 새로 생성 (project_id = null)
-                  const newPageId = generateUUID()
-                  const { error } = await supabase
-                    .from('pages')
-                    .insert([{
-                      id: newPageId,
-                      user_id: effectiveSession.user.id,
-                      name: '업무일지',
-                      page_type: 'calendar',
-                      project_id: null,
-                      parent_id: null,
-                      position: 0,
-                    }])
-                  if (!error) {
-                    handlePageSelect(newPageId)
-                    window.location.reload()
-                    return
-                  }
-                } else {
-                  handlePageSelect(calendarPage.id)
-                }
-              }}
-            >
-              <CalendarDays size={16} />
-              <span>업무일지(개발중)</span>
-            </button>
+            {/* 업무일지(데일리 인덱스)는 캘린더의 DailyIndexLayer 로 흡수됨 — 별도 진입 버튼 제거.
+                page_type='calendar' row 는 데일리 컨테이너로 보존(CALENDAR-SPEC §9.1). */}
 
             {/* 재고 관리 — 독립 엔티티(전역 단일). 권한(파트너 레벨) 확정 전까지 전체 노출. */}
             <button

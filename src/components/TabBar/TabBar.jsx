@@ -319,7 +319,7 @@ export function TabBar({
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
                   {isCalendarPage(item.pageType) && <CalendarDays size={12} style={{ flexShrink: 0 }} />}
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isCalendarPage(item.pageType) ? '업무일지(개발중)' : item.name}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isCalendarPage(item.pageType) ? '업무일지' : item.name}</span>
                 </span>
                 {item.id === dropdown.currentId && (
                   <svg width="12" height="12" viewBox="0 0 12 12" className="breadcrumb-dropdown-check">

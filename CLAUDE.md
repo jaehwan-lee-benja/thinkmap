@@ -9,8 +9,9 @@
 토글/블록 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
 - [docs/TOGGLE-BLOCK-SPEC.md](docs/TOGGLE-BLOCK-SPEC.md) — 토글 블록 기능 명세서 (스키마, 키보드, 복붙, 드래그, 수정 원칙, 체크리스트)
 
-캘린더(schedule_events, 시간박스, 루틴, Google 동기) 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
-- [docs/SCHEDULE-SPEC.md](docs/SCHEDULE-SPEC.md) — 캘린더 기능 명세서 (핵심 원칙, 데이터 모델, 계정/공유, 뷰/인터랙션, RLS, Phase 로드맵, 수정 원칙, 체크리스트)
+캘린더 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
+- [docs/CALENDAR-SPEC.md](docs/CALENDAR-SPEC.md) — ★캘린더 플랫폼 명세서 (shell + 레이어 + 뷰 계약, 레이어별 접근권한, 통합 구조). 캘린더에 새 데이터(데일리/날씨/매출 등)를 얹거나 shell·레이어·뷰를 손대면 이걸 따른다. SCHEDULE-SPEC을 ScheduleLayer 하위 명세로 품는 상위 문서.
+- [docs/SCHEDULE-SPEC.md](docs/SCHEDULE-SPEC.md) — 시간박스 레이어(ScheduleLayer) 상세 명세 (schedule_events 데이터 모델, 계정/공유, 시간박스 인터랙션, 루틴, 링크, Google 동기, RLS, 체크리스트)
 
 통합 대시보드 / 목표(goals) 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
 - [docs/DASHBOARD-SPEC.md](docs/DASHBOARD-SPEC.md) — 대시보드 명세서 (집계 원칙, goals 데이터 모델, 진행률 계산 규칙, RLS, Phase 로드맵, 수정 원칙, 체크리스트)

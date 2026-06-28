@@ -28,6 +28,8 @@ export default function ScheduleSettingsModal({
   onToggleMasterAll,
   colorLabels = {},
   onSetColorLabel,
+  enabledLayers = {},
+  onToggleLayer,
 }) {
   if (!isOpen) return null
 
@@ -89,6 +91,25 @@ export default function ScheduleSettingsModal({
             </label>
           </div>
         )}
+
+        {/* 표시 레이어 — 캘린더에 겹쳐 보일 데이터 레이어 토글 (CALENDAR-SPEC §8). */}
+        <div className="master-section">
+          <label className="section-label">표시 레이어</label>
+          <div className="owner-list">
+            <label className="owner-row">
+              <input type="checkbox" checked disabled />
+              <span className="owner-email">시간박스 (스케줄)</span>
+            </label>
+            <label className="owner-row">
+              <input
+                type="checkbox"
+                checked={enabledLayers.daily !== false}
+                onChange={() => onToggleLayer?.('daily')}
+              />
+              <span className="owner-email">업무일지 (데일리 인덱스)</span>
+            </label>
+          </div>
+        </div>
 
         {/* 색상 카테고리 라벨 — 7색에 사용자 정의 이름 부여. localStorage 영속화. */}
         <div className="master-section">

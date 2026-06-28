@@ -19,7 +19,7 @@ import { DAY_NAMES } from '../../utils/dateUtils'
  */
 export default function WeekView({
   weekStart, dayCount = 7, occurrences, selfUid, ownerEmailByUid, colorLabels,
-  onUpdate, onSelect, onToggleCheck, pendingDraft,
+  onUpdate, onSelect, onToggleCheck, pendingDraft, renderDayHeaderBadges,
 }) {
   const days = useMemo(
     () => Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i)),
@@ -268,6 +268,7 @@ export default function WeekView({
           <div key={i} className={`day-cell ${isSameDay(d, now) ? 'today' : ''}`}>
             <div className="weekday">{DAY_NAMES[d.getDay()]}</div>
             <div className="date">{d.getDate()}</div>
+            {renderDayHeaderBadges && renderDayHeaderBadges(d)}
           </div>
         ))}
       </div>

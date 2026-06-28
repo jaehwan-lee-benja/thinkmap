@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
-import WeekView from './WeekView'
-import MonthView from './MonthView'
-import EventEditor from './EventEditor'
-import ScheduleSettingsModal from './ScheduleSettingsModal'
-import ScheduleSearch from './ScheduleSearch'
+import WeekView from '../Schedule/WeekView'
+import MonthView from '../Schedule/MonthView'
+import EventEditor from '../Schedule/EventEditor'
+import ScheduleSettingsModal from '../Schedule/ScheduleSettingsModal'
+import ScheduleSearch from '../Schedule/ScheduleSearch'
 import { useScheduleEvents } from '../../hooks/useScheduleEvents'
 import { useScheduleInstances } from '../../hooks/useScheduleInstances'
 import { useScheduleLinks } from '../../hooks/useScheduleLinks'
@@ -12,21 +12,26 @@ import { useScheduleNotifications } from '../../hooks/useScheduleNotifications'
 import { useLinkedAccounts } from '../../hooks/useLinkedAccounts'
 import { useEnabledOwners } from '../../hooks/useEnabledOwners'
 import { useColorLabels } from '../../hooks/useColorLabels'
+import { useEnabledLayers } from '../../hooks/useEnabledLayers'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { usePageContext } from '../../contexts/PageContext'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { supabase } from '../../supabaseClient'
-import { startOfWeek, addDays, ownerHue, startOfMonthGrid, endOfMonthGrid } from './scheduleUtils'
-import { buildOccurrences } from './routineUtils'
-import './Schedule.css'
+import { startOfWeek, addDays, ownerHue, startOfMonthGrid, endOfMonthGrid } from '../Schedule/scheduleUtils'
+import { buildOccurrences } from '../Schedule/routineUtils'
+import { useDailyIndexLayer } from './layers/useDailyIndexLayer'
+import '../Schedule/Schedule.css'
 
 const MARKER_LIMIT = 4   // 툴바에 표시할 owner 색 점 최대 개수
 
 /**
- * 캘린더 페이지 — 주간/월간/3일 뷰의 컨테이너.
- * Phase 1.5: 모달 기반 다중 owner 필터 + 마스터 전체 토글 + owner hue 마커.
+ * CalendarShell — 캘린더 플랫폼의 호스트 (CALENDAR-SPEC §4).
+ * 시간격자/네비/뷰전환/툴바/설정을 소유하고, 레이어들을 합성한다.
+ *  - ScheduleLayer  : schedule_events (시간박스). 격자를 소유하는 1차 레이어. (Schedule/* 내부)
+ *  - DailyIndexLayer: 데일리 인덱스. 월간 셀·주간 헤더의 day-summary 슬롯에 주입(데코레이터).
+ *  - (향후) Weather/Sales 등은 같은 슬롯/뷰 등록으로 추가.
  */
-export default function SchedulePage({ session }) {
+export default function CalendarShell({ session }) {
   const { isMobile } = useIsMobile()
   // 초기 뷰 — 모바일이면 3day 가 기본 (좁은 화면에서 7컬럼은 너무 빡빡)
   const [view, setView] = useState(() => isMobile ? '3day' : 'week')
@@ -44,21 +49,28 @@ export default function SchedulePage({ session }) {
   const { linkedAccounts } = useLinkedAccounts(session)
   const { enabled, masterAll, toggle, toggleMasterAll } = useEnabledOwners(selfUid)
   const { labels: colorLabels, setLabel: setColorLabel } = useColorLabels()
+  const { enabledLayers, toggleLayer } = useEnabledLayers()
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [editorTarget, setEditorTarget] = useState(null)
   const [editorAnchor, setEditorAnchor] = useState(null)   // EventEditor 팝오버 앵커
 
-  // fetch 범위: view 에 따라 분기
-  const from = view === 'month' ? startOfMonthGrid(monthAnchor)
-             : view === '3day' ? threeDayStart
-             : weekStart
+  // fetch 범위: view 에 따라 분기 (from/to 모두 memo — 매 렌더 새 Date 로 레이어 메모가 무효화되지 않게)
+  const from = useMemo(
+    () => view === 'month' ? startOfMonthGrid(monthAnchor)
+        : view === '3day' ? threeDayStart
+        : weekStart,
+    [view, weekStart.getTime(), threeDayStart.getTime(), monthAnchor.getTime()]
+  )
   const to = useMemo(
     () => view === 'month' ? endOfMonthGrid(monthAnchor)
         : view === '3day' ? addDays(threeDayStart, 3)
         : addDays(weekStart, 7),
     [view, weekStart.getTime(), threeDayStart.getTime(), monthAnchor.getTime()]
   )
+
+  // ── DailyIndexLayer — 보이는 범위의 데일리 인덱스(통계/열기/오래된 todo 정리) ──
+  const dailyLayer = useDailyIndexLayer({ session, from, to, enabled: enabledLayers.daily })
 
   const { events, loading, createEvent, updateEvent, toggleEventCompleted, deleteEvent, refetch } =
     useScheduleEvents({ from, to, ownerIds: enabled, masterAll, session })
@@ -493,6 +505,9 @@ export default function SchedulePage({ session }) {
 
         <ScheduleSearch events={events} onJump={handleSearchJump} />
 
+        {/* DailyIndexLayer 툴바 (오래된 todo 정리) */}
+        {dailyLayer.toolbar}
+
         <button onClick={() => setSettingsOpen(true)} title="캘린더 설정">
           <Settings size={14} />
         </button>
@@ -519,6 +534,7 @@ export default function SchedulePage({ session }) {
           onUpdate={handleOccurrenceUpdate}
           onSelect={handleSelectOccurrence}
           onDayJump={handleDayJump}
+          renderDayBadges={dailyLayer.renderDayBadges}
         />
       ) : view === '3day' ? (
         <WeekView
@@ -532,6 +548,7 @@ export default function SchedulePage({ session }) {
           onSelect={handleSelectOccurrence}
           onToggleCheck={toggleCompleted}
           pendingDraft={editorTarget?.__draft ? editorTarget : null}
+          renderDayHeaderBadges={dailyLayer.renderHeaderBadges}
         />
       ) : (
         <WeekView
@@ -544,6 +561,7 @@ export default function SchedulePage({ session }) {
           onSelect={handleSelectOccurrence}
           onToggleCheck={toggleCompleted}
           pendingDraft={editorTarget?.__draft ? editorTarget : null}
+          renderDayHeaderBadges={dailyLayer.renderHeaderBadges}
         />
       )}
 
@@ -584,7 +602,12 @@ export default function SchedulePage({ session }) {
         onToggleMasterAll={toggleMasterAll}
         colorLabels={colorLabels}
         onSetColorLabel={setColorLabel}
+        enabledLayers={enabledLayers}
+        onToggleLayer={toggleLayer}
       />
+
+      {/* 레이어 소유 모달 (LeftoverManager 등) */}
+      {dailyLayer.modals}
 
       {loading && (
         <div style={{ position: 'absolute', top: 60, right: 16, fontSize: 11, color: 'var(--color-text-tertiary)' }}>

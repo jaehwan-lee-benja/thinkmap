@@ -3,7 +3,7 @@ import { Search, X } from 'lucide-react'
 
 /**
  * 캘린더 툴바 검색 — 현재 fetch 된 events 에서 제목 contains 검색.
- * 결과 클릭 시 onJump(event) — SchedulePage 가 그 날짜로 점프 + 박스 하이라이트.
+ * 결과 클릭 시 onJump(event) — CalendarShell 이 그 날짜로 점프 + 박스 하이라이트.
  *
  * @param events    schedule_events 배열 (현재 화면 fetch 결과)
  * @param onJump    (event) => void

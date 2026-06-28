@@ -76,7 +76,6 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useProjectContext } from '../../contexts/ProjectContext'
 import { useFavoritesContext } from '../../contexts/FavoritesContext'
 import { FileText, Star, ChevronDown, X, CalendarDays } from 'lucide-react'
-import { CalendarView } from '../CalendarView/CalendarView'
 import WorklogHeader from './WorklogHeader'
 import RosterCard from '../Roster/RosterCard'
 import ToggleControlDropdown from './ToggleControlDropdown'
@@ -86,8 +85,6 @@ import EmojiPicker from '../Common/EmojiPicker'
 import '../Common/EmojiPicker.css'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { useWorklogComments } from '../../hooks/useWorklogComments'
-import { useCalendarCommentCounts } from '../../hooks/useCalendarCommentCounts'
-import { useCalendarTodoStats } from '../../hooks/useCalendarTodoStats'
 import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
 import { isDailyPage, isCalendarPage, isMembersPage, isGoalPage } from '../../utils/pageTypes'
 import { findOrCreateMembersPage } from '../../utils/membersPage'
@@ -147,15 +144,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     isDailyPage(currentPage),
   )
 
-  // 캘린더 뷰용 코멘트 수 배치 조회
-  const isCalendar = isCalendarPage(currentPage)
-  const calendarDailyPages = useMemo(
-    () => isCalendar ? pages.filter(p => p.parent_id === currentPageId) : [],
-    [isCalendar, pages, currentPageId]
-  )
-  const calendarPageIds = useMemo(() => calendarDailyPages.map(p => p.id), [calendarDailyPages])
-  const { commentCounts } = useCalendarCommentCounts(session, calendarPageIds)
-  const { todoStats } = useCalendarTodoStats(session, calendarPageIds)
+  // (구 CalendarView 용 todo/코멘트 배치 집계는 캘린더의 DailyIndexLayer 로 이관됨)
 
   // 업무일지 계정별 섹션 순서 (board-scope — 현재 daily 의 parent 가 보드)
   const { sectionOrder, updateSectionOrder } = useWorklogUserSettings(session, currentPage?.parent_id || null)
@@ -1155,66 +1144,14 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   }, [])
 
   /*
-   * 달력 뷰 분기: page_type === 'calendar'이면 CalendarView 렌더링
-   * [향후] 계정별 개인 업무일지 분리 시, dailyPages를 owner_id로 필터링
+   * 업무일지(데일리 인덱스)는 캘린더의 DailyIndexLayer 로 통합됨(CALENDAR-SPEC §10).
+   * page_type='calendar' row 는 데일리 컨테이너로만 보존(§9.1) — 직접 편집 대상 아님.
+   * 구 CalendarView 렌더 분기는 제거. 컨테이너가 직접 선택되면(레거시 deep link 등) 안내만.
    */
   if (isCalendarPage(currentPage)) {
-    // calendarDailyPages는 상단에서 이미 계산됨
-    const dailyPages = calendarDailyPages
-
-    const handleCreateDailyPage = async (dateKey) => {
-      // v2 (§10 Phase v2.2): row 기반 daily 페이지 생성
-      try {
-        const { ensureDailyPage } = await import('../../utils/ensureDailyPage')
-        const { dailyPageName } = await import('../../utils/dateUtils')
-        const result = await ensureDailyPage({
-          supabase,
-          parentId: currentPageId,
-          dateKey,
-          userId: session.user.id,
-          dailyPageName,
-        })
-        if (result?.pageId) {
-          if (typeof fetchPages === 'function') await fetchPages()
-          else window.dispatchEvent(new CustomEvent('pages-refresh'))
-          setCurrentPageId(result.pageId)
-        }
-      } catch (err) {
-        console.error('daily 페이지 생성 실패 (v2):', err)
-      }
-    }
-
     return (
-      <div className={`tiptap-page ${isTablet ? 'tiptap-page--mobile' : ''}`}>
-        <div className="tiptap-page-inner">
-          <div className="tiptap-page-header">
-            <div className="tiptap-page-header-left">
-              {onToggleSidebar && (
-                <button
-                  className="content-sidebar-toggle"
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={onToggleSidebar}
-                  title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                </button>
-              )}
-            </div>
-            <h2 className="tiptap-page-title">{currentPageName || '업무일지'}</h2>
-            <div className="tiptap-header-actions" />
-          </div>
-
-          <CalendarView
-            dailyPages={dailyPages}
-            onPageSelect={(pageId) => setCurrentPageId(pageId)}
-            onCreateDailyPage={handleCreateDailyPage}
-            commentCounts={commentCounts}
-            todoStats={todoStats}
-            session={session}
-          />
-        </div>
+      <div className="no-page-selected">
+        <p>업무일지는 좌측 ‘캘린더’로 통합되었습니다.</p>
       </div>
     )
   }
