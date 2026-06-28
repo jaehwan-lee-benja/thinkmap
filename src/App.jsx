@@ -77,18 +77,20 @@ function PaneInner({
     activeTab, viewerToggleOverrides, saveViewerToggleOverrides,
   } = usePaneData()
 
-  const { pages, currentPageId, setCurrentPageId, renamePage } = usePageContext()
+  const { pages, currentPageId, setCurrentPageId, renamePage, fetchPages } = usePageContext()
   const { setCurrentProjectId } = useProjectContext()
 
-  // 즐겨찾기에서 네비게이션할 때 사용할 함수 등록
+  // 즐겨찾기/오늘 업무일지 네비게이션에서 사용할 함수 등록.
+  // fetchPages 포함 — daily 등 새로 만든 페이지로 이동하기 전에 pages 리스트를 await 로 갱신해야
+  // currentPage(=pages.find) 가 첫 클릭에 resolve 된다(미갱신 시 "두 번 눌러야" 버그).
   useEffect(() => {
     if (paneNavRef) {
-      paneNavRef.current[paneIndex] = { setCurrentProjectId, setCurrentPageId }
+      paneNavRef.current[paneIndex] = { setCurrentProjectId, setCurrentPageId, fetchPages }
     }
     return () => {
       if (paneNavRef) delete paneNavRef.current[paneIndex]
     }
-  }, [paneIndex, setCurrentProjectId, setCurrentPageId, paneNavRef])
+  }, [paneIndex, setCurrentProjectId, setCurrentPageId, fetchPages, paneNavRef])
 
   const tab = activeTab
   if (!tab) return null
@@ -342,12 +344,16 @@ function App() {
 
     const calendarPage = calendarPages[0]
 
-    const navigateTo = (pageId) => {
+    // 새 daily 페이지로 이동 — pages 리스트를 await 갱신한 뒤 navigate 해야 첫 클릭에 동작한다.
+    // (currentPage = pages.find(id) 가 daily 를 못 찾으면 daily 뷰가 안 뜨고, 다음 클릭에야
+    //  직전 갱신이 반영돼 "두 번 눌러야" 버그가 났다. handleOpenMembersPage 와 동일 패턴.)
+    const navigateTo = async (pageId) => {
       addTab(activePaneIndex, { projectId: null, pageId })
-      setTimeout(() => {
-        const nav = paneNavRef.current[activePaneIndex]
-        if (nav) nav.setCurrentPageId(pageId)
-      }, 0)
+      const nav = paneNavRef.current[activePaneIndex]
+      if (nav?.fetchPages) {
+        try { await nav.fetchPages() } catch (e) { console.error('pages 갱신 실패:', e) }
+      }
+      if (nav) nav.setCurrentPageId(pageId)
     }
 
     try {
@@ -362,7 +368,7 @@ function App() {
       if (result?.pageId) {
         // 중복 방지로 기존 페이지든 신규든 동일 경로
         window.dispatchEvent(new CustomEvent('pages-refresh'))
-        navigateTo(result.pageId)
+        await navigateTo(result.pageId)
       }
     } catch (err) {
       console.error('오늘 daily 페이지 생성 실패 (v2):', err)

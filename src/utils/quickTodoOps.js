@@ -109,7 +109,9 @@ export async function insertTodoIntoSection(supabase, { pageId, pageDate, userId
     carryOverFrom: null,
     originBlockId: null,
     isPinned: false,
-    visibility: 'all',
+    // [A] 섹션=공유 단위. quick-todo 도 타깃 섹션의 visibility 를 상속한다.
+    // (master 섹션에 'all' todo 를 넣으면 비마스터에게 헤더 없는 고아로 누수됨)
+    visibility: sectionRow.visibility || 'all',
     isFixedSection: false,
   }
   const { error } = await supabase.from('daily_blocks').insert(rowToDb(row))

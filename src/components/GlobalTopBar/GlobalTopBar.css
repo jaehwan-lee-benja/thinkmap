@@ -286,8 +286,11 @@
   display: flex;
   align-items: center;
   width: 100%;
-  height: 28px;
-  padding: 0 8px;
+  /* iOS 홈화면 PWA(standalone + black-translucent + viewport-fit=cover): 최상단 바라서
+     상태바·아이패드 멀티태스킹/창 컨트롤 영역과 겹친다. safe-area inset 만큼 비워 버튼이
+     시스템 컨트롤 아래로 깔리지 않게 한다(데스크톱은 inset=0 → 변화 없음). */
+  height: calc(28px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px));
   background: var(--color-bg-secondary, #1a1a1a);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
@@ -551,8 +554,8 @@
   }
 
   .bookmark-bar {
-    padding: 0 6px;
-    height: 30px;
+    padding: env(safe-area-inset-top, 0px) max(6px, env(safe-area-inset-right, 0px)) 0 max(6px, env(safe-area-inset-left, 0px));
+    height: calc(30px + env(safe-area-inset-top, 0px));
   }
 
   .bookmark-item {
@@ -581,7 +584,13 @@
     min-width: 36px;
   }
 
+  /* 터치 타겟 ≥36px (MOBILE-DESIGN). 바도 그에 맞춰 키워 '오늘' 버튼이 충분히 눌린다. */
+  .bookmark-bar {
+    height: auto;
+    min-height: calc(36px + env(safe-area-inset-top, 0px));
+  }
+
   .bookmark-item {
-    min-height: 32px;
+    min-height: 36px;
   }
 }

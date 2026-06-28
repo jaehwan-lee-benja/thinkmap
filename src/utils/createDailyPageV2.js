@@ -41,7 +41,7 @@ function buildEmptyChildToggle(sectionRow) {
     // 부모 섹션의 visibility 를 상속한다. visibility='master' 섹션(비마스터에겐 RLS 로 숨겨짐)
     // 아래에 'all' 자식을 만들면, 비마스터 owner 화면에서 헤더 없이 떠다니는 고아 토글이 된다.
     // (board-scope 전환 후 비마스터 daily 에 master 섹션이 섞이며 6/8 양식 깨짐 발생 — 진단 SQL 참조)
-    visibility: sectionRow.visibility || 'all',
+    visibility: sectionRow.visibility || 'master',
     isFixedSection: false,
   }
 }
