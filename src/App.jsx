@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar/Sidebar'
 import { TabBar } from './components/TabBar/TabBar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
 import CanvasViewer from './components/Canvas/CanvasViewer'
-import SchedulePage from './components/Schedule/SchedulePage'
+import CalendarShell from './components/Calendar/CalendarShell'
 // 대시보드는 마스터 전용 + 비교적 무거운 트리이므로 코드 스플리팅.
 // 대시보드를 열지 않는 멤버/세션에는 메인 번들에 포함되지 않는다.
 const DashboardPage = lazy(() => import('./components/Dashboard/DashboardPage'))
@@ -162,7 +162,7 @@ function PaneInner({
             }
             if (isSchedulePage(pageType)) {
               return (
-                <SchedulePage
+                <CalendarShell
                   key={`pane-${paneIndex}-${pageId}`}
                   session={effectiveSession}
                 />

@@ -17,10 +17,11 @@ const MAX_BARS_PER_CELL = 3
  * @param onSelect         (occOrDraft, anchorRect) — 막대 클릭 / 빈 칸 클릭(draft)
  * @param onUpdate         (occ, patch) — 막대 다른 날 드래그
  * @param onDayJump        (Date) — 칸의 날짜 숫자 클릭 시 주간 뷰로 점프
+ * @param renderDayBadges  (Date)=>node — 레이어가 주입하는 day-summary 슬롯(데일리 인덱스 등). 선택.
  */
 export default function MonthView({
   monthAnchor, occurrences, selfUid, ownerEmailByUid, colorLabels,
-  onSelect, onUpdate, onDayJump,
+  onSelect, onUpdate, onDayJump, renderDayBadges,
 }) {
   const gridStart = useMemo(() => startOfMonthGrid(monthAnchor), [monthAnchor.getTime()])
   const days = useMemo(() => Array.from({ length: 42 }, (_, i) => addDays(gridStart, i)),
@@ -103,7 +104,7 @@ export default function MonthView({
 
   const handleCellClick = (e, day) => {
     // 칸의 빈 영역 클릭 — 09:00–10:00 draft
-    if (e.target.closest('.month-bar') || e.target.closest('.month-overflow')) return
+    if (e.target.closest('.month-bar') || e.target.closest('.month-overflow') || e.target.closest('.daily-chip')) return
     const start = new Date(day); start.setHours(9, 0, 0, 0)
     const end = new Date(start.getTime() + 60 * 60 * 1000)
     const draft = {
@@ -187,6 +188,9 @@ export default function MonthView({
               </div>
 
               <div className="cell-bars">
+                {renderDayBadges && (
+                  <div className="cell-daily-badges">{renderDayBadges(day)}</div>
+                )}
                 {visible.map(renderBar)}
                 {overflowCount > 0 && (
                   <button
