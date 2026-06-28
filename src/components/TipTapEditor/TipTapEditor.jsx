@@ -5,7 +5,7 @@ import { MultiSelectToolbar } from './components/MultiSelectToolbar'
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight'
 import { usePageContext } from '../../contexts/PageContext'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
-import { Plugin, TextSelection } from '@tiptap/pm/state'
+import { Plugin, TextSelection, NodeSelection } from '@tiptap/pm/state'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { OrderedList } from '@tiptap/extension-ordered-list'
@@ -121,7 +121,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   const [bubbleColorOpen, setBubbleColorOpen] = useState(false)
 
   // 블록 컨텍스트 메뉴 상태 (그룹)
-  const [contextMenu, setContextMenu] = useState({ visible: false, position: { top: 0, left: 0 }, nodePos: null })
+  const [contextMenu, setContextMenu] = useState({ visible: false, position: { top: 0, left: 0 }, nodePos: null, anchorRect: null })
 
   // 테이블 툴바 상태 (그룹)
   const [tableToolbar, setTableToolbar] = useState({ visible: false, position: { top: 0, left: 0 } })
@@ -134,6 +134,10 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
   // 래퍼 ref (이벤트 스코프 제한용)
   const wrapperRef = useRef(null)
+
+  // onUpdate 로 마지막에 내보낸 JSON — controlled 라운드트립(에코) 차단용.
+  // 부모가 이 값을 그대로 content 로 돌려주면 우리가 만든 변경이므로 setContent 를 건너뛴다.
+  const lastEmittedRef = useRef(null)
 
   // 터치 더블탭 → 편집 진입 시, 항상 최신 handleWrapperDoubleClick 을 가리키도록 보관
   const handleWrapperDoubleClickRef = useRef(null)
@@ -202,6 +206,8 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     },
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
+      // 우리가 방금 내보낸 변경임을 기록 → content prop 으로 되돌아와도 setContent 재적용 안 함
+      lastEmittedRef.current = json
       if (onUpdate) {
         onUpdate(json)
       }
@@ -322,27 +328,42 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
   }, [editor, editorRef])
 
   // content가 외부에서 변경되었을 때 에디터 업데이트
+  //
+  // [커서 튕김 버그 수정] 이 에디터는 controlled — 입력 → onUpdate → 부모 setState → content prop →
+  // 이 effect. 과거엔 여기서 매 입력마다 setContent(문서 전체 ReplaceStep) 가 돌아 selection 이
+  // 문서 끝(맨 아래)으로 매핑되며 커서가 튕겼다. 특히 normalizeToggleStates 가 "열려있지만 하위토글
+  // 없는 토글"을 강제로 닫아, 라이브 문서(isOpen:true)와 normalized(false) 가 매 키 입력마다 달라
+  // setContent 가 상시 발화한 것이 근본 원인.
+  //  ① 에코 차단: 부모가 우리가 내보낸 값을 그대로 돌려준 것이면(=우리 변경) 아무 것도 하지 않는다.
+  //  ② 진짜 외부 변경일 때만 setContent 하되, selection 을 항상 보존한다.
   React.useEffect(() => {
-    if (editor && content) {
-      const normalized = normalizeToggleStates(content)
-      if (JSON.stringify(editor.getJSON()) !== JSON.stringify(normalized)) {
-        // isOpen 속성만 변경된 경우(사용자 편집 중 정규화) 커서 위치 보존
-        const onlyIsOpenChanged = isOnlyIsOpenDiff(editor.getJSON(), normalized)
-        const { from } = editor.state.selection
-        // 문서 교체 중에는 carryOverDismissTracker가 감지를 건너뛰도록 플래그
-        if (editor.storage.toggle) editor.storage.toggle.isReloading = true
-        editor.commands.setContent(normalized)
-        if (onlyIsOpenChanged) {
-          try {
-            editor.commands.setTextSelection(Math.min(from, editor.state.doc.content.size - 1))
-          } catch(e) {}
-        }
-        // setContent가 만드는 transaction들이 모두 처리된 뒤 해제
-        Promise.resolve().then(() => {
-          if (editor.storage.toggle) editor.storage.toggle.isReloading = false
-        })
-      }
+    if (!editor || !content) return
+
+    // ① controlled 라운드트립(에코) 차단 — 우리가 방금 내보낸 변경이면 무시
+    if (lastEmittedRef.current &&
+        JSON.stringify(content) === JSON.stringify(lastEmittedRef.current)) {
+      return
     }
+
+    const normalized = normalizeToggleStates(content)
+    if (JSON.stringify(editor.getJSON()) === JSON.stringify(normalized)) return
+
+    // ② 진짜 외부 변경 → 문서 교체. setContent 는 selection 을 문서 끝으로 보내므로 커서를 항상 복원.
+    const { from, to } = editor.state.selection
+    // 문서 교체 중에는 carryOverDismissTracker가 감지를 건너뛰도록 플래그
+    if (editor.storage.toggle) editor.storage.toggle.isReloading = true
+    editor.commands.setContent(normalized)
+    try {
+      const maxPos = editor.state.doc.content.size - 1
+      editor.commands.setTextSelection({
+        from: Math.max(0, Math.min(from, maxPos)),
+        to: Math.max(0, Math.min(to, maxPos)),
+      })
+    } catch (e) {}
+    // setContent가 만드는 transaction들이 모두 처리된 뒤 해제
+    Promise.resolve().then(() => {
+      if (editor.storage.toggle) editor.storage.toggle.isReloading = false
+    })
   }, [content, editor])
 
   // 테이블 커서 위치 감지 및 툴바 표시
@@ -467,8 +488,8 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
 
     const wrapper = wrapperRef.current
     const handleToggleContextMenu = (event) => {
-      const { pos, top, left } = event.detail
-      setContextMenu({ visible: true, position: { top, left }, nodePos: pos })
+      const { pos, top, left, anchorRect } = event.detail
+      setContextMenu({ visible: true, position: { top, left }, nodePos: pos, anchorRect: anchorRect || null })
     }
 
     const handlePageNavigate = (event) => {
@@ -509,10 +530,20 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
           // 가장 가까운 블록 노드 찾기
           const $pos = editor.state.doc.resolve(pos.pos)
           let nodePos = $pos.before($pos.depth)
+          // 메뉴가 대상 블록을 가리지 않도록 블록 DOM 사각형을 anchor 로 전달 (가림 방지 → 블록 아래/위 배치)
+          let anchorRect = null
+          try {
+            const blockDom = editor.view.nodeDOM(nodePos)
+            if (blockDom && blockDom.getBoundingClientRect) {
+              const r = blockDom.getBoundingClientRect()
+              anchorRect = { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height }
+            }
+          } catch (e) {}
           setContextMenu({
             visible: true,
             position: { top: touchStartPos.y, left: touchStartPos.x },
-            nodePos
+            nodePos,
+            anchorRect,
           })
           // 기본 컨텍스트 메뉴 방지
           e.preventDefault()
@@ -748,6 +779,40 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
     return () => wrapper.removeEventListener('focusout', onFocusOut)
   }, [editor])
 
+  // 버블(텍스트 선택) 메뉴에서 "블록 설정" → 선택 텍스트를 감싼 토글의 블록 패널 열기.
+  // 핸들 클릭과 동일하게 토글을 NodeSelection 으로 선택(버블 자동 숨김) + anchorRect 전달(가림 방지).
+  const openBlockSettings = () => {
+    if (!editor) return
+    try {
+      const { $from } = editor.state.selection
+      let togglePos = null
+      for (let d = $from.depth; d >= 1; d--) {
+        if ($from.node(d).type.name === 'toggle') { togglePos = $from.before(d); break }
+      }
+      if (togglePos === null) return
+
+      let anchorRect = null
+      try {
+        const blockDom = editor.view.nodeDOM(togglePos)
+        if (blockDom && blockDom.getBoundingClientRect) {
+          const r = blockDom.getBoundingClientRect()
+          anchorRect = { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height }
+        }
+      } catch (e) {}
+
+      // 토글을 선택 → 버블 shouldShow(node selection) false 로 자동 숨김
+      try {
+        const sel = NodeSelection.create(editor.state.doc, togglePos)
+        editor.view.dispatch(editor.state.tr.setSelection(sel))
+      } catch (e) {}
+
+      const fallback = anchorRect
+        ? { top: anchorRect.bottom + 5, left: anchorRect.left }
+        : { top: 0, left: 0 }
+      setContextMenu({ visible: true, position: fallback, nodePos: togglePos, anchorRect })
+    } catch (e) {}
+  }
+
 
   return (
     <div
@@ -834,6 +899,15 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
               ))}
             </div>
           )}
+          <div className="bubble-separator" />
+          {/* 블록(토글) 전체 설정 — 선택 텍스트를 감싼 토글의 블록 패널 열기 */}
+          <button
+            onClick={openBlockSettings}
+            className="bubble-btn"
+            title="블록 설정"
+          >
+            ⚙
+          </button>
         </div>
       </BubbleMenu>}
 
@@ -853,6 +927,7 @@ function TipTapEditor({ content, onUpdate, placeholder = '내용을 입력하세
           editor={editor}
           position={contextMenu.position}
           nodePos={contextMenu.nodePos}
+          anchorRect={contextMenu.anchorRect}
           onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
         />
       )}
