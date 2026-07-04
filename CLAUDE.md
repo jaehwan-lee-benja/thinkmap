@@ -20,6 +20,7 @@
 - [docs/ACCESS-TIERS-SPEC.md](docs/ACCESS-TIERS-SPEC.md) — ★현행 권한 모델(노드×능력 grant + can(), 수렴 결과). 신규 기능 RLS는 이걸 따른다: 워크스페이스 자산은 `can_in_workspace(current_workspace(), 'viewer'|'editor'|'owner')`. Phase A 토대 프로덕션 적용됨.
 - [docs/ACCESS-TIERS-MIGRATION-PLAN.md](docs/ACCESS-TIERS-MIGRATION-PLAN.md) — Phase A→C 이관 계획(C는 대기, 단계마다 supabase-guardian→승인→통합 세션 적용). 백로그 B-6.
 - [docs/ACCESS-MODEL.md](docs/ACCESS-MODEL.md) — 접근/권한 모델 총괄·배경(권한 주체, RLS 헬퍼 인벤토리, 3 패러다임 지도, 단일 access 헬퍼 수렴 방향). ※구모델 언어 일부는 ACCESS-TIERS로 수렴 중.
+- ⚠️ 예외: roster/멤버 도메인의 신규 RLS는 access-tiers(`can_in_workspace`)를 적용하지 않고 기존 도메인 헬퍼(`is_master()`/`is_board_member()`)를 유지한다. 도메인 일관성 유지, access-tiers 전환은 Phase C에 roster 도메인 일괄(ACCESS-TIERS-MIGRATION-PLAN §13.4).
 
 멤버(직원 인사 마스터)/배치도(날짜별 근무 배치, 급여 매칭) 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
 - [docs/MEMBER-SPEC.md](docs/MEMBER-SPEC.md) — 멤버 & 배치도 명세서 (데이터 모델, 권한/RLS, 진입점, 급여 매칭, 근무 요청 허브, Phase 로드맵, 체크리스트)
