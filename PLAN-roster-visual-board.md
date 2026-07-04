@@ -266,3 +266,55 @@ roster_template_slots (
 - **좌우 통합 DnD**: 좌=작전판(자리판)만, 우=확정 인원 리스트(=배치 드래그 소스). 우측 칩을 좌측 자리로 드래그/클릭 배치, 우측 리스트로 끌면 미배치. 푸터는 표 뷰 전용, 멤버 관리하기=헤더.
 - **홀·주방 네모 + 배경 비율 = 보드 공통**: `roster_board_layout`(board당 1행, hall_*/kitchen_*/field_ratio). 슬롯(카드)만 체제별. 마이그: `migrate-roster-board-layout.sql`, `migrate-roster-layout-field-ratio.sql`.
 - 상태: `migrate-roster-status-add-off-confirmed.sql`로 'off'·'confirmed' 추가.
+
+## 13. 요일별 인원배치 버전 (별표 활성) — 2026-06-28 합의
+
+### 13.1 배경
+§12 의 요일 기본(`roster_weekday_default`)은 (board, weekday) 당 **1개·무명**이었다. 사용자 요청:
+한 요일에 **"2026 성수기 토요일"** 처럼 이름붙은 인원배치를 **여러 개** 두고, 그 중 하나에
+**별표(주배치)** 를 줘서 그게 빈 날짜 자동 시드 소스가 되게 한다. 즉 §12 의 요일 기본을
+역할 레이아웃(`roster_templates`)이 이미 가진 **"이름붙은 여러 버전 + is_default"** 패턴과
+대칭으로 격상한다.
+
+### 13.2 사용자 요구 7단계 → 시스템 매핑
+1. 기초 자리 배치(풀배치) = `roster_templates` is_default(풀배치 마스터). (기존)
+2. 각 자리에 인원 매칭, 요일과 엮임 = 인원배치 버전의 item. (격상)
+3. 요일별 1차 자동 불러옴 = 활성 버전 빈 날짜 자동 시드. (기존 시드 로직 재사용)
+4. 그날 변경 없으면 요일판이 곧 확정(§12.5 파생), 변경 가능. (기존)
+5. **이 버전을 이름붙여 추가 기록** = 새 `roster_weekday_preset` 버전. (신규)
+6. 다음주부터 이 버전으로 갱신 = **별표(is_active) 전환**. (신규)
+7. 같은 요일 여러 버전 중 하나가 '주(主)' = 요일당 is_active 1개. (신규)
+
+### 13.3 데이터 모델 (`migrate-roster-weekday-preset.sql`)
+```
+roster_weekday_preset       (부모) id, board_id, weekday(CHECK '일'~'토'), name('기본'..),
+                                   is_active(별표/주, 요일당 1개), display_order,
+                                   created_by(→auth.users SET NULL), timestamps, deleted_at
+roster_weekday_preset_item  (자식) id, preset_id, member_id(→members SET NULL), member_name,
+                                   role, shift, status, position, created_at, deleted_at
+```
+- `is_active` 요일당 1개 = 부분 유니크 인덱스 `(board_id, weekday) where is_active and deleted_at is null`.
+- **활성 전환은 RPC `roster_weekday_preset_set_active(uuid)`로 단일 트랜잭션 처리**(guardian 주의-2, 2026-06-28).
+  앱에서 두 UPDATE("다른 것 false → 대상 true")를 따로 쏘면 중간에 활성 0개 순간이 생겨 비원자적 →
+  함수 바디 안에서 묶음. SECURITY INVOKER(기본): 두 UPDATE 모두 RLS 적용 → 보드멤버·마스터만 전환.
+- 자동 시드 소스 = 그 요일 `is_active` 버전의 item. 나머지 버전은 모달에서 골라 "채우기".
+- **자동 시드는 §12.5 파생의 사전 단계**다: 빈 날짜(`rows.length===0`)에서 활성 버전을 row로 깐 뒤,
+  그래도 미포함된 work_days 멤버는 여전히 §12.5 파생(row 없는 후보)으로 표시된다.
+- 버전 갱신(`replaceItems`)은 자식 줄을 **통째 하드 교체**(delete→insert). `_item.deleted_at`은 부모
+  soft-delete 대칭·향후 자식 단위 복구 확장용 컬럼이며 현재 앱 흐름은 사용하지 않는다(방어적 필터만).
+- 기존 `roster_weekday_default` 는 마이그로 `name='기본', is_active=true` 버전으로 **무손실 이전**(멱등).
+  기존 테이블은 롤백 안전 위해 남겨둔다(앱은 새 테이블만 읽음). 정리는 후속.
+  ※ 적용 전 통합세션/guardian이 현행 `roster_weekday_default` 컬럼(member_id·member_name·role·shift·
+    status·position)을 `\d`로 확인할 것(이전 블록이 이 6개 컬럼을 가정).
+
+### 13.4 RLS
+- `roster_*` 도메인 일관성: `is_master() OR is_board_member(board_id)`(기존 weekday_default 와 동일).
+  같은 모달·같은 권한이므로 여기만 access-tiers(`can_in_workspace`)로 가르지 않는다.
+  roster 도메인 전체의 access-tiers 전환은 별도 일괄 과제(supabase-guardian 판단).
+- 자식(`_item`)은 부모 버전 join으로 권한 위임.
+
+### 13.5 UI (RosterModal / RosterMemberPanel 확장)
+- 우측 명단 패널 하단: **버전 드롭다운**(이 요일의 버전 목록, 별표 표시) +
+  `[새 버전으로 저장…]`(이름 prompt) + `[이 버전 갱신]` + `[별표(주배치) 지정]` + `[채우기]` + `[삭제]`.
+- 자동 시드: 빈 날짜 열면 활성(별표) 버전만 자동으로 깐다(§12.5 가드 유지).
+- canEdit(`is_master || is_board_member`)일 때만 저장/별표/삭제 노출. 열람은 누구나.

@@ -1,3 +1,5 @@
+// [DEPRECATED 2026-06-28] useRosterWeekdayPreset 로 격상됨(요일별 이름붙은 버전 + 별표).
+//   더 이상 import 되지 않는다. 마이그(migrate-roster-weekday-preset.sql) 적용·검증 후 이 파일 삭제 가능.
 // 요일 기본 배치(사람→역할) 훅 — 보드별(roster_weekday_default).
 // "매주 ○요일엔 누가 어느 역할" 기본값. 그 요일 날짜를 빈 상태로 열면 RosterModal이 자동으로 깐다.
 // roster_template_schedule(요일→역할카드 버전)과 별개. 그날 실제 배치는 roster_assignments(날짜별).
