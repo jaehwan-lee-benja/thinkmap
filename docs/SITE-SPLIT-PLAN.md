@@ -1,0 +1,216 @@
+# 사이트 구조 분할 계획 (SITE-SPLIT-PLAN)
+
+> 상태: **Phase 0 설계 초안 (합의 전, 구현 전)** · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
+> 관계: [ARCHITECTURE.md](./ARCHITECTURE.md)의 두 plane 구조와, [ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의
+> 워크스페이스(테넌트) 모델을 **프론트 배포 단위로 확장**한 문서. 각 도메인 명세(PAYROLL-SPEC,
+> MEMBER-SPEC, SEAT-SPEC, MARKETING-CANVAS-*)의 상위 배포 컨텍스트.
+>
+> **이 문서는 설계 합의서다.** 코드·스키마는 아직 바꾸지 않았다. 이 문서가 확정되면
+> 여러 PC/세션이 이 기준 하나를 보고 위성을 만든다. 실제 착수는 §8 로드맵의 Phase 순서를 따른다.
+
+---
+
+## 0. TL;DR — 외울 것 딱 4개
+
+```
+① 형태 : 모선(Hub) 1개 + 위성(Satellite) N개.  균등 N분할 ❌
+② 코어 : 모노레포 + packages/core (인증·supabaseClient·테넌트 컨텍스트) 단일 소스. 복붙 ❌
+③ 연결 : (a) Supabase 1개  (b) 같은 origin = SSO 자동  (c) URL 링크. 이 3개가 전부.
+④ 백본 : 위성은 처음부터 workspace 범위로 만든다. is_master() → 워크스페이스 마스터.
+```
+
+- **모선은 절대 쪼개지 않는다.** 무거운 TipTap 에디터+셸+인증이 한 곳에만 살아서 복제 비용 0.
+- **위성 = 미래에 팔 수 있는 제품 단위(SKU).** 급여만, 자리배치만 떼어 다른 조직에 제공 가능.
+- **"여기서 쓸지 vs 복붙 새 사이트"는 지금 안 정한다.** 위성 모델이 두 문을 다 열어둔다(§6).
+
+---
+
+## 1. 배경 — 왜 나누려는가
+
+기능이 늘면서(직원 공유 페이지·업무일지·마케팅 엔진·급여·자리 관리·재고 등) 하나의 SPA가
+비대해졌다. 목표는:
+
+1. **유지보수 분리** — 급여는 이 PC에서, 자리 관리는 저 PC에서 독립적으로 작업/배포.
+2. **연결은 아주 심플하게** — 사이트끼리는 얇은 마디(URL + 공유 DB)로만 이어진다.
+3. **통합 관리 유지** — 데이터는 Supabase 하나에 모여 있어 하이퍼하게 연결된다.
+4. **(나중) 외부 유저 수용** — 사내 도구를 넘어 다른 조직도 쓰는 관점. 좀 나중 일이지만 지금 설계에 반영.
+
+---
+
+## 2. 현재 구조 진단 (분할의 출발점)
+
+| 항목 | 현황 | 분할 관점 함의 |
+|---|---|---|
+| 라우팅 | 라우터 없음. `App.jsx`의 `page_type` 스위치가 전부 | "페이지"는 URL이 아니라 `pages` 테이블 row. 위성엔 진짜 URL 라우팅이 새로 필요 |
+| 기능 구분 | `pages.page_type` 컬럼 하나로 구분 | 위성도 같은 `pages`/도메인 테이블을 공유 DB에서 읽음 |
+| DB/RLS | 전부 `auth.jwt()` / `is_master()` 기반, **origin 무관** | ✅ 여러 프론트가 DB 하나 공유해도 안전 |
+| 클라이언트 | env 기반(`VITE_SUPABASE_URL/ANON_KEY`), 하드코딩 URL 없음 | ✅ 위성은 env 두 개만 복사하면 같은 DB |
+| base path | `/thinkmap/`가 **5곳**에 하드코딩 (vite/manifest/sw/OAuth/알림) | ⚠️ 위성마다 base가 달라짐 → 선행 과제(§7) |
+| 배포 | gh-pages 단일 브랜치, push→CI 빌드 | 위성은 각자 gh-pages(각자 레포/폴더) |
+| 번들 | 1.67MB 단일 청크(대부분 TipTap), lazy 거의 없음 | 에디터 불필요한 위성은 가벼워짐 = 분할의 실이익 |
+
+**진짜 비용은 기능 코드가 아니라 공유 코어**다: TipTap 에디터+토글 확장, 셸(App/PaneProvider/Sidebar),
+7개 Context, 인증(`useAuth`+`is_master()`), `supabaseClient`. 이걸 N번 복제하지 않는 게 설계의 핵심.
+
+---
+
+## 3. 도메인 분리 난이도 (분석 결과)
+
+| 도메인 | 에디터 필요 | 결합도 | 판정 |
+|---|---|---|---|
+| **급여 (Payroll)** | ❌ | 거의 없음 | 🟢 즉시 분리 — **가장 깨끗, 파일럿 1순위** |
+| **자리후 (Seat, 주방 실시간)** | ❌ | 없음(완전 독립 서브트리) | 🟢 즉시 분리 |
+| **재고 (Inventory)** | ❌ | 없음 | 🟢 즉시 분리 |
+| **자리/인사 (Roster + Members)** | ❌ | 둘이 한 쌍 | 🟡 쌍으로 분리 |
+| **마케팅 엔진 (Canvas)** | ❌ | `daily_blocks` **읽기** 의존 | 🟡 데이터 의존만 정리하면 분리 |
+| **캘린더 + 스케줄** | ❌ | 서로 한 몸 | 🟡 쌍으로 분리 |
+| **업무일지 (Worklog/Daily)** | ✅ **TipTap 에디터에 물리적으로 박힘** | 최고 | 🔴 **분리 불가 = 이게 모선 본체** |
+
+> 업무일지는 폴더가 따로 없다. `TipTapEditor/` 안(DailyPageV2 등)에 있고 공유 에디터 페이지
+> `TipTapTestPage.jsx`가 `isDailyPage()`로 직접 분기한다. 즉 **직원 공유 페이지 = 업무일지 =
+> 블록 에디터**는 한 덩어리이며 이게 모선이다. 떼려 하지 말 것.
+
+---
+
+## 4. 추천 구조 — 모선(Hub) + 위성(Satellite)
+
+```
+        ┌─────────────────────────────────────────────┐
+        │  모선(Hub) — apps/hub  (현 thinkmap 본체)     │
+        │  직원 공유 페이지 · 업무일지 · 캘린더 · 목표    │
+        │  = TipTap 에디터 + 셸 + 인증 코어가 사는 곳    │
+        └───────┬───────────┬───────────┬─────────────┘
+                │  링크(URL)  │           │
+   ┌────────────▼──┐  ┌──────▼──────┐  ┌─▼──────────────┐
+   │ 급여           │  │ 자리/인사     │  │ 마케팅 엔진      │
+   │ apps/payroll   │  │ apps/roster  │  │ apps/canvas     │
+   │ (에디터 불필요) │  │ (roster+     │  │ (daily_blocks   │
+   │                │  │  members)    │  │  읽기 의존 정리) │
+   └────────┬───────┘  └──────┬──────┘  └────────┬────────┘
+            │  packages/core (인증·client·테넌트 컨텍스트·Common UI)
+            └─────────────────┴──────────────────┘
+                              │
+                   ┌──────────▼──────────┐
+                   │  Supabase 1개 프로젝트 │  ← 통합 관리 지점
+                   │  auth · app_users ·   │
+                   │  workspaces · 도메인   │
+                   └──────────────────────┘
+```
+
+- **모선**: 현 앱 본체. 무거운 코어가 여기 한 곳만 산다 → 복제 비용 0. 위성 런처(타일)를 호스팅.
+- **위성**: 에디터가 필요 없는 관리자/업무 도구. `packages/core`만 얹어 가볍다. 각자 독립 빌드·배포.
+- **core**: 위성이 공통으로 쓰는 얇은 층. **TipTap은 포함 안 함**(모선 전용).
+
+### 4.1 레포 전략 — 모노레포 + core 패키지, 필요 시 분가
+
+- 지금: **모노레포(npm workspaces)**. `apps/hub`, `apps/payroll`, `apps/roster`, `packages/core`.
+- 이유: 외부 유저가 들어오면 **인증/테넌트 격리 코드가 복붙되면 보안 부채**(버그 수정이 N곳 누락 위험).
+  core를 단일 소스로 두면 보안 민감면이 작고 원자적으로 고쳐진다.
+- worktree-per-session 관행과 정합: 세션/PC마다 다른 `apps/*` 폴더(또는 worktree)에서 작업, 통합 세션이 머지.
+- **졸업 경로**: 특정 위성이 진짜 독립 제품이 되면 그때 별도 레포로 분가하고 core는 published 패키지로
+  계속 import. "지금 별도 레포"보다 "필요할 때 분가"가 더 싸고 되돌리기 쉽다.
+
+> 대안(참고): 개별 레포 + 공유 core 패키지 = 물리적 분리 감각은 좋으나 core 배포 셋업 선비용.
+> 개별 레포 + core 복붙 = 시작은 빠르나 인증 드리프트 리스크 → 외부 유저 관점에서 탈락.
+
+---
+
+## 5. 연결 마디 — "아주 심플한" 3중 연결
+
+1. **데이터 (Supabase 1개)**
+   - `auth.users` / `app_users` / `is_master()`(→ workspace 마스터) 자동 공통.
+   - 위성은 자기 도메인 테이블만 건드림. 도메인 테이블끼리 서로 참조하지 않음 → 격리 안전.
+   - 공유 스파인: `pages` / `blocks` / `projects` / `shares` / `linked_accounts` / `user_preferences`.
+
+2. **세션 (SSO 자동)**
+   - GitHub Pages는 전부 `jaehwan-lee-benja.github.io` **동일 origin** → localStorage 세션 자동 공유.
+   - 한 번 로그인하면 모든 위성에서 로그인 유지. 별도 SSO 구현 불필요.
+   - ⚠️ 나중에 커스텀 도메인/서브도메인으로 가면 이 공짜 SSO가 깨짐 → 그때 쿠키 도메인 공유 설계 필요.
+
+3. **UI (URL 링크 + 런처)**
+   - 모선에 위성 런처(타일 몇 개), 위성엔 "모선으로" 링크. 그냥 `<a href>`.
+   - 모듈 페더레이션·공유 런타임 전혀 불필요.
+   - 위성 목록은 정적 config(또는 `page_type_access` 유사 레지스트리 테이블)로 관리 → 역할별 노출.
+
+---
+
+## 6. 멀티테넌시 백본 — "여기서 쓸지 vs 복붙 새 사이트"를 지금 안 정해도 되는 이유
+
+멀티테넌시는 **레포 구조가 아니라 데이터/인증 문제**다. 그리고 골격은 이미 있다:
+[ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의 `workspaces` / `can_in_workspace()` / `current_workspace()`
+(현재 Phase A, 실제 전환은 Phase C).
+
+**진짜 백본 작업 = `is_master()`(사내 "사장님" 단일 개념) → 워크스페이스 단위 마스터로 전환.**
+이걸 해두면 "다른 유저/회사"는 그냥 새 워크스페이스 발급이 된다.
+
+성숙한 기능을 어떻게 제공할지의 판단 규칙(지금 결정 X, 아래 기준만 확정):
+
+| 성숙한 기능이... | 선택 | 방법 |
+|---|---|---|
+| ThinkMap 워크스페이스/데이터에 **묶여있다** | 같은 제품 안에서 제공 | 그 위성을 workspace 범위로 오픈. 다른 유저 = 워크스페이스 발급 |
+| **범용·독립적**이다 (ThinkMap 없이도 성립) | 별도 제품으로 졸업 | 그 위성을 자기 레포/배포로 분가. core는 그대로 재사용 |
+
+위성 모델의 최대 미덕이 **두 문을 다 열어두는 것**이다. 그래서 "복붙 새 사이트"는 무서운 fork가 아니라
+core 위에 얹는 얇은 앱 하나가 된다.
+
+---
+
+## 7. 선행 과제 (분할 전 반드시)
+
+1. **`/thinkmap/` 하드코딩 파라미터화** — 5곳(vite base, manifest start_url/scope, sw 등록,
+   `useAuth.js` OAuth redirect, 알림 아이콘)을 `import.meta.env.BASE_URL` 기반으로 통일.
+   안 하면 위성에서 SW/OAuth/PWA가 깨진다.
+2. **Supabase Auth Redirect URL 허용목록**에 각 위성 origin/경로 추가.
+3. **`packages/core` 경계 확정** — 무엇이 core이고 무엇이 앱 전용인지 목록화(§9).
+4. **워크스페이스 컨텍스트** — core에 `current_workspace()` 기반 테넌트 컨텍스트 자리 마련
+   (Phase C 전환의 프론트 훅). 위성은 처음부터 이걸 통해 데이터를 범위 조회.
+5. **Edge Function 커플링 주의** — `supabase/functions/ensure-daily-page`가 `src/utils/*`를
+   상대경로로 import. daily/worklog는 모선에 남으므로 이 함수도 모선과 함께 둔다.
+
+---
+
+## 8. 단계별 로드맵
+
+- **Phase 0 — 문서 확정 (이 문서)** + `/thinkmap/` 파라미터화 + `packages/core` 추출.
+- **Phase 1 — 급여 파일럿.** 결합도 0, 마스터 전용, 에디터 불필요.
+  전체 패턴(모노레포 앱 구조·독립 빌드·자기 base·공유 Supabase·SSO·크로스링크·워크스페이스 범위)을
+  **가장 낮은 리스크로 끝까지 검증**한다. 여기서 검증된 뼈대를 이후 위성이 복제.
+- **Phase 2 — 자리/인사 (roster + members).** 다른 PC 독립 작업 대상. 쌍으로 이전.
+- **Phase 3 — 마케팅 엔진 (canvas).** `daily_blocks` 읽기 의존 정리(또는 공유 테이블 그대로 읽기).
+- **Phase 4 (선택) — seat, inventory.** 독립성 높음, 여유 될 때.
+- **모선**: pages/worklog/calendar/goals/dashboard/editor 유지. **업무일지 분리 시도 금지.**
+- **병행 트랙 (DB)**: `is_master()` → 워크스페이스 전환(ACCESS-TIERS Phase C)을 위성화와 함께 진행.
+  위성은 처음부터 테넌트-aware하게 태어난다.
+
+---
+
+## 9. `packages/core` 경계 (초안 — Phase 0에서 확정)
+
+**core에 들어감 (위성 공통):**
+- `supabaseClient` (env 기반)
+- `useAuth` + 인증 게이트 + `is_master()`/워크스페이스 컨텍스트 헬퍼
+- Common UI: `Modal`, `Toast`, `DeleteToast`, `EmojiPicker`
+- 공유 훅: `useIsMobile`, `useClickOutside`, `useConfirmAction`, `useUserPreferences` 등
+- 공유 유틸: `dateUtils`, `uuid`, `supabaseError`, base-path 헬퍼
+
+**core에 안 들어감 (모선 전용):**
+- TipTap 에디터 코어 + 토글 확장 + 관련 유틸 (1.67MB의 주범)
+- 셸: `App` / `PaneProvider` / `Sidebar` / `TabBar` / `GlobalTopBar`
+- Page/Project/Sharing/Backup Context (문서 plane 전용)
+
+**앱 전용 (각 위성 폴더):**
+- 도메인 컴포넌트 + 도메인 훅 (예: `usePayrollSheet` + `PayrollPage` → apps/payroll)
+
+---
+
+## 10. 미해결·결정 대기 항목
+
+- [ ] 레포 전략 최종: 모노레포(추천) vs 개별 레포 — §4.1
+- [ ] 배포 토폴로지: 위성별 gh-pages 레포 vs 단일 레포 서브폴더 배포 (동일 origin SSO 유지 방식)
+- [ ] `current_workspace()` 프론트 컨텍스트 API 형태 (ACCESS-TIERS Phase C와 조율)
+- [ ] 위성 런처 레지스트리: 정적 config vs DB 테이블(`page_type_access` 확장)
+- [ ] 마케팅 엔진의 `daily_blocks` 의존: 공유 테이블 직접 읽기 유지 vs 뷰/API 경유로 격리
+
+---
+
+> 다음 스텝: 이 문서 §10을 합의 → Phase 0(파라미터화 + core 추출) → Phase 1 급여 파일럿.
