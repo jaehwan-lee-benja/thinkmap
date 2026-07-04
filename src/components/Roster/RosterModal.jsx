@@ -9,7 +9,7 @@ import { useRoster } from '../../hooks/useRoster'
 import { useMembers } from '../../hooks/useMembers'
 import { useRosterTemplates } from '../../hooks/useRosterTemplates'
 import { useRosterSchedule } from '../../hooks/useRosterSchedule'
-import { useRosterWeekdayDefault } from '../../hooks/useRosterWeekdayDefault'
+import { useRosterWeekdayPreset } from '../../hooks/useRosterWeekdayPreset'
 import { useRosterLayout, DEFAULT_LAYOUT } from '../../hooks/useRosterLayout'
 import {
   ROSTER_ROLE_PRESETS, ROSTER_SHIFTS, ROSTER_STATUS, ROSTER_STATUS_LABEL, WEEKDAYS,
@@ -36,9 +36,11 @@ export default function RosterModal({
   const { templates, replaceSlots, createTemplate, markMaster } = useRosterTemplates(boardId)
   const { layout, saveLayout } = useRosterLayout(boardId)
   const schedule = useRosterSchedule(boardId)
-  const wkDefault = useRosterWeekdayDefault(boardId)
+  const wkPreset = useRosterWeekdayPreset(boardId)
 
   const [selectedMemberId, setSelectedMemberId] = useState('')
+  // 우측 명단에서 보고 있는 인원배치 버전(요일별). 기본 = 활성(별표) 버전.
+  const [selectedPresetId, setSelectedPresetId] = useState('')
   const [adding, setAdding] = useState(false)
   // 요일→버전 배정 패널 토글
   const [schedOpen, setSchedOpen] = useState(false)
@@ -137,36 +139,63 @@ export default function RosterModal({
     [members, weekday, assignedIds]
   )
 
-  // ── 요일 기본 배치(사람→역할): 빈 날짜를 열면 자동으로 깐다 ──────────────────
-  const weekdayDefaults = useMemo(() => (weekday ? wkDefault.byWeekday[weekday] || [] : []), [wkDefault.byWeekday, weekday])
+  // ── 요일별 인원배치 버전(별표=주배치): 빈 날짜를 열면 활성 버전을 자동으로 깐다 ──────
+  const weekdayPresets = useMemo(() => (weekday ? wkPreset.byWeekday[weekday] || [] : []), [wkPreset.byWeekday, weekday])
+  const activePreset = useMemo(() => (weekday ? wkPreset.activeByWeekday[weekday] || null : null), [wkPreset.activeByWeekday, weekday])
+  // 선택 버전: 명시 선택 우선, 없으면 활성(별표). 요일/로드 바뀌면 활성으로 리셋.
+  useEffect(() => {
+    if (!wkPreset.loaded) return
+    setSelectedPresetId(activePreset?.id || weekdayPresets[0]?.id || '')
+  }, [weekday, wkPreset.loaded, activePreset?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedPreset = useMemo(() => weekdayPresets.find((p) => p.id === selectedPresetId) || null, [weekdayPresets, selectedPresetId])
+
+  const currentPlacements = () => confirmedRows.map((r) => ({ member_id: r.member_id, member_name: r.member_name, role: r.role || null, shift: r.shift || null, status: r.status }))
+
   const seededRef = useRef({})
   useEffect(() => {
-    // 가드: 로드 완료 + 그날 배치 0개 + 그 요일 기본 존재 + 이 세션에서 이 날짜에 아직 안 깖.
-    if (loading || !wkDefault.loaded || !canEdit || !weekday) return
-    if (rows.length > 0 || !weekdayDefaults.length) return
+    // 가드: 로드 완료 + 그날 배치 0개 + 활성(별표) 버전 존재 + 이 세션에서 이 날짜에 아직 안 깖.
+    if (loading || !wkPreset.loaded || !canEdit || !weekday) return
+    if (rows.length > 0 || !activePreset || !activePreset.items.length) return
     if (seededRef.current[workDate]) return
     seededRef.current[workDate] = true
-    seedAssignments(weekdayDefaults, userId)
-  }, [loading, wkDefault.loaded, canEdit, weekday, workDate, rows.length, weekdayDefaults, seedAssignments, userId])
+    seedAssignments(activePreset.items, userId)
+  }, [loading, wkPreset.loaded, canEdit, weekday, workDate, rows.length, activePreset, seedAssignments, userId])
 
-  const saveWeekdayDefault = async () => {
+  // 현재 배치를 새 버전으로 저장(이름). 그 요일 첫 버전이면 자동으로 별표(주배치).
+  const savePresetAsNew = async () => {
     if (!weekday) return
-    const placements = confirmedRows.map((r) => ({ member_id: r.member_id, member_name: r.member_name, role: r.role || null, shift: r.shift || null, status: r.status }))
-    if (!placements.length && !confirm(`${weekday}요일 기본 배치를 비울까요? (현재 확정 인원이 없습니다)`)) return
-    const { error } = await wkDefault.saveDefault(weekday, placements)
-    if (error) alert('요일 기본 저장 실패: 권한이 없거나 오류입니다.')
+    const name = prompt('새 인원배치 버전 이름:', `${new Date().getFullYear()} ${weekday}요일`)
+    if (!name?.trim()) return
+    const first = weekdayPresets.length === 0
+    const { error } = await wkPreset.createPreset({ weekday, name: name.trim(), placements: currentPlacements(), asActive: first, createdBy: userId })
+    if (error) alert('버전 저장 실패: 권한이 없거나 오류입니다.')
   }
-  // 기본 배치를 지금 채우기(이미 배치된 인원은 건너뜀 → 중복 방지)
-  const applyWeekdayDefault = async () => {
+  // 선택 버전을 현재 배치로 갱신
+  const updateSelectedPreset = async () => {
+    if (!selectedPreset) return
+    if (!confirm(`"${selectedPreset.name}" 버전을 현재 인원 배치로 갱신할까요?`)) return
+    const { error } = await wkPreset.replaceItems(selectedPreset.id, currentPlacements())
+    if (error) alert('버전 갱신 실패: 권한이 없거나 오류입니다.')
+  }
+  // 선택 버전을 별표(주배치)로 지정 → 다음 주부터 빈 날짜에 이게 자동 적용
+  const markSelectedActive = async () => {
+    if (!selectedPreset || selectedPreset.is_active) return
+    const { error } = await wkPreset.setActive(selectedPreset.id)
+    if (error) alert('주배치 지정 실패: 권한이 없거나 오류입니다.')
+  }
+  // 선택 버전 인원을 지금 채우기(이미 있는 인원은 건너뜀 → 중복 방지)
+  const applySelectedPreset = async () => {
+    if (!selectedPreset) return
     const have = new Set(rows.map((r) => r.member_id).filter(Boolean))
-    const toAdd = weekdayDefaults.filter((d) => !d.member_id || !have.has(d.member_id))
+    const toAdd = selectedPreset.items.filter((d) => !d.member_id || !have.has(d.member_id))
     if (!toAdd.length) return
     await seedAssignments(toAdd, userId)
   }
-  const clearWeekdayDefault = async () => {
-    if (!weekday) return
-    if (!confirm(`${weekday}요일 기본 배치를 삭제할까요?`)) return
-    await wkDefault.clearDefault(weekday)
+  const deleteSelectedPreset = async () => {
+    if (!selectedPreset) return
+    if (!confirm(`"${selectedPreset.name}" 버전을 삭제할까요?`)) return
+    const { error } = await wkPreset.deletePreset(selectedPreset.id)
+    if (error) alert('버전 삭제 실패: 권한이 없거나 오류입니다.')
   }
 
   // 보드: 파생 멤버 → 확정 row 생성+role / 기존 row → role 갱신. 빼기 = role=null.
@@ -389,7 +418,7 @@ export default function RosterModal({
                       {templates.map((t) => <option key={t.id} value={t.id}>{t.is_default && t.board_id ? '★ ' : ''}{t.name}</option>)}
                     </select>
                   </label>
-                  <div className="roster-sched-hint">자리판(역할카드 버전)은 "레이아웃 편집/풀 배치에서 시작 → 저장"으로 만들고, 여기서 요일·날짜에 꽂습니다. ★=풀 배치(전체 마스터). · 사람 배치 기본은 우측 명단의 "○요일 인원배치 기본"에서 따로 저장합니다.</div>
+                  <div className="roster-sched-hint">자리판(역할카드 버전)은 "레이아웃 편집/풀 배치에서 시작 → 저장"으로 만들고, 여기서 요일·날짜에 꽂습니다. ★=풀 배치(전체 마스터). · 사람(인원) 배치는 우측 명단의 "○요일 인원배치 새 버전 저장"에서 버전으로 저장하고, 별표(주배치)가 빈 날짜에 자동 적용됩니다.</div>
                 </div>
               )}
               {editMode ? (
@@ -412,10 +441,14 @@ export default function RosterModal({
                     canEdit={canEdit} held={held} dragging={!!activeDrag}
                     onPick={pick} onOffItem={offItem} onRemoveRow={removeRow}
                     onAddConfirmed={addConfirmed} onAddCustom={handleAddCustom} onReturnRow={returnRow}
-                    weekdayDefaultCount={weekdayDefaults.length}
-                    onSaveWeekdayDefault={saveWeekdayDefault}
-                    onApplyWeekdayDefault={applyWeekdayDefault}
-                    onClearWeekdayDefault={clearWeekdayDefault}
+                    presets={weekdayPresets}
+                    selectedPresetId={selectedPresetId}
+                    onSelectPreset={setSelectedPresetId}
+                    onSavePresetAsNew={savePresetAsNew}
+                    onUpdatePreset={updateSelectedPreset}
+                    onMarkActive={markSelectedActive}
+                    onApplyPreset={applySelectedPreset}
+                    onDeletePreset={deleteSelectedPreset}
                   />
                 </div>
               )}

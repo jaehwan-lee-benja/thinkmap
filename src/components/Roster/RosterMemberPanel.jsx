@@ -26,10 +26,11 @@ function PanelChip({ item, canEdit, held, onPick }) {
 export default function RosterMemberPanel({
   items = [], offRows = [], addable = [], weekday, canEdit = true, held, dragging,
   onPick, onOffItem, onRemoveRow, onAddConfirmed, onAddCustom, onReturnRow,
-  weekdayDefaultCount = 0, onSaveWeekdayDefault, onApplyWeekdayDefault, onClearWeekdayDefault,
+  presets = [], selectedPresetId, onSelectPreset, onSavePresetAsNew, onUpdatePreset, onMarkActive, onApplyPreset, onDeletePreset,
 }) {
   const { setNodeRef: unplaceRef, isOver: unplaceOver } = useDroppable({ id: 'unplace', data: { kind: 'unplace' } })
   const [pick, setPick] = useState('')
+  const selected = presets.find((p) => p.id === selectedPresetId) || null
 
   return (
     <div className="roster-panel">
@@ -68,17 +69,26 @@ export default function RosterMemberPanel({
         )}
         {canEdit && weekday && (
           <div className="roster-panel-wkdef">
-            <button type="button" className="rp-btn" onClick={onSaveWeekdayDefault}
-              title="현재 인원 배치(누가 어느 역할)를 이 요일 기본으로 저장 — 다음 주부터 빈 날짜를 열면 자동 적용">
-              {weekday}요일 인원배치 기본으로 저장
-            </button>
-            {weekdayDefaultCount > 0 && (
-              <span className="roster-panel-wkdef-info">
-                {weekday}요일 인원 기본 {weekdayDefaultCount}명
-                <button type="button" className="rp-link" onClick={onApplyWeekdayDefault} title="기본 인원배치를 지금 채우기 (이미 있는 인원은 건너뜀)">채우기</button>
-                <button type="button" className="rp-link" onClick={onClearWeekdayDefault} title="이 요일 인원배치 기본 삭제">비우기</button>
-              </span>
+            {presets.length > 0 && (
+              <div className="roster-wkpreset-pick">
+                <select className="roster-select" value={selectedPresetId || ''}
+                  onChange={(e) => onSelectPreset(e.target.value)} title="이 요일에 저장된 인원배치 버전">
+                  {presets.map((p) => (
+                    <option key={p.id} value={p.id}>{p.is_active ? '★ ' : ''}{p.name} ({p.items.length}명)</option>
+                  ))}
+                </select>
+                <button type="button" className="rp-link" onClick={onApplyPreset} title="이 버전 인원을 지금 채우기 (이미 있는 인원은 건너뜀)">채우기</button>
+                {selected && !selected.is_active && (
+                  <button type="button" className="rp-link" onClick={onMarkActive} title="이 버전을 주배치(별표)로 — 다음 주부터 빈 날짜에 자동 적용">★ 주배치</button>
+                )}
+                <button type="button" className="rp-link" onClick={onUpdatePreset} title="현재 인원 배치로 이 버전 갱신">갱신</button>
+                <button type="button" className="rp-link" onClick={onDeletePreset} title="이 버전 삭제">삭제</button>
+              </div>
             )}
+            <button type="button" className="rp-btn" onClick={onSavePresetAsNew}
+              title="현재 인원 배치를 새 버전으로 저장 (예: '2026 성수기 토요일'). 그 요일 첫 버전은 자동으로 주배치(별표)가 됩니다">
+              {weekday}요일 인원배치 새 버전 저장
+            </button>
           </div>
         )}
       </section>

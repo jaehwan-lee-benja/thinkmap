@@ -413,9 +413,13 @@
 .rp-cancel:hover { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
 .roster-panel-add { display: flex; gap: 5px; margin-top: 7px; }
 .roster-panel-add .roster-select { flex: 1; }
-/* 요일 기본 배치 저장/채우기/비우기 */
+/* 요일별 인원배치 버전: 저장/선택/채우기/주배치/갱신/삭제 */
 .roster-panel-wkdef { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
 .roster-panel-wkdef-info { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(255, 255, 255, 0.45); }
+.roster-wkpreset-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; width: 100%; }
+.roster-wkpreset-pick .roster-select { flex: 1 1 auto; min-width: 120px; max-width: 220px; }
+/* 버전 액션 링크(채우기/주배치/갱신/삭제) 터치 영역 확보 — 360px 줄바꿈은 flex-wrap이 처리 */
+.roster-wkpreset-pick .rp-link { padding: 5px 4px; }
 .rp-link { background: none; border: none; color: rgba(120, 170, 255, 0.8); font-size: 11px; padding: 0; cursor: pointer; }
 .rp-link:hover { color: rgba(120, 170, 255, 1); text-decoration: underline; }
 /* 우측 확정 칩 = 좌측 자리로 끄는 드래그 핸들 */

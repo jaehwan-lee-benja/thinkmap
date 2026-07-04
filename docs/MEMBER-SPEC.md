@@ -163,6 +163,16 @@ roster_assignments (
 - `member_name` 스냅샷을 둬서 멤버가 이름을 바꾸거나 삭제돼도 과거 배치/급여 매칭이 흔들리지 않는다.
 - `member_id`는 살아있는 매칭의 정답 키, `member_name`은 표시/이력 안정용.
 
+### 5.5 `roster_weekday_preset` + `roster_weekday_preset_item` — 요일별 인원배치 버전 (2026-06-28)
+
+> 상세 스키마·RLS·자동 시드·별표 전환 RPC → [PLAN-roster-visual-board.md §13](../PLAN-roster-visual-board.md).
+> 마이그: `migrate-roster-weekday-preset.sql`.
+
+한 요일에 **이름붙은 인원배치 버전을 여러 개**(예: '2026 성수기 토요일') 두고, `is_active`(별표/주배치)
+버전 1개가 **빈 날짜 자동 시드 소스**가 된다. 기존 `roster_weekday_default`(요일당 1개·무명)를 무손실
+이전한다. 부모(버전)는 soft-delete, 자식(인원 줄)은 버전 갱신 시 통째 교체. `member_name` 스냅샷 +
+`member_id ON DELETE SET NULL`로 멤버 삭제에도 줄 보존(§5.4 원칙 동일).
+
 ## 6. 권한 / RLS
 
 > [ACCESS-MODEL.md §5](./ACCESS-MODEL.md) 결정 순서를 따른다. 새 패러다임을 만들지 않는다.
@@ -173,6 +183,8 @@ roster_assignments (
 | `member_private` | `is_master()` | `is_master()` | C(마스터 전용) |
 | `member_records` | `is_master()` | `is_master()` | C(마스터 전용) |
 | `roster_assignments` | 로그인 사용자 | `is_master() OR is_board_member(board_id)` | B(공개) + 보드멤버/마스터 쓰기 |
+| `roster_weekday_preset` | 로그인 사용자 | `is_master() OR is_board_member(board_id)` | B(공개) + 보드멤버/마스터 쓰기 |
+| `roster_weekday_preset_item` | 로그인 사용자 | 부모 preset join 위임(`is_master() OR is_board_member`) | B(공개) + 부모 권한 위임 |
 
 - 신규 헬퍼 `is_board_member(board_id uuid)` — `worklog_board_members`에 (board, auth.uid()) 존재.
   기존 `is_board_member_of_page(page_id)`(보드=페이지의 parent)와 짝을 이루는, board_id 직접 질의판.
@@ -230,6 +242,12 @@ roster_assignments (
 - 배치도 = 로그인 SELECT 공개 / 편집 = 마스터·보드멤버(B + 멤버십).
 - 배치도 UI = 본문 밖 진입 카드 + 전용 모달(본문 노드 아님).
 - 인사 이력은 테이블 증식 없이 `member_records(record_type)` 허브로.
+
+**결정됨 (2026-06-28) — 배치도 시각보드/버전화는 [PLAN-roster-visual-board.md](../PLAN-roster-visual-board.md)로 분리·상세화**
+- 역할 레이아웃(자리 구성)은 DB 템플릿(`roster_templates`, 이름붙은 여러 버전 + is_default 풀배치). PLAN §4·§7.
+- 요일별 **인원배치**는 이름붙은 여러 버전 + **별표(is_active) 1개**(`roster_weekday_preset`). 별표 버전이
+  빈 날짜 자동 시드. "2026 성수기 토요일" 식 보관. PLAN §13 (`migrate-roster-weekday-preset.sql`).
+- §11 미해결 "역할 프리셋의 요일·인원수별 템플릿" → DB 템플릿으로 결정(PLAN §7로 이관).
 
 **미해결 (진행하며 합의)**
 - [ ] 역할 프리셋의 최종 목록/순서(요일·인원수별 템플릿까지 둘지).
