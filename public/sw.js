@@ -4,9 +4,12 @@
  */
 
 const CACHE_NAME = 'thinkmap-v1';
+// 정적 파일이라 Vite 치환이 안 됨 → SW 자기 위치에서 base 를 유도(위성 base 자동 대응).
+// sw 가 /thinkmap/sw.js 에 있으면 BASE = '/thinkmap/'.
+const BASE = new URL('./', self.location).pathname;
 const STATIC_ASSETS = [
-  '/thinkmap/',
-  '/thinkmap/index.html',
+  BASE,
+  BASE + 'index.html',
 ];
 
 // 설치: 기본 정적 자산 캐싱

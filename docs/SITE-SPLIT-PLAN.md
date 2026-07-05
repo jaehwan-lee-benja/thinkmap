@@ -1,6 +1,6 @@
 # 사이트 구조 분할 계획 (SITE-SPLIT-PLAN)
 
-> 상태: **Phase 0 설계 초안 (합의 전, 구현 전)** · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
+> 상태: **Phase 0 착수 (§10 핵심 결정 확정 2026-07-05: 모노레포 + 단일레포 서브폴더 배포)** · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
 > 관계: [ARCHITECTURE.md](./ARCHITECTURE.md)의 두 plane 구조와, [ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의
 > 워크스페이스(테넌트) 모델을 **프론트 배포 단위로 확장**한 문서. 각 도메인 명세(PAYROLL-SPEC,
 > MEMBER-SPEC, SEAT-SPEC, MARKETING-CANVAS-*)의 상위 배포 컨텍스트.
@@ -205,11 +205,13 @@ core 위에 얹는 얇은 앱 하나가 된다.
 
 ## 10. 미해결·결정 대기 항목
 
-- [ ] 레포 전략 최종: 모노레포(추천) vs 개별 레포 — §4.1
-- [ ] 배포 토폴로지: 위성별 gh-pages 레포 vs 단일 레포 서브폴더 배포 (동일 origin SSO 유지 방식)
-- [ ] `current_workspace()` 프론트 컨텍스트 API 형태 (ACCESS-TIERS Phase C와 조율)
-- [ ] 위성 런처 레지스트리: 정적 config vs DB 테이블(`page_type_access` 확장)
-- [ ] 마케팅 엔진의 `daily_blocks` 의존: 공유 테이블 직접 읽기 유지 vs 뷰/API 경유로 격리
+- [x] **레포 전략 최종: 모노레포** (npm workspaces, `apps/hub`·`apps/*`·`packages/core`) — 확정 2026-07-05.
+  근거: 인증/테넌트 코드 단일 소스(드리프트 원천 차단)·원자적 커밋(정합성 창 없음)·되돌리기 저비용(폴더 구조라 위성 졸업이 싸다). §4.1.
+- [x] **배포 토폴로지: 단일 레포 서브폴더 배포** — 확정 2026-07-05.
+  `github.io/thinkmap/`(모선)·`github.io/thinkmap-payroll/`(위성) 서브경로. 동일 origin = SSO를 설정이 아니라 **구조로** 보장. 커스텀 도메인 분기 전까지 무료 SSO 유지.
+- [x] **위성 런처 레지스트리: DB 테이블** — `site_nodes`(백오피스 라이브) 재사용으로 사실상 확정. 정적 config 아님.
+- [ ] `current_workspace()` 프론트 컨텍스트 API 형태 (ACCESS-TIERS Phase C와 조율) — Phase 1 급여 착수 시 확정.
+- [ ] 마케팅 엔진의 `daily_blocks` 의존: 공유 테이블 직접 읽기 유지 vs 뷰/API 경유로 격리 — Phase 3에서 결정.
 
 ---
 

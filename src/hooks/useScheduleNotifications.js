@@ -36,7 +36,7 @@ async function ensurePermission() {
 
 function showNotification(title, body) {
   try {
-    new Notification(title || '(제목 없음)', { body: body || '', icon: '/thinkmap/favicon.ico' })
+    new Notification(title || '(제목 없음)', { body: body || '', icon: `${import.meta.env.BASE_URL}favicon.ico` })
   } catch (err) { console.warn('Notification 실패:', err) }
 }
 
