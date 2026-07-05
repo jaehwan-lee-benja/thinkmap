@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, Target, Calendar, Receipt, LayoutDashboard, Users, Flag, Package, Coffee } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, Target, Calendar, Receipt, LayoutDashboard, Users, Flag, Package, Coffee, Network } from 'lucide-react'
 import { supabase } from '../../supabaseClient'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -14,8 +14,9 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage, isSeatPage } from '../../utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage, isSeatPage, isBackofficePage } from '../../utils/pageTypes'
 import { findOrCreateMembersPage } from '../../utils/membersPage'
+import { findOrCreateBackofficePage } from '../../utils/backofficePage'
 import './Sidebar.css'
 
 /**
@@ -394,6 +395,22 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
                 >
                   <Users size={16} />
                   <span>멤버 관리</span>
+                </button>
+
+                <button
+                  className={`sidebar-worklog-btn ${currentPageId && isBackofficePage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
+                  title="백오피스 — 사이트 구조도 (마스터 전용)"
+                  onClick={async () => {
+                    // 캐시 우선 → 없으면 공유 헬퍼로 find-or-create (멤버 관리와 동일 경로)
+                    let pageId = pages.find(p => isBackofficePage(p))?.id
+                    if (!pageId) pageId = await findOrCreateBackofficePage(effectiveSession.user.id)
+                    if (!pageId) return
+                    if (typeof fetchPages === 'function') await fetchPages()
+                    handlePageSelect(pageId)
+                  }}
+                >
+                  <Network size={16} />
+                  <span>백오피스</span>
                 </button>
               </>
             )}
