@@ -13,6 +13,8 @@ import PayrollPage from './components/Payroll/PayrollPage'
 import MembersPage from './components/Members/MembersPage'
 import InventoryPage from './components/Inventory/InventoryPage'
 import SeatSystemPage from './components/Seat/SeatSystemPage'
+// 백오피스(사이트 구조도) = 마스터 전용 + 셸/에디터 비의존 격리 트리 → 코드 스플리팅.
+const BackofficePage = lazy(() => import('./components/Backoffice/BackofficePage'))
 // 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능
 // import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
 import { useAuth } from './hooks/useAuth'
@@ -32,7 +34,7 @@ import FavoritesContext from './contexts/FavoritesContext'
 import { supabase } from './supabaseClient'
 import { generateUUID } from './utils/uuid'
 import { dailyPageName } from './utils/dateUtils'
-import { PAGE_TYPES, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isInventoryPage, isSeatPage } from './utils/pageTypes'
+import { PAGE_TYPES, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isInventoryPage, isSeatPage, isBackofficePage } from './utils/pageTypes'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -221,6 +223,25 @@ function PaneInner({
                   session={effectiveSession}
                   isMaster={isMaster}
                 />
+              )
+            }
+            if (isBackofficePage(pageType)) {
+              // 백오피스(사이트 구조도) — 마스터 전용. 비마스터 접근 시 거부.
+              if (!isMaster) {
+                return (
+                  <div className="no-page-selected">
+                    <p>접근 권한이 없습니다. (마스터 전용)</p>
+                  </div>
+                )
+              }
+              return (
+                <Suspense fallback={<div className="no-page-selected"><p>백오피스 로딩 중...</p></div>}>
+                  <BackofficePage
+                    key={`pane-${paneIndex}-${pageId}`}
+                    session={effectiveSession}
+                    isMaster={isMaster}
+                  />
+                </Suspense>
               )
             }
             if (isInventoryPage(pageType)) {
