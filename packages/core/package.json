@@ -1,0 +1,11 @@
+{
+  "name": "@thinkmap/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "ThinkMap 모선·위성 공통 코어 (인증·client·테넌트 컨텍스트·공용 UI/훅/유틸). TipTap·셸은 포함하지 않는다.",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  }
+}
