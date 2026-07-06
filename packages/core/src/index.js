@@ -2,3 +2,4 @@
 // 이후 단계에서 useAuth·공용 UI/훅/유틸을 순차 이관(§9).
 export { BASE_URL, withBase } from './basePath.js'
 export { supabase } from './supabaseClient.js'
+export { useAuth } from './useAuth.js'
