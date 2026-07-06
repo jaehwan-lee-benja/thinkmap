@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@thinkmap/core'
+import { supabase } from '../supabaseClient.js'
 
 export const useUserPreferences = (session) => {
   const [prefs, setPrefs] = useState(null)

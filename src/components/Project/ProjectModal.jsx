@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
 import { FolderOpen, Plus, Trash2, Edit3, Check, X } from 'lucide-react'
-import { Modal, ModalHeader } from '@thinkmap/core'
+import { Modal, ModalHeader, useConfirmAction } from '@thinkmap/core'
 import { useEditableField } from '../../hooks/useEditableField'
-import { useConfirmAction } from '../../hooks/useConfirmAction'
 import './ProjectModal.css'
 
 function ProjectModal({

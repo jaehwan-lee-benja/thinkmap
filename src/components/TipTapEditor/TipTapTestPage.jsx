@@ -50,7 +50,7 @@ import { isH2Section } from '../../utils/sectionUtils'
 
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
-import { supabase } from '@thinkmap/core'
+import { supabase, useIsMobile, EmojiPicker } from '@thinkmap/core'
 import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
 import { tiptapToColumnBlocks, columnBlocksToTiptap } from './utils/columnViewUtils'
 import {
@@ -71,7 +71,6 @@ import {
   PenLine,
   Settings
 } from 'lucide-react'
-import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePageContext } from '../../contexts/PageContext'
 import { useProjectContext } from '../../contexts/ProjectContext'
 import { useFavoritesContext } from '../../contexts/FavoritesContext'
@@ -81,7 +80,6 @@ import RosterCard from '../Roster/RosterCard'
 import ToggleControlDropdown from './ToggleControlDropdown'
 import WorklogComments from './WorklogComments'
 import CommentPopover from './CommentPopover'
-import { EmojiPicker } from '@thinkmap/core'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { useWorklogComments } from '../../hooks/useWorklogComments'
 import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
