@@ -1,7 +1,7 @@
 // 3년 초과 미완료 todo thread 정리 모달. WORKLOG-SPEC.md §6.3.
 
 import React from 'react'
-import { Modal, ModalHeader, ModalBody } from '../Common/Modal/Modal'
+import { Modal, ModalHeader, ModalBody } from '@thinkmap/core'
 import { Archive, CheckCircle2, Trash2 } from 'lucide-react'
 import { useLeftoverTodos } from '../../hooks/useLeftoverTodos'
 import './LeftoverManager.css'

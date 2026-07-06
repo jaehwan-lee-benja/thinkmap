@@ -3,3 +3,7 @@
 export { BASE_URL, withBase } from './basePath.js'
 export { supabase } from './supabaseClient.js'
 export { useAuth } from './useAuth.js'
+// 공용 UI
+export { Modal, ModalHeader, ModalBody, ModalFooter } from './ui/Modal/Modal.jsx'
+export { default as DeleteToast } from './ui/DeleteToast.jsx'
+export { default as EmojiPicker } from './ui/EmojiPicker.jsx'

@@ -10,6 +10,7 @@
   },
   "peerDependencies": {
     "react": "^19.1.1",
-    "@supabase/supabase-js": "^2.78.0"
+    "@supabase/supabase-js": "^2.78.0",
+    "lucide-react": "^0.562.0"
   }
 }

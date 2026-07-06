@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import './EmojiPicker.css'
 
 const EMOJI_GROUPS = [
   { label: '자주 사용', emojis: ['📄', '📝', '📋', '📌', '📎', '🗂️', '📁', '📂', '🏠', '⭐'] },

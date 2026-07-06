@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Bot, Copy, Check } from 'lucide-react'
-import { Modal, ModalHeader, ModalBody } from '../Common/Modal/Modal'
+import { Modal, ModalHeader, ModalBody } from '@thinkmap/core'
 import './GoalClaudeAccess.css'
 
 // 목표 페이지 전용 — "클로드 앱(claude.ai)에서 이 페이지를 직접 편집"하도록
