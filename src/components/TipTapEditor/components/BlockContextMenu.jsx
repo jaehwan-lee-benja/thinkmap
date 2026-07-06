@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect } from 'react'
 import { NodeSelection } from '@tiptap/pm/state'
 import { useClickOutside } from '../../../hooks/useClickOutside'
 import { usePageContext } from '../../../contexts/PageContext'
-import { supabase } from '../../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { COLORS, BG_COLORS } from './ColorPicker'
 import { AttrStep } from '@tiptap/pm/transform'
 

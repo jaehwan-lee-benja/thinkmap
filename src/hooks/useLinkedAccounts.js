@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 
 /**
  * 연결 계정 훅 — 현재 로그인한 사용자가 접근 가능한 연결 계정 목록

@@ -5,7 +5,7 @@
 // roster_template_schedule(요일→역할카드 버전)과 별개. 그날 실제 배치는 roster_assignments(날짜별).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../utils/supabaseError'
 
 export function useRosterWeekdayDefault(boardId) {

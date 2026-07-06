@@ -10,7 +10,7 @@
 //     useCanvasSchema(masterId, 'frame', 'v7.44')
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../utils/supabaseError'
 
 export function useCanvasSchema(masterId, canvasType, version = 'v7.44') {

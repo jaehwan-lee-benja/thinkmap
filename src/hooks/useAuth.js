@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BASE_URL } from '@thinkmap/core'
-import { supabase } from '../supabaseClient'
+import { BASE_URL, supabase } from '@thinkmap/core'
 
 /**
  * 인증 관련 로직을 관리하는 커스텀 훅

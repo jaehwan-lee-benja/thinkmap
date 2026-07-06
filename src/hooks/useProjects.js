@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { generateUUID } from '../utils/uuid'
 import { logError } from '../utils/supabaseError'
 

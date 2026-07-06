@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { HardDrive, PenLine, Columns3, GitBranch, Target, Calendar, Receipt, LayoutDashboard, Users, Flag, Package, Coffee, Network } from 'lucide-react'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { generateUUID } from '../../utils/uuid'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import ShareModal from '../Share/ShareModal'

@@ -9,7 +9,7 @@
 // 순수 머지 로직은 utils/dailyBlockMerge.js (단위 테스트 분리).
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../utils/supabaseError'
 import {
   fetchBlocks,

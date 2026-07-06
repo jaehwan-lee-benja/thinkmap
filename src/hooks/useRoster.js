@@ -4,7 +4,7 @@
 // SELECT: 로그인 사용자 공개. 쓰기: 마스터 OR 보드멤버 (RLS).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../utils/supabaseError'
 
 /**

@@ -4,7 +4,7 @@
 // member_private(민감정보) / member_records(인사 이력): 마스터 전용 — 별도 async 헬퍼로 제공.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../utils/supabaseError'
 
 /**

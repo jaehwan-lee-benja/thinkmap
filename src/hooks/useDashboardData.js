@@ -5,7 +5,7 @@
 // v1: 본인(owner=self) 데이터만. linked 합산은 후속.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../utils/supabaseError'
 import { startOfWeek, addDays, dateKey } from '../components/Schedule/scheduleUtils'
 

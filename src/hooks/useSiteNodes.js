@@ -11,7 +11,7 @@
 //   → 런타임 편집이 목적이므로 DB 테이블 채택. 이 훅이 그 레지스트리의 접근 계층이다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { generateUUID } from '../utils/uuid'
 import { SITE_NODES_SEED } from '../utils/siteNodesSeed'
 

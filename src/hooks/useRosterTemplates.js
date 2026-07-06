@@ -2,7 +2,7 @@
 // PLAN-roster-visual-board.md §4·§6. 전역 기본(board_id IS NULL) + 보드별 커스텀을 함께 로드.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../utils/supabaseError'
 
 /**

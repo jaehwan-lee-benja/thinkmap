@@ -2,7 +2,7 @@
 // membersPage.js 의 findOrCreateMembersPage 와 동일 패턴(독립 섹션: parent_id=null, project_id=null).
 // 백오피스 = 사이트 구조도(모선+위성) 관리 마스터 전용 페이지.
 
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { generateUUID } from './uuid'
 
 /**

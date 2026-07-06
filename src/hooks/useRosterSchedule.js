@@ -5,7 +5,7 @@
 // 해석 우선순위: 날짜 오버라이드 > 요일 기본 > 없음.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../utils/supabaseError'
 import { weekdayKo } from './useRosterTemplates'
 

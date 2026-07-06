@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Search, X, FileText } from 'lucide-react'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { logError } from '../../utils/supabaseError'
 
 /**

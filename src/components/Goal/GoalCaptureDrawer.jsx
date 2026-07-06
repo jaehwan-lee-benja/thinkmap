@@ -14,7 +14,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import TipTapEditor from '../TipTapEditor/TipTapEditor'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import './GoalCaptureDrawer.css'
 
 // 빈 캡처 시작 문서 — TipTapTestPage 의 일반 페이지 빈 문서와 동일 형태.

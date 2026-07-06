@@ -1,7 +1,7 @@
 // 자리후 주문 데이터 훅 — fetch + Realtime(postgres_changes) + CRUD. (SEAT-SPEC §8)
 // businessDate 가 falsy 면(미리보기 등) 네트워크/구독을 하지 않는다.
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { supabase } from '../../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 
 export function useSeatOrders(businessDate) {
   const [orders, setOrders] = useState([])

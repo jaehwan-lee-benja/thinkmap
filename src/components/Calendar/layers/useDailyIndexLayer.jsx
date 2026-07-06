@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { Archive, CheckSquare, FileText, MessageSquare, Plus } from 'lucide-react'
-import { supabase } from '../../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { generateUUID } from '../../../utils/uuid'
 import { usePageContext } from '../../../contexts/PageContext'
 import { useCalendarTodoStats } from '../../../hooks/useCalendarTodoStats'

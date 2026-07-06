@@ -2,7 +2,7 @@
 // 배치도 모달의 "멤버 관리하기" 버튼이 공용으로 쓰는 네비게이션 헬퍼.
 // 멤버 페이지는 캘린더·급여명세서 등과 같은 독립 섹션(parent_id=null, project_id=null).
 
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { generateUUID } from './uuid'
 import { WEEKDAYS } from './rosterPresets'
 

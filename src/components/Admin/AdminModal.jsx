@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Users, UserPlus, Shield, Link2, Trash2, RotateCcw } from 'lucide-react'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { Modal, ModalHeader, ModalBody } from '../Common/Modal/Modal'
 import './AdminModal.css'

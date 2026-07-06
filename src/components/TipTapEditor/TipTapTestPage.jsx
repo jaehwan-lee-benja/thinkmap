@@ -50,7 +50,7 @@ import { isH2Section } from '../../utils/sectionUtils'
 
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
 import { tiptapToColumnBlocks, columnBlocksToTiptap } from './utils/columnViewUtils'
 import {
