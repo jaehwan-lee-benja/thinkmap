@@ -12,3 +12,7 @@ export { useIsMobile } from './hooks/useIsMobile.js'
 export { useClickOutside } from './hooks/useClickOutside.js'
 export { useConfirmAction } from './hooks/useConfirmAction.js'
 export { useUserPreferences } from './hooks/useUserPreferences.js'
+// 공용 유틸
+export * from './utils/dateUtils.js'
+export { generateUUID } from './utils/uuid.js'
+export { logError } from './utils/supabaseError.js'

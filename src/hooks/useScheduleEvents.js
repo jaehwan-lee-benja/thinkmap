@@ -8,8 +8,7 @@
 // Phase 1 은 단발 일정만. is_routine / instance / link 는 Phase 2/3 에서 확장.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * @param {Object} args

@@ -10,8 +10,7 @@
 //     useCanvasRegionStats(targetPageId)
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export function useCanvasRegionStats(targetPageId) {
   const [stats, setStats] = useState([])

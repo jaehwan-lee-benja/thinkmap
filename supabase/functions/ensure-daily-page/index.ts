@@ -25,7 +25,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.78.0'
 import { corsHeaders } from '../_shared/cors.ts'
 // 검증된 클라 파이프라인을 그대로 재사용 (순수 ESM, 브라우저 전역 미사용 → Deno 호환).
 import { createDailyPageV2 } from '../../../src/utils/createDailyPageV2.js'
-import { dailyPageName } from '../../../src/utils/dateUtils.js'
+import { dailyPageName } from '../../../packages/core/src/utils/dateUtils.js'
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {

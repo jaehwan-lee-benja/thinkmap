@@ -4,8 +4,7 @@
 // 한 번 만들어진 row 는 그대로 유지 (취소 풀어도 row 삭제하지 않음 — completed=false 등으로 update).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * @param {Object} args

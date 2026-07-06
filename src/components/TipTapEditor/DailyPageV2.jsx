@@ -17,8 +17,7 @@ import DailyColumnPane from './DailyColumnPane'
 import { useDailyBlocks } from '../../hooks/useDailyBlocks'
 import { ensureDailyPage } from '../../utils/ensureDailyPage'
 import { newBlockId } from '../../utils/blockIdV2'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 // 블록을 좌(col=1)/우(col=2) 두 부분집합으로 분리 — 각 섹션의 col 에 따라 그 섹션 + 자식 블록을 묶음.
 //   섹션 row 는 sectionId === 자기 blockId(self-ref), 자식 row 는 sectionId === 조상 섹션 blockId.

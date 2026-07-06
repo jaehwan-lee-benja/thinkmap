@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * 캘린더 뷰용 배치 코멘트 수 조회 훅

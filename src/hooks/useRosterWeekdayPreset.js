@@ -5,8 +5,7 @@
 // 패턴은 useRosterTemplates(역할 레이아웃 버전 + is_default/markMaster)와 대칭이다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export function useRosterWeekdayPreset(boardId) {
   const [presets, setPresets] = useState([]) // [{...preset, items: [...]}]

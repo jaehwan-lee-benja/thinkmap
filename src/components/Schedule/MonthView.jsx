@@ -3,7 +3,7 @@ import {
   startOfMonthGrid, addDays, isSameDay, isSameMonth, dateKey, ownerHue,
 } from './scheduleUtils'
 import { groupByDate } from './monthLayoutUtils'
-import { DAY_NAMES } from '../../utils/dateUtils'
+import { DAY_NAMES } from '@thinkmap/core'
 
 const MAX_BARS_PER_CELL = 3
 

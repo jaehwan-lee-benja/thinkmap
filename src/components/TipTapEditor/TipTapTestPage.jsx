@@ -1304,7 +1304,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       return
     }
     // 이후 daily가 없으면 다음날 생성 confirm (타임존 안전 유틸 사용)
-    const { dailyPageName, nextDateKey } = await import('../../utils/dateUtils')
+    const { dailyPageName, nextDateKey } = await import('@thinkmap/core')
     const dateKey = nextDateKey(currentPage.page_date)
     if (!confirm(`${dateKey} 업무일지가 없습니다. 새로 만들까요?`)) return
 

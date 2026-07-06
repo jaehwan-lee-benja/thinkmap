@@ -10,8 +10,7 @@
 //   const { mappings, byRegion, loading, error, refresh } = useCanvasMappings(pageId)
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export function useCanvasMappings(targetPageId) {
   const [mappings, setMappings] = useState([])

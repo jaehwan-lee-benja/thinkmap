@@ -10,8 +10,7 @@ import TipTapEditor from './TipTapEditor'
 import { blocksToDoc } from '../../utils/blocksToDoc'
 import { docToBlocks } from '../../utils/docToBlocks'
 import { syncThreadCheckbox } from '../../utils/dailyBlockOps'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 const SAVE_DEBOUNCE_MS = 500
 const TYPING_GUARD_MS = 2000

@@ -2,8 +2,7 @@
 // 매장 구조(홀/주방)는 보드당 1행 공통. 슬롯(카드)은 체제별(useRosterTemplates).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export const DEFAULT_LAYOUT = {
   hall_x: 6, hall_y: 4, hall_w: 88, hall_h: 36,

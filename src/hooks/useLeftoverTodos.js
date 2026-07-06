@@ -4,8 +4,7 @@
 // 사용자가 "이 todo 그만 잡고 있겠다" 결정하는 정리 화면.
 
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 const CUTOFF_YEARS = 3
 

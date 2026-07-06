@@ -4,8 +4,7 @@
 // 여기서는 정의(CRUD)만 책임진다. owner_user_id 귀속 / soft delete(deleted_at).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * @param {Object} session  supabase auth session

@@ -10,8 +10,7 @@
 //   const { results, loading, error } = useUserDailyBlocks(query, { limit })
 
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export function useUserDailyBlocks(query, { limit = 20 } = {}) {
   const [results, setResults] = useState([])

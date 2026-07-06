@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * 공유 관리 훅

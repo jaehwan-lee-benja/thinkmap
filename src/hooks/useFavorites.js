@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export const useFavorites = (session) => {
   const userId = session?.user?.id

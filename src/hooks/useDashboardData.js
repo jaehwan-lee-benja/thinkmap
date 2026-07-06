@@ -5,8 +5,7 @@
 // v1: 본인(owner=self) 데이터만. linked 합산은 후속.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '@thinkmap/core'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 import { startOfWeek, addDays, dateKey } from '../components/Schedule/scheduleUtils'
 
 function startOfYear(d) { return new Date(d.getFullYear(), 0, 1, 0, 0, 0, 0) }
