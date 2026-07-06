@@ -1,6 +1,8 @@
 # 사이트 구조 분할 계획 (SITE-SPLIT-PLAN)
 
-> 상태: **Phase 0 착수 (§10 핵심 결정 확정 2026-07-05: 모노레포 + 단일레포 서브폴더 배포)** · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
+> 상태: **Phase 0 완료 (2026-07-06) — feat/site-split-phase0 브랜치(미푸시).** §10 핵심 결정 확정(모노레포 + 단일레포 서브폴더 배포).
+> 0-A(base 파라미터화) + 0-B(packages/core 추출 Stage 1~6: base헬퍼·supabaseClient·useAuth·공용UI·공용훅·공용유틸) 이관 완료.
+> 검증: build 그린 + 170 테스트 통과 + 실앱(데일리·토글·EmojiPicker·캘린더) 클린 + deno Edge 결합 해석. 다음=Phase 1 급여 파일럿. · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
 > 관계: [ARCHITECTURE.md](./ARCHITECTURE.md)의 두 plane 구조와, [ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의
 > 워크스페이스(테넌트) 모델을 **프론트 배포 단위로 확장**한 문서. 각 도메인 명세(PAYROLL-SPEC,
 > MEMBER-SPEC, SEAT-SPEC, MARKETING-CANVAS-*)의 상위 배포 컨텍스트.
@@ -171,7 +173,10 @@ core 위에 얹는 얇은 앱 하나가 된다.
 
 ## 8. 단계별 로드맵
 
-- **Phase 0 — 문서 확정 (이 문서)** + `/thinkmap/` 파라미터화 + `packages/core` 추출.
+- **Phase 0 — ✅ 완료(2026-07-06).** 문서 확정 + `/thinkmap/` 파라미터화(0-A) + `packages/core` 추출(0-B Stage 1~6).
+  core 현 인벤토리: `basePath(BASE_URL/withBase)` · `supabaseClient` · `useAuth` · 공용 UI(Modal군/DeleteToast/EmojiPicker) ·
+  공용 훅(useIsMobile/useClickOutside/useConfirmAction/useUserPreferences) · 공용 유틸(dateUtils/uuid/supabaseError).
+  hub 는 저위험 순서로 루트 유지(apps/hub 승격은 Phase 1 시 판단). TipTap·셸·문서 Context 는 hub 전용 유지(§9 준수).
 - **Phase 1 — 급여 파일럿.** 결합도 0, 마스터 전용, 에디터 불필요.
   전체 패턴(모노레포 앱 구조·독립 빌드·자기 base·공유 Supabase·SSO·크로스링크·워크스페이스 범위)을
   **가장 낮은 리스크로 끝까지 검증**한다. 여기서 검증된 뼈대를 이후 위성이 복제.
