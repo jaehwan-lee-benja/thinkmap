@@ -9,7 +9,8 @@ import CalendarShell from './components/Calendar/CalendarShell'
 // 대시보드는 마스터 전용 + 비교적 무거운 트리이므로 코드 스플리팅.
 // 대시보드를 열지 않는 멤버/세션에는 메인 번들에 포함되지 않는다.
 const DashboardPage = lazy(() => import('./components/Dashboard/DashboardPage'))
-import PayrollPage from './components/Payroll/PayrollPage'
+// 급여(Payroll)는 Phase 1 에서 별도 위성 앱(apps/payroll, /thinkmap/payroll/)으로 분리됨.
+// 모선은 더 이상 급여 코드를 품지 않고 런처 링크로 위성을 연다(아래 isPayrollPage 분기).
 import MembersPage from './components/Members/MembersPage'
 import InventoryPage from './components/Inventory/InventoryPage'
 import SeatSystemPage from './components/Seat/SeatSystemPage'
@@ -194,12 +195,16 @@ function PaneInner({
                   </div>
                 )
               }
+              // Phase 1: 급여는 별도 위성 앱으로 분리됨. 같은 origin 서브경로(SSO 자동)로 런치하며
+              // 현재 페이지 컨텍스트를 ?page 로 넘겨 동일 급여 시트를 연다.
+              const payrollUrl = `/thinkmap/payroll/?page=${pageId}`
               return (
-                <PayrollPage
-                  key={`pane-${paneIndex}-${pageId}`}
-                  pageId={pageId}
-                  session={effectiveSession}
-                />
+                <div className="no-page-selected">
+                  <p>급여 관리는 별도 앱에서 열립니다.</p>
+                  <p>
+                    <a className="satellite-launch" href={payrollUrl}>급여 앱 열기 →</a>
+                  </p>
+                </div>
               )
             }
             if (isMembersPage(pageType)) {

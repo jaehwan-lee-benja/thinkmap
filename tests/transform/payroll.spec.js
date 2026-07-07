@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { parseAttendance } from '../../src/utils/payroll/attendanceParser.js'
+import { parseAttendance } from '../../apps/payroll/src/utils/payroll/attendanceParser.js'
 import {
   calculatePayroll, recomputePayslip,
   formatMinutes, formatKRW, minutesToHours,
   PAYMENT_ITEMS, DEDUCTION_ITEMS,
-} from '../../src/utils/payroll/payrollCalc.js'
+} from '../../apps/payroll/src/utils/payroll/payrollCalc.js'
 
 // 실제 4월 근태 원본의 까다로운 케이스를 압축한 픽스처 (마크다운 표)
 const RAW = `| 발생일자 | 부서명 | 사용자명 | 발생시각 | 상    태 | 사용장소 |
