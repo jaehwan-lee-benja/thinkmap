@@ -3,7 +3,9 @@
 > 상태: **Phase 0 완료 (2026-07-06) — feat/site-split-phase0 브랜치(미푸시).** §10 핵심 결정 확정(모노레포 + 단일레포 서브폴더 배포).
 > 0-A(base 파라미터화) + 0-B(packages/core 추출 Stage 1~6: base헬퍼·supabaseClient·useAuth·공용UI·공용훅·공용유틸) 이관 완료.
 > 검증: build 그린 + 170 테스트 통과 + 실앱(데일리·토글·EmojiPicker·캘린더) 클린 + deno Edge 결합 해석.
-> **Phase 1 완료 (2026-07-07, feat/site-split-phase1, 미배포)** — 급여 위성(apps/payroll) 파일럿. 위성 패턴 완주 검증. · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
+> **Phase 1 완료·배포 (2026-07-07)** — 급여 위성(apps/payroll) 라이브 github.io/thinkmap/payroll/.
+> **Phase 2 완료 (2026-07-07, 미배포)** — 재고 위성(apps/inventory). ※roster+members→Inventory 피벗(§8).
+> **DB 트랙**: payroll 워크스페이스 정책 마이그 guardian 검수 통과, 프로덕션 적용 유저 승인 대기. · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
 > 관계: [ARCHITECTURE.md](./ARCHITECTURE.md)의 두 plane 구조와, [ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의
 > 워크스페이스(테넌트) 모델을 **프론트 배포 단위로 확장**한 문서. 각 도메인 명세(PAYROLL-SPEC,
 > MEMBER-SPEC, SEAT-SPEC, MARKETING-CANVAS-*)의 상위 배포 컨텍스트.
@@ -183,11 +185,18 @@ core 위에 얹는 얇은 앱 하나가 된다.
   `envDir=../../` 로 공유 Supabase · 동일 origin SSO · 모선 런처 링크(`?page=`) + "← 모선" 백링크 ·
   @thinkmap/core 재사용(useAuth/supabase) · 마스터 게이트 · 급여 도메인 코드 hub→위성 이동.
   실이익 실측: 위성 번들 387KB(모선 1.65MB의 ~1/4, TipTap 부재). 워크스페이스 범위 조회는 Phase C(병행 트랙)와 함께.
-- **Phase 2 — 자리/인사 (roster + members).** 다른 PC 독립 작업 대상. 쌍으로 이전.
+- **Phase 2 — ✅ 재고(Inventory) 위성 완료(2026-07-07).** apps/inventory 신설(미배포).
+  ⚠️ **원래 계획(roster+members)에서 피벗**: 코드 재조사 결과 자리/인사가 SPEC 전제와 달리 모선에 결합됨 —
+  **roster(배치도)는 `TipTapTestPage`의 RosterCard 로 데일리 에디터에 박혀 있어 모선 잔류**(worklog 원칙),
+  member 도메인(useMembers/membersPage/rosterPresets)은 모선 roster 와 공유 → MembersPage 만 떼도 공유 3모듈
+  승격 + hub ~10곳 갱신 = 고비용·저이익. 반면 **Inventory 는 외부결합 0(완전 독립)** 이라 payroll 보다 깨끗한
+  둘째 파일럿으로 채택. 셸 최소(마스터게이트·pageId 불필요), 번들 380KB.
+  → roster/members 위성화는 보류(member 도메인을 공유 패키지로 뽑는 별도 설계 필요 시 재개).
 - **Phase 3 — 마케팅 엔진 (canvas).** `daily_blocks` 읽기 의존 정리(또는 공유 테이블 그대로 읽기).
-- **Phase 4 (선택) — seat, inventory.** 독립성 높음, 여유 될 때.
-- **모선**: pages/worklog/calendar/goals/dashboard/editor 유지. **업무일지 분리 시도 금지.**
-- **병행 트랙 (DB)**: `is_master()` → 워크스페이스 전환(ACCESS-TIERS Phase C)을 위성화와 함께 진행.
+- **Phase 4 (선택) — seat.** 완전 독립 서브트리, 여유 될 때. (inventory 는 Phase 2 로 앞당겨 완료.)
+- **모선**: pages/worklog/calendar/goals/dashboard/editor **+ roster(배치도, 에디터 결합)** 유지. **업무일지 분리 시도 금지.**
+- **병행 트랙 (DB)**: `is_master()` → 워크스페이스 전환(ACCESS-TIERS Phase C). ✅ payroll 파일럿 정책
+  `payroll_sheets_ws_owner_v2`(can_in_workspace owner 병행) 작성·guardian 검수 통과 — 프로덕션 적용은 유저 승인 대기.
   위성은 처음부터 테넌트-aware하게 태어난다.
 
 ---
