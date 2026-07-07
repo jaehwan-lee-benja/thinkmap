@@ -12,7 +12,7 @@ const DashboardPage = lazy(() => import('./components/Dashboard/DashboardPage'))
 // 급여(Payroll)는 Phase 1 에서 별도 위성 앱(apps/payroll, /thinkmap/payroll/)으로 분리됨.
 // 모선은 더 이상 급여 코드를 품지 않고 런처 링크로 위성을 연다(아래 isPayrollPage 분기).
 import MembersPage from './components/Members/MembersPage'
-import InventoryPage from './components/Inventory/InventoryPage'
+// 재고(Inventory)는 Phase 2 에서 별도 위성 앱(apps/inventory, /thinkmap/inventory/)으로 분리됨.
 import SeatSystemPage from './components/Seat/SeatSystemPage'
 // 백오피스(사이트 구조도) = 마스터 전용 + 셸/에디터 비의존 격리 트리 → 코드 스플리팅.
 const BackofficePage = lazy(() => import('./components/Backoffice/BackofficePage'))
@@ -245,13 +245,16 @@ function PaneInner({
               )
             }
             if (isInventoryPage(pageType)) {
-              // 재고 관리 — 권한(파트너 레벨) 확정 전까지 진입 게이트 없이 노출. #6에서 RLS·게이트 결합.
+              // Phase 2: 재고는 별도 위성 앱(apps/inventory, /thinkmap/inventory/)으로 분리됨.
+              // 마스터 게이트 없음(재고는 로그인 사용자 노출). 위성으로 런치(같은 origin SSO 자동).
+              // 재고 데이터는 page 스코프가 아니라 전역·날짜 기준이라 ?page 컨텍스트 불필요.
               return (
-                <InventoryPage
-                  key={`pane-${paneIndex}-${pageId}`}
-                  pageId={pageId}
-                  session={effectiveSession}
-                />
+                <div className="no-page-selected">
+                  <p>재고 관리는 별도 앱에서 열립니다.</p>
+                  <p>
+                    <a className="satellite-launch" href="/thinkmap/inventory/">재고 앱 열기 →</a>
+                  </p>
+                </div>
               )
             }
             return (

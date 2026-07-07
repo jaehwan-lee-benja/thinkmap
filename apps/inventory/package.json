@@ -1,0 +1,24 @@
+{
+  "name": "@thinkmap/inventory-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "재고(Inventory) 위성 — @thinkmap/core 를 얹고 공유 Supabase 를 읽는 독립 배포 앱.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist -e inventory --add"
+  },
+  "dependencies": {
+    "@thinkmap/core": "*",
+    "lucide-react": "^0.562.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^5.4.21"
+  }
+}
