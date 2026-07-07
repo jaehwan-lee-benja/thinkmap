@@ -9,8 +9,7 @@
 //   const { createPair, createMapping, updateMapping, deleteMapping } = useCanvasMutations()
 
 import { useCallback } from 'react'
-import { supabase } from '../supabaseClient'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export function useCanvasMutations() {
   // ---------------------------------------------------------------------------

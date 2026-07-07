@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabaseClient'
+import { BASE_URL } from './basePath.js'
+import { supabase } from './supabaseClient.js'
 
 /**
  * 인증 관련 로직을 관리하는 커스텀 훅
@@ -98,8 +99,8 @@ export const useAuth = () => {
                            currentHostname.startsWith('192.') ||
                            currentHostname.startsWith('172.')
 
-      // redirectUrl을 현재 origin으로 고정
-      const redirectUrl = currentOrigin + '/thinkmap/'
+      // redirectUrl을 현재 origin + 앱 base 로 고정 (위성은 자기 base 로 자동 대응)
+      const redirectUrl = currentOrigin + BASE_URL
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 
 /**
  * 업무일지 계정별 설정 훅

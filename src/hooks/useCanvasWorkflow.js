@@ -9,8 +9,7 @@
 //   const { workflows, defaultWorkflow, statusMap, loading, error } = useCanvasWorkflow(masterId)
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { supabase } from '../supabaseClient'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export function useCanvasWorkflow(masterId) {
   const [workflows, setWorkflows] = useState([])

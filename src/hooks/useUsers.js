@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 
 /**
  * 사용자 관리 훅 (마스터 전용)

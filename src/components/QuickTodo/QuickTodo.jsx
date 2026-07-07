@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Check, Pin, PinOff, Settings } from 'lucide-react'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { DEFAULT_SECTION_ID } from '../../utils/worklogConstants'
 import {
   findCalendarPageId,

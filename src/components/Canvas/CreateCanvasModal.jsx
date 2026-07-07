@@ -13,7 +13,7 @@
 //   - onCreated    : (pairId, framePageId) => void
 
 import React, { useState, useCallback } from 'react'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { useCanvasMutations } from '../../hooks/useCanvasMutations'
 import './CreateCanvasModal.css'
 

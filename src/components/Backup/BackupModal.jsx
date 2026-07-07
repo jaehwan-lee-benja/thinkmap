@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Clock, Download, Upload, Trash2, RotateCcw, Plus, HardDrive } from 'lucide-react'
-import { Modal, ModalHeader, ModalFooter } from '../Common/Modal/Modal'
+import { Modal, ModalHeader, ModalFooter } from '@thinkmap/core'
 import './BackupModal.css'
 
 function BackupModal({

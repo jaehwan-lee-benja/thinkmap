@@ -3,7 +3,7 @@ import { Shield, ChevronDown, Star, X, CalendarDays, Calendar } from 'lucide-rea
 import AdminModal from '../Admin/AdminModal'
 import QuickTodo from '../QuickTodo/QuickTodo'
 import { useAuthContext } from '../../contexts/AuthContext'
-import { DAY_NAMES } from '../../utils/dateUtils'
+import { DAY_NAMES } from '@thinkmap/core'
 import './GlobalTopBar.css'
 
 export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite, onTodayWorklog, onScheduleOpen, session }) {

@@ -4,8 +4,7 @@
 // Phase 3a 는 todo 만 사용 (page/block 은 schema 만 준비, UI 후속).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '../supabaseClient'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * @param {string[]} eventIds  화면에 보이는 schedule event_id 배열

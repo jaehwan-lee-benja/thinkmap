@@ -11,8 +11,7 @@
 //   const { ... } = useCanvasPair({ pairId })   // 페어 ID 로 직접
 
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../supabaseClient'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 export function useCanvasPair({ pairId, pageId } = {}) {
   const [pair, setPair] = useState(null)

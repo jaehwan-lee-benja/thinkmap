@@ -1139,7 +1139,7 @@ export const Toggle = Node.create({
         // 교차 페이지 동기화: 같은 originBlockId를 가진 이월본 완료 상태 동기화
         const syncTodoId = currentNode.attrs.originBlockId || blockId
         if (syncTodoId && editor.storage.toggle?.isDailyPage) {
-          import('../../../supabaseClient').then(({ supabase }) => {
+          import('@thinkmap/core').then(({ supabase }) => {
             syncBlockAcrossPages(supabase, syncTodoId, willCheck)
           })
         }

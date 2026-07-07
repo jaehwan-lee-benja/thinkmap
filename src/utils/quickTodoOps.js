@@ -9,7 +9,7 @@
 // 모든 함수는 supabase 클라이언트를 인자로 받아 의존성 격리.
 
 import { ensureDailyPage } from './ensureDailyPage.js'
-import { dailyPageName } from './dateUtils.js'
+import { dailyPageName } from '@thinkmap/core'
 import { newBlockId } from './blockIdV2.js'
 import { rowToDb, patchToDb } from './dailyBlockMapper.js'
 import { fetchBlocks } from './dailyBlockOps.js'

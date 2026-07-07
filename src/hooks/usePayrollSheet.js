@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 
 /**
  * payroll_sheets 월별 명세서 로드/저장 (마스터 전용 RLS).

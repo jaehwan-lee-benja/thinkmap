@@ -6,7 +6,7 @@ import {
   layoutDayColumn, snapToSlot,
   minutesFromMidnight, ownerHue,
 } from './scheduleUtils'
-import { DAY_NAMES } from '../../utils/dateUtils'
+import { DAY_NAMES } from '@thinkmap/core'
 
 /**
  * 시간축 뷰 — N일 × 24시간 그리드 + occurrence 렌더 + 드래그 생성/이동/리사이즈

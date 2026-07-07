@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { UserPlus, Trash2, Users } from 'lucide-react'
-import { Modal, ModalHeader, ModalBody, ModalFooter } from '../Common/Modal/Modal'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@thinkmap/core'
 import './ShareModal.css'
 
 function ShareModal({

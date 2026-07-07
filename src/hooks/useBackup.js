@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
-import { supabase } from '../supabaseClient'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * 프로젝트 백업 관리 훅

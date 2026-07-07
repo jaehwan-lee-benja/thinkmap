@@ -8,6 +8,7 @@
 // 한계 — 사용자가 탭을 닫으면 알림 안 옴. 백그라운드 알림은 후속 (service worker / push).
 
 import { useEffect, useRef } from 'react'
+import { withBase } from '@thinkmap/core'
 
 const FIRED_KEY = 'schedule.notify.fired'
 
@@ -36,7 +37,7 @@ async function ensurePermission() {
 
 function showNotification(title, body) {
   try {
-    new Notification(title || '(제목 없음)', { body: body || '', icon: '/thinkmap/favicon.ico' })
+    new Notification(title || '(제목 없음)', { body: body || '', icon: withBase('favicon.ico') })
   } catch (err) { console.warn('Notification 실패:', err) }
 }
 

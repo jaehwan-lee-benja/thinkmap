@@ -2,8 +2,7 @@
 // PLAN-roster-visual-board.md §4·§6. 전역 기본(board_id IS NULL) + 보드별 커스텀을 함께 로드.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '../supabaseClient'
-import { logError } from '../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * @param {string} boardId  업무일지 캘린더(보드) id. 전역 + 이 보드 커스텀 템플릿을 로드.

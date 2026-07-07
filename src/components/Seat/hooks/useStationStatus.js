@@ -1,7 +1,7 @@
 // 스테이션 진행 데이터 훅 — fetch + Realtime + upsert. 카이막/커피 독립(R6). (SEAT-SPEC §8)
 // businessDate 가 falsy 면(미리보기 등) 네트워크/구독을 하지 않는다.
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { supabase } from '../../../supabaseClient'
+import { supabase } from '@thinkmap/core'
 
 export function useStationStatus(businessDate) {
   const [stations, setStations] = useState([])

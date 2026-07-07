@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 
 export const useQuickMemo = (session) => {
   const [content, setContent] = useState('')

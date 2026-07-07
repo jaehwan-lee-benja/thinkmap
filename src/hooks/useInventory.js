@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '@thinkmap/core'
 import { SEED_PRODUCTS } from '../components/Inventory/inventoryProducts'
 import { num } from '../components/Inventory/inventoryCalc'
 

@@ -50,7 +50,7 @@ import { isH2Section } from '../../utils/sectionUtils'
 
 import ColumnView from './ColumnView'
 import MindMapView from './MindMapView'
-import { supabase } from '../../supabaseClient'
+import { supabase, useIsMobile, EmojiPicker } from '@thinkmap/core'
 import { convertFlatBlocksToTiptap } from './utils/convertBlocksToTiptap'
 import { tiptapToColumnBlocks, columnBlocksToTiptap } from './utils/columnViewUtils'
 import {
@@ -71,7 +71,6 @@ import {
   PenLine,
   Settings
 } from 'lucide-react'
-import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePageContext } from '../../contexts/PageContext'
 import { useProjectContext } from '../../contexts/ProjectContext'
 import { useFavoritesContext } from '../../contexts/FavoritesContext'
@@ -81,8 +80,6 @@ import RosterCard from '../Roster/RosterCard'
 import ToggleControlDropdown from './ToggleControlDropdown'
 import WorklogComments from './WorklogComments'
 import CommentPopover from './CommentPopover'
-import EmojiPicker from '../Common/EmojiPicker'
-import '../Common/EmojiPicker.css'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { useWorklogComments } from '../../hooks/useWorklogComments'
 import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
@@ -1307,7 +1304,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       return
     }
     // 이후 daily가 없으면 다음날 생성 confirm (타임존 안전 유틸 사용)
-    const { dailyPageName, nextDateKey } = await import('../../utils/dateUtils')
+    const { dailyPageName, nextDateKey } = await import('@thinkmap/core')
     const dateKey = nextDateKey(currentPage.page_date)
     if (!confirm(`${dateKey} 업무일지가 없습니다. 새로 만들까요?`)) return
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { useClickOutside } from '../../../hooks/useClickOutside'
+import { useClickOutside } from '@thinkmap/core'
 
 export const COLORS = [
   { name: '기본', value: null },

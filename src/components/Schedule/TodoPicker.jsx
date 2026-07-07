@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Search, X, CheckSquare, Square } from 'lucide-react'
-import { supabase } from '../../supabaseClient'
-import { logError } from '../../utils/supabaseError'
+import { supabase, logError } from '@thinkmap/core'
 
 /**
  * 투두 선택 모달.
