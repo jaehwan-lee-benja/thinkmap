@@ -137,7 +137,8 @@ export const usePages = (session, currentProjectId, options = {}) => {
     try {
       setPagesLoading(true)
 
-      // 독립 엔티티 페이지 (project_id=NULL) — 업무일지 + 마케팅 캔버스 + 캘린더 + 급여
+      // 독립 엔티티 페이지 (project_id=NULL) — 업무일지 + 캘린더 + 급여 등.
+      // ※ 마케팅 캔버스(frame/engine)는 Phase 3 에서 위성(apps/canvas)으로 분리 → 여기서 제외됨.
       const worklogQuery = supabase
         .from('pages')
         .select('*')

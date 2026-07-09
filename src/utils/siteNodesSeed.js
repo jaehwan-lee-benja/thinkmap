@@ -65,14 +65,14 @@ export const SITE_NODES_SEED = [
   },
   {
     id: 'seed-canvas',
-    name: '마케팅 엔진 (Canvas)',
+    name: '마케팅 캔버스 (Canvas)',
     kind: 'satellite',
     domain: 'engine',
-    url: '',
+    url: '/thinkmap/canvas/',
     required_role: 'master',
     status: 'live',
     sort_order: 3,
-    note: 'daily_blocks 읽기 의존만 정리하면 분리(§8 Phase 3). 현재 page_type=engine.',
+    note: '§8 Phase 3 위성 분리 완료(apps/canvas). 생성·목록·매핑 전면 자립. frame/engine 페어 = 한 앱. (daily_blocks 의존은 실코드상 없었음)',
   },
   {
     id: 'seed-dashboard',

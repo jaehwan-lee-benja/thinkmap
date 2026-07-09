@@ -1,0 +1,23 @@
+{
+  "name": "@thinkmap/canvas-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "마케팅 캔버스 위성 — @thinkmap/core 를 얹고 공유 Supabase 를 읽는 독립 배포 앱. 생성·목록·매핑 전면 자립.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist -e canvas --add"
+  },
+  "dependencies": {
+    "@thinkmap/core": "*",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^5.4.21"
+  }
+}

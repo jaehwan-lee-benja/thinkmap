@@ -24,11 +24,11 @@ export const PAGE_TYPES = {
 
 // 독립 엔티티(project_id = null, 프로젝트에 소속되지 않음) 페이지 타입.
 // fetchPages 의 worklog 쿼리 / 프로젝트 쿼리 제외 목록과 동일해야 한다.
+// ※ FRAME/ENGINE(마케팅 캔버스)은 Phase 3 에서 별도 위성(apps/canvas)으로 분리됨 →
+//   모선은 더 이상 캔버스 페이지를 fetch/렌더하지 않는다(트리 미노출). 진입=사이드바 런처 → /thinkmap/canvas/.
 export const INDEPENDENT_PAGE_TYPES = [
   PAGE_TYPES.CALENDAR,
   PAGE_TYPES.DAILY,
-  PAGE_TYPES.FRAME,
-  PAGE_TYPES.ENGINE,
   PAGE_TYPES.SCHEDULE,
   PAGE_TYPES.PAYROLL,
   PAGE_TYPES.DASHBOARD,
@@ -41,8 +41,6 @@ export const INDEPENDENT_PAGE_TYPES = [
 
 // 마스터에게만 사이드바 트리에 노출되는 타입.
 export const MASTER_ONLY_PAGE_TYPES = [
-  PAGE_TYPES.FRAME,
-  PAGE_TYPES.ENGINE,
   PAGE_TYPES.PAYROLL,
   PAGE_TYPES.MEMBERS,
   PAGE_TYPES.BACKOFFICE,
