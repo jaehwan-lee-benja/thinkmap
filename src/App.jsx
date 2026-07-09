@@ -14,7 +14,8 @@ const DashboardPage = lazy(() => import('./components/Dashboard/DashboardPage'))
 // 모선은 더 이상 급여 코드를 품지 않고 런처 링크로 위성을 연다(아래 isPayrollPage 분기).
 import MembersPage from './components/Members/MembersPage'
 // 재고(Inventory)는 Phase 2 에서 별도 위성 앱(apps/inventory, /thinkmap/inventory/)으로 분리됨.
-import SeatSystemPage from './components/Seat/SeatSystemPage'
+// 자리후(seat)는 Phase 4 에서 별도 위성 앱(apps/seat, /thinkmap/seat/)으로 분리됨.
+// 모선은 seat 페이지를 fetch/렌더하지 않는다(사이드바 런처로 위성 진입).
 // 백오피스(사이트 구조도) = 마스터 전용 + 셸/에디터 비의존 격리 트리 → 코드 스플리팅.
 const BackofficePage = lazy(() => import('./components/Backoffice/BackofficePage'))
 // 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능
@@ -31,7 +32,7 @@ import { usePageContext } from './contexts/PageContext'
 import { useProjectContext } from './contexts/ProjectContext'
 import AuthContext from './contexts/AuthContext'
 import FavoritesContext from './contexts/FavoritesContext'
-import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isInventoryPage, isSeatPage, isBackofficePage } from './utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isInventoryPage, isBackofficePage } from './utils/pageTypes'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -142,15 +143,6 @@ function PaneInner({
           ) : (() => {
             const currentPage = pages.find(p => p.id === pageId)
             const pageType = currentPage?.page_type
-            if (isSeatPage(pageType)) {
-              // 자리후 시스템 — 키오스크 풀스크린(.seat-app 이 fixed inset:0 으로 화면을 덮음).
-              return (
-                <SeatSystemPage
-                  key={`pane-${paneIndex}-${pageId}`}
-                  session={effectiveSession}
-                />
-              )
-            }
             if (isSchedulePage(pageType)) {
               return (
                 <CalendarShell
