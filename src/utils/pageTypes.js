@@ -35,9 +35,9 @@ export const INDEPENDENT_PAGE_TYPES = [
   PAGE_TYPES.MEMBERS,
   PAGE_TYPES.GOAL,
   PAGE_TYPES.INVENTORY,
-  PAGE_TYPES.SEAT,
   PAGE_TYPES.BACKOFFICE,
 ]
+// ※ SEAT(자리후)는 Phase 4 에서 위성(apps/seat)으로 분리 → 모선은 seat 페이지를 fetch/트리노출하지 않음. 진입=사이드바 런처 → /thinkmap/seat/.
 
 // 마스터에게만 사이드바 트리에 노출되는 타입.
 export const MASTER_ONLY_PAGE_TYPES = [

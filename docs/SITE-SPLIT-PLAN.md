@@ -5,7 +5,8 @@
 > 검증: build 그린 + 170 테스트 통과 + 실앱(데일리·토글·EmojiPicker·캘린더) 클린 + deno Edge 결합 해석.
 > **Phase 1 완료·배포 (2026-07-07)** — 급여 위성(apps/payroll) 라이브 github.io/thinkmap/payroll/.
 > **Phase 2 완료·배포 (2026-07-09)** — 재고 위성(apps/inventory) 라이브 github.io/thinkmap/inventory/. ※roster+members→Inventory 피벗(§8).
-> **Phase 3 완료 (2026-07-09, 미배포)** — 마케팅 캔버스 위성(apps/canvas), 옵션 B 전면 독립. daily_blocks=직접읽기 유지 결정. 마스터 게이트 셸단 적용.
+> **Phase 3 완료·배포 (2026-07-09)** — 마케팅 캔버스 위성(apps/canvas) 라이브 github.io/thinkmap/canvas/, 옵션 B 전면 독립. daily_blocks=직접읽기 유지. 마스터 게이트 셸단.
+> **Phase 4 완료 (2026-07-09, 미배포)** — 자리후 위성(apps/seat, feat/site-split-phase4). 완전 독립·page독립·워크스페이스 RLS. 프론트 분할 트랙 사실상 완료(roster는 의도적 보류).
 > **DB 트랙**: payroll 워크스페이스 정책 마이그 guardian 검수 통과, 프로덕션 적용 유저 승인 대기. · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
 > 관계: [ARCHITECTURE.md](./ARCHITECTURE.md)의 두 plane 구조와, [ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의
 > 워크스페이스(테넌트) 모델을 **프론트 배포 단위로 확장**한 문서. 각 도메인 명세(PAYROLL-SPEC,
@@ -197,7 +198,9 @@ core 위에 얹는 얇은 앱 하나가 된다.
   생성·목록·매핑 전부 위성(모선은 canvas 코드 완전 제거, frame/engine fetch·트리노출 안 함). frame⇄engine 페어 = 한 앱, 진입 `?page=`.
   `daily_blocks` 의존은 **공유 테이블 직접 읽기 유지**로 결정(useUserDailyBlocks 위성 이동; 자체 테이블+RLS라 뷰격리 불필요).
   마스터 게이트 = payroll 패턴대로 셸 단(`if (!isMaster)`) 적용. base `/thinkmap/canvas/`.
-- **Phase 4 (선택) — seat.** 완전 독립 서브트리, 여유 될 때. (inventory 는 Phase 2 로 앞당겨 완료.)
+- **Phase 4 — ✅ 자리후(seat) 위성 완료(2026-07-09, 미배포).** apps/seat 신설. 완전 독립 서브트리(587줄, TipTap 무의존,
+  seat_orders/seat_station_status = 워크스페이스 스코프·page 독립·Realtime). 셸=로그인만(마스터 전용 아님, 테넌시는 RLS).
+  모선: App.jsx seat 분기 삭제 + pageTypes INDEPENDENT에서 SEAT 제거(seat 페이지 fetch 안 함) + 사이드바 런처 링크.
 - **모선**: pages/worklog/calendar/goals/dashboard/editor **+ roster(배치도, 에디터 결합)** 유지. **업무일지 분리 시도 금지.**
 - **병행 트랙 (DB)**: `is_master()` → 워크스페이스 전환(ACCESS-TIERS Phase C). ✅ payroll 파일럿 정책
   `payroll_sheets_ws_owner_v2`(can_in_workspace owner 병행) 작성·guardian 검수 통과 — 프로덕션 적용은 유저 승인 대기.

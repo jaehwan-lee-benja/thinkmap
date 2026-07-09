@@ -11,7 +11,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage, isSeatPage, isBackofficePage } from '../../utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage, isBackofficePage } from '../../utils/pageTypes'
 import { findOrCreateMembersPage } from '../../utils/membersPage'
 import { findOrCreateBackofficePage } from '../../utils/backofficePage'
 import './Sidebar.css'
@@ -180,47 +180,15 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
               <span>캘린더</span>
             </button>
 
-            {/* 자리후 시스템 — 워크스페이스 공유 키오스크 모듈. find-or-create. */}
-            <button
-              className={`sidebar-worklog-btn ${currentPageId && isSeatPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
-              onClick={async () => {
-                let seatPage = pages.find(p => isSeatPage(p))
-                if (!seatPage) {
-                  const { data } = await supabase
-                    .from('pages')
-                    .select('id')
-                    .eq('page_type', 'seat')
-                    .is('deleted_at', null)
-                    .limit(1)
-                    .maybeSingle()
-                  if (data) seatPage = { id: data.id, page_type: 'seat' }
-                }
-                if (!seatPage) {
-                  const newPageId = generateUUID()
-                  const { error } = await supabase
-                    .from('pages')
-                    .insert([{
-                      id: newPageId,
-                      user_id: effectiveSession.user.id,
-                      name: '자리후',
-                      page_type: 'seat',
-                      project_id: null,
-                      parent_id: null,
-                      position: -3,    // 캘린더(-1)·목표(-2)보다 위
-                    }])
-                  if (error) {
-                    console.error('자리후 페이지 생성 실패:', error)
-                    return
-                  }
-                  seatPage = { id: newPageId, page_type: 'seat' }
-                }
-                if (typeof fetchPages === 'function') await fetchPages()
-                handlePageSelect(seatPage.id)
-              }}
+            {/* Phase 4: 자리후는 별도 위성 앱(apps/seat). 워크스페이스 공유 키오스크 → 위성으로 진입. */}
+            <a
+              className="sidebar-worklog-btn"
+              href="/thinkmap/seat/"
+              title="자리후 (별도 앱에서 열림)"
             >
               <Coffee size={16} />
               <span>자리후</span>
-            </button>
+            </a>
 
             {/* 대시보드 — 캘린더 아래. 마스터 전용 (비마스터에겐 진입 자체를 숨김). */}
             {isMaster && (
