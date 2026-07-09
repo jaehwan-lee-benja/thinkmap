@@ -239,12 +239,14 @@ core 위에 얹는 얇은 앱 하나가 된다.
   (base `/thinkmap/payroll/`, `gh-pages -d dist -e payroll --add` 로 모선 안 건드리고 하위폴더만 갱신).
   동일 origin(github.io) = SSO를 **구조로** 보장. 새 repo 불필요. 커스텀 도메인 분기 전까지 무료 SSO 유지.
   ※ 위성별 별도 repo(`github.io/thinkmap-payroll/`)는 "졸업" 시 선택지(§4.1), 지금은 단일 repo 하위폴더.
-  ⚠️ **배포 방법 = 위성별 `-e <sub> --add` (검증됨). "단일 dist 조립 후 `gh-pages -d dist`"는 쓰지 마라.**
-    Phase 2·3 모두 조립-방식이 gh-pages 최종 커밋에서 **하위폴더를 통째로 누락**시켰다(캐시 제거해도 재현). 정확한 절차:
-    ① 모선 필요 시 `npm run build` → `gh-pages -d dist` (루트만; dist에 위성 폴더 cp 금지)
-    ② 각 위성 `(cd apps/X && npm run build)` → `rm -rf node_modules/.cache/gh-pages` → `gh-pages -d apps/X/dist -e X --add`
-    ③ 매 배포 후 `git fetch origin gh-pages --force && git ls-tree origin/gh-pages --name-only` 로 하위폴더 실재 확인.
-    GitHub Pages 레거시 빌드는 배포당 "errored→built" 1~2사이클(수분) 지연이 정상 — 라이브 404는 브랜치 트리부터 확인.
+  ⚠️ **배포 방법 = 위성별 `-e <sub> --add`. "단일 dist 조립 후 `gh-pages -d dist`"는 쓰지 마라.** (Phase 2·3·4 실증. 상세=기억 ghpages_satellite_deploy_gotcha)
+    조립-방식은 gh-pages 최종 커밋에서 하위폴더를 통째로 누락시킨다. ★★**핵심: `--add` 배포들 사이에 `node_modules/.cache/gh-pages`를 비우지 마라** — 비우면 fresh clone이라 직전 push 하위폴더가 드롭됨(Phase 4 실증). 캐시 유지=로컬 작업본에 누적. 절차:
+    ① 모선 clean 빌드: `rm -rf dist && npm run build` (dist에 위성 폴더 cp 금지)
+    ② **캐시 1회만** clear: `rm -rf node_modules/.cache/gh-pages`
+    ③ 모선 루트: `gh-pages -d dist --dotfiles` (루트 wipe+publish — `-d dist --add`도 하위폴더 보존 못 하니 뒤에서 전 위성 재add)
+    ④ 위성들 **캐시 clear 없이** 순차: `gh-pages -d apps/payroll/dist -e payroll --add --dotfiles` → inventory → canvas → seat (캐시 누적=합집합)
+    ⑤ 매 단계 후 `git fetch origin gh-pages --force && git ls-tree origin/gh-pages --name-only` 로 하위폴더 실재 확인.
+    GitHub Pages 레거시 빌드는 배포당 "errored→built" 1~2사이클(수분) 지연 + 여러 push 시 빌드 큐가 쌓여 중간 빌드가 먼저 서빙됨(일부만 200) → 최종 빌드 대기. 라이브 404는 CDN 탓 전에 브랜치 트리부터 확인.
 - [x] **위성 런처 레지스트리: DB 테이블** — `site_nodes`(백오피스 라이브) 재사용으로 사실상 확정. 정적 config 아님.
 - [ ] `current_workspace()` 프론트 컨텍스트 API 형태 (ACCESS-TIERS Phase C와 조율) — Phase 1 급여 착수 시 확정.
 - [x] 마케팅 캔버스의 `daily_blocks` 의존: **공유 테이블 직접 읽기 유지**로 결정(2026-07-09, Phase 3). 뷰/API 격리는 과설계 — daily_blocks는 thinkmap 자체 테이블+RLS 스코프, useUserDailyBlocks(RegionPanel 전용) 위성 이동으로 해소.
