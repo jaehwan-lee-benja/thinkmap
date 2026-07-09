@@ -4,7 +4,8 @@ import { GlobalTopBar } from './components/GlobalTopBar/GlobalTopBar'
 import Sidebar from './components/Sidebar/Sidebar'
 import { TabBar } from './components/TabBar/TabBar'
 import TipTapEditorPage from './components/TipTapEditor/TipTapTestPage'
-import CanvasViewer from './components/Canvas/CanvasViewer'
+// 마케팅 캔버스(frame/engine)는 Phase 3 에서 별도 위성 앱(apps/canvas, /thinkmap/canvas/)으로 분리됨.
+// 모선은 캔버스 페이지를 fetch/렌더하지 않는다(사이드바 런처로 위성 진입).
 import CalendarShell from './components/Calendar/CalendarShell'
 // 대시보드는 마스터 전용 + 비교적 무거운 트리이므로 코드 스플리팅.
 // 대시보드를 열지 않는 멤버/세션에는 메인 번들에 포함되지 않는다.
@@ -30,7 +31,7 @@ import { usePageContext } from './contexts/PageContext'
 import { useProjectContext } from './contexts/ProjectContext'
 import AuthContext from './contexts/AuthContext'
 import FavoritesContext from './contexts/FavoritesContext'
-import { PAGE_TYPES, isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isInventoryPage, isSeatPage, isBackofficePage } from './utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isInventoryPage, isSeatPage, isBackofficePage } from './utils/pageTypes'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -141,16 +142,6 @@ function PaneInner({
           ) : (() => {
             const currentPage = pages.find(p => p.id === pageId)
             const pageType = currentPage?.page_type
-            if (pageType === PAGE_TYPES.FRAME || pageType === PAGE_TYPES.ENGINE) {
-              return (
-                <CanvasViewer
-                  key={`pane-${paneIndex}-${pageId}`}
-                  pageId={pageId}
-                  canvasType={pageType}
-                  session={effectiveSession}
-                />
-              )
-            }
             if (isSeatPage(pageType)) {
               // 자리후 시스템 — 키오스크 풀스크린(.seat-app 이 fixed inset:0 으로 화면을 덮음).
               return (

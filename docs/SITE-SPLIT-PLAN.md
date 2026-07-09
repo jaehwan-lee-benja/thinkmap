@@ -4,7 +4,8 @@
 > 0-A(base 파라미터화) + 0-B(packages/core 추출 Stage 1~6: base헬퍼·supabaseClient·useAuth·공용UI·공용훅·공용유틸) 이관 완료.
 > 검증: build 그린 + 170 테스트 통과 + 실앱(데일리·토글·EmojiPicker·캘린더) 클린 + deno Edge 결합 해석.
 > **Phase 1 완료·배포 (2026-07-07)** — 급여 위성(apps/payroll) 라이브 github.io/thinkmap/payroll/.
-> **Phase 2 완료 (2026-07-07, 미배포)** — 재고 위성(apps/inventory). ※roster+members→Inventory 피벗(§8).
+> **Phase 2 완료·배포 (2026-07-09)** — 재고 위성(apps/inventory) 라이브 github.io/thinkmap/inventory/. ※roster+members→Inventory 피벗(§8).
+> **Phase 3 완료 (2026-07-09, 미배포)** — 마케팅 캔버스 위성(apps/canvas), 옵션 B 전면 독립. daily_blocks=직접읽기 유지 결정. 마스터 게이트 셸단 적용.
 > **DB 트랙**: payroll 워크스페이스 정책 마이그 guardian 검수 통과, 프로덕션 적용 유저 승인 대기. · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
 > 관계: [ARCHITECTURE.md](./ARCHITECTURE.md)의 두 plane 구조와, [ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의
 > 워크스페이스(테넌트) 모델을 **프론트 배포 단위로 확장**한 문서. 각 도메인 명세(PAYROLL-SPEC,
@@ -192,7 +193,10 @@ core 위에 얹는 얇은 앱 하나가 된다.
   승격 + hub ~10곳 갱신 = 고비용·저이익. 반면 **Inventory 는 외부결합 0(완전 독립)** 이라 payroll 보다 깨끗한
   둘째 파일럿으로 채택. 셸 최소(마스터게이트·pageId 불필요), 번들 380KB.
   → roster/members 위성화는 보류(member 도메인을 공유 패키지로 뽑는 별도 설계 필요 시 재개).
-- **Phase 3 — 마케팅 엔진 (canvas).** `daily_blocks` 읽기 의존 정리(또는 공유 테이블 그대로 읽기).
+- **Phase 3 — ✅ 마케팅 캔버스 (canvas) 완료(2026-07-09).** apps/canvas 신설. **옵션 B(전면 독립)** 채택:
+  생성·목록·매핑 전부 위성(모선은 canvas 코드 완전 제거, frame/engine fetch·트리노출 안 함). frame⇄engine 페어 = 한 앱, 진입 `?page=`.
+  `daily_blocks` 의존은 **공유 테이블 직접 읽기 유지**로 결정(useUserDailyBlocks 위성 이동; 자체 테이블+RLS라 뷰격리 불필요).
+  마스터 게이트 = payroll 패턴대로 셸 단(`if (!isMaster)`) 적용. base `/thinkmap/canvas/`.
 - **Phase 4 (선택) — seat.** 완전 독립 서브트리, 여유 될 때. (inventory 는 Phase 2 로 앞당겨 완료.)
 - **모선**: pages/worklog/calendar/goals/dashboard/editor **+ roster(배치도, 에디터 결합)** 유지. **업무일지 분리 시도 금지.**
 - **병행 트랙 (DB)**: `is_master()` → 워크스페이스 전환(ACCESS-TIERS Phase C). ✅ payroll 파일럿 정책
@@ -234,7 +238,7 @@ core 위에 얹는 얇은 앱 하나가 된다.
   ※ 위성별 별도 repo(`github.io/thinkmap-payroll/`)는 "졸업" 시 선택지(§4.1), 지금은 단일 repo 하위폴더.
 - [x] **위성 런처 레지스트리: DB 테이블** — `site_nodes`(백오피스 라이브) 재사용으로 사실상 확정. 정적 config 아님.
 - [ ] `current_workspace()` 프론트 컨텍스트 API 형태 (ACCESS-TIERS Phase C와 조율) — Phase 1 급여 착수 시 확정.
-- [ ] 마케팅 엔진의 `daily_blocks` 의존: 공유 테이블 직접 읽기 유지 vs 뷰/API 경유로 격리 — Phase 3에서 결정.
+- [x] 마케팅 캔버스의 `daily_blocks` 의존: **공유 테이블 직접 읽기 유지**로 결정(2026-07-09, Phase 3). 뷰/API 격리는 과설계 — daily_blocks는 thinkmap 자체 테이블+RLS 스코프, useUserDailyBlocks(RegionPanel 전용) 위성 이동으로 해소.
 
 ---
 

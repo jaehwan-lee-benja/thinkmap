@@ -4,7 +4,6 @@ import { supabase, useIsMobile, generateUUID } from '@thinkmap/core'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
 import BackupModal from '../Backup/BackupModal'
-import CreateCanvasModal from '../Canvas/CreateCanvasModal'
 import { SidebarHeader } from './components/SidebarHeader'
 import { PageTree } from './components/PageTree'
 import { useProjectContext } from '../../contexts/ProjectContext'
@@ -41,8 +40,6 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
   // 프로젝트 모달 상태
   const [projectModalOpen, setProjectModalOpen] = useState(false)
 
-  // 마케팅 캔버스 생성 모달
-  const [canvasModalOpen, setCanvasModalOpen] = useState(false)
 
   const currentProject = projects.find(p => p.id === currentProjectId)
   const hasSharedItems = sharedWithMe.projects.length > 0 || sharedWithMe.pages.length > 0
@@ -321,14 +318,15 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             {/* 마케팅 캔버스 + 급여명세서 — 마스터 전용 */}
             {isMaster && (
               <>
-                <button
+                {/* Phase 3: 마케팅 캔버스는 별도 위성 앱(apps/canvas). 생성·목록·매핑 전부 위성에서. */}
+                <a
                   className="sidebar-worklog-btn"
-                  onClick={() => setCanvasModalOpen(true)}
-                  title="새 마케팅 캔버스 만들기"
+                  href="/thinkmap/canvas/"
+                  title="마케팅 캔버스 (별도 앱에서 열림)"
                 >
                   <Target size={16} />
-                  <span>+ 마케팅 캔버스</span>
-                </button>
+                  <span>마케팅 캔버스</span>
+                </a>
 
                 <button
                   className={`sidebar-worklog-btn ${currentPageId && isPayrollPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
@@ -573,24 +571,6 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
         onExportBackup={exportBackup}
         onImportBackup={importBackup}
         onRefresh={refreshBackups}
-      />
-
-      {/* 마케팅 캔버스 생성 모달 */}
-      <CreateCanvasModal
-        isOpen={canvasModalOpen}
-        onClose={() => setCanvasModalOpen(false)}
-        userId={effectiveSession?.user?.id}
-        masterId={effectiveSession?.user?.id}
-        onCreated={async (pairId, framePageId) => {
-          // PageContext 가 새로 만든 frame/engine 페이지를 인식하도록 먼저 fetch
-          if (typeof fetchPages === 'function') {
-            await fetchPages()
-          } else {
-            window.dispatchEvent(new CustomEvent('pages-refresh'))
-          }
-          // 그 다음 새 frame 페이지로 이동
-          handlePageSelect(framePageId)
-        }}
       />
     </>
   )
