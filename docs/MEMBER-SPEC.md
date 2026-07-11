@@ -4,7 +4,7 @@
 >
 > 작성일: 2026-06-13
 > 작성자: jaehwan-lee-benja (with Claude)
-> 상태: **Phase 1 (멤버 마스터 + 배치도 MVP) 구현 중**
+> 상태: **Phase 1 (멤버 마스터 + 배치도 MVP) 완료** · **SITE-SPLIT Phase 5 프론트 분할 완료(2026-07-11)** — 멤버 관리는 독립 위성 `apps/members`(`/thinkmap/members/`)로 이관, 배치도(roster)는 데일리 에디터 결합으로 모선 잔류. member 공유모듈은 `@thinkmap/core`. (Phase 2 근무요청 허브·Phase 3 급여매칭 미착수. 상세=docs/SITE-SPLIT-PLAN.md §8 Phase 5)
 > 상위 컨텍스트: [ARCHITECTURE.md](./ARCHITECTURE.md) — Structured Data Plane 의 신규 도메인.
 > 권한 맥락: [ACCESS-MODEL.md](./ACCESS-MODEL.md) — 신규 패러다임을 만들지 않고 기존 B(공개형)/C(마스터전용)를 조합한다.
 
@@ -189,14 +189,18 @@ roster_assignments (
 - 신규 헬퍼 `is_board_member(board_id uuid)` — `worklog_board_members`에 (board, auth.uid()) 존재.
   기존 `is_board_member_of_page(page_id)`(보드=페이지의 parent)와 짝을 이루는, board_id 직접 질의판.
   SECURITY DEFINER + STABLE (RLS 재귀 회피).
-- 멤버 관리 **페이지**(`page_type='members'`) 진입은 ACCESS-MODEL §7에 따라 worklog 공개 절에
-  넣지 않고, `pages` 기본 정책의 마스터 분기로 보호한다(payroll·dashboard 선례 = 진입점 마스터).
-  단 `members` **테이블**의 기본정보는 배치도 모달에서 직원도 봐야 하므로 로그인 SELECT를 연다.
+- 멤버 관리 진입 방어 (**SITE-SPLIT Phase 5 이후 갱신**): 멤버 관리는 독립 위성(`apps/members`, `/thinkmap/members/`)이며
+  `pages` row 를 경유하지 않는다. 2단 방어 — (1) 위성 셸 `if (!isMaster)` 게이트(클라이언트, payroll/inventory 패턴),
+  (2) `member_private`/`member_records` 테이블 RLS(`is_master()`, C 패러다임 그대로 = 진짜 방어선). 옛 `page_type='members'`
+  pages row 와 `findOrCreateMembersPage`는 모선 fetch 대상에서 제외되어 사실상 폐기(§7.1 참조).
+  단 `members` **테이블**의 기본정보는 배치도 모달에서 직원도 봐야 하므로 로그인 SELECT를 연다(불변).
 
 ## 7. 화면 흐름 & 진입점
 
-### 7.1 멤버 관리 페이지 (`page_type='members'`)
-- 사이드바 "급여명세서" 옆에 **"멤버 관리"** 버튼(마스터 전용 표시), find-or-create.
+### 7.1 멤버 관리 (위성 `apps/members` · `/thinkmap/members/`) — SITE-SPLIT Phase 5
+- 진입 = 사이드바 **"멤버 관리"** 버튼 = 위성 링크(`<a href="/thinkmap/members/">`, 마스터 전용 표시). find-or-create 페이지 아님.
+- 위성 셸(`MembersApp`): 로그인 게이트 + `if (!isMaster)` 마스터 게이트 → `MembersPage`. member 공유모듈은 `@thinkmap/core`
+  (`useMembers`/`sortMembers`·`findOrCreateMembersPage`/`rosterPresets` — 모선 roster 와 공유). MembersPage 는 page 독립(pageId 미사용).
 - 목록: 이름/근무요일/직급/상태/연락처. 추가·편집·비활성/퇴사 처리.
 - 편집 모달: 기본정보 + (마스터일 때만) 민감정보 탭 + 인사 이력(보건증/계약/교육/상담) 리스트.
 
@@ -212,6 +216,8 @@ roster_assignments (
 - 모달(`RosterModal`): 그 날짜(`work_date`)·보드(`board_id`)의 배치 목록.
   멤버 추가(마스터 목록에서 선택) → 역할 지정 → 상태(예정/근무확정). 저장은 row CRUD.
 - 열람은 누구나(로그인), 편집 버튼/입력은 `is_master() || is_board_member`.
+- ★모달의 "멤버 관리하기" 버튼(마스터 전용)은 **멤버 위성으로 이동**한다(`/thinkmap/members/`, Phase 5). 모선 내부 페이지 전환 아님 —
+  MEMBERS 가 모선 fetch 대상에서 빠졌으므로 옛 find-or-create 네비게이션은 죽은 경로(회귀 이력: Phase 5 배포 전 수정됨).
 
 ## 8. 급여 매칭 (후속 연계)
 
@@ -235,6 +241,15 @@ roster_assignments (
 - **Phase 4**: 보건증 만료·계약 갱신 알림, 멤버 셀프서비스, 통계.
 
 ## 11. 결정 로그 / 미해결
+
+**결정됨 (2026-07-11) — 멤버 도메인 SITE-SPLIT Phase 5**
+- 멤버 관리(MembersPage)를 독립 위성 `apps/members`(`/thinkmap/members/`)로 분리. 배치도(roster)는 데일리 에디터(TipTapTestPage RosterCard) 결합으로 **모선 잔류**.
+- member 공유 3모듈(`useMembers`·`sortMembers`/`findOrCreateMembersPage`·`rosterPresets`)을 `@thinkmap/core`로 추출 → 모선 roster 와 위성 members 공유.
+- 위성 접근 방어 = 셸 `if(!isMaster)` + 테이블 RLS(불변). 모선은 `page_type='members'` fetch 안 함(pageTypes INDEPENDENT/MASTER_ONLY에서 제거).
+- RosterModal "멤버 관리하기" 버튼은 위성 URL로 이동(내부 페이지 전환 회귀 수정, 배포 전).
+- roster RLS 는 `is_master()`/`is_board_member()` 유지(access-tiers 전환 아님, 도메인 일관성).
+
+**미해결** — 옛 `page_type='members'` 고아 pages row(과거 find-or-create 생성분)의 soft-delete 여부: 현재 호출처 없어 무해하나 정리 대상. Phase 2(근무요청 허브)·Phase 3(급여매칭)은 members/roster_assignments 테이블 직접 참조 설계라 members 페이지 존재에 무의존(구현 시 hub 가정 금지).
 
 **결정됨 (2026-06-13)**
 - 멤버 = 인사 마스터(로그인 계정과 분리). `auth_user_id`로 연결만.

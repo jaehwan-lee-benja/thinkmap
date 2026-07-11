@@ -32,17 +32,16 @@ export const INDEPENDENT_PAGE_TYPES = [
   PAGE_TYPES.SCHEDULE,
   PAGE_TYPES.PAYROLL,
   PAGE_TYPES.DASHBOARD,
-  PAGE_TYPES.MEMBERS,
   PAGE_TYPES.GOAL,
   PAGE_TYPES.INVENTORY,
   PAGE_TYPES.BACKOFFICE,
 ]
-// ※ SEAT(자리후)는 Phase 4 에서 위성(apps/seat)으로 분리 → 모선은 seat 페이지를 fetch/트리노출하지 않음. 진입=사이드바 런처 → /thinkmap/seat/.
+// ※ SEAT(자리후)는 Phase 4, MEMBERS(멤버 관리)는 Phase 5 에서 위성(apps/seat, apps/members)으로 분리 →
+//   모선은 해당 페이지를 fetch/트리노출하지 않음. 진입=사이드바 런처 → /thinkmap/seat/·/thinkmap/members/.
 
 // 마스터에게만 사이드바 트리에 노출되는 타입.
 export const MASTER_ONLY_PAGE_TYPES = [
   PAGE_TYPES.PAYROLL,
-  PAGE_TYPES.MEMBERS,
   PAGE_TYPES.BACKOFFICE,
 ]
 

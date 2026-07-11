@@ -16,3 +16,10 @@ export { useUserPreferences } from './hooks/useUserPreferences.js'
 export * from './utils/dateUtils.js'
 export { generateUUID } from './utils/uuid.js'
 export { logError } from './utils/supabaseError.js'
+// 멤버(인사) 도메인 — Phase 5 에서 core 로 추출(모선 roster[데일리 에디터 결합]와 members 위성이 공유).
+export {
+  useMembers, loadMemberPrivate, loadAllMemberPrivate, saveMemberPrivate,
+  loadMemberRecords, saveMemberRecord, deleteMemberRecord,
+} from './hooks/useMembers.js'
+export { sortMembers, findOrCreateMembersPage } from './utils/membersPage.js'
+export * from './utils/rosterPresets.js'
