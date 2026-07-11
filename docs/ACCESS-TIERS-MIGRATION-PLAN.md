@@ -4,8 +4,16 @@
 > 이 문서는 **이관 순서·불변식·검증 시나리오**다. 아래 Phase C SQL은 **스케치(적용 금지)** 이며,
 > 실제 적용은 단계마다 supabase-guardian 검수 → 사용자 승인 → 통합 세션이 한다.
 >
-> 상태: **Phase A 프로덕션 적용 완료**(2026-06-25, baseline `baseline/access-tiers`,
-> 마이그 `access_tiers_phase_a`, grants=4 시드 검증). Phase C는 미적용 — 본 계획 정교화 중.
+> 상태: **Phase A 완료**(2026-06-25) · **Phase C 안전 단계 완료 + 나머지 의도적 보류**(2026-07-11).
+>
+> ✅ **완료(2026-07-11):** 마스터전용 단순 테이블 수렴 — payroll(C-P)·goals(C-1)·site_nodes 전부 `*_ws_owner_v2` 단독.
+> 인프라 구축: `grants_sync_trigger`(app_users→grants 자동동기화) + `app_users_privilege_guard`(★self-promote 보안구멍 봉쇄). [[db_grants_sync_and_privilege_guard]]
+>
+> 🅿️ **의도적 보류(C-2 협업 / C-3 shares→grants / C-4 임퍼소네이션):** 입체 재검토 결과 **전부 "고위험 × 현재가치 0"**.
+> 마스터전용 수렴은 owner=master라 동작 동일(순수 위생). 워크스페이스 모델의 실가치(viewer/editor 등급·리소스공유·다중매장)는
+> **둘째 매장/워크스페이스가 생기거나 등급이 제품 기능으로 필요해질 때** 실현됨 — 현재는 워크스페이스 1·마스터 2·소수 사용자라 현행
+> is_master/is_board_member/shares 모델이 충분. 특히 daily_blocks(11k 실콘텐츠·행가림·삭제사고 도메인)는 이득 0에 최고위험이라 건드리지 않음.
+> **인프라는 준비 완료 → 실제 드라이버 생길 때 §C-2~C-4 설계대로 재개.** (결정: 유저 2026-07-11 "안전 단계 완료로 정착")
 
 ---
 
