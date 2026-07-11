@@ -260,3 +260,25 @@ core 위에 얹는 얇은 앱 하나가 된다.
 ---
 
 > 다음 스텝: 이 문서 §10을 합의 → Phase 0(파라미터화 + core 추출) → Phase 1 급여 파일럿.
+
+---
+
+## 11. 재구조화 완료 감사 — 병렬 편집(다른 PC·브랜치) 충돌 최소화 관점 (2026-07-11)
+
+> 원 동기: 엉킨 모놀리스를 기능별 모듈로 나눠, **각 기능을 다른 PC에서 Claude Code로 독립 변경할 때 충돌을 최소화**한다.
+
+### ✅ 달성 (핵심 목표)
+- **위성 5개(payroll·inventory·canvas·seat·members)는 완전 격리** — `apps/*/src` 가 모선 `src/` 나 다른 위성을 import 하지 않음(실측 0건, `@thinkmap/core`만 공유). → **한 위성 작업은 그 디렉토리만 건드림 = 타 위성·모선과 충돌 0.** 다른 PC에서 병렬 편집해도 안 부딪힘. 이 5개 기능에 대해선 목표 완수.
+
+### ⚠️ 남은 충돌면 (2)
+1. **배선 파일 hotspot** — `App.jsx`(682L)·`Sidebar.jsx`(540L)·`pageTypes.js`·`siteNodesSeed.js` 가 split 마다 반복 변경됨. **위성 추가/런처 라벨·URL 변경**은 이 파일들을 손대므로 두 사람이 동시에 "기능 추가"하면 여기서 충돌. 다만 **위성 추출은 사실상 완료**라 이 hotspot 은 대부분 과거형. (충돌 폭은 몇 줄, 예측 가능.)
+2. **모선 잔여 ~22개 기능 co-habitation** — 두 부류:
+   - *에디터/worklog 결합(분리 금지)*: TipTapEditor·Worklog·Roster·QuickTodo·MemoPanel — TipTap 에디터+셸+컨텍스트를 진짜로 공유. 이들 병렬 편집은 파일 공유 불가피(의도된 트레이드오프, CLAUDE.md 보호).
+   - *비교적 독립(셸 결합 잔존)*: Calendar·Schedule·Dashboard·Goal·Backup·Project — 위성 후보이나 모선 셸/컨텍스트 결합이 있어 의도적으로 잔류(모선=pages/worklog/calendar/goals/dashboard/editor).
+
+### 판정
+**목표(위성 격리)는 잘 마무리됨.** 모선 잔여의 공유는 (a)에디터 코어라 못 쪼갬 or (b)의도적 잔류 → **미완이 아니라 의식적 정지점**. 병렬 편집 충돌은 "두 모선 기능을 동시에 크게 손댈 때"만 남고, 위성 간에는 없음.
+
+### 선택적 개선 (저긴급 — 충돌 더 줄이려면)
+- **위성 배선 레지스트리화**: Sidebar 런처·siteNodesSeed 를 손코딩 대신 단일 `satelliteRegistry`(배열 append)로 → 위성 추가/변경이 **1개 append-only 파일**만 건드려 머지 충돌↓. 위성 추출이 끝나 긴급도는 낮음(미래 위성용).
+- 향후 특정 모선 기능(예: Calendar)에 병렬 작업이 몰리면, 그때 그 기능만 위성 추출 재평가.
