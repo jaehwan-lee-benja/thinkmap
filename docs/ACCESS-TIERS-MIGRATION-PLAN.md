@@ -19,6 +19,12 @@
    확인한다. is_master 본문 교체(shim화)는 **선택적·최후** 단계(단일 출처 정리용).
 5. **되돌릴 수 있는 상태 유지.** 옛 정책 제거 직전까지 언제든 새 정책만 DROP 하면 원복.
 
+### ⚠️ 선결 블로커 — grants 지속 동기화 (2026-07-11, supabase-guardian 발견)
+`grants` 백필(Phase A)은 **1회성**이다. 이후 `app_users.role`이 master 로 바뀌거나 신규 승인돼도 그걸 `grants`에 반영하는 트리거·앱 로직이 **없다**(src 전체에 `INSERT INTO grants` 없음, AdminModal 승격/승인 플로우에 grants 언급 전무).
+→ **결과:** 어떤 테이블이든 옛 `is_master()` 정책을 제거해 grants 단독으로 만들면, 그 후 추가되는 마스터는 grants row 없이는 **조용히 접근 실패**(에러 없이 빈 결과). is_master() 정책은 지금 **비용 0의 안전망**(OR=넓히기만)이라 제거의 기능 이득이 없다.
+→ **규율:** 어떤 cutover(C-P ③ 포함)든 **옛 is_master 정책 제거는 grants 동기화가 자동화된 뒤에만.** 그 전까지는 dual-run(병행)을 유지한다. 최소한 "마스터 추가 시 grants 수동 삽입" 런북이라도 선행.
+→ **후속 티켓(미착수):** 마스터 승격/신규 승인(AdminModal → app_users update) 시 `grants(subject_user_id, scope=workspace, capability=owner)` 자동 삽입 + 강등/비활성 시 삭제. 이게 C-P ③·C-1 이후 전 단계의 선결.
+
 ---
 
 ## 1. 이관 불변식 — "이중 정책(dual-run)" 패턴
