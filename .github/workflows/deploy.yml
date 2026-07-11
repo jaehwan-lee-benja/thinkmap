@@ -38,3 +38,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          # ★keep_files: CI는 모선(dist)만 빌드·배포한다. SITE-SPLIT 위성(payroll/inventory/canvas/seat/members)은
+          #   gh-pages 하위폴더에 수동 배포(위성별 `-e <sub> --add`)되므로, 여기서 브랜치를 교체하면(기본값)
+          #   위성이 매 push마다 wipe된다. keep_files=true 로 기존 파일(=위성 하위폴더)을 보존한다.
+          #   (위성이 바뀌면 통합세션이 수동 재배포. 상세: docs/SITE-SPLIT-PLAN.md 배포절)
+          keep_files: true
