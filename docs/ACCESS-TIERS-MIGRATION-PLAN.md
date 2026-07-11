@@ -112,20 +112,24 @@ payroll C-P 패턴 복제. **goals** 테이블: `goals_ws_owner_v2`(can_in_works
 
 ---
 
-## C-2 — 워크스페이스 협업 도메인 (스케치)
+> **마스터전용 단순 테이블 수렴 완료(clone 패턴): payroll(C-P)·goals(C-1)·site_nodes — 전부 `*_ws_owner_v2` 단독(2026-07-11).**
+> 이하 C-2~C-4 는 clone 이 아니라 **설계+결정**이 필요(복합정책·실데이터·행동변경·도메인규율).
 
-| 테이블 | 새 SELECT(_v2) | 새 WRITE(_v2) | 비고 |
+## C-2 — 워크스페이스 협업 도메인 (★설계·결정 필요, 2026-07-11 실태 반영)
+
+**현행 정책 실측:**
+| 테이블 | 행수 | SELECT | WRITE(ALL) |
 |---|---|---|---|
-| members(기본) | `can(ws, viewer)` | `can(ws, owner)` | 열람 공개 / 마스터 편집 |
-| daily_blocks | `can(ws, viewer)` (행 visibility='master'면 `can(ws, owner)`) | `can(ws, editor)` | 행가림 WITH CHECK 유지 |
-| roster_assignments | `can(ws, viewer)` | `can(ws, editor)` | 보드멤버 제한 → 전원편집으로 평탄화(SPEC §6) |
+| members | 23 | `auth.uid() IS NOT NULL`(로그인 전원) | `is_master()` |
+| roster_assignments | 32 | `auth.uid() IS NOT NULL` | `is_master() OR is_board_member(board_id)` |
+| daily_blocks | **11,345** | `visibility='all' OR is_master()`(행가림) | INS:`uid=user_id OR is_master`, UPD:`uid=user_id OR is_master OR (visibility='all' AND is_board_member_of_page)`, DEL:`is_master()` |
 
-검증(예 — daily_blocks): 멤버/마스터/inactive 각 계정의 가시 블록 수가 기존과 동일한지.
-visibility='master' 블록이 비마스터에게 안 보이는지 **반드시 별도 확인**(행가림 회귀 위험).
+**★결정 필요 3건 (내가 단독 결정 못 함):**
+1. **도메인 일관성 규율 오버라이드?** — CLAUDE.md/[[roster_rls_domain_consistency]]: roster/멤버 도메인은 access-tiers 대신 `is_master()`/`is_board_member()` 유지, 전환은 "Phase C 도메인 일괄". members·roster 를 지금 수렴하려면 이 규율을 **의도적으로 이 배치에서 오버라이드**한다는 결정이 필요.
+2. **roster WRITE 행동변경?** — `can(ws,editor)` 로 가면 "마스터+보드멤버"→"전 워크스페이스 에디터"로 **편집권 확대**(패리티 아님, SPEC §6 합의였으나 실제 동작 바뀜). 확대할지 / 현 동작(is_board_member) 보존할지 = 제품 결정.
+3. **daily_blocks 수렴 방식** — 11k 실콘텐츠 + 행 visibility 가림 + 소유자 self + 보드멤버 + worklog 도메인(CLAUDE.md 강보호, 2026-05-13 대량삭제 이력). 수렴 시 SELECT `can(ws,viewer)` + 행가림(visibility='master' → 비마스터 차단) WITH CHECK 정밀 보존 필수. **검증: 멤버/마스터/inactive 각 계정 가시 블록 수 = 기존과 동일 + visibility='master' 블록이 비마스터에 안 보임을 실계정 스모크로 반드시 확인.** 저위험 아님 → 단독 테이블·단계 적용·집중검증.
 
-> ★ roster 쓰기를 "마스터+보드멤버"에서 "전 멤버"로 넓히는 건 *의도된 행동 변경*(SPEC 합의).
-> 이 한 건만 "패리티(동일)"가 아니라 "의도적 확대"이므로, 검증은 "보드멤버 아닌 멤버도
-> 편집되는가"를 확인하는 방향. 사용자 재확인 1줄 권장.
+**권고 접근**: members/roster 는 결정 1·2 확정 전 보류(규율 존중). daily_blocks 는 결정 3의 검증계획을 먼저 짜고 단독 진행. 즉 C-2 는 "일괄 clone"이 아니라 **테이블별 개별 판단**.
 
 ---
 
