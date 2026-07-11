@@ -1,9 +1,8 @@
 -- migrate-payroll-drop-old-policy.sql
 -- ============================================================================
--- ⛔ 보류(적용 금지) — 2026-07-11. supabase-guardian 조건부 통과했으나, 선결 블로커 미해결:
---   grants 지속 동기화 자동화 부재(마스터 추가 시 grants row 안 들어감 → 구 정책 제거 후 신규 마스터 조용한 접근실패).
---   구 is_master 정책은 비용 0 안전망이라 제거 기능이득 0. → grants-sync 자동화(또는 최소 런북) 후에만 적용.
---   상세: docs/ACCESS-TIERS-MIGRATION-PLAN.md §0 "선결 블로커 — grants 지속 동기화".
+-- ✅ 적용됨 — 2026-07-11 (유저 "모두 승인", migration=payroll_drop_old_master_policy).
+--   선결 충족 후 적용: grants-sync 트리거 + 권한가드 적용됨, 패리티 대칭차집합=0 재확인.
+--   결과: payroll_sheets = payroll_sheets_ws_owner_v2(can_in_workspace owner) 단독. 구 is_master 정책 제거됨.
 -- ============================================================================
 -- DB 트랙 — ACCESS-TIERS Phase C-P ③ (payroll_sheets 구 is_master 정책 제거)
 -- payroll 파일럿 병행(_v2) 검증 통과 후, 구 정책을 제거해 워크스페이스 grant 단독으로 수렴.

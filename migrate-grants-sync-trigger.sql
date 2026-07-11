@@ -1,8 +1,7 @@
 -- migrate-grants-sync-trigger.sql
 -- ============================================================================
--- ⛔ 보류(적용 금지, 승인 대기) — 2026-07-11. supabase-guardian 검수 반영판(2차).
---   ★이 트리거 하나로는 C-P③ 블로커 완전 해소 아님 — migrate-app-users-privilege-guard.sql(A 구멍 차단)과
---    함께 적용해야 안전(guardian 치명 A). 적용 전 최종 guardian 재검수 권장.
+-- ✅ 적용됨 — 2026-07-11 (유저 "모두 승인", 최종 guardian 통과, migration=grants_sync_trigger).
+--   privilege-guard 와 함께 적용됨(순서: guard→sync→검증). ON CONFLICT 타겟 EXPLAIN 매칭 확인 후 적용.
 -- ============================================================================
 -- DB 트랙 — ACCESS-TIERS 선결: grants 지속 동기화 자동화
 -- 문제: grants 백필(Phase A)은 1회성. 이후 app_users.role/status/auth_uid 변화가 grants 에 반영 안 됨.

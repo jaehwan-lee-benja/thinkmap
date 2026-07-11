@@ -1,6 +1,6 @@
 -- migrate-app-users-privilege-guard.sql
 -- ============================================================================
--- ⛔ 보류(적용 금지, 승인 대기) — 2026-07-11. ★보안 수정(권한상승 백도어 차단). 적용 전 guardian 재검수 권장.
+-- ✅ 적용됨 — 2026-07-11 (유저 "모두 승인", 최종 guardian 재검수 통과, migration=app_users_privilege_guard). ★보안 수정(권한상승 백도어 차단).
 -- ============================================================================
 -- 문제(supabase-guardian 발견, 기존 취약점):
 --   app_users self-insert/self-update 정책("Users can self-insert own record"/"Users can self-update own auth_uid",

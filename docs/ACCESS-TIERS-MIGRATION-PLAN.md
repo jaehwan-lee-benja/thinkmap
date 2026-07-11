@@ -19,6 +19,15 @@
    확인한다. is_master 본문 교체(shim화)는 **선택적·최후** 단계(단일 출처 정리용).
 5. **되돌릴 수 있는 상태 유지.** 옛 정책 제거 직전까지 언제든 새 정책만 DROP 하면 원복.
 
+### ✅ 해소됨 — grants 지속 동기화 + 권한가드 (2026-07-11 적용). C-P ③ 완료.
+> 아래 블로커는 2026-07-11 유저 "모두 승인" 하에 적용 완료:
+> - `grants_sync_trigger` (app_users→grants 자동 동기화, owner⟺role=master) + `app_users_privilege_guard` (비마스터 role/status 자가변경 차단, ★기존 self-promote 구멍 봉쇄) 적용.
+> - **C-P ③ 완료**: `payroll_sheets` 구 is_master 정책 제거 → `payroll_sheets_ws_owner_v2`(can_in_workspace owner) 단독 수렴. 적용 직전·직후 패리티 대칭차집합=0.
+> - ⚠️ 운영 캐비어트(런북): 가드 적용 후 **직접 SQL 세션(JWT 없음)에서 `UPDATE app_users SET role=...` 하면 is_master()=false 라 차단됨.** 그런 마이그가 필요하면 `ALTER TABLE app_users DISABLE TRIGGER trg_guard_app_users_privilege; ... ENABLE TRIGGER ...` 로 임시 우회하거나 앱의 마스터 경로로 수행.
+> - 다음(C-1 goals/dashboard 등)도 같은 dual-run→패리티→제거 패턴. 이제 grants 가 자동 유지되므로 안전.
+
+<details><summary>원래 블로커 기록(해소 전)</summary>
+
 ### ⚠️ 선결 블로커 — grants 지속 동기화 (2026-07-11, supabase-guardian 발견)
 `grants` 백필(Phase A)은 **1회성**이다. 이후 `app_users.role`이 master 로 바뀌거나 신규 승인돼도 그걸 `grants`에 반영하는 트리거·앱 로직이 **없다**(src 전체에 `INSERT INTO grants` 없음, AdminModal 승격/승인 플로우에 grants 언급 전무).
 → **결과:** 어떤 테이블이든 옛 `is_master()` 정책을 제거해 grants 단독으로 만들면, 그 후 추가되는 마스터는 grants row 없이는 **조용히 접근 실패**(에러 없이 빈 결과). is_master() 정책은 지금 **비용 0의 안전망**(OR=넓히기만)이라 제거의 기능 이득이 없다.
@@ -27,6 +36,8 @@
   - `migrate-grants-sync-trigger.sql` — app_users(role/status/email/**auth_uid**) 변경 시 workspace grant 자동 동기화(owner⟺role=master, is_master 미러 → 패리티 보존). guardian 2차 반영(auth_uid 감시·ON CONFLICT·subject변경 회수).
   - `migrate-app-users-privilege-guard.sql` — ★**기존 보안구멍 차단**: app_users self-insert/self-update 정책에 컬럼 제한이 없어 아무 사용자나 자기 role='master' 자가기입 가능(= is_master 즉시 통과, 라이브 권한상승). BEFORE INSERT/UPDATE 가드 트리거로 비마스터의 role/status 특권변경 차단.
   → **C-P ③(구 정책 제거) 선결 = 위 2개 적용+검증 후.** 트리거만으로는 부족(가드 없으면 grants.owner 백도어). 현재 갭 실측 0(마스터 2·user 2 전부 grant 보유)이라 급한 잠금사고는 없으나, ③ 전엔 반드시.
+
+</details>
 
 ---
 
