@@ -5,7 +5,7 @@
 import React, { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { Printer, X } from 'lucide-react'
-import { ROSTER_ROLE_PRESETS, ROLE_TASKS } from '../../utils/rosterPresets'
+import { ROSTER_ROLE_PRESETS, ROLE_TASKS } from '@thinkmap/core'
 
 const STATUS_LABEL = {
   planned: '예정', worked: '근무', requested: '요청',

@@ -12,7 +12,8 @@ import CalendarShell from './components/Calendar/CalendarShell'
 const DashboardPage = lazy(() => import('./components/Dashboard/DashboardPage'))
 // 급여(Payroll)는 Phase 1 에서 별도 위성 앱(apps/payroll, /thinkmap/payroll/)으로 분리됨.
 // 모선은 더 이상 급여 코드를 품지 않고 런처 링크로 위성을 연다(아래 isPayrollPage 분기).
-import MembersPage from './components/Members/MembersPage'
+// 멤버 관리(members)는 Phase 5 에서 별도 위성 앱(apps/members, /thinkmap/members/)으로 분리됨.
+// 모선은 members 페이지를 fetch/렌더하지 않는다(사이드바 런처로 위성 진입). member 도메인 공유모듈은 @thinkmap/core.
 // 재고(Inventory)는 Phase 2 에서 별도 위성 앱(apps/inventory, /thinkmap/inventory/)으로 분리됨.
 // 자리후(seat)는 Phase 4 에서 별도 위성 앱(apps/seat, /thinkmap/seat/)으로 분리됨.
 // 모선은 seat 페이지를 fetch/렌더하지 않는다(사이드바 런처로 위성 진입).
@@ -32,7 +33,7 @@ import { usePageContext } from './contexts/PageContext'
 import { useProjectContext } from './contexts/ProjectContext'
 import AuthContext from './contexts/AuthContext'
 import FavoritesContext from './contexts/FavoritesContext'
-import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isInventoryPage, isBackofficePage } from './utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isInventoryPage, isBackofficePage } from './utils/pageTypes'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -188,24 +189,6 @@ function PaneInner({
                     <a className="satellite-launch" href={payrollUrl}>급여 앱 열기 →</a>
                   </p>
                 </div>
-              )
-            }
-            if (isMembersPage(pageType)) {
-              // 멤버 관리 — 마스터 전용 진입. 비마스터 접근 시 거부.
-              if (!isMaster) {
-                return (
-                  <div className="no-page-selected">
-                    <p>접근 권한이 없습니다. (마스터 전용)</p>
-                  </div>
-                )
-              }
-              return (
-                <MembersPage
-                  key={`pane-${paneIndex}-${pageId}`}
-                  pageId={pageId}
-                  session={effectiveSession}
-                  isMaster={isMaster}
-                />
               )
             }
             if (isBackofficePage(pageType)) {

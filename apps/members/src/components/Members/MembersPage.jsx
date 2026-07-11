@@ -6,12 +6,10 @@ import { Plus, X, Trash2, Pencil, Save } from 'lucide-react'
 import {
   useMembers, loadMemberPrivate, saveMemberPrivate, loadAllMemberPrivate,
   loadMemberRecords, saveMemberRecord, deleteMemberRecord,
-} from '../../hooks/useMembers'
-import { sortMembers } from '../../utils/membersPage'
-import {
+  sortMembers,
   WEEKDAYS, MEMBER_STATUS, MEMBER_STATUS_LABEL,
   MEMBER_RECORD_TYPES, MEMBER_RECORD_TYPE_LABEL,
-} from '../../utils/rosterPresets'
+} from '@thinkmap/core'
 import './Members.css'
 
 const EMPTY_DRAFT = { name: '', work_days: [], seniority: '', phone: '', status: 'active', note: '' }

@@ -4,7 +4,7 @@
 
 import React, { useRef } from 'react'
 import { X, Plus, GripVertical } from 'lucide-react'
-import { ROSTER_ROLE_PRESETS, ROLE_TASKS } from '../../utils/rosterPresets'
+import { ROSTER_ROLE_PRESETS, ROLE_TASKS } from '@thinkmap/core'
 
 let TMP = 0
 const tmpKey = () => `tmp-${++TMP}`

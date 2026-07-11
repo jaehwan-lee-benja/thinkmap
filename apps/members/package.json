@@ -1,0 +1,24 @@
+{
+  "name": "@thinkmap/members-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "멤버(인사 마스터) 위성 — @thinkmap/core 의 member 도메인을 얹은 독립 배포 앱. 마스터 전용.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist -e members --add"
+  },
+  "dependencies": {
+    "@thinkmap/core": "*",
+    "lucide-react": "^0.562.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^5.4.21"
+  }
+}

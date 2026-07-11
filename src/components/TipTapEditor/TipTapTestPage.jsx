@@ -83,8 +83,7 @@ import CommentPopover from './CommentPopover'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { useWorklogComments } from '../../hooks/useWorklogComments'
 import { useWorklogUserSettings } from '../../hooks/useWorklogUserSettings'
-import { isDailyPage, isCalendarPage, isMembersPage, isGoalPage } from '../../utils/pageTypes'
-import { findOrCreateMembersPage } from '../../utils/membersPage'
+import { isDailyPage, isCalendarPage, isGoalPage } from '../../utils/pageTypes'
 import GoalClaudeAccess from '../Goal/GoalClaudeAccess'
 import GoalCaptureDrawer from '../Goal/GoalCaptureDrawer'
 import './TipTapPage.css'
@@ -123,14 +122,10 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const isMaster = authCtx?.isMaster ?? false
   const { pages, setCurrentPageId, createPage, deletePage, updatePageIcon, goBack, goForward, canGoBack, canGoForward, fetchPages } = usePageContext()
 
-  // 배치도 모달 "멤버 관리하기" → 멤버 관리 섹션으로 이동 (사이드바 버튼과 동일 동작).
-  const handleOpenMembersPage = useCallback(async () => {
-    let pageId = pages.find((p) => isMembersPage(p))?.id
-    if (!pageId) pageId = await findOrCreateMembersPage(session.user.id)
-    if (!pageId) return
-    if (typeof fetchPages === 'function') await fetchPages()
-    setCurrentPageId(pageId)
-  }, [pages, session, fetchPages, setCurrentPageId])
+  // 배치도 모달 "멤버 관리하기" → 멤버 관리 위성으로 이동 (Phase 5: 사이드바 런처와 동일, /thinkmap/members/).
+  const handleOpenMembersPage = useCallback(() => {
+    window.location.href = '/thinkmap/members/'
+  }, [])
   const { projects, currentProjectId } = useProjectContext()
   const { toggleFavorite, isFavorite } = useFavoritesContext()
   const currentPage = pages.find(p => p.id === currentPageId)

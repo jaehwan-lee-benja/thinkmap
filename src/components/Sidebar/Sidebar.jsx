@@ -11,8 +11,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isSchedulePage, isPayrollPage, isDashboardPage, isMembersPage, isGoalPage, isInventoryPage, isBackofficePage } from '../../utils/pageTypes'
-import { findOrCreateMembersPage } from '../../utils/membersPage'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isGoalPage, isInventoryPage, isBackofficePage } from '../../utils/pageTypes'
 import { findOrCreateBackofficePage } from '../../utils/backofficePage'
 import './Sidebar.css'
 
@@ -345,21 +344,15 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
                   <span>급여명세서</span>
                 </button>
 
-                <button
-                  className={`sidebar-worklog-btn ${currentPageId && isMembersPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
-                  title="멤버 관리 (마스터 전용)"
-                  onClick={async () => {
-                    // 캐시 우선 → 없으면 공유 헬퍼로 find-or-create (배치도 모달과 동일 경로)
-                    let pageId = pages.find(p => isMembersPage(p))?.id
-                    if (!pageId) pageId = await findOrCreateMembersPage(effectiveSession.user.id)
-                    if (!pageId) return
-                    if (typeof fetchPages === 'function') await fetchPages()
-                    handlePageSelect(pageId)
-                  }}
+                {/* Phase 5: 멤버 관리는 별도 위성 앱(apps/members). 마스터 전용 → 위성으로 진입. */}
+                <a
+                  className="sidebar-worklog-btn"
+                  href="/thinkmap/members/"
+                  title="멤버 관리 (마스터 전용, 별도 앱에서 열림)"
                 >
                   <Users size={16} />
                   <span>멤버 관리</span>
-                </button>
+                </a>
 
                 <button
                   className={`sidebar-worklog-btn ${currentPageId && isBackofficePage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}

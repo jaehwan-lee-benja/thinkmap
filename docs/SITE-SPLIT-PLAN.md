@@ -6,7 +6,8 @@
 > **Phase 1 완료·배포 (2026-07-07)** — 급여 위성(apps/payroll) 라이브 github.io/thinkmap/payroll/.
 > **Phase 2 완료·배포 (2026-07-09)** — 재고 위성(apps/inventory) 라이브 github.io/thinkmap/inventory/. ※roster+members→Inventory 피벗(§8).
 > **Phase 3 완료·배포 (2026-07-09)** — 마케팅 캔버스 위성(apps/canvas) 라이브 github.io/thinkmap/canvas/, 옵션 B 전면 독립. daily_blocks=직접읽기 유지. 마스터 게이트 셸단.
-> **Phase 4 완료 (2026-07-09, 미배포)** — 자리후 위성(apps/seat, feat/site-split-phase4). 완전 독립·page독립·워크스페이스 RLS. 프론트 분할 트랙 사실상 완료(roster는 의도적 보류).
+> **Phase 4 완료·배포 (2026-07-09)** — 자리후 위성(apps/seat) 라이브 github.io/thinkmap/seat/. 완전 독립·page독립·워크스페이스 RLS.
+> **Phase 5 완료 (2026-07-11, 미배포)** — 멤버 위성(apps/members, feat/site-split-phase5). member 도메인 core 추출 + MembersPage 위성화. **프론트 분할 트랙 완료(위성 5개 + 모선 hub, roster만 에디터 결합으로 잔류).**
 > **DB 트랙**: payroll 워크스페이스 정책 마이그 guardian 검수 통과, 프로덕션 적용 유저 승인 대기. · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
 > 관계: [ARCHITECTURE.md](./ARCHITECTURE.md)의 두 plane 구조와, [ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의
 > 워크스페이스(테넌트) 모델을 **프론트 배포 단위로 확장**한 문서. 각 도메인 명세(PAYROLL-SPEC,
@@ -201,6 +202,11 @@ core 위에 얹는 얇은 앱 하나가 된다.
 - **Phase 4 — ✅ 자리후(seat) 위성 완료(2026-07-09, 미배포).** apps/seat 신설. 완전 독립 서브트리(587줄, TipTap 무의존,
   seat_orders/seat_station_status = 워크스페이스 스코프·page 독립·Realtime). 셸=로그인만(마스터 전용 아님, 테넌시는 RLS).
   모선: App.jsx seat 분기 삭제 + pageTypes INDEPENDENT에서 SEAT 제거(seat 페이지 fetch 안 함) + 사이드바 런처 링크.
+- **Phase 5 — ✅ 멤버(members) 위성 완료(2026-07-11, 미배포).** apps/members 신설. Phase 2 에서 보류했던 member 분리를 재개·완결:
+  member 도메인 공유 3모듈(`useMembers`·`sortMembers`/`findOrCreateMembersPage`·`rosterPresets`)을 **`packages/core` 로 추출** →
+  모선 roster(데일리 에디터 잔류)와 members 위성이 core 를 공유. MembersPage(마스터 전용·page 독립)만 위성으로.
+  모선: App.jsx members 분기 삭제 + pageTypes INDEPENDENT/MASTER_ONLY에서 MEMBERS 제거 + 사이드바 런처 링크. roster(배치도)는 예정대로 모선 잔류.
+  → **프론트 분할 트랙 완료: 위성 5개(payroll·inventory·canvas·seat·members) + 모선 hub.** roster 만 설계상 모선 유지(에디터 결합).
 - **모선**: pages/worklog/calendar/goals/dashboard/editor **+ roster(배치도, 에디터 결합)** 유지. **업무일지 분리 시도 금지.**
 - **병행 트랙 (DB)**: `is_master()` → 워크스페이스 전환(ACCESS-TIERS Phase C). ✅ payroll 파일럿 정책
   `payroll_sheets_ws_owner_v2`(can_in_workspace owner 병행) 작성·guardian 검수 통과 — 프로덕션 적용은 유저 승인 대기.
