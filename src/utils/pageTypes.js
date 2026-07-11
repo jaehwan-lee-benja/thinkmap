@@ -33,11 +33,10 @@ export const INDEPENDENT_PAGE_TYPES = [
   PAGE_TYPES.PAYROLL,
   PAGE_TYPES.DASHBOARD,
   PAGE_TYPES.GOAL,
-  PAGE_TYPES.INVENTORY,
   PAGE_TYPES.BACKOFFICE,
 ]
-// ※ SEAT(자리후)는 Phase 4, MEMBERS(멤버 관리)는 Phase 5 에서 위성(apps/seat, apps/members)으로 분리 →
-//   모선은 해당 페이지를 fetch/트리노출하지 않음. 진입=사이드바 런처 → /thinkmap/seat/·/thinkmap/members/.
+// ※ 위성으로 분리된 page_type(INVENTORY·SEAT·MEMBERS·FRAME·ENGINE)은 모선이 fetch/트리노출하지 않는다.
+//   진입=사이드바 런처(src/config/satellites.js 레지스트리). PAYROLL 만 page-scoped(?page=)라 아래 잔류.
 
 // 마스터에게만 사이드바 트리에 노출되는 타입.
 export const MASTER_ONLY_PAGE_TYPES = [

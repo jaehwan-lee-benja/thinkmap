@@ -33,7 +33,7 @@ import { usePageContext } from './contexts/PageContext'
 import { useProjectContext } from './contexts/ProjectContext'
 import AuthContext from './contexts/AuthContext'
 import FavoritesContext from './contexts/FavoritesContext'
-import { isSchedulePage, isPayrollPage, isDashboardPage, isInventoryPage, isBackofficePage } from './utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isBackofficePage } from './utils/pageTypes'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -208,19 +208,6 @@ function PaneInner({
                     isMaster={isMaster}
                   />
                 </Suspense>
-              )
-            }
-            if (isInventoryPage(pageType)) {
-              // Phase 2: 재고는 별도 위성 앱(apps/inventory, /thinkmap/inventory/)으로 분리됨.
-              // 마스터 게이트 없음(재고는 로그인 사용자 노출). 위성으로 런치(같은 origin SSO 자동).
-              // 재고 데이터는 page 스코프가 아니라 전역·날짜 기준이라 ?page 컨텍스트 불필요.
-              return (
-                <div className="no-page-selected">
-                  <p>재고 관리는 별도 앱에서 열립니다.</p>
-                  <p>
-                    <a className="satellite-launch" href="/thinkmap/inventory/">재고 앱 열기 →</a>
-                  </p>
-                </div>
               )
             }
             return (

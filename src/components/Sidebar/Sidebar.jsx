@@ -11,7 +11,7 @@ import { usePageContext } from '../../contexts/PageContext'
 import { useSharingContext } from '../../contexts/SharingContext'
 import { useBackupContext } from '../../contexts/BackupContext'
 import { usePaneData } from '../PaneProvider'
-import { isSchedulePage, isPayrollPage, isDashboardPage, isGoalPage, isInventoryPage, isBackofficePage } from '../../utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isGoalPage, isBackofficePage } from '../../utils/pageTypes'
 import { findOrCreateBackofficePage } from '../../utils/backofficePage'
 import './Sidebar.css'
 
@@ -243,45 +243,11 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             {/* 업무일지(데일리 인덱스)는 캘린더의 DailyIndexLayer 로 흡수됨 — 별도 진입 버튼 제거.
                 page_type='calendar' row 는 데일리 컨테이너로 보존(CALENDAR-SPEC §9.1). */}
 
-            {/* 재고 관리 — 독립 엔티티(전역 단일). 권한(파트너 레벨) 확정 전까지 전체 노출. */}
-            <button
-              className={`sidebar-worklog-btn ${currentPageId && isInventoryPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
-              onClick={async () => {
-                let invPage = pages.find(p => isInventoryPage(p))
-                if (!invPage) {
-                  // 전역 단일 — user_id 필터 없이 page_type='inventory' 첫 번째
-                  const { data } = await supabase
-                    .from('pages')
-                    .select('id')
-                    .eq('page_type', 'inventory')
-                    .is('deleted_at', null)
-                    .limit(1)
-                    .maybeSingle()
-                  if (data) invPage = { id: data.id, page_type: 'inventory' }
-                }
-                if (!invPage) {
-                  const newPageId = generateUUID()
-                  const { error } = await supabase
-                    .from('pages')
-                    .insert([{
-                      id: newPageId,
-                      user_id: effectiveSession.user.id,
-                      name: '재고 관리',
-                      page_type: 'inventory',
-                      project_id: null,
-                      parent_id: null,
-                      position: -1,
-                    }])
-                  if (error) { console.error('재고 페이지 생성 실패:', error); return }
-                  invPage = { id: newPageId, page_type: 'inventory' }
-                }
-                if (typeof fetchPages === 'function') await fetchPages()
-                handlePageSelect(invPage.id)
-              }}
-            >
+            {/* 재고 관리 — 별도 위성 앱(apps/inventory). 전역·로그인 노출 → 직접 런처. */}
+            <a className="sidebar-worklog-btn" href="/thinkmap/inventory/" title="재고 관리 (별도 앱에서 열림)">
               <Package size={16} />
               <span>재고 관리</span>
-            </button>
+            </a>
             {/* 마케팅 캔버스 + 급여명세서 — 마스터 전용 */}
             {isMaster && (
               <>
