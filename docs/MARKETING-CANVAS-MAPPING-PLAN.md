@@ -2,6 +2,12 @@
 
 > 작마클(작은마케팅클리닉) Marketing Canvas v7.44 위에 ThinkMap의 토글·페이지를 매핑하여, 일상의 작업이 비즈니스 모델의 어느 자리에 기여하는지 한눈에 보고, 동시에 일목요연하게 정리·진단·관리하는 기능.
 
+> ⚠️ **구현이 이 문서를 앞섬 — SITE-SPLIT Phase 3(2026-07-09) 반영 필요분 (미갱신 본문 읽을 때 주의):**
+> - **배포 구조:** 마케팅 캔버스는 모선 내 페이지가 아니라 **독립 위성 `apps/canvas`(`/thinkmap/canvas/`)** 다. 진입=모선 사이드바 런처 → 위성이 `?page=<frame|engine pageId>`로 특정 캔버스를 연다. frame⇄engine 페어=한 앱(토글). 생성·목록·매핑 전부 위성(옵션 B 전면 독립). 마스터 게이트=셸 `if(!isMaster)`.
+> - **스키마 §4 실제:** `canvas_pairs`에 `description·position·updated_at·deleted_at`(soft-delete) 추가됨. `canvas_mappings`는 출처가 XOR 아니라 **≤1**(블록/페이지/**daily_block** 3종 + "직접 작성"=출처 없는 4번째 카드), `target_pair_id NOT NULL`.
+> - **폐기:** COMPONENTS §4-2 "사이드바 페어 그룹핑"은 위성 분리로 폐기(모선이 frame/engine fetch 안 함). §4-3/4-4 토글 "캔버스에 매핑"·역참조 뱃지는 **크로스앱 재설계 필요**(미구현, 보류).
+> - 정본 배포 컨텍스트=docs/SITE-SPLIT-PLAN.md §8 Phase 3.
+
 ---
 
 ## 0. 배경 / 문제 정의

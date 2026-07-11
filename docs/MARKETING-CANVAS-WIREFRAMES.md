@@ -3,6 +3,8 @@
 > 부속 문서: [MARKETING-CANVAS-MAPPING-PLAN.md](./MARKETING-CANVAS-MAPPING-PLAN.md)
 >
 > 본 문서의 목적: Phase 1 UI 시나리오를 ASCII 목업으로 검증하고, 각 화면이 요구하는 데이터가 v0.3 데이터 모델에 모두 존재하는지 점검한다.
+>
+> ⚠️ **SITE-SPLIT Phase 3(2026-07-09) 반영:** 캔버스는 독립 위성 `apps/canvas`(`/thinkmap/canvas/`)로 구현됨. W1 뷰어(CanvasViewer)·W3 RegionPanel·W4 생성모달은 위성 안에서 동작하고, frame⇄engine 전환은 위성 상단 토글(사이드바 트리 아님). "업무일지 토글 가져오기"(RegionPanel)는 `daily_blocks` 직접 읽기 유지(useUserDailyBlocks 위성 이관). 상세=docs/SITE-SPLIT-PLAN.md §8 Phase 3.
 
 ---
 

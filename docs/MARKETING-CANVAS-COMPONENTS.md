@@ -3,6 +3,8 @@
 > 부속 문서: [MARKETING-CANVAS-MAPPING-PLAN.md](./MARKETING-CANVAS-MAPPING-PLAN.md) · [MARKETING-CANVAS-WIREFRAMES.md](./MARKETING-CANVAS-WIREFRAMES.md)
 >
 > 본 문서의 목적: ThinkMap 의 기존 컴포넌트/훅 구조 컨벤션에 정합되는 코드 골격을 정의하고, 의존성 그래프를 따라 안정적 구현 순서를 제시한다.
+>
+> ⚠️ **SITE-SPLIT Phase 3(2026-07-09) 이후 — 구조가 바뀜:** 캔버스는 독립 위성 `apps/canvas`(`/thinkmap/canvas/`)다. 컴포넌트/훅은 `src/components/Canvas`·`src/hooks/useCanvas*`에서 **`apps/canvas/src`로 이관**됨(`@thinkmap/core` supabase 사용). **§4-2 사이드바 페어 그룹핑=폐기**(모선이 frame/engine 페이지 fetch 안 함, 진입=런처 링크). **§4-3/4-4 토글 "캔버스에 매핑"(MapToCanvasModal)·역참조 뱃지(MappingBadge)=크로스앱 재설계 필요·미구현(보류)** — 위성 분리로 "같은 프로세스 내 TipTap 확장" 전제가 깨짐. 상세=docs/SITE-SPLIT-PLAN.md §8 Phase 3.
 
 ---
 
