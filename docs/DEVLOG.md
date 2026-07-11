@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-07-11 — SITE-SPLIT 완주(위성 5개) + DB 권한모델 수렴·보안수정
+
+### 이번 판의 방식
+모놀리스를 모선(Hub)+위성(Satellite)로 쪼개는 SITE-SPLIT 아크를 Phase 0~5까지 완주했다. 각 위성은 feat 브랜치로 분리 작업하고 통합 세션이 단일 창구로 머지·배포·마이그를 담당. 위성은 처음부터 `apps/*`, 공유 코드는 `packages/core`. 뒤이어 DB 권한 수렴(ACCESS-TIERS Phase C)과 배선 레지스트리화까지 이어붙였다.
+
+### 배포 완료(프로덕션 라이브)
+- **위성 5개 라이브** — 급여(payroll)·재고(inventory)·마케팅캔버스(canvas)·자리후(seat)·멤버(members). 전부 `github.io/thinkmap/<위성>/`. 모선은 pages/worklog/calendar/goals/dashboard/editor + roster(에디터 결합) 유지.
+  - canvas: 옵션 B 전면 독립(생성·목록·매핑 전부 위성). members: member 도메인 3모듈을 core로 추출해 모선 roster와 공유.
+- **위성 격리 실증** — `apps/*`가 모선 `src/`·타 위성을 import 0건. 한 위성 작업은 그 폴더만 건드림 = 병렬 편집 충돌 0. (SITE-SPLIT-PLAN §11 감사)
+- **배선 레지스트리화** — 사이드바 위성 런처를 `src/config/satellites.jsx` 단일 레지스트리로. 위성 라벨/URL/아이콘 변경은 1파일만. inventory 진입도 2단계→직접 런처로 통일.
+- **DB 권한 수렴(ACCESS-TIERS Phase C 안전단계)** — 마스터전용 단순 테이블(payroll·goals·site_nodes)을 `is_master()`→`can_in_workspace(owner)` 단독으로 수렴(dual-run→패리티0→구정책 제거). grants 자동동기화 트리거 + **★self-promote 보안구멍 봉쇄**(app_users self-update 정책 컬럼무제한이라 누구나 자기 role='master' 기입 가능했음).
+
+### 마감/보류
+- **DB C-2/C-3/C-4 의도적 보류** — 입체 재검토 결과 "고위험×현재가치0". 마스터전용 수렴은 owner=master라 동작 동일(순수 위생). 워크스페이스 모델의 실가치(등급·리소스공유·다중매장)는 둘째 매장/기능요구가 생길 때 실현 → 그때 재개. 특히 daily_blocks(11k 실콘텐츠·행가림·삭제사고 도메인)는 이득0에 최고위험이라 안 건드림. 인프라(grants·트리거·가드)는 준비 완료.
+- **roster/member 도메인** — 배치도는 데일리 에디터 결합으로 모선 잔류 확정. 권한도 도메인 헬퍼(is_master/is_board_member) 유지.
+
+### 곁가지에서 배운 것
+- **gh-pages 배포 함정(2번 데임)** — 단일 dist 조립+`gh-pages -d dist`는 최종 커밋에서 하위폴더를 통째 누락. 위성별 `-e --add`가 정답인데 ★**`--add` 사이에 캐시를 비우면 직전 하위폴더가 드롭됨** — 캐시 유지=누적. 배포 후엔 CDN 탓 전에 브랜치 트리부터 확인.
+- **보안** — is_master()는 status 무관 role='master'만 봄. 그래서 grants-sync 트리거도 owner⟺role=master로 미러해야 dual-run 패리티가 유지됨. 그리고 가드 적용 후엔 직접 SQL(JWT無)로 app_users.role 변경이 막힘(런북: 트리거 임시 DISABLE).
+- **판단** — "할 수 있나"가 아니라 "위험 대비 지금 가치가 있나"로 보면, 남은 수렴은 멈추는 게 최선이었다. 안전한 위생은 챙기고 고위험 저가치는 준비만 해두고 정지.
+
+### 남은 확인거리(실사용 점검)
+- 위성 5개 인터랙티브 로그인(마스터/멤버 실계정)으로 실렌더·콘솔0 최종 확인(지금은 HTTP·해시 수준까지 검증).
+- Supabase redirect 허용목록에 `/thinkmap/members/*` 추가(유저 액션, to-user 대기).
+- DB 재개 시 C-2 daily_blocks는 실계정 스모크(행가림 회귀) 필수.
+
+---
+
 ## 2026-07-04 — S1~S7 파도 + 데일리 권한/캘린더 통합
 
 ### 이번 판의 방식
