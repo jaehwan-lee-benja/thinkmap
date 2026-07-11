@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { HardDrive, PenLine, Columns3, GitBranch, Target, Calendar, Receipt, LayoutDashboard, Users, Flag, Package, Coffee, Network } from 'lucide-react'
+import { HardDrive, PenLine, Columns3, GitBranch, Calendar, Receipt, LayoutDashboard, Flag, Network } from 'lucide-react'
+import { SATELLITES, SatelliteLauncher } from '../../config/satellites'
 import { supabase, useIsMobile, generateUUID } from '@thinkmap/core'
 import ShareModal from '../Share/ShareModal'
 import ProjectModal from '../Project/ProjectModal'
@@ -179,15 +180,7 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
               <span>캘린더</span>
             </button>
 
-            {/* Phase 4: 자리후는 별도 위성 앱(apps/seat). 워크스페이스 공유 키오스크 → 위성으로 진입. */}
-            <a
-              className="sidebar-worklog-btn"
-              href="/thinkmap/seat/"
-              title="자리후 (별도 앱에서 열림)"
-            >
-              <Coffee size={16} />
-              <span>자리후</span>
-            </a>
+            <SatelliteLauncher satellite={SATELLITES.seat} />
 
             {/* 대시보드 — 캘린더 아래. 마스터 전용 (비마스터에겐 진입 자체를 숨김). */}
             {isMaster && (
@@ -243,23 +236,11 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
             {/* 업무일지(데일리 인덱스)는 캘린더의 DailyIndexLayer 로 흡수됨 — 별도 진입 버튼 제거.
                 page_type='calendar' row 는 데일리 컨테이너로 보존(CALENDAR-SPEC §9.1). */}
 
-            {/* 재고 관리 — 별도 위성 앱(apps/inventory). 전역·로그인 노출 → 직접 런처. */}
-            <a className="sidebar-worklog-btn" href="/thinkmap/inventory/" title="재고 관리 (별도 앱에서 열림)">
-              <Package size={16} />
-              <span>재고 관리</span>
-            </a>
+            <SatelliteLauncher satellite={SATELLITES.inventory} />
             {/* 마케팅 캔버스 + 급여명세서 — 마스터 전용 */}
             {isMaster && (
               <>
-                {/* Phase 3: 마케팅 캔버스는 별도 위성 앱(apps/canvas). 생성·목록·매핑 전부 위성에서. */}
-                <a
-                  className="sidebar-worklog-btn"
-                  href="/thinkmap/canvas/"
-                  title="마케팅 캔버스 (별도 앱에서 열림)"
-                >
-                  <Target size={16} />
-                  <span>마케팅 캔버스</span>
-                </a>
+                <SatelliteLauncher satellite={SATELLITES.canvas} />
 
                 <button
                   className={`sidebar-worklog-btn ${currentPageId && isPayrollPage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
@@ -310,15 +291,7 @@ function Sidebar({ isOpen, onClose, onPageSelect, onProjectSelect, mobileView, o
                   <span>급여명세서</span>
                 </button>
 
-                {/* Phase 5: 멤버 관리는 별도 위성 앱(apps/members). 마스터 전용 → 위성으로 진입. */}
-                <a
-                  className="sidebar-worklog-btn"
-                  href="/thinkmap/members/"
-                  title="멤버 관리 (마스터 전용, 별도 앱에서 열림)"
-                >
-                  <Users size={16} />
-                  <span>멤버 관리</span>
-                </a>
+                <SatelliteLauncher satellite={SATELLITES.members} />
 
                 <button
                   className={`sidebar-worklog-btn ${currentPageId && isBackofficePage(pages.find(p => p.id === currentPageId)) ? 'active' : ''}`}
