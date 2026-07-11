@@ -105,10 +105,10 @@ DROP POLICY "Master can view payroll_sheets" ON payroll_sheets;  -- 실제 정�
 
 ---
 
-## C-1 — goals·dashboard (스케치)
+## C-1 — goals·dashboard ✅ 완료 (2026-07-11)
 
-payroll 파일럿과 동일 패턴(`can_in_workspace(ws,'owner')`). goals 데이터 테이블 +
-dashboard 진입 pages 정책. 파일럿에서 owner 경로가 입증됐으므로 복제·검증만.
+payroll C-P 패턴 복제. **goals** 테이블: `goals_ws_owner_v2`(can_in_workspace owner) 병행 추가 → 패리티 대칭차집합=0 확인 → 구 `goals_master_all` 제거 → _v2 단독 수렴. goals 0행. dashboard 는 별도 테이블 없음(goals 집계 + pages 진입)이라 대상 아님 — pages 정책은 C-2/C-3(협업/shares)에서 다룸.
+마이그: `migrate-goals-workspace-policy.sql`(추가) + `migrate-goals-drop-old-policy.sql`(제거). grants-sync·권한가드(C-P 배치) 덕에 패리티 자동 유지.
 
 ---
 
