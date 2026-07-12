@@ -1,8 +1,11 @@
 import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import '@thinkmap/core/styles/variables.css'  // 테마 토큰(단일 소스) — 다른 CSS 앞에 로드
 import './index.css'
-import { withBase } from '@thinkmap/core'
+import { withBase, initTheme } from '@thinkmap/core'
 import App, { AppErrorBoundary } from './App.jsx'
+
+initTheme()  // <html data-theme> 적용 + system 변경 리스닝(무-플래시는 index.html 인라인 스크립트가 선처리)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

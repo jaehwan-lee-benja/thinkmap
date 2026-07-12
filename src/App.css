@@ -5,7 +5,7 @@
  */
 
 /* CSS 변수 및 공통 스타일 import */
-@import './styles/variables.css';
+/* 테마 토큰은 main.jsx 에서 @thinkmap/core 로 로드(단일 소스). 여기 @import 제거. */
 @import './styles/_animations.css';
 
 /* =====================================================
