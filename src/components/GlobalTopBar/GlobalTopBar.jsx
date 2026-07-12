@@ -3,7 +3,7 @@ import { Shield, ChevronDown, Star, X, CalendarDays, Calendar } from 'lucide-rea
 import AdminModal from '../Admin/AdminModal'
 import QuickTodo from '../QuickTodo/QuickTodo'
 import { useAuthContext } from '../../contexts/AuthContext'
-import { DAY_NAMES } from '@thinkmap/core'
+import { DAY_NAMES, ThemeToggle, setThemePref, supabase } from '@thinkmap/core'
 import './GlobalTopBar.css'
 
 export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavoriteNavigate, onRemoveFavorite, onTodayWorklog, onScheduleOpen, session }) {
@@ -20,6 +20,17 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
   const [favListOpen, setFavListOpen] = useState(false)
   const dropdownRef = useRef(null)
   const favDropdownRef = useRef(null)
+
+  // 테마 크로스디바이스 시드 — 이 기기에 명시 설정이 없을 때만 user_preferences.theme 를 적용(디바이스 선택 안 덮음).
+  useEffect(() => {
+    const uid = session?.user?.id
+    if (!uid) return
+    let hadLocal = false
+    try { hadLocal = !!localStorage.getItem('thinkmap-theme') } catch { /* noop */ }
+    if (hadLocal) return
+    supabase.from('user_preferences').select('theme').eq('user_id', uid).single()
+      .then(({ data }) => { if (data?.theme) setThemePref(data.theme) })
+  }, [session?.user?.id])
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -93,6 +104,15 @@ export function GlobalTopBar({ splitMode, onSplitToggle, favorites = [], onFavor
           </div>
 
           <div className="bookmark-bar-right" ref={favDropdownRef}>
+            <ThemeToggle
+              onChange={(pref) => {
+                // 크로스디바이스 저장(user_preferences.theme). localStorage 는 setThemePref 가 이미 처리.
+                const uid = session?.user?.id
+                if (uid) supabase.from('user_preferences')
+                  .upsert({ user_id: uid, theme: pref, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+                  .then(({ error }) => { if (error) console.error('테마 저장 오류:', error.message) })
+              }}
+            />
             <button
               className={`bookmark-all-btn ${favListOpen ? 'active' : ''}`}
               onClick={() => setFavListOpen(prev => !prev)}

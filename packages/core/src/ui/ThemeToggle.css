@@ -1,0 +1,23 @@
+/* 테마 토글 — 건조한 아이콘 버튼(토큰 색). 탑바 밀도에 맞춘 컴팩트 크기. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 5px;
+  background: none;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--border-radius-md, 6px);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-medium);
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

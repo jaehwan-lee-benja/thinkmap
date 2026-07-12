@@ -3,8 +3,11 @@
 export { BASE_URL, withBase } from './basePath.js'
 export { supabase } from './supabaseClient.js'
 export { useAuth } from './useAuth.js'
+// 테마(라이트/다크) — docs/THEME-SPEC.md
+export { getThemePref, resolveTheme, applyTheme, setThemePref, initTheme } from './theme.js'
 // 공용 UI
 export { Modal, ModalHeader, ModalBody, ModalFooter } from './ui/Modal/Modal.jsx'
+export { ThemeToggle } from './ui/ThemeToggle.jsx'
 export { default as DeleteToast } from './ui/DeleteToast.jsx'
 export { default as EmojiPicker } from './ui/EmojiPicker.jsx'
 // 공용 훅

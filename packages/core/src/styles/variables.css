@@ -1,6 +1,7 @@
 /**
- * CSS 변수 정의
- * 색상, 크기, 간격, 브레이크포인트 등
+ * CSS 변수 정의 (테마 토큰 단일 소스 — 모선 + 위성 5개 공유)
+ * 색상·크기·간격·브레이크포인트 등. 색은 시맨틱 토큰만(하드코딩 금지). 상세: docs/THEME-SPEC.md
+ * 다크 = :root 기본. 라이트 = [data-theme="light"] 오버라이드(파일 하단).
  */
 
 :root {
@@ -138,5 +139,45 @@
   --touch-target-min: 44px;
 }
 
-/* 다크 모드는 기본이므로 별도 정의 불필요 */
-/* 추후 라이트 모드 추가 시 여기에 정의 */
+/* ============================================================================
+ * 라이트 모드 — 색상 토큰만 오버라이드. 비색상 토큰(간격·폰트·반경·레이아웃 등)은 :root 상속.
+ * 뒤집히는 것만: bg/text/border/scrollbar + 강조·상태의 텍스트색. 반투명 hue 틴트는 공통이라 제외.
+ * JS(applyTheme)가 <html data-theme="light">를 세팅한다. 상세: docs/THEME-SPEC.md §4
+ * ============================================================================ */
+:root[data-theme="light"] {
+  /* 배경 */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f4f4f5;
+  --color-bg-overlay: rgba(0, 0, 0, 0.4);
+  --color-bg-hover: rgba(0, 0, 0, 0.06);
+  --color-bg-active: rgba(0, 0, 0, 0.09);
+  --color-bg-input: rgba(0, 0, 0, 0.02);
+
+  /* 텍스트 */
+  --color-text-primary: rgba(0, 0, 0, 0.88);
+  --color-text-secondary: rgba(0, 0, 0, 0.6);
+  --color-text-tertiary: rgba(0, 0, 0, 0.45);
+  --color-text-disabled: rgba(0, 0, 0, 0.3);
+
+  /* 보더 */
+  --color-border-light: rgba(0, 0, 0, 0.1);
+  --color-border-medium: rgba(0, 0, 0, 0.15);
+  --color-border-strong: rgba(0, 0, 0, 0.28);
+
+  /* 강조/상태 — 텍스트 색만 라이트 배경 대비(WCAG)로 진하게. 솔리드/틴트는 공통 유지 */
+  --color-primary-text: rgba(79, 70, 229, 0.95);   /* indigo-600 */
+  --color-success-text: rgba(46, 125, 50, 0.95);
+  --color-warning-text: rgba(180, 83, 9, 0.95);    /* amber-700 */
+  --color-danger-text: rgba(220, 38, 38, 0.9);
+  --color-danger-text-strong: rgba(220, 38, 38, 1);
+  --color-amber-text: rgba(180, 83, 9, 0.95);
+
+  /* 마스터/관리자/타이틀 텍스트 */
+  --color-master-text: #7c3aed;
+  --color-admin-text: #4f46e5;
+  --color-text-title: #4338ca;
+
+  /* 스크롤바 */
+  --color-scrollbar-thumb: rgba(0, 0, 0, 0.25);
+  --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.4);
+}
