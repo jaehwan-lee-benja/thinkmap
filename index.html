@@ -2,6 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- 테마 무-플래시(FOUC 방지): 페인트 전에 data-theme 세팅. 로직=@thinkmap/core theme.js와 동일. -->
+    <script>(function(){try{var k='thinkmap-theme',p=localStorage.getItem(k);if(p!=='light'&&p!=='dark')p='system';var d=(p==='light'||p==='dark')?p:(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');var e=document.documentElement;e.dataset.theme=d;e.style.colorScheme=d;}catch(_){}})();</script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧭</text></svg>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     <!-- PWA -->
@@ -12,8 +14,8 @@
     <meta name="apple-mobile-web-app-title" content="ThinkMap" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
     <title>ThinkMap</title>
-    <script type="module" crossorigin src="/thinkmap/assets/index-9eDXRPHq.js"></script>
-    <link rel="stylesheet" crossorigin href="/thinkmap/assets/index-BraPsaXw.css">
+    <script type="module" crossorigin src="/thinkmap/assets/index-vm9-fGQ6.js"></script>
+    <link rel="stylesheet" crossorigin href="/thinkmap/assets/index-DXDrxGjT.css">
   </head>
   <body>
     <div id="root"></div>
