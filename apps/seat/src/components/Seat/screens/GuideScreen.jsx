@@ -3,6 +3,7 @@
 // 하단에 카이막·커피 현황 거울(올라감/제조완료함, 읽기). 카메라 없음.
 import OrderRow from '../components/OrderRow'
 import { STATIONS } from '../config/seatRoles'
+import { isRaisedOrder } from '../utils/seatRules'
 
 export default function GuideScreen({ orders = [], stations = [], onPatch, onCommit, onCreate }) {
   return (
@@ -33,16 +34,24 @@ export default function GuideScreen({ orders = [], stations = [], onPatch, onCom
         )}
       </div>
 
-      {/* 하단 거울: 카이막·커피 현황(올라감/제조완료함, 읽기). TODO: stations 데이터 연결. */}
+      {/* 하단 거울: 카이막·커피 현황(올라감/제조완료함, 읽기). StationScreen 과 동일 분류(R6). */}
       <section className="seat-mirror">
         <div className="seat-mirror-title">제조 현황</div>
         <div className="seat-mirror-stations">
-          {STATIONS.map((s) => (
-            <div key={s.key} className="seat-mirror-col">
-              <div className="seat-mirror-col-title">{s.label} 현황</div>
-              <div className="seat-mirror-col-body">올라감 · 제조완료함 — 연결 예정</div>
-            </div>
-          ))}
+          {STATIONS.map((s) => {
+            // StationScreen 과 같은 로직: 올림된 주문을 그 스테이션 완료 여부로 가른다.
+            const done = (o) =>
+              !!stations.find((st) => st.order_id === o.id && st.station === s.key)?.completed
+            const raised = orders.filter(isRaisedOrder)
+            const raisedCount = raised.filter((o) => !done(o)).length // 올라감(아직 미완료)
+            const doneCount = raised.filter(done).length             // 제조완료함
+            return (
+              <div key={s.key} className="seat-mirror-col">
+                <div className="seat-mirror-col-title">{s.label} 현황</div>
+                <div className="seat-mirror-col-body">올라감 {raisedCount} · 제조완료함 {doneCount}</div>
+              </div>
+            )
+          })}
         </div>
       </section>
     </div>
