@@ -35,7 +35,7 @@
   padding: 4px 10px;
   border: none;
   border-radius: 4px;
-  background: rgba(100, 108, 255, 0.15);
+  background: var(--color-primary-active);
   color: rgba(100, 108, 255, 0.85);
   font-size: 12px;
   font-weight: 500;
@@ -45,7 +45,7 @@
 }
 
 .quick-todo-submit:hover:not(:disabled) {
-  background: rgba(100, 108, 255, 0.25);
+  background: var(--color-primary-strong);
 }
 
 .quick-todo-submit:disabled {
@@ -71,7 +71,7 @@
 
 .quick-todo-settings-btn:hover,
 .quick-todo-settings-btn.active {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -126,7 +126,7 @@
 }
 
 .quick-todo-section-btn.current {
-  background: rgba(100, 108, 255, 0.1);
+  background: var(--color-primary-bg);
   color: rgba(100, 108, 255, 0.8);
   border-left: 2px solid rgba(100, 108, 255, 0.5);
 }
@@ -164,7 +164,7 @@
 
 .quick-todo-section-tag.master {
   background: rgba(167, 139, 250, 0.12);
-  color: #a78bfa;
+  color: var(--color-master-text);
 }
 
 .quick-todo-sections {
@@ -177,8 +177,8 @@
 .quick-todo-section-btn {
   padding: 3px 8px;
   border: none;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.5);
+  background: var(--color-bg-hover);
+  color: var(--color-text-tertiary);
   font-size: 11px;
   cursor: pointer;
   border-radius: 3px;
@@ -197,7 +197,7 @@
 }
 
 .quick-todo-section-btn.master:hover {
-  color: #a78bfa;
+  color: var(--color-master-text);
   background: rgba(167, 139, 250, 0.08);
 }
 
@@ -215,7 +215,7 @@
 
 .quick-todo-error {
   font-size: 11px;
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 /* 모바일 */
