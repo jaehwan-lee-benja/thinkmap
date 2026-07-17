@@ -42,13 +42,13 @@
   border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: 4px;
   font-size: 11px;
-  color: rgba(245, 158, 11, 0.9);
+  color: var(--color-amber);
 }
 
 .topbar-impersonation button {
   background: none;
   border: none;
-  color: rgba(245, 158, 11, 0.9);
+  color: var(--color-amber);
   font-size: 11px;
   cursor: pointer;
   padding: 0 4px;
@@ -96,7 +96,7 @@
 }
 
 .topbar-button:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-active);
   color: rgba(255, 255, 255, 0.8);
 }
 
@@ -106,7 +106,7 @@
 }
 
 .topbar-split-active:hover {
-  background: rgba(100, 108, 255, 0.2);
+  background: var(--color-primary-active-hover);
 }
 
 .topbar-admin {
@@ -114,7 +114,7 @@
 }
 
 .topbar-admin:hover {
-  color: #a78bfa;
+  color: var(--color-master-text);
   background: rgba(167, 139, 250, 0.1);
 }
 
@@ -131,7 +131,7 @@
   height: 20px;
   border-radius: 50%;
   background: rgba(100, 108, 255, 0.2);
-  color: rgba(100, 108, 255, 0.9);
+  color: var(--color-primary-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -149,7 +149,7 @@
 }
 
 .topbar-email {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--color-text-tertiary);
   font-size: 11px;
   max-width: 140px;
   overflow: hidden;
@@ -162,7 +162,7 @@
 }
 
 .topbar-logout:hover {
-  color: rgba(239, 68, 68, 0.8);
+  color: var(--color-danger-text-strong);
   background: rgba(239, 68, 68, 0.08);
 }
 
@@ -180,7 +180,7 @@
 }
 
 .topbar-account-btn .topbar-email {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--color-text-tertiary);
 }
 
 .topbar-account-linked {
@@ -222,7 +222,7 @@
 }
 
 .topbar-account-option:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-active);
 }
 
 .account-option-label {
@@ -263,7 +263,7 @@
 }
 
 .topbar-viewer-stop {
-  color: rgba(245, 158, 11, 0.9) !important;
+  color: var(--color-amber) !important;
   font-size: 11px !important;
   text-decoration: underline;
 }
@@ -310,8 +310,8 @@
 }
 
 .bookmark-today-worklog {
-  color: rgba(255, 255, 255, 0.5);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-text-tertiary);
+  border-right: 1px solid var(--color-border-light);
   border-radius: 4px 0 0 4px;
   padding-right: 10px;
   max-width: none;
@@ -358,7 +358,7 @@
 }
 
 .bookmark-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-active);
   color: rgba(255, 255, 255, 0.95);
 }
 
@@ -401,7 +401,7 @@
 
 .bookmark-all-btn:hover {
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
 }
 
 .bookmark-all-btn.active {
@@ -521,8 +521,8 @@
 }
 
 .bookmark-dropdown-remove:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: rgba(239, 68, 68, 0.8);
+  background: var(--color-danger-bg-subtle);
+  color: var(--color-danger-text-strong);
 }
 
 /* =====================================================

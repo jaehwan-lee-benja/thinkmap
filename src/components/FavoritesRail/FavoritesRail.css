@@ -30,7 +30,7 @@
 }
 
 .favorites-tab-button:hover {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.15);
 }
@@ -95,7 +95,7 @@
 }
 
 .favorites-panel-close:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-active);
   color: rgba(255, 255, 255, 0.8);
 }
 
@@ -161,7 +161,7 @@
 }
 
 .favorites-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-hover);
 }
 
 .favorites-item-info {
@@ -226,8 +226,8 @@
 }
 
 .favorites-item-remove:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: rgba(239, 68, 68, 0.8);
+  background: var(--color-danger-bg-subtle);
+  color: var(--color-danger-text-strong);
 }
 
 /* 모바일 반응형 */
