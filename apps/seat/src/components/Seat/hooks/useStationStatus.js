@@ -3,9 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@thinkmap/core'
 
+// (order, station) 행 고유키 — UNIQUE(order_id, station) 대응.
+const rowKey = (orderId, station) => `${orderId}:${station}`
+
 export function useStationStatus(businessDate) {
   const [stations, setStations] = useState([])
   const mountedRef = useRef(true)
+  // 저장 대기 중인 행 키 → 미결 쓰기 수. 편집 중(변동사항 입력) 행을 refetch clobber 로부터 보호.
+  const pendingRef = useRef(new Map())
 
   useEffect(() => {
     mountedRef.current = true
@@ -20,7 +25,21 @@ export function useStationStatus(businessDate) {
         .select('*')
         .eq('business_date', businessDate)
       if (error) throw error
-      if (mountedRef.current) setStations(data || [])
+      if (!mountedRef.current) return
+      // 저장 대기 중인 행은 로컬 낙관값 유지, 그 외는 DB값 반영. 아직 커밋 전인 대기 행은 보존.
+      setStations((prev) => {
+        const prevByKey = new Map(prev.map((s) => [rowKey(s.order_id, s.station), s]))
+        const merged = (data || []).map((row) => {
+          const k = rowKey(row.order_id, row.station)
+          return pendingRef.current.has(k) ? (prevByKey.get(k) || row) : row
+        })
+        const seen = new Set(merged.map((s) => rowKey(s.order_id, s.station)))
+        prev.forEach((s) => {
+          const k = rowKey(s.order_id, s.station)
+          if (pendingRef.current.has(k) && !seen.has(k)) merged.push(s) // upsert 커밋 전 로컬 행 유실 방지
+        })
+        return merged
+      })
     } catch (e) {
       console.error('useStationStatus.refetch', e)
     }
@@ -30,25 +49,42 @@ export function useStationStatus(businessDate) {
 
   useEffect(() => {
     if (!businessDate) return
+    let timer = null
+    const scheduleRefetch = () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => { if (mountedRef.current) refetch() }, 250)
+    }
     const channel = supabase
       .channel(`seat_stations:${businessDate}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'seat_station_status', filter: `business_date=eq.${businessDate}` },
-        () => { if (mountedRef.current) refetch() }
+        scheduleRefetch
       )
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel) }
   }, [businessDate, refetch])
 
   // (order, station) 행 upsert — workspace_id 는 DB 트리거가 부모 order 에서 강제.
+  // 낙관적 로컬 갱신 + 저장 대기 마킹으로 변동사항 입력 유실을 막는다.
   const patchStation = useCallback(async (orderId, station, patch) => {
     if (!businessDate || !station) return
     const payload = { order_id: orderId, station, business_date: businessDate, ...patch }
     if (patch.completed && !patch.completed_at) payload.completed_at = new Date().toISOString()
+    const localPatch = { ...patch, ...(payload.completed_at ? { completed_at: payload.completed_at } : {}) }
+    if (mountedRef.current) setStations((prev) => {
+      const idx = prev.findIndex((s) => s.order_id === orderId && s.station === station)
+      if (idx === -1) return [...prev, payload]
+      const next = prev.slice(); next[idx] = { ...next[idx], ...localPatch }; return next
+    })
+    const p = pendingRef.current
+    const k = rowKey(orderId, station)
+    p.set(k, (p.get(k) || 0) + 1)
     const { error } = await supabase
       .from('seat_station_status')
       .upsert(payload, { onConflict: 'order_id,station' })
+    const n = (p.get(k) || 1) - 1
+    if (n > 0) p.set(k, n); else p.delete(k)
     if (error) { console.error('useStationStatus.patch', error); refetch() }
   }, [businessDate, refetch])
 
