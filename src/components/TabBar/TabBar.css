@@ -11,7 +11,7 @@
   overflow: visible;
   flex-shrink: 0;
   background: var(--tab-strip-bg, #1a1a1e);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--color-border-light);
   position: relative;
 }
 
@@ -53,15 +53,15 @@
 }
 
 .tab-bar-tab:hover {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   background: rgba(255, 255, 255, 0.04);
 }
 
 /* 활성 탭 */
 .tab-bar-tab.active {
   color: rgba(255, 255, 255, 0.95);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--color-bg-active);
+  border-color: var(--color-border-medium);
 }
 
 /* 활성 탭 하단 인디케이터 */
@@ -148,7 +148,7 @@
 }
 
 .tab-breadcrumb-part.clickable:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-active);
 }
 
 .tab-breadcrumb-part.open {
@@ -224,7 +224,7 @@
 }
 
 .breadcrumb-dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-active);
   color: rgba(255, 255, 255, 0.95);
 }
 
@@ -234,7 +234,7 @@
 }
 
 .breadcrumb-dropdown-item.current:hover {
-  background: rgba(100, 108, 255, 0.15);
+  background: var(--color-primary-active);
 }
 
 .breadcrumb-dropdown-check {
@@ -296,7 +296,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px dashed var(--color-border-medium);
   background: transparent;
   color: rgba(255, 255, 255, 0.3);
   font-size: 16px;
@@ -311,7 +311,7 @@
 .tab-bar-add:hover {
   border-color: rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
 }
 
 
@@ -338,7 +338,7 @@
 
 .tab-bar-list-btn:hover,
 .tab-bar-list-btn.active {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-active);
   color: rgba(255, 255, 255, 0.8);
 }
 
@@ -401,14 +401,14 @@
   padding: 7px 10px;
   border-radius: 5px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   font-size: 13px;
   text-align: left;
   transition: background 0.1s;
 }
 
 .tab-list-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-active);
   color: rgba(255, 255, 255, 0.95);
 }
 
