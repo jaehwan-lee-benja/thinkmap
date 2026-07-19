@@ -378,6 +378,11 @@ export default function DailyPageV2({
             isPinned: false,
             visibility: s.visibility || 'master',
             isFixedSection: false,
+            // [증상2 수정] 섹션 색/접힘은 마스터(worklog_sections)에 저장된 정체성을 승계.
+            // (전엔 미설정 → 리프레시 백필된 카드가 무색·펼침으로 리셋 = "마스터 섹션카드 풀림")
+            // 참조: worklogTemplateV2.buildDailyTemplateRows 동일 패턴.
+            backgroundColor: s.background_color ?? null,
+            isOpen: s.is_open === undefined ? true : s.is_open !== false,
           })
           newRows.push({
             blockId: newBlockId(),
