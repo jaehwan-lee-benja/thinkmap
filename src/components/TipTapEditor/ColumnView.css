@@ -14,7 +14,7 @@
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
 }
 
 /* 헤더 */
@@ -23,7 +23,7 @@
   align-items: center;
   gap: 16px;
   padding: 12px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--color-border-light);
   background-color: var(--color-bg-secondary);
 }
 
@@ -35,28 +35,28 @@
   width: 36px;
   height: 36px;
   border: none;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-hover);
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   border-radius: 8px;
   transition: all 0.2s;
   flex-shrink: 0;
 }
 
 .column-view-close-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
+  background-color: var(--color-bg-active);
+  color: var(--color-text-primary);
 }
 
 .column-view-close-button:active {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--color-bg-active);
 }
 
 /* 타이틀 */
 .column-view-title {
   font-size: 18px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-primary);
   margin: 0;
   flex: 1;
 }
@@ -66,12 +66,12 @@
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--color-text-tertiary);
 }
 
 .column-view-hint span {
   padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-hover);
   border-radius: 4px;
 }
 
@@ -98,7 +98,7 @@
   width: 320px;
   flex-shrink: 0;
   height: 100%;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid var(--color-border-light);
   background-color: var(--color-bg-secondary);
 }
 
@@ -111,9 +111,9 @@
   padding: 12px 16px;
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
-  background-color: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-text-tertiary);
+  background-color: var(--color-bg-input);
+  border-bottom: 1px solid var(--color-border-light);
   text-align: center;
 }
 
@@ -133,9 +133,9 @@
   padding: 10px 16px;
   margin-top: 4px;
   background-color: transparent;
-  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border: 1px dashed var(--color-border-medium);
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--color-text-tertiary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
@@ -143,19 +143,19 @@
 }
 
 .add-block-button:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.6);
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-secondary);
 }
 
 .add-block-button:active {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--color-bg-active);
 }
 
 .add-block-button.selected {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.8);
+  background-color: var(--color-bg-active);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
   font-weight: 500;
 }
 
@@ -167,7 +167,7 @@
   padding: 0;
   margin-bottom: 6px;
   min-height: 52px;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--color-bg-hover);
   border-radius: 8px;
   cursor: grab;
   transition: background-color 0.2s;
@@ -177,7 +177,7 @@
 }
 
 .column-block:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--color-bg-active);
 }
 
 .column-block:active {
@@ -233,7 +233,7 @@
 /* 블럭 화살표 */
 .block-arrow {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--color-text-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -288,7 +288,7 @@
 /* 블럭 텍스트 */
 .block-text {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--color-text-primary);
   word-break: break-word;
   line-height: 1.5;
   width: 100%;
@@ -301,7 +301,7 @@
 
 /* 블럭 편집 모드 */
 .column-block.editing {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--color-bg-active);
   border-color: rgba(79, 110, 247, 0.5);
 }
 
@@ -311,7 +311,7 @@
   outline: none;
   background: transparent;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-primary);
   line-height: 1.5;
   padding: 0;
   font-family: inherit;
@@ -322,7 +322,7 @@
 }
 
 .block-edit-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--color-text-disabled);
 }
 
 /* 편집 버튼들 */

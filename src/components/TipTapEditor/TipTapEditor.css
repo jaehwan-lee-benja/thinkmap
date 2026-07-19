@@ -705,7 +705,7 @@ th .paragraph-drag-handle {
   justify-content: flex-end;
   gap: 4px;
   padding: 3px 4px;
-  background: #111827;
+  background: var(--color-editor-canvas-deep);
   border: 1px solid var(--color-editor-border);
   border-top: none;
 }
@@ -865,8 +865,8 @@ th .paragraph-drag-handle {
   align-items: center;
   gap: 4px;
   padding: 6px 8px;
-  background: #2a2a2a;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--color-editor-bg);
+  border: 1px solid var(--color-border-medium);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
@@ -880,7 +880,7 @@ th .paragraph-drag-handle {
 .table-toolbar-divider {
   width: 1px;
   height: 20px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--color-border-medium);
   margin: 0 4px;
 }
 
@@ -889,7 +889,7 @@ th .paragraph-drag-handle {
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-text-primary);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s;
@@ -897,8 +897,8 @@ th .paragraph-drag-handle {
 }
 
 .table-toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--color-bg-active);
+  color: var(--color-text-primary);
 }
 
 .table-toolbar-btn.delete {
@@ -913,11 +913,11 @@ th .paragraph-drag-handle {
 .table-toolbar-btn.close {
   font-size: 14px;
   padding: 4px 6px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--color-text-tertiary);
 }
 
 .table-toolbar-btn.close:hover {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-primary);
 }
 
 /* 링크 스타일 */
@@ -1027,7 +1027,7 @@ th .paragraph-drag-handle {
 /* Horizontal Rule */
 .tiptap-editor hr {
   border: none;
-  border-top: 2px solid #e5e7eb;
+  border-top: 2px solid var(--color-editor-text);
   margin: 2rem 0;
 }
 
@@ -1946,7 +1946,7 @@ th .paragraph-drag-handle {
 
 /* 페이지 블록 콘텐츠: 클릭 가능하게 보이도록 */
 .toggle-page-content p {
-  color: #e5e7eb !important;
+  color: var(--color-editor-text) !important;
   margin: 0 !important;
   text-decoration: underline;
   text-decoration-color: transparent;
@@ -2597,8 +2597,8 @@ th .paragraph-drag-handle {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #2a2a2a;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--color-editor-bg);
+  border: 1px solid var(--color-border-medium);
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   z-index: 1000;
@@ -2607,14 +2607,14 @@ th .paragraph-drag-handle {
 
 .multi-select-count {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .multi-select-divider {
   width: 1px;
   height: 20px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--color-border-medium);
 }
 
 .multi-select-actions {
@@ -2628,7 +2628,7 @@ th .paragraph-drag-handle {
   background: transparent;
   border: none;
   border-radius: 6px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-text-primary);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
@@ -2637,8 +2637,8 @@ th .paragraph-drag-handle {
 }
 
 .multi-select-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--color-bg-active);
+  color: var(--color-text-primary);
 }
 
 .multi-select-btn.todo {
@@ -2659,11 +2659,11 @@ th .paragraph-drag-handle {
 
 .multi-select-btn.close {
   padding: 6px 8px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--color-text-tertiary);
 }
 
 .multi-select-btn.close:hover {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-primary);
 }
 
 /* 모바일 멀티셀렉트 툴바 */

@@ -84,6 +84,7 @@
   --color-editor-bg: #2d2d2d;            /* 에디터 본문/툴바/카드 표면 */
   --color-editor-bg-editing: #323232;    /* 편집중 표면 하이라이트 */
   --color-editor-canvas: #1f2024;        /* 캔버스/코멘트 시트(살짝 더 깊은 바탕) */
+  --color-editor-canvas-deep: #111827;   /* 가장 깊은 바탕(fold-restore 바 등) */
   --color-editor-menu: #1f2937;          /* 메뉴/드롭다운/모달 배경 */
   --color-editor-raised: #374151;        /* 메뉴 hover·raised·히스토리·입력 배경 */
   --color-editor-border: #374151;        /* 메뉴/구분선/표 보더 */
@@ -200,6 +201,7 @@
   --color-editor-bg: #ffffff;
   --color-editor-bg-editing: #f9fafb;
   --color-editor-canvas: #ffffff;
+  --color-editor-canvas-deep: #f3f4f6;
   --color-editor-menu: #ffffff;
   --color-editor-raised: #f3f4f6;
   --color-editor-border: #e5e7eb;
