@@ -5,13 +5,13 @@
 
 /* CSS 변수 (로컬 오버라이드 가능) */
 .tiptap-wrapper {
-  --editor-bg: #2d2d2d;
+  --editor-bg: var(--color-editor-bg);
   --editor-bg-secondary: var(--color-bg-secondary);
-  --editor-text: #e5e7eb;
-  --editor-text-muted: #9ca3af;
-  --editor-text-faint: #6b7280;
-  --editor-border: #374151;
-  --editor-border-light: #4b5563;
+  --editor-text: var(--color-editor-text);
+  --editor-text-muted: var(--color-editor-text-muted);
+  --editor-text-faint: var(--color-editor-text-faint);
+  --editor-border: var(--color-editor-border);
+  --editor-border-light: var(--color-editor-border-strong);
   --editor-accent: #3b82f6;
   --editor-accent-hover: #2563eb;
   --editor-success: #10b981;
@@ -35,7 +35,7 @@
 /* Edit 모드 — Google Docs 스타일 시각 표시 */
 .tiptap-wrapper.is-editing {
   box-shadow: inset 0 0 0 1.5px var(--editor-accent);
-  background-color: #323232;
+  background-color: var(--color-editor-bg-editing);
   /* 편집중 inset 테두리/배경이 컨테이너 라운드를 따라가도록 (일반·데일리·캡처 공통) */
   border-radius: 0.5rem;
 }
@@ -93,7 +93,7 @@
 .tiptap-editor p {
   margin: 0.5rem 0;
   line-height: 1.6;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
 }
 
 .tiptap-editor p:first-child {
@@ -128,7 +128,7 @@
   min-width: 0;
   margin: 0;
   line-height: 1.6;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
 }
 
 .paragraph-drag-handle {
@@ -223,12 +223,12 @@ th .paragraph-drag-handle {
 
 .tiptap-editor pre {
   background-color: var(--color-bg-secondary);
-  color: #e5e7eb;
+  color: var(--color-editor-text);
   padding: 1rem;
   border-radius: 0.5rem;
   overflow-x: auto;
   margin: 1rem 0;
-  border: 1px solid #374151;
+  border: 1px solid var(--color-editor-border);
 }
 
 .tiptap-editor pre code {
@@ -241,7 +241,7 @@ th .paragraph-drag-handle {
 /* Syntax Highlighting (Lowlight/highlight.js) */
 .tiptap-editor pre code .hljs-comment,
 .tiptap-editor pre code .hljs-quote {
-  color: #6b7280;
+  color: var(--color-editor-text-faint);
   font-style: italic;
 }
 
@@ -294,10 +294,10 @@ th .paragraph-drag-handle {
 
 /* 인용구 스타일 */
 .tiptap-editor blockquote {
-  border-left: 4px solid #e5e7eb;
+  border-left: 4px solid var(--color-editor-text);
   padding-left: 1rem;
   margin: 1rem 0;
-  color: #6b7280;
+  color: var(--color-editor-text-faint);
   font-style: italic;
 }
 
@@ -312,14 +312,14 @@ th .paragraph-drag-handle {
 
 .tiptap-editor th,
 .tiptap-editor td {
-  border: 1px solid #374151;
+  border: 1px solid var(--color-editor-border);
   padding: 0.5rem;
   text-align: left;
   vertical-align: top;
   min-width: 100px;
   height: auto;
   min-height: 2.5rem;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
   position: relative;
   box-sizing: border-box;
   overflow: visible;
@@ -374,7 +374,7 @@ th .paragraph-drag-handle {
   top: 0;
   font-size: 10px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--color-editor-text-faint);
   line-height: 18px;
   padding-left: 2px;
   cursor: pointer;
@@ -427,7 +427,7 @@ th .paragraph-drag-handle {
   padding-top: 4px;
   font-size: 10px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--color-editor-text-faint);
   box-sizing: border-box;
 }
 
@@ -590,14 +590,14 @@ th .paragraph-drag-handle {
   gap: 2px;
   margin-right: 4px;
   padding-right: 8px;
-  border-right: 1px solid #374151;
+  border-right: 1px solid var(--color-editor-border);
 }
 
 .fold-bar-zoom-label {
   min-width: 36px;
   text-align: center;
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
   user-select: none;
 }
 
@@ -607,9 +607,9 @@ th .paragraph-drag-handle {
   gap: 4px;
   padding: 2px 8px;
   border-radius: 4px;
-  border: 1.5px solid #374151;
-  background: #1f2937;
-  color: #9ca3af;
+  border: 1.5px solid var(--color-editor-border);
+  background: var(--color-editor-menu);
+  color: var(--color-editor-text-muted);
   font-size: 11px;
   font-family: inherit;
   cursor: pointer;
@@ -620,9 +620,9 @@ th .paragraph-drag-handle {
 }
 
 .fold-bar-tool-btn:hover {
-  background: #374151;
+  background: var(--color-editor-raised);
   border-color: #6b7280;
-  color: #d1d5db;
+  color: var(--color-editor-text-dim);
 }
 
 .fold-bar-tool-btn.active {
@@ -638,14 +638,14 @@ th .paragraph-drag-handle {
 
 .fold-bar-tool-btn.inactive {
   background: transparent;
-  border-color: #374151;
-  color: #6b7280;
+  border-color: var(--color-editor-border);
+  color: var(--color-editor-text-faint);
 }
 
 .fold-bar-tool-btn.inactive:hover {
-  background: #374151;
+  background: var(--color-editor-raised);
   border-color: #6b7280;
-  color: #d1d5db;
+  color: var(--color-editor-text-dim);
 }
 
 .fold-bar-tool-btn svg {
@@ -666,7 +666,7 @@ th .paragraph-drag-handle {
   cursor: pointer;
   transition: all 0.15s;
   user-select: none;
-  border: 1px solid #374151;
+  border: 1px solid var(--color-editor-border);
   flex-shrink: 0;
 }
 
@@ -706,16 +706,16 @@ th .paragraph-drag-handle {
   gap: 4px;
   padding: 3px 4px;
   background: #111827;
-  border: 1px solid #374151;
+  border: 1px solid var(--color-editor-border);
   border-top: none;
 }
 
 .fold-restore-btn {
   padding: 2px 8px;
-  background: #1f2937;
-  border: 1px solid #374151;
+  background: var(--color-editor-menu);
+  border: 1px solid var(--color-editor-border);
   border-radius: 3px;
-  color: #6b7280;
+  color: var(--color-editor-text-faint);
   font-size: 11px;
   cursor: pointer;
   transition: all 0.15s;
@@ -808,7 +808,7 @@ th .paragraph-drag-handle {
   transform: translateX(-50%);
   height: 16px;
   line-height: 16px;
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
   font-size: 10px;
   white-space: nowrap;
   user-select: none;
@@ -816,8 +816,8 @@ th .paragraph-drag-handle {
 
 /* 열 편집 메뉴 */
 .col-edit-menu {
-  background: #1f2937;
-  border: 1px solid #374151;
+  background: var(--color-editor-menu);
+  border: 1px solid var(--color-editor-border);
   border-radius: 6px;
   padding: 4px;
   z-index: 1100;
@@ -832,7 +832,7 @@ th .paragraph-drag-handle {
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: #d1d5db;
+  color: var(--color-editor-text-dim);
   font-size: 12px;
   text-align: left;
   cursor: pointer;
@@ -840,7 +840,7 @@ th .paragraph-drag-handle {
 }
 
 .col-menu-item:hover {
-  background: #374151;
+  background: var(--color-editor-raised);
   color: #fff;
 }
 
@@ -855,7 +855,7 @@ th .paragraph-drag-handle {
 
 .col-menu-divider {
   height: 1px;
-  background: #374151;
+  background: var(--color-editor-border);
   margin: 3px 0;
 }
 
@@ -943,7 +943,7 @@ th .paragraph-drag-handle {
 .tiptap-editor .ProseMirror > p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
   pointer-events: none;
   height: 0;
 }
@@ -952,7 +952,7 @@ th .paragraph-drag-handle {
 .toggle-content p.is-empty::before {
   content: '내용을 입력하세요...';
   position: absolute;
-  color: #6b7280;
+  color: var(--color-editor-text-faint);
   pointer-events: none;
 }
 
@@ -964,7 +964,7 @@ th .paragraph-drag-handle {
 .tiptap-editor .ProseMirror > .is-empty:not(.toggle-block)::before {
   content: attr(data-placeholder);
   float: left;
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
   pointer-events: none;
   height: 0;
 }
@@ -1108,7 +1108,7 @@ th .paragraph-drag-handle {
   border-radius: 0.25rem;
   cursor: pointer;
   font-size: 0.7rem;
-  color: #6b7280;
+  color: var(--color-editor-text-faint);
   transition: all 0.15s ease;
   padding: 0;
 }
@@ -1274,7 +1274,7 @@ th .paragraph-drag-handle {
 }
 
 .status-popup-incomplete {
-  color: #d1d5db;
+  color: var(--color-editor-text-dim);
 }
 
 .status-popup-incomplete:hover {
@@ -1306,7 +1306,7 @@ th .paragraph-drag-handle {
 }
 
 .status-popup-cancel {
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
 }
 
 .status-popup-cancel:hover {
@@ -1935,7 +1935,7 @@ th .paragraph-drag-handle {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
   padding: 0;
   transition: color 0.15s;
 }
@@ -2007,19 +2007,19 @@ th .paragraph-drag-handle {
 .tiptap-editor h1,
 .tiptap-editor h2,
 .tiptap-editor h3 {
-  color: #e5e7eb;
+  color: var(--color-editor-text);
 }
 
 /* blockquote 색상 */
 .tiptap-editor blockquote {
-  color: #9ca3af;
-  border-left-color: #374151;
+  color: var(--color-editor-text-muted);
+  border-left-color: var(--color-editor-border);
 }
 
 /* 블록 컨텍스트 메뉴 */
 .block-context-menu {
-  background: #1f2937;
-  border: 1px solid #374151;
+  background: var(--color-editor-menu);
+  border: 1px solid var(--color-editor-border);
   border-radius: 8px;
   padding: 4px;
   min-width: 160px;
@@ -2036,7 +2036,7 @@ th .paragraph-drag-handle {
   padding: 8px 12px;
   background: transparent;
   border: none;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
   font-size: 14px;
   text-align: left;
   cursor: pointer;
@@ -2045,11 +2045,11 @@ th .paragraph-drag-handle {
 }
 
 .context-menu-item:hover {
-  background: #374151;
+  background: var(--color-editor-raised);
 }
 
 .context-menu-item:active {
-  background: #4b5563;
+  background: var(--color-editor-border-strong);
 }
 
 .context-menu-icon {
@@ -2061,7 +2061,7 @@ th .paragraph-drag-handle {
 .context-menu-shortcut {
   margin-left: auto;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
 }
 
 /* 텍스트 서식 버튼 행 */
@@ -2080,14 +2080,14 @@ th .paragraph-drag-handle {
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .format-button:hover:not(:disabled) {
-  background: #374151;
+  background: var(--color-editor-raised);
 }
 
 .format-button:disabled,
@@ -2104,7 +2104,7 @@ th .paragraph-drag-handle {
 /* 구분선 */
 .context-menu-separator {
   height: 1px;
-  background: #374151;
+  background: var(--color-editor-border);
   margin: 4px 0;
 }
 
@@ -2127,18 +2127,18 @@ th .paragraph-drag-handle {
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .context-menu-indent-button:hover:not(:disabled) {
-  background: #374151;
+  background: var(--color-editor-raised);
 }
 
 .context-menu-indent-button:active:not(:disabled) {
-  background: #4b5563;
+  background: var(--color-editor-border-strong);
 }
 
 .context-menu-indent-button:disabled {
@@ -2148,7 +2148,7 @@ th .paragraph-drag-handle {
 
 /* 더보기 토글 — 일반 항목과 구분되게 회색 라벨 (메타 라벨 크기) */
 .context-menu-more-toggle {
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
   font-size: 12px;
 }
 
@@ -2162,7 +2162,7 @@ th .paragraph-drag-handle {
 
 .color-picker-label {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
   padding: 2px 4px 0;
 }
 
@@ -2188,7 +2188,7 @@ th .paragraph-drag-handle {
 }
 
 .color-picker-swatch:hover {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: var(--color-border-strong);
   transform: scale(1.1);
 }
 
@@ -2211,8 +2211,8 @@ th .paragraph-drag-handle {
   display: flex;
   align-items: center;
   gap: 2px;
-  background: #1f2937;
-  border: 1px solid #374151;
+  background: var(--color-editor-menu);
+  border: 1px solid var(--color-editor-border);
   border-radius: 8px;
   padding: 4px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -2228,14 +2228,14 @@ th .paragraph-drag-handle {
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
   font-size: 13px;
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .bubble-btn:hover {
-  background: #374151;
+  background: var(--color-editor-raised);
 }
 
 .bubble-btn.is-active {
@@ -2246,7 +2246,7 @@ th .paragraph-drag-handle {
 .bubble-separator {
   width: 1px;
   height: 20px;
-  background: #374151;
+  background: var(--color-editor-border);
   margin: 0 2px;
 }
 
@@ -2257,53 +2257,13 @@ th .paragraph-drag-handle {
   display: flex;
   gap: 2px;
   padding: 6px;
-  background: #1f2937;
-  border: 1px solid #374151;
+  background: var(--color-editor-menu);
+  border: 1px solid var(--color-editor-border);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   flex-wrap: wrap;
   width: 180px;
   z-index: 10;
-}
-
-/* 라이트 모드 */
-@media (prefers-color-scheme: light) {
-  .bubble-menu {
-    background: #ffffff;
-    border-color: #e5e7eb;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  }
-
-  .bubble-btn {
-    color: #374151;
-  }
-
-  .bubble-btn:hover {
-    background: #f3f4f6;
-  }
-
-  .bubble-btn.is-active {
-    background: #3b82f6;
-    color: white;
-  }
-
-  .bubble-separator {
-    background: #e5e7eb;
-  }
-
-  .bubble-color-dropdown {
-    background: #ffffff;
-    border-color: #e5e7eb;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  }
-
-  .color-picker-swatch:hover {
-    border-color: rgba(0, 0, 0, 0.3);
-  }
-
-  .color-picker-swatch.is-active {
-    border-color: rgba(0, 0, 0, 0.6);
-  }
 }
 
 /* 삭제 버튼 호버 시 빨간색 */
@@ -2323,10 +2283,10 @@ th .paragraph-drag-handle {
 .context-menu-input-group input {
   flex: 1;
   padding: 6px 8px;
-  background: #374151;
-  border: 1px solid #4b5563;
+  background: var(--color-editor-raised);
+  border: 1px solid var(--color-editor-border-strong);
   border-radius: 4px;
-  color: #e5e7eb;
+  color: var(--color-editor-text);
   font-size: 13px;
   outline: none;
 }
@@ -2336,7 +2296,7 @@ th .paragraph-drag-handle {
 }
 
 .context-menu-input-group input::placeholder {
-  color: #9ca3af;
+  color: var(--color-editor-text-muted);
 }
 
 .context-menu-input-group button {
@@ -2352,41 +2312,6 @@ th .paragraph-drag-handle {
 
 .context-menu-input-group button:hover {
   background: #2563eb;
-}
-
-/* 라이트 모드 지원 */
-@media (prefers-color-scheme: light) {
-  .block-context-menu {
-    background: #ffffff;
-    border-color: #e5e7eb;
-  }
-
-  .context-menu-item {
-    color: #374151;
-  }
-
-  .context-menu-item:hover {
-    background: #f3f4f6;
-  }
-
-  .context-menu-item:active {
-    background: #e5e7eb;
-  }
-
-  .context-menu-shortcut {
-    color: #6b7280;
-  }
-
-  .context-menu-item:first-child:hover {
-    background: #fef2f2;
-    color: #dc2626;
-  }
-
-  .context-menu-input-group input {
-    background: #f9fafb;
-    border-color: #d1d5db;
-    color: #374151;
-  }
 }
 
 /* =====================================================

@@ -79,6 +79,20 @@
   --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.5);
   --color-scrollbar-track: transparent;
 
+  /* 색상 - 에디터 전용 팔레트 (TipTap 캔버스/메뉴/텍스트) — 다크 기본값 = 현행 하드코딩값(회귀 0).
+     라이트는 [data-theme="light"] 에서 오버라이드. 상세: docs/THEME-SPEC.md §5 */
+  --color-editor-bg: #2d2d2d;            /* 에디터 본문/툴바/카드 표면 */
+  --color-editor-bg-editing: #323232;    /* 편집중 표면 하이라이트 */
+  --color-editor-canvas: #1f2024;        /* 캔버스/코멘트 시트(살짝 더 깊은 바탕) */
+  --color-editor-menu: #1f2937;          /* 메뉴/드롭다운/모달 배경 */
+  --color-editor-raised: #374151;        /* 메뉴 hover·raised·히스토리·입력 배경 */
+  --color-editor-border: #374151;        /* 메뉴/구분선/표 보더 */
+  --color-editor-border-strong: #4b5563; /* 입력 보더·강한 구분선·active 배경 */
+  --color-editor-text: #e5e7eb;          /* 기본 텍스트 */
+  --color-editor-text-muted: #9ca3af;    /* 흐린 텍스트 */
+  --color-editor-text-faint: #6b7280;    /* 더 흐린 텍스트/단축키 */
+  --color-editor-text-dim: #d1d5db;      /* 메뉴 아이템 텍스트(살짝 흐린 기본) */
+
   /* 간격 */
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
@@ -180,4 +194,18 @@
   /* 스크롤바 */
   --color-scrollbar-thumb: rgba(0, 0, 0, 0.25);
   --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.4);
+
+  /* 에디터 팔레트 — 라이트(문서=흰 바탕, 텍스트=진회색). 근거 앵커 = 기존
+     @media(prefers-color-scheme:light) 블록의 라이트 색(#ffffff·#f3f4f6·#e5e7eb·#374151·#6b7280·#d1d5db) 흡수 */
+  --color-editor-bg: #ffffff;
+  --color-editor-bg-editing: #f9fafb;
+  --color-editor-canvas: #ffffff;
+  --color-editor-menu: #ffffff;
+  --color-editor-raised: #f3f4f6;
+  --color-editor-border: #e5e7eb;
+  --color-editor-border-strong: #d1d5db;
+  --color-editor-text: #374151;
+  --color-editor-text-muted: #6b7280;
+  --color-editor-text-faint: #727884; /* WCAG: #9ca3af=2.54:1 미달 → 4.43:1, muted보다 흐리되 가독 */
+  --color-editor-text-dim: #4b5563;
 }
