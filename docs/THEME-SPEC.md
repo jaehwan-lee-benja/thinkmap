@@ -59,7 +59,11 @@
 
 ## 5. 영향 범위 / Phase
 - **Phase 1(이번)**: 위 토큰 구조 + core 이관 + 토글/저장. → `var()`로 색을 쓰는 부분(~1,100회)이 **즉시 라이트 대응**.
-- **Phase 2(이후)**: 하드코딩 ~1,532색(hex 586 + rgba 946, 26 CSS + 위성)을 토큰으로 이관(파일 단위) + 임시 `@media(prefers-color-scheme)` 블록(Roster/TipTapEditor) 정리. Phase 2 전까진 하드코딩 부분이 라이트에서 다크로 남을 수 있음(점진 개선).
+- **Phase 2(진행 중)**: 하드코딩 ~1,532색(hex 586 + rgba 946, 26 CSS + 위성)을 토큰으로 이관(파일 단위) + 임시 `@media(prefers-color-scheme)` 블록(Roster/TipTapEditor) 정리. Phase 2 전까진 하드코딩 부분이 라이트에서 다크로 남을 수 있음(점진 개선).
+  - **배치1(완료·배포)**: 글로벌 크롬 88건 — Sidebar/TabBar/GlobalTopBar/FavoritesRail/App.css.
+  - **배치2(완료·배포)**: 사이드패널/모달 13건 — AdminModal/BackupModal/QuickTodo. (ProjectModal/ShareModal/MemoPanel/GoalCaptureDrawer는 이미 토큰화됨.)
+  - **배치3(에디터계열) — 기계적 이관 불가로 판정**: TipTapEditor/TipTapPage/ColumnView/MindMapView(~660색)는 값 치환 배치가 아니라 **설계 과제**다. 이유: 에디터 본문·툴바·메뉴가 `var(--color-bg-editor, #2d2d2d)`를 쓰는데 **`--color-bg-editor`가 정의돼 있지 않아**(폴백 #2d2d2d로 다크 고정) 라이트에서 안 뒤집힘 + 자체 하드코딩 다크 팔레트(Tailwind 슬레이트) + 기본 텍스트 `#e5e7eb` 하드코딩(MindMap/Column). 이 위의 흰-알파 색을 토큰으로 바꾸면 라이트에서 회귀(어두운 글씨/어두운 면). TipTapPage 모바일 하단바 2건만 테마 배경 위라 안전 치환.
+- **에디터 라이트모드 = 별도 설계 단계(선행 과제)**: ① `--color-bg-editor`를 variables.css에 라이트/다크 값으로 **정의**, ② 에디터 자체 다크 팔레트를 라이트에서 어떻게 다룰지 결정, ③ 기존 `@media(prefers-color-scheme: light)` 블록 2개(TipTapEditor.css: bubble-menu/색상픽커, block-context-menu/입력)를 data-theme 체계로 통합. 이 3개가 되기 전엔 에디터 색 대량 이관이 회귀를 부른다.
 
 ## 6. 수정 전 체크리스트
 - [ ] 새 색은 토큰으로. 없으면 variables.css(양 테마 값)에 추가.

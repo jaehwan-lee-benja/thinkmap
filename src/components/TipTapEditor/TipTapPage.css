@@ -897,7 +897,7 @@
   height: 56px;
   padding-bottom: var(--safe-area-bottom);
   background: var(--color-bg-secondary);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--color-border-light);
   z-index: 900;
 }
 
@@ -911,7 +911,7 @@
   height: 100%;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--color-text-tertiary);
   font-size: 10px;
   font-weight: 500;
   cursor: pointer;
