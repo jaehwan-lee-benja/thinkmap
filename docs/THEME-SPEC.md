@@ -64,7 +64,8 @@
   - **배치2(완료·배포)**: 사이드패널/모달 13건 — AdminModal/BackupModal/QuickTodo. (ProjectModal/ShareModal/MemoPanel/GoalCaptureDrawer는 이미 토큰화됨.)
   - **배치3(에디터계열) — 기계적 이관 불가로 판정**: TipTapEditor/TipTapPage/ColumnView/MindMapView(~660색)는 값 치환 배치가 아니라 **설계 과제**다. 이유: 에디터 본문·툴바·메뉴가 `var(--color-bg-editor, #2d2d2d)`를 쓰는데 **`--color-bg-editor`가 정의돼 있지 않아**(폴백 #2d2d2d로 다크 고정) 라이트에서 안 뒤집힘 + 자체 하드코딩 다크 팔레트(Tailwind 슬레이트) + 기본 텍스트 `#e5e7eb` 하드코딩(MindMap/Column). 이 위의 흰-알파 색을 토큰으로 바꾸면 라이트에서 회귀(어두운 글씨/어두운 면). TipTapPage 모바일 하단바 2건만 테마 배경 위라 안전 치환.
   - **배치4(에디터 라이트모드) — 구현 완료(설계 A1/B1/C1)**: 에디터 전용 팔레트 토큰 11개 신설(variables.css, `--color-editor-*` = 캔버스/본문/메뉴/raised/border/text 계층). **다크 = 현행 하드코딩값 그대로(회귀 0)**, 라이트 = 흰 문서+진회색 텍스트. `.tiptap-wrapper` 로컬 `--editor-*` 를 글로벌 토큰에 재배선 → 기존 `var(--editor-*)` 사용처 자동 테마화. TipTapEditor/TipTapPage 91개소 치환 + `@media(prefers-color-scheme)` 2블록 삭제(→ data-theme 따름). 라이트 faint 텍스트는 WCAG로 `#727884`(4.43:1) 보정.
-    - **여전히 다크 유지(별도 배치/결정 필요)**: MindMapView 딥 그라데이션(B1=항상 다크), ColumnView 본문(무토큰 흰-알파 텍스트 다수), 프린트프리뷰(흰 종이 시뮬=데이터성), 플로팅/모바일 툴바·page-nav 드롭다운·캔버스 시트(내부 무토큰 텍스트), `.tiptap-btn` 그라데이션 버튼, 토글 도메인 소형 인디케이터. → 회귀 위험 실재로 보류.
+  - **배치5(에디터 잔여 오버레이 — 부분 완료)**: ColumnView(전체), page-nav 드롭다운, 플로팅 표 툴바·멀티셀렉트 툴바, fold-restore 바를 라이트 전환(표면별 배경+텍스트+보더 완전 전환). `--color-editor-canvas-deep` 토큰 1개 추가. 무토큰 흰-알파(0.85/0.4/0.3 등)는 근접 앱/에디터 토큰에 매핑 → 다크 미세 시프트(≤0.1 alpha, 감지 난이) 허용.
+    - **여전히 다크 유지(배치5b/결정 대기)**: MindMapView 딥 그라데이션(B1=항상 다크), 프린트프리뷰(흰 종이 시뮬=데이터성), 모바일 more/settings 메뉴, 캔버스 시트(worklog-comments/mobile-sheet/toggle-more-menu 내부 무토큰 텍스트), comment-popover, `.tiptap-btn` 그라데이션 버튼, 토글 도메인 소형 인디케이터. → 미처리 or 회귀 위험으로 보류.
 
 ## 6. 수정 전 체크리스트
 - [ ] 새 색은 토큰으로. 없으면 variables.css(양 테마 값)에 추가.
