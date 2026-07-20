@@ -112,6 +112,9 @@
   cursor: pointer;
 }
 .seat-toggle.is-on { background: var(--color-primary, #646cff); color: #fff; border-color: transparent; font-weight: 700; }
+/* 자리순서 상태 색구분: 살아있음=초록(순서 살아있음) / 필요없음=앰버(자리 불필요) */
+.seat-toggle.is-alive { background: var(--color-success, #4CAF50); color: #fff; border-color: transparent; font-weight: 700; }
+.seat-toggle.is-none { background: var(--color-amber, rgba(245, 158, 11, 0.9)); color: #fff; border-color: transparent; font-weight: 700; }
 .seat-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
 /* 전달 버튼 라벨 줄바꿈 방지(자리후 전달 / 전체에게 전달 등) */
 .seat-cell-deliver .seat-toggle,
