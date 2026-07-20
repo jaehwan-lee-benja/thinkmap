@@ -53,13 +53,13 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false 
         </label>
       </div>
 
-      {/* R1: 제조옵션 체크 시 자리순서 비활성. R4: 살아있음/순서없이(취소) */}
+      {/* R1: 제조옵션 체크 시 자리순서 비활성. R4: 살아있음/필요없음. 상태별 색구분(초록/앰버). */}
       <div className="seat-cell seat-cell-seat" aria-disabled={optChecked}>
         <button
-          className={`seat-toggle${order.seat_order_alive ? ' is-on' : ''}`}
+          className={`seat-toggle seat-order-btn ${order.seat_order_alive ? 'is-alive' : 'is-none'}`}
           disabled={optChecked}
           onClick={() => patch({ seat_order_alive: !order.seat_order_alive })}
-        >{order.seat_order_alive ? '살아있음' : '순서없이'}</button>
+        >{order.seat_order_alive ? '살아있음' : '필요없음'}</button>
       </div>
 
       {/* 자리앉음 → 올리기 전달(버튼). R2: 그 전엔 비활성. R5: 메뉴 나감은 매니저만 */}
