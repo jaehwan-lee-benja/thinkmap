@@ -43,6 +43,13 @@ function buildEmptyChildToggle(sectionRow) {
     // (board-scope 전환 후 비마스터 daily 에 master 섹션이 섞이며 6/8 양식 깨짐 발생 — 진단 SQL 참조)
     visibility: sectionRow.visibility || 'master',
     isFixedSection: false,
+    // ★혼합 배치 INSERT 안전: 이 빈 자식은 섹션 row 들과 한 배열로 daily_blocks 에 INSERT 된다.
+    // 섹션 row 는 isOpen 을 명시(worklogTemplateV2)하는데 이 행이 isOpen 을 생략하면,
+    // supabase-js(defaultToNull:true)가 컬럼 합집합에 is_open 을 넣고 이 행엔 NULL 을 채워
+    // NOT NULL(default true) 위반 → 배치 전체 실패 → 빈 데일리 페이지가 됐다(2026-07 이월 버그).
+    // 빈 자식 토글은 접힘 상태·카드색이 없으므로 open=true, color=null 로 명시한다.
+    isOpen: true,
+    backgroundColor: null,
   }
 }
 

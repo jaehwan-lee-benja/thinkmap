@@ -398,6 +398,10 @@ export default function DailyPageV2({
             // P1: 빈 자식은 부모 섹션의 visibility 를 상속한다('all' 하드코딩 금지).
             // master 섹션 아래 'all' 자식은 비마스터 화면에서 헤더 없는 고아가 된다.
             isPinned: false, visibility: s.visibility || 'master', isFixedSection: false,
+            // ★혼합 배치 INSERT 안전: 위 섹션 row 는 isOpen 을 명시하는데 이 빈 자식이 생략하면
+            // supabase-js 가 is_open 을 NULL 로 채워 NOT NULL 위반 → 백필 실패. open=true 명시.
+            // (createDailyPageV2.buildEmptyChildToggle 과 동일 사유 — 2026-07 빈 페이지 이월 버그)
+            isOpen: true, backgroundColor: null,
           })
         })
         await applyDiff({ insert: newRows, update: [], softDelete: [] })
