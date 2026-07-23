@@ -19,6 +19,8 @@ const DashboardPage = lazy(() => import('./components/Dashboard/DashboardPage'))
 // 모선은 seat 페이지를 fetch/렌더하지 않는다(사이드바 런처로 위성 진입).
 // 백오피스(사이트 구조도) = 마스터 전용 + 셸/에디터 비의존 격리 트리 → 코드 스플리팅.
 const BackofficePage = lazy(() => import('./components/Backoffice/BackofficePage'))
+// CRM 운영 보드 = 마스터 전용 + 지표/투두 2레인(별도 트리) → 코드 스플리팅 (CRM-BOARD-SPEC §1-6).
+const CrmBoardPage = lazy(() => import('./components/CrmBoard/CrmBoardPage'))
 // 글로벌 사이드바 (2026.3 즈음 즐겨찾기로 썼었음) — 향후 다른 용도로 활용 가능
 // import { FavoritesRail } from './components/FavoritesRail/FavoritesRail'
 import { useUserPreferences, supabase, useAuth, DeleteToast, generateUUID, dailyPageName } from '@thinkmap/core'
@@ -33,7 +35,7 @@ import { usePageContext } from './contexts/PageContext'
 import { useProjectContext } from './contexts/ProjectContext'
 import AuthContext from './contexts/AuthContext'
 import FavoritesContext from './contexts/FavoritesContext'
-import { isSchedulePage, isPayrollPage, isDashboardPage, isBackofficePage } from './utils/pageTypes'
+import { isSchedulePage, isPayrollPage, isDashboardPage, isBackofficePage, isCrmBoardPage } from './utils/pageTypes'
 import './App.css'
 
 // 에러 바운더리 — React 크래시 시 에러 메시지 표시
@@ -206,6 +208,24 @@ function PaneInner({
                     key={`pane-${paneIndex}-${pageId}`}
                     session={effectiveSession}
                     isMaster={isMaster}
+                  />
+                </Suspense>
+              )
+            }
+            if (isCrmBoardPage(pageType)) {
+              // CRM 운영 보드 — 마스터 전용. 비마스터 접근 시 거부 (dashboard 와 동일).
+              if (!isMaster) {
+                return (
+                  <div className="no-page-selected">
+                    <p>접근 권한이 없습니다. (마스터 전용)</p>
+                  </div>
+                )
+              }
+              return (
+                <Suspense fallback={<div className="no-page-selected"><p>CRM 보드 로딩 중...</p></div>}>
+                  <CrmBoardPage
+                    key={`pane-${paneIndex}-${pageId}`}
+                    session={effectiveSession}
                   />
                 </Suspense>
               )

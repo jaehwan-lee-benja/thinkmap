@@ -416,3 +416,9 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # 게이트웨이 JWT 검증은 끄고 함수 내부에서 직접 getUser 로 검증한다
 # (CORS preflight/OPTIONS 를 함수가 직접 처리하기 위함). 익명 호출은 함수가 401 거부.
 verify_jwt = false
+
+[functions.engine-metrics-sync]
+# 게이트웨이 JWT 검증은 끄고 함수 내부에서 getUser + is_master() 로 검증한다
+# (CORS preflight 를 함수가 직접 처리 + 마스터 전용 게이트). 비마스터/익명은 함수가 401/403 거부.
+# 시크릿 ENGINE_API_KEY 는 이 함수 env 에만 유저가 세팅(값=crm-archive/.env). CRM-BOARD-SPEC §8.
+verify_jwt = false
