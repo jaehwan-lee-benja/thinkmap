@@ -38,6 +38,56 @@ function extractToggleStates(docJSON) {
   docJSON.content.forEach(walk)
   return states
 }
+// ── 충돌 비교(내용 확인하기)용: TipTap 문서 JSON → 읽기용 텍스트 줄 배열 ──
+// 블록(문단/제목/토글 제목/리스트 항목/표 셀 등)마다 한 줄. 중첩 블록은 들여쓰기로 표현.
+function docToLines(doc) {
+  if (!doc || !Array.isArray(doc.content)) return []
+  const lines = []
+  const isInline = (n) => n?.type === 'text' || n?.type === 'hardBreak'
+  const inlineText = (nodes) => (nodes || [])
+    .filter(isInline)
+    .map((n) => (n.type === 'text' ? (n.text || '') : ' '))
+    .join('')
+  const walk = (nodes, depth) => {
+    for (const n of nodes || []) {
+      const children = Array.isArray(n.content) ? n.content : []
+      const inlineChildren = children.filter(isInline)
+      const blockChildren = children.filter((c) => !isInline(c))
+      if (inlineChildren.length) lines.push('  '.repeat(depth) + inlineText(inlineChildren))
+      if (blockChildren.length) walk(blockChildren, depth + (inlineChildren.length ? 1 : 0))
+    }
+  }
+  walk(doc.content, 0)
+  return lines
+}
+
+// 두 줄 배열의 LCS 기반 줄 단위 diff. rows: { type:'same'|'del'|'add', left, right }
+// 큰 문서(각 400줄 초과)는 O(n·m) 회피 — 정렬 없이 좌/우 전체를 나란히 표기.
+function diffLines(aLines, bLines) {
+  const a = aLines || [], b = bLines || []
+  const n = a.length, m = b.length
+  if (n > 400 || m > 400) {
+    const rows = []
+    const max = Math.max(n, m)
+    for (let k = 0; k < max; k++) rows.push({ type: 'raw', left: a[k] ?? null, right: b[k] ?? null })
+    return rows
+  }
+  const dp = Array.from({ length: n + 1 }, () => new Int32Array(m + 1))
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+  const rows = []
+  let i = 0, j = 0
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { rows.push({ type: 'same', left: a[i], right: b[j] }); i++; j++ }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { rows.push({ type: 'del', left: a[i], right: null }); i++ }
+    else { rows.push({ type: 'add', left: null, right: b[j] }); j++ }
+  }
+  while (i < n) { rows.push({ type: 'del', left: a[i++], right: null }) }
+  while (j < m) { rows.push({ type: 'add', left: null, right: b[j++] }) }
+  return rows
+}
+
 // 비-daily 페이지 content 정제 — 과거 _dismissed 잔존 키를 에디터 prop 에서 제거.
 // (daily 페이지는 DailyPageV2 가 row 기반으로 처리하므로 이 경로 미사용)
 const stripDismissed = (content) => {
@@ -207,7 +257,9 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
 
   // ── 실시간 동기화 (일반 페이지) ──
   // 충돌 배너: 내가 편집 중인데 다른 탭/사용자가 저장했을 때만 표시 (덮어쓰지 않고 선택 유도)
-  const [syncConflict, setSyncConflict] = useState(null)   // { byName, at }  — 진짜 다른 사용자 동시편집일 때만
+  const [syncConflict, setSyncConflict] = useState(null)   // { byName, at, remoteContent }  — 진짜 다른 사용자 동시편집일 때만
+  const [showCompare, setShowCompare] = useState(false)    // 충돌 배너 아래 좌/우 내용 비교 패널 펼침 여부
+  const compareBackupRef = useRef(null)                    // 비교 열 때 미저장 편집을 1회 백업(block_history.id)
   // 동기화 토스트: 내가 편집 중이 아닐 때(또는 내 다른 창/기기) 원격 변경이 부드럽게 반영됨을 알림
   const [syncToast, setSyncToast] = useState(null)         // { byName, sameAccount }
   const syncToastTimer = useRef(null)
@@ -611,7 +663,7 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
           // ③ 편집 중 + 진짜 다른 사용자 → 차단 배너로 선택 유도(덮어쓰지 않음).
           //    여기 도달은 (내 에코 아님 + 내 계정 아님)이라 오탐이 아니다.
           syncConflictRef.current = true
-          setSyncConflict({ byName, at: row.updated_at || null })
+          setSyncConflict({ byName, at: row.updated_at || null, remoteContent: row.content_tiptap || null })
         }
       )
       .subscribe()
@@ -750,6 +802,15 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     }
   }, [session?.user?.id, currentPageId, isImpersonating])
 
+  // 충돌 "내용 확인하기" — 배너 아래 좌/우 비교 패널을 펼치고, 그 시점의 미저장 편집을 1회 무손실 백업.
+  const openCompare = useCallback(async () => {
+    setShowCompare((v) => !v)
+    if (compareBackupRef.current) return  // 이 충돌에서 이미 백업함
+    const backupId = await snapshotToHistory(contentRef.current, '충돌·내 편집 보관(내용 확인 시점)')
+    compareBackupRef.current = backupId || true
+    if (backupId) showUndoHint(backupId, '내 편집을 되돌리기')
+  }, [snapshotToHistory, showUndoHint])
+
   // 충돌 해결 ① 상대 내용 받기 (내 미저장 변경은 히스토리에 백업 후 버림 — 되돌리기 가능)
   const resolveSyncReload = useCallback(async () => {
     // 버리기 전에 내 현재 편집본을 무손실 백업
@@ -759,6 +820,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
     syncConflictRef.current = false
     lastSaveConflictRef.current = false
     setSyncConflict(null)
+    setShowCompare(false)
+    compareBackupRef.current = null
     if (loadContentRef.current) loadContentRef.current(currentPageId)
     showUndoHint(backupId, '내 편집을 되돌리기')
   }, [currentPageId, snapshotToHistory, showUndoHint])
@@ -775,6 +838,8 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       hasUnsavedChanges.current = false
       setLastSaved(new Date())
       setSyncConflict(null)
+      setShowCompare(false)
+      compareBackupRef.current = null
       showUndoHint(backupId, '상대 내용을 되돌리기')
     } else {
       // 그 사이 또 바뀜 — 배너 유지하고 자동저장 보류 지속
@@ -786,7 +851,17 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
   const dismissSyncConflict = useCallback(() => {
     syncConflictRef.current = false
     setSyncConflict(null)
+    setShowCompare(false)
+    compareBackupRef.current = null
   }, [])
+
+  // 좌/우 비교 diff 계산 — 비교 패널이 열려 있을 때만. content 변화에 따라 재계산(편집 중 실시간 반영).
+  const compareRows = useMemo(() => {
+    if (!showCompare || !syncConflict) return null
+    const mine = docToLines(stripDismissed(contentRef.current))
+    const theirs = docToLines(syncConflict.remoteContent)
+    return diffLines(mine, theirs)
+  }, [showCompare, syncConflict, content])
 
   // content가 변경될 때마다 ref 업데이트
   useEffect(() => {
@@ -870,13 +945,30 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
       setIsSaving(true)
       const success = await saveImmediately(content, currentPageId)
       if (!success && lastSaveConflictRef.current) {
-        // 낙관적 잠금 충돌 backstop — 누가·언제 바꿨는지 조회해 배너 표시 (권위 신호)
-        const { data } = await supabase.from('pages').select('last_edited_by, last_edited_by_email, updated_at').eq('id', currentPageId).single()
+        // 낙관적 잠금 충돌 backstop — 누가 먼저 저장했는지 조회 (권위 신호)
+        const { data } = await supabase.from('pages').select('last_edited_by, last_edited_by_email, updated_at, content_tiptap').eq('id', currentPageId).single()
         const isSameAccount = !!(data?.last_edited_by && session?.user?.id && data.last_edited_by === session.user.id)
-        const byEmail = data?.last_edited_by_email || ''
-        const byName = byEmail ? byEmail.split('@')[0] : (isSameAccount ? '내 계정' : '다른 사용자')
-        syncConflictRef.current = true
-        setSyncConflict({ byName, at: data?.updated_at || null })
+        if (isSameAccount) {
+          // 계정 내 충돌 개념 없음 — 내 다른 창/기기가 먼저 저장했을 뿐이다.
+          // 지금 편집 중인 이 기기의 편집을 남기되(내 편집 우선), 상대 기기가 저장한 버전은
+          // block_history 에 무손실 백업 후 덮어써 조용히 수렴시킨다(배너 없음).
+          const backupId = await snapshotToHistory(data?.content_tiptap, '계정 내 다른 기기 저장 보관(자동 병합 전)')
+          if (data?.updated_at) pageUpdatedAtsRef.current.set(currentPageId, data.updated_at)
+          lastSaveConflictRef.current = false
+          const merged = await saveImmediately(content, currentPageId)
+          if (merged) {
+            setLastSaved(new Date())
+            hasUnsavedChanges.current = false
+            if (backupId) showUndoHint(backupId, '다른 기기 내용을 되돌리기')
+          }
+          // merged 실패(그 찰나 또 바뀜)면 다음 debounce 자동저장이 재시도 — 배너는 띄우지 않는다.
+        } else {
+          // 진짜 다른 사용자 → 충돌 배너로 선택 유도
+          const byEmail = data?.last_edited_by_email || ''
+          const byName = byEmail ? byEmail.split('@')[0] : '다른 사용자'
+          syncConflictRef.current = true
+          setSyncConflict({ byName, at: data?.updated_at || null, remoteContent: data?.content_tiptap || null })
+        }
       }
       if (success) {
         setLastSaved(new Date())
@@ -1332,31 +1424,85 @@ function TipTapTestPage({ session, currentPageId, currentPageName, onPageRename,
         {/* 실시간 충돌 배너 — 내가 편집 중인데 다른 곳에서 수정됨 (덮어쓰지 않고 선택) */}
         {syncConflict && !isDailyPage(currentPage) && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-            padding: '10px 16px', margin: '0 0 8px', borderRadius: 8,
-            background: '#FFF4E5', border: '1px solid #FFB74D', color: '#7A4F01',
-            fontSize: 14,
+            margin: '0 0 8px', borderRadius: 8,
+            background: '#FFF4E5', border: '1px solid #FFB74D', color: '#7A4F01', fontSize: 14,
           }}>
-            <span style={{ flex: 1, minWidth: 200 }}>
-              ⚠️ <strong>{syncConflict.byName}</strong>님이
-              {syncConflict.at ? ` ${new Date(syncConflict.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}에` : ''}
-              {' '}이 페이지를 저장했어요. 저장되지 않은 내 편집이 있어요 — 어느 쪽을 남길까요?
-            </span>
-            <button
-              onClick={resolveSyncReload}
-              title="상대가 저장한 최신 내용을 화면에 불러옵니다. 내 편집은 히스토리에 백업돼 되돌릴 수 있어요."
-              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #FFB74D', background: '#fff', color: '#7A4F01', cursor: 'pointer' }}
-            >상대 내용 받기<span style={{ opacity: 0.7, fontSize: 12 }}> (내 편집 백업)</span></button>
-            <button
-              onClick={resolveSyncOverwrite}
-              title="내 편집으로 상대가 저장한 내용을 덮어씁니다. 상대본은 히스토리에 백업돼 되돌릴 수 있어요."
-              style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#FB8C00', color: '#fff', cursor: 'pointer' }}
-            >내 내용으로 덮어쓰기<span style={{ opacity: 0.85, fontSize: 12 }}> (상대본 백업)</span></button>
-            <button
-              onClick={dismissSyncConflict}
-              title="나중에" aria-label="나중에"
-              style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: '#7A4F01', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}
-            >✕</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '10px 16px' }}>
+              <span style={{ flex: 1, minWidth: 200 }}>
+                ⚠️ <strong>{syncConflict.byName}</strong>님이
+                {syncConflict.at ? ` ${new Date(syncConflict.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}에` : ''}
+                {' '}이 페이지를 저장했어요. 저장되지 않은 내 편집이 있어요 — 어느 쪽을 남길까요?
+              </span>
+              <button
+                onClick={openCompare}
+                title="내 편집과 상대 저장본을 좌·우로 비교합니다. 여는 순간 내 편집은 히스토리에 백업돼요."
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #FFB74D', background: showCompare ? '#FFE0B2' : '#fff', color: '#7A4F01', cursor: 'pointer', fontWeight: 600 }}
+              >{showCompare ? '비교 닫기' : '내용 확인하기'}</button>
+              <button
+                onClick={resolveSyncReload}
+                title="상대가 저장한 최신 내용을 화면에 불러옵니다. 내 편집은 히스토리에 백업돼 되돌릴 수 있어요."
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #FFB74D', background: '#fff', color: '#7A4F01', cursor: 'pointer' }}
+              >상대 내용 받기<span style={{ opacity: 0.7, fontSize: 12 }}> (내 편집 백업)</span></button>
+              <button
+                onClick={resolveSyncOverwrite}
+                title="내 편집으로 상대가 저장한 내용을 덮어씁니다. 상대본은 히스토리에 백업돼 되돌릴 수 있어요."
+                style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#FB8C00', color: '#fff', cursor: 'pointer' }}
+              >내 내용으로 덮어쓰기<span style={{ opacity: 0.85, fontSize: 12 }}> (상대본 백업)</span></button>
+              <button
+                onClick={dismissSyncConflict}
+                title="나중에" aria-label="나중에"
+                style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: 'transparent', color: '#7A4F01', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}
+              >✕</button>
+            </div>
+
+            {/* 좌/우 내용 비교(git 스타일 줄 diff) — "내용 확인하기"로 펼침 */}
+            {showCompare && compareRows && (
+              <div style={{ borderTop: '1px solid #FFB74D', padding: '10px 12px 12px' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {/* 왼쪽: 내 편집 */}
+                  <div style={{ flex: '1 1 320px', minWidth: 0, background: '#fff', border: '1px solid #FFCC80', borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 10px', background: '#FFF8EE', borderBottom: '1px solid #FFCC80' }}>
+                      <strong style={{ fontSize: 13 }}>내 편집 (저장 안 됨)</strong>
+                      <button
+                        onClick={resolveSyncOverwrite}
+                        style={{ padding: '4px 10px', borderRadius: 5, border: 'none', background: '#FB8C00', color: '#fff', cursor: 'pointer', fontSize: 12 }}
+                      >이 내용으로 선택</button>
+                    </div>
+                    <div style={{ maxHeight: 360, overflow: 'auto', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12.5, lineHeight: 1.5 }}>
+                      {compareRows.map((r, k) => (
+                        <div key={k} style={{
+                          padding: '1px 10px', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                          background: r.type === 'del' ? '#FDE2E1' : r.type === 'add' ? '#F3F4F6' : 'transparent',
+                          color: r.type === 'add' ? '#9AA0A6' : '#3B2A00',
+                        }}>{r.left != null ? (r.type === 'del' ? '− ' : '  ') + r.left : (r.type === 'add' ? ' ' : '')}</div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* 오른쪽: 상대 저장본 */}
+                  <div style={{ flex: '1 1 320px', minWidth: 0, background: '#fff', border: '1px solid #FFCC80', borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 10px', background: '#FFF8EE', borderBottom: '1px solid #FFCC80' }}>
+                      <strong style={{ fontSize: 13 }}>{syncConflict.byName}님 저장본</strong>
+                      <button
+                        onClick={resolveSyncReload}
+                        style={{ padding: '4px 10px', borderRadius: 5, border: '1px solid #FFB74D', background: '#fff', color: '#7A4F01', cursor: 'pointer', fontSize: 12 }}
+                      >이 내용으로 선택</button>
+                    </div>
+                    <div style={{ maxHeight: 360, overflow: 'auto', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12.5, lineHeight: 1.5 }}>
+                      {compareRows.map((r, k) => (
+                        <div key={k} style={{
+                          padding: '1px 10px', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                          background: r.type === 'add' ? '#DDF4E4' : r.type === 'del' ? '#F3F4F6' : 'transparent',
+                          color: r.type === 'del' ? '#9AA0A6' : '#0B3D1A',
+                        }}>{r.right != null ? (r.type === 'add' ? '+ ' : '  ') + r.right : (r.type === 'del' ? ' ' : '')}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
+                  좌측(빨강)=내 편집만 있는 줄 · 우측(초록)=상대 저장본에만 있는 줄. 선택하지 않은 쪽도 히스토리에 백업돼 되돌릴 수 있어요.
+                </div>
+              </div>
+            )}
           </div>
         )}
         {/* 페이지 헤더 */}
