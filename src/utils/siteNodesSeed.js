@@ -118,6 +118,17 @@ export const SITE_NODES_SEED = [
     sort_order: 6,
     note: '§8 Phase 2 위성 분리 완료(apps/inventory). 없음·독립. 로그인 사용자 노출(세부 권한 게이트는 향후 RLS).',
   },
+  {
+    id: 'seed-crmboard',
+    name: 'CRM 보드 (운영보드·월보)',
+    kind: 'satellite',
+    domain: 'crm',
+    url: '/thinkmap/crmboard/',
+    required_role: 'master',
+    status: 'live',
+    sort_order: 7,
+    note: '§12 Phase7 위성 분리 완료(apps/crmboard). 마스터 전용·지표(crm_metrics/engine-metrics-sync)+투두 2레인. PII 통로(FDW A3+B2+C1)는 위성 위 부착 예정.',
+  },
 ]
 
 // 로컬 폴백에서 새 노드 draft 기본값.
