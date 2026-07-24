@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Search, X, CheckSquare, Square } from 'lucide-react'
-import { supabase, logError } from '@thinkmap/core'
+import { logError, fetchTodoBlocks, fetchPageNamesFor, TODO_DEFAULT_ORDER } from '@thinkmap/core'
 
 /**
  * 투두 선택 모달.
@@ -27,27 +27,11 @@ export default function TodoPicker({ isOpen, onPick, onClose, excludeIds = [] })
     setLoading(true)
     ;(async () => {
       try {
-        const { data: blocks, error } = await supabase
-          .from('daily_blocks')
-          .select('block_id, page_id, page_date, text_content, todo_checked, todo_status')
-          .eq('is_todo', true)
-          .is('deleted_at', null)
-          .order('todo_checked', { ascending: true })
-          .order('page_date', { ascending: false })
-          .limit(200)
-        if (error) throw error
+        const blocks = await fetchTodoBlocks({ order: TODO_DEFAULT_ORDER, limit: 200 })
         if (cancelled) return
 
         // page 이름 매핑
-        const pageIds = Array.from(new Set((blocks || []).map(b => b.page_id)))
-        let pageMap = {}
-        if (pageIds.length) {
-          const { data: pageRows } = await supabase
-            .from('pages')
-            .select('id, name')
-            .in('id', pageIds)
-          ;(pageRows || []).forEach(p => { pageMap[p.id] = p.name })
-        }
+        const pageMap = await fetchPageNamesFor(blocks)
         setTodos(blocks || [])
         setPages(pageMap)
       } catch (err) {

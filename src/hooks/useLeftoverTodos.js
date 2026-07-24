@@ -4,7 +4,7 @@
 // 사용자가 "이 todo 그만 잡고 있겠다" 결정하는 정리 화면.
 
 import { useCallback, useEffect, useState } from 'react'
-import { supabase, logError } from '@thinkmap/core'
+import { supabase, logError, fetchTodoBlocks } from '@thinkmap/core'
 
 const CUTOFF_YEARS = 3
 
@@ -24,15 +24,12 @@ export function useLeftoverTodos(session) {
     setLoading(true)
     try {
       // 본인의 모든 미완료 todo 가져옴 (deleted_at NULL). thread 단위 dedup.
-      const { data, error } = await supabase
-        .from('daily_blocks')
-        .select('block_id, origin_block_id, page_id, page_date, text_content, carry_over_from, updated_at')
-        .eq('user_id', userId)
-        .eq('is_todo', true)
-        .eq('todo_checked', false)
-        .is('deleted_at', null)
-        .order('page_date', { ascending: false })
-      if (error) throw error
+      const data = await fetchTodoBlocks({
+        columns: 'block_id, origin_block_id, page_id, page_date, text_content, carry_over_from, updated_at',
+        userId,
+        uncheckedOnly: true,
+        order: [{ column: 'page_date', ascending: false }],
+      })
 
       const byThread = new Map()
       for (const r of (data || [])) {

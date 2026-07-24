@@ -2,25 +2,16 @@
 //
 // 시간 ↔ Y 픽셀 변환 / 주의 시작 / 15분 스냅 / 이벤트 레이아웃 등.
 
+// startOfWeek/addDays/dateKey 는 core 로 승격됨(SITE-SPLIT-PLAN §12 Phase 6).
+// 기존 사용처(이 파일에서 import 하던 다른 모듈들) 무변경 유지 위해 여기서 re-export.
+export { startOfWeek, addDays, dateKey } from '@thinkmap/core'
+import { startOfWeek, addDays } from '@thinkmap/core'
+
 export const SLOT_MINUTES = 15           // 스냅 단위
 export const HOUR_PX = 56                // 1시간 높이 (px)
 export const DAY_MINUTES = 24 * 60
 
 export const PX_PER_MIN = HOUR_PX / 60
-
-// 주의 시작(일요일 00:00) — Date 반환
-export function startOfWeek(date) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - d.getDay())     // 일요일로
-  return d
-}
-
-export function addDays(date, n) {
-  const d = new Date(date)
-  d.setDate(d.getDate() + n)
-  return d
-}
 
 export function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear()
@@ -61,14 +52,6 @@ export function endOfMonthGrid(date) {
 // 같은 달인지
 export function isSameMonth(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
-}
-
-// 날짜 → 'YYYY-MM-DD' (로컬 기준)
-export function dateKey(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
 }
 
 // uuid → HSL hue (0–360) 결정론적 변환
