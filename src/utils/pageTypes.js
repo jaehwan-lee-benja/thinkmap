@@ -35,16 +35,14 @@ export const INDEPENDENT_PAGE_TYPES = [
   PAGE_TYPES.DASHBOARD,
   PAGE_TYPES.GOAL,
   PAGE_TYPES.BACKOFFICE,
-  PAGE_TYPES.CRMBOARD,
 ]
-// ※ 위성으로 분리된 page_type(INVENTORY·SEAT·MEMBERS·FRAME·ENGINE)은 모선이 fetch/트리노출하지 않는다.
+// ※ 위성으로 분리된 page_type(INVENTORY·SEAT·MEMBERS·FRAME·ENGINE·CRMBOARD)은 모선이 fetch/트리노출하지 않는다.
 //   진입=사이드바 런처(src/config/satellites.js 레지스트리). PAYROLL 만 page-scoped(?page=)라 아래 잔류.
 
 // 마스터에게만 사이드바 트리에 노출되는 타입.
 export const MASTER_ONLY_PAGE_TYPES = [
   PAGE_TYPES.PAYROLL,
   PAGE_TYPES.BACKOFFICE,
-  PAGE_TYPES.CRMBOARD,
 ]
 
 // page 객체 또는 page_type 문자열 모두 허용 (호출부 다양성 대응)
@@ -64,7 +62,8 @@ export const isInventoryPage = (page) => typeOf(page) === PAGE_TYPES.INVENTORY
 export const isSeatPage = (page) => typeOf(page) === PAGE_TYPES.SEAT
 // 백오피스 = 사이트 구조도(모선+위성) 관리. 마스터 전용.
 export const isBackofficePage = (page) => typeOf(page) === PAGE_TYPES.BACKOFFICE
-// CRM 운영 보드 = 지표(월보) + 투두 2레인. 마스터 전용 (재무 지표 포함). CRM-BOARD-SPEC.
+// CRM 운영 보드 = 지표(월보) + 투두 2레인. 위성 분리됨(apps/crmboard, SITE-SPLIT §12 Phase7).
+// enum·helper 는 CHECK/orphan 페이지 식별 호환 위해 유지(SEAT/INVENTORY 선례). 모선 트리 미노출.
 export const isCrmBoardPage = (page) => typeOf(page) === PAGE_TYPES.CRMBOARD
 
 // 일반 페이지 = 명시적 'normal' 또는 미설정(legacy NULL). 기존 비교 로직과 동일.

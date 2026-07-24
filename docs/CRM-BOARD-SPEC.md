@@ -182,6 +182,13 @@ FK `ON DELETE CASCADE` + link_type XOR CHECK 포함. — 마이그 확정 시 su
 
 ## 7. RLS / 라우팅 / 배선
 
+> ★갱신(2026-07-24, SITE-SPLIT §12 Phase7): **모선 page-scoped → `apps/crmboard` 독립 위성으로 이관.**
+> 진입 = 사이드바 위성 런처(`SATELLITES.crmboard`, masterOnly) → `/thinkmap/crmboard/`. 마스터 게이트는
+> 위성 셸(`CrmBoardApp.jsx`, `useAuth().isMaster`)이 수행. 모선 배선(App.jsx 분기·Sidebar 페이지버튼)은 제거,
+> pageTypes 의 `CRMBOARD` enum·`isCrmBoardPage` 는 CHECK/orphan 식별 호환 위해 유지(INDEPENDENT/MASTER_ONLY
+> 배열에서는 제외). crm_metrics·engine-metrics-sync 는 같은 Supabase라 불변. 아래 P1 서술은 이관 전 이력.
+> PII 통로(FDW A3+B2+C1)는 위성 위에 부착 예정(`migrate-crm-fdw-conduit.sql`).
+
 - **RLS**: `crm_metrics`·`board_todo_links` = `is_master()` 단일 게이트(payroll/dashboard 선례).
   page_type `crmboard`는 pages CHECK만 확장(마스터 전용 진입 — worklog 공개 절 미포함).
 - **진입 UI 가드**: 사이드바 버튼 `{isMaster && …}`, App.jsx 분기에서 `!isMaster` 거부 화면.

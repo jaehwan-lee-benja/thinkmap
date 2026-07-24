@@ -3,7 +3,7 @@
 // 두 레인(지표·투두)의 집계 범위를 함께 제어한다. 주간은 Schedule 의 startOfWeek(일요일 시작)를
 // 재사용해 캘린더/대시보드와 일관성을 유지한다.
 
-import { startOfWeek, addDays, dateKey } from '../Schedule/scheduleUtils'
+import { startOfWeek, addDays, dateKey } from '@thinkmap/core'
 
 /** 지원 기간 */
 export const PERIODS = ['week', 'month', 'year']
