@@ -1,0 +1,23 @@
+{
+  "name": "@thinkmap/membership-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "멤버십 키오스크(Membership) 위성 — SITE-SPLIT Phase 6. @thinkmap/core 를 얹은 독립 배포 앱. 매장 태블릿에서 직원이 회원 조회·이벤트 적립, 고객이 180° 가입. 회원 데이터는 crm 소유(Edge 계약 소비).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist -e membership --add"
+  },
+  "dependencies": {
+    "@thinkmap/core": "*",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^5.4.21"
+  }
+}

@@ -1,0 +1,36 @@
+/* 대형 번호패드 — 매장 터치 입력. 터치타겟 대형(≥56px), 입력 표시 폰트 크게(오타 인지). */
+.mk-pad {
+  display: flex; flex-direction: column; gap: 12px;
+  width: 100%; max-width: 340px;
+}
+.mk-pad-display {
+  min-height: 56px; padding: 8px 16px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--color-border-medium); border-radius: 8px;
+  background: var(--color-bg-secondary);
+  font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: 1px;
+}
+.mk-pad-placeholder { color: var(--color-text-tertiary); font-size: 18px; letter-spacing: 0; }
+
+.mk-pad-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.mk-key {
+  min-height: 64px; border: 1px solid var(--color-border-medium); border-radius: 8px;
+  background: var(--color-bg-hover); color: var(--color-text-primary);
+  font-size: 24px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
+}
+.mk-key:active { background: var(--color-bg-active); }
+.mk-key-aux { font-size: 16px; color: var(--color-text-secondary); }
+
+.mk-pad-submit {
+  min-height: 56px; border: 1px solid var(--color-primary); border-radius: 8px;
+  background: var(--color-primary); color: #fff; font-size: 20px; cursor: pointer;
+  touch-action: manipulation;
+}
+.mk-pad-submit:disabled { opacity: 0.45; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-key, .mk-pad-submit { transition: none; }
+}
