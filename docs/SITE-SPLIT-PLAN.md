@@ -7,7 +7,9 @@
 > **Phase 2 완료·배포 (2026-07-09)** — 재고 위성(apps/inventory) 라이브 github.io/thinkmap/inventory/. ※roster+members→Inventory 피벗(§8).
 > **Phase 3 완료·배포 (2026-07-09)** — 마케팅 캔버스 위성(apps/canvas) 라이브 github.io/thinkmap/canvas/, 옵션 B 전면 독립. daily_blocks=직접읽기 유지. 마스터 게이트 셸단.
 > **Phase 4 완료·배포 (2026-07-09)** — 자리후 위성(apps/seat) 라이브 github.io/thinkmap/seat/. 완전 독립·page독립·워크스페이스 RLS.
-> **Phase 5 완료 (2026-07-11, 미배포)** — 멤버 위성(apps/members, feat/site-split-phase5). member 도메인 core 추출 + MembersPage 위성화. **프론트 분할 트랙 완료(위성 5개 + 모선 hub, roster만 에디터 결합으로 잔류).**
+> **Phase 5 완료·배포 (2026-07-11 빌드 / 배포·라이브 확인 2026-07-24)** — 멤버 위성(apps/members) 라이브 github.io/thinkmap/members/(200, "멤버 관리"), 사이드바 SATELLITES.members 런처로 진입. member 도메인 core 추출 + MembersPage 위성화. **프론트 분할 트랙 완료(위성 5개 + 모선 hub, roster만 에디터 결합으로 잔류).** ※기존 "미배포" 표기는 드리프트였음(2026-07-24 실측 정정).
+> **Phase 6 완료·배포 (2026-07-24)** — todo 읽기서비스 @core 승격(회귀0, 머지 376a4dd). 소비자 4개 이관.
+> **Phase 7 완료·배포 (2026-07-24)** — CRM보드 위성(apps/crmboard) 라이브 github.io/thinkmap/crmboard/. 모선 de-wiring·site_nodes 등록·@core todoService 사용. **위성 6개(payroll·inventory·canvas·seat·members·crmboard) + 모선.** PII 통로(FDW) 위성 부착은 별건.
 > **DB 트랙**: payroll 워크스페이스 정책 마이그 guardian 검수 통과, 프로덕션 적용 유저 승인 대기. · 작성 2026-07-04 · 작성자 jaehwan-lee-benja
 > 관계: [ARCHITECTURE.md](./ARCHITECTURE.md)의 두 plane 구조와, [ACCESS-TIERS-SPEC.md](./ACCESS-TIERS-SPEC.md)의
 > 워크스페이스(테넌트) 모델을 **프론트 배포 단위로 확장**한 문서. 각 도메인 명세(PAYROLL-SPEC,
@@ -202,7 +204,7 @@ core 위에 얹는 얇은 앱 하나가 된다.
 - **Phase 4 — ✅ 자리후(seat) 위성 완료(2026-07-09, 미배포).** apps/seat 신설. 완전 독립 서브트리(587줄, TipTap 무의존,
   seat_orders/seat_station_status = 워크스페이스 스코프·page 독립·Realtime). 셸=로그인만(마스터 전용 아님, 테넌시는 RLS).
   모선: App.jsx seat 분기 삭제 + pageTypes INDEPENDENT에서 SEAT 제거(seat 페이지 fetch 안 함) + 사이드바 런처 링크.
-- **Phase 5 — ✅ 멤버(members) 위성 완료(2026-07-11, 미배포).** apps/members 신설. Phase 2 에서 보류했던 member 분리를 재개·완결:
+- **Phase 5 — ✅ 멤버(members) 위성 완료·배포·라이브(빌드 2026-07-11 / 라이브 확인 2026-07-24, github.io/thinkmap/members/).** ※"미배포"는 드리프트였음. apps/members 신설. Phase 2 에서 보류했던 member 분리를 재개·완결:
   member 도메인 공유 3모듈(`useMembers`·`sortMembers`/`findOrCreateMembersPage`·`rosterPresets`)을 **`packages/core` 로 추출** →
   모선 roster(데일리 에디터 잔류)와 members 위성이 core 를 공유. MembersPage(마스터 전용·page 독립)만 위성으로.
   모선: App.jsx members 분기 삭제 + pageTypes INDEPENDENT/MASTER_ONLY에서 MEMBERS 제거 + 사이드바 런처 링크. roster(배치도)는 예정대로 모선 잔류.
@@ -282,3 +284,31 @@ core 위에 얹는 얇은 앱 하나가 된다.
 ### 선택적 개선 (저긴급 — 충돌 더 줄이려면)
 - **위성 배선 레지스트리화**: Sidebar 런처·siteNodesSeed 를 손코딩 대신 단일 `satelliteRegistry`(배열 append)로 → 위성 추가/변경이 **1개 append-only 파일**만 건드려 머지 충돌↓. 위성 추출이 끝나 긴급도는 낮음(미래 위성용).
 - 향후 특정 모선 기능(예: Calendar)에 병렬 작업이 몰리면, 그때 그 기능만 위성 추출 재평가.
+
+---
+
+## 12. 3층 심화 로드맵 (2026-07-24 유저 승인 — 설계, 실행은 단계별 게이트)
+
+Phase 0~5로 "프론트 분할 트랙"은 완료됐으나, 3층 모델의 **공유 기반이 인프라층(auth/client/테마/UI/멤버)까지만** 채워졌고 **페이지구조(TipTap)·todo 같은 도메인 층은 아직 모선 src/에 100% 박혀** 위성이 공유 못 하는 갭이 있다(2026-07-24 4영역 실측). 아래는 그 갭을 좁히는 승인된 심화 로드맵.
+
+### 핵심 판단
+- **TipTap 페이지구조 = core 승격 보류.** 위성 소비자 0(`grep TipTap apps`=0), 1.67MB·셸 결합. §9 원칙 유지. 소비자가 생기기 전엔 모선 전용.
+- **todo = 승격 정당.** 유일 크로스경계 소비자(CRM보드 위성화)가 실수요. 단 정본(`daily_blocks`)은 이미 통합돼 있고 흩어진 건 *읽기 로직*(15+ 소비자가 쿼리 복붙).
+
+### Phase 6 — 공유 todo 읽기 서비스 core 승격 (인에이블러)
+- `@thinkmap/core`에 todo **읽기/집계** 서비스(`useTodos({scope,range,self})`) — daily_blocks(is_todo) 조회·미완료우선 정렬·기간범위·page_id→name 조인·카운트집계.
+- 기간 유틸(scheduleUtils startOfWeek/addDays/dateKey)도 core로.
+- **쓰기(quickTodoOps 섹션삽입)는 모선 잔류**(데일리 에디터 구조 결합, §11 "에디터 결합 분리금지").
+- ★**회귀0 검증**: 15+ 소비자를 무동작변경으로 1개씩 이관(useBoardTodos 우선=CRM보드용). 각 소비자 필터·정렬 정확 재현. guardian(RLS 불변)·빌드 그린.
+
+### Phase 7 — CRM보드 위성화
+- `apps/crmboard` 신설. core todo 읽기서비스 + crm_metrics + engine-metrics-sync Edge(전부 프로젝트 전역 = **동일 Supabase라 DB 재배치 불필요**). 모선 배선(pageTypes/App/Sidebar crmboard) 제거 + site_nodes 1행 + `-e crmboard --add`.
+- ★**통로(PII 파이프 A3+B2+C1)는 위성에 붙인다** — 모선에 붙였다 옮기지 않고, 위성화 먼저 후 tmcrm가 위성 위에 구축. 지금(양방향 미구현·단방향 읽기)이 가장 싼 창.
+- P3 양방향(board_todo_links + 지표→데일리 todo 쓰기)은 위성에서 데일리섹션 쓰기 방식(hub API/Edge) 별도 설계.
+
+### 병행 위생 (Step 4 레지스트리)
+- site_nodes 드리프트 정리: members url 채움(또는 도메인 기반 진입 규약), inventory status dev→live, canvas domain, crmboard 등록. 시드(JS/SQL) 정합.
+- 배선 hotspot(pageTypes/App/Sidebar/siteNodesSeed) 개선안 = append-only satelliteRegistry(저긴급).
+
+### 순서·게이트
+members 배포(✅ 이미 라이브) → **Phase 6(todo core, 회귀0)** → **Phase 7(crmboard 위성)** → (미래)P3 쓰기 → (병행·비차단)DB 워크스페이스 Phase C. 각 단계 guardian + 유저 승인 게이트. 코드=워커, 머지·마이그·배포=통합세션.
