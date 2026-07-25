@@ -1,36 +1,32 @@
-/* 대형 번호패드 — 매장 터치 입력. 터치타겟 대형(≥56px), 입력 표시 폰트 크게(오타 인지). */
+/* 대형 번호패드 — 매장 터치 입력. ★어르신 이용 많음 → 버튼·숫자·표시 대형화(터치타겟 ≥76px, 숫자 34px).
+   Material 3 톤: .mk-app 스코프의 --md-* 토큰 사용(Kiosk.css). */
 .mk-pad {
-  display: flex; flex-direction: column; gap: 12px;
-  width: 100%; max-width: 340px;
+  display: flex; flex-direction: column; gap: 16px;
+  width: 100%; max-width: 400px;
 }
 .mk-pad-display {
-  min-height: 56px; padding: 8px 16px;
+  min-height: 72px; padding: 12px 20px;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--color-border-medium); border-radius: 8px;
-  background: var(--color-bg-secondary);
-  font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: 1px;
+  border: 2px solid var(--md-outline); border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+  font-size: 38px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 2px;
 }
-.mk-pad-placeholder { color: var(--color-text-tertiary); font-size: 18px; letter-spacing: 0; }
+.mk-pad-placeholder { color: var(--md-on-surface-variant); font-size: 22px; letter-spacing: 0; font-weight: 400; }
 
 .mk-pad-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
 }
 .mk-key {
-  min-height: 64px; border: 1px solid var(--color-border-medium); border-radius: 8px;
-  background: var(--color-bg-hover); color: var(--color-text-primary);
-  font-size: 24px; cursor: pointer;
+  min-height: 80px; border: none; border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-high); color: var(--md-on-surface);
+  font-size: 34px; font-weight: 500; cursor: pointer;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
 }
-.mk-key:active { background: var(--color-bg-active); }
-.mk-key-aux { font-size: 16px; color: var(--color-text-secondary); }
+.mk-key-aux { font-size: 20px; font-weight: 600; color: var(--md-on-surface-variant); background: var(--md-surface-container); }
 
 .mk-pad-submit {
-  min-height: 56px; border: 1px solid var(--color-primary); border-radius: 8px;
-  background: var(--color-primary); color: #fff; font-size: 20px; cursor: pointer;
-  touch-action: manipulation;
+  min-height: 68px; border: none; border-radius: var(--md-radius-xl);
+  background: var(--md-primary); color: var(--md-on-primary); font-size: 24px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation; box-shadow: var(--md-elev-1);
 }
-.mk-pad-submit:disabled { opacity: 0.45; cursor: default; }
-
-@media (prefers-reduced-motion: reduce) {
-  .mk-key, .mk-pad-submit { transition: none; }
-}
+.mk-pad-submit:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
