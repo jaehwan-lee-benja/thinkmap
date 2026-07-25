@@ -21,6 +21,8 @@ const RATE_MAX: Record<string, number> = {
   lookup: 30,       // 회원 PII 조회 — 열거 방어(엄격, DB오류 시 fail-closed).
   signup: 15,       // 가입 write — spam 방어.
   event_claim: 60,  // 적립 — 서버 1일1회 partial-unique 로 자연 제한, 느슨.
+  history: 60,      // 수령내역 읽기 — 조회된 회원 한정, 느슨.
+  list: 6,          // ★회원 리스트(전량 PII) — 매우 엄격(반복 덤프 방어).
 }
 // 테이블 부재(마이그 전 부트스트랩) 코드 — 이때만 감사/레이트리밋을 조용히 skip 한다.
 const PG_UNDEFINED_TABLE = '42P01'

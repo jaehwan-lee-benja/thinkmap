@@ -41,3 +41,17 @@ export function claimEvent(memberId, eventType, date) {
 export function signupMember(payload) {
   return callProxy('membership-signup', { ...payload, source: 'kiosk' })
 }
+
+// ④ 이벤트 수령 내역: 회원의 팝콘 이력(과거 수령 시간까지). 프록시 → crm membership-events(신규, 게이트 대기).
+//    crm.membership_events 테이블은 이미 존재(0014) — 읽기 RPC/Edge만 추가 필요(SPEC §8·to-conductor 제안).
+// 반환: { events: [{ event_date, claimed_at }] }  (최신순)
+export function getEventHistory(memberId, eventType = 'popcorn') {
+  return callProxy('membership-history', { member_id: memberId, event_type: eventType })
+}
+
+// ⑤ ★회원 리스트(직원용 검색) — 이름+전화 전량. 프록시 → crm membership-list(신규, 게이트 대기).
+//    ⚠️ 보안: 계약 §5 "목록·부분검색 금지"를 뒤집는 PII 노출면 → 유저 결정 게이트(to-conductor) 전엔 미배포.
+//    검색은 클라 측 부분일치 필터(다운로드된 리스트에 대해). 반환: { members: [{ member_id, name, phone }] }
+export function listMembers() {
+  return callProxy('membership-list', {})
+}

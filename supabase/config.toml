@@ -433,3 +433,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.membership-signup]
 verify_jwt = false
+[functions.membership-history]
+verify_jwt = false
+[functions.membership-list]
+verify_jwt = false
