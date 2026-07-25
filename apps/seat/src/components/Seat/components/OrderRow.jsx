@@ -8,6 +8,8 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false 
   const patch = (p) => onPatch?.(order.id, p)
   const optChecked = hasManufactureOption(order) // R1: 제조옵션 있으면 자리후 아님
   const raiseEnabled = isRaiseEnabled(order)     // R2: 앉음/올림(또는 옵션) 전엔 올리기 비활성
+  // R1+R4 수렴: 제조옵션(자리 불필요) 또는 순서취소 → 둘 다 '필요없음'. 비활성 룩 없이 앰버 표시.
+  const seatNeeded = order.seat_order_alive && !optChecked
 
   return (
     <div className="seat-row" role="row">
@@ -53,13 +55,13 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false 
         </label>
       </div>
 
-      {/* R1: 제조옵션 체크 시 자리순서 비활성. R4: 살아있음/필요없음. 상태별 색구분(초록/앰버). */}
+      {/* R1+R4: 제조옵션 또는 순서취소 → '필요없음'(앰버)으로 수렴. 제조옵션 시 토글만 잠그되 비활성 룩은 없앰. */}
       <div className="seat-cell seat-cell-seat" aria-disabled={optChecked}>
         <button
-          className={`seat-toggle seat-order-btn ${order.seat_order_alive ? 'is-alive' : 'is-none'}`}
+          className={`seat-toggle seat-order-btn ${seatNeeded ? 'is-alive' : 'is-none'}`}
           disabled={optChecked}
           onClick={() => patch({ seat_order_alive: !order.seat_order_alive })}
-        >{order.seat_order_alive ? '살아있음' : '필요없음'}</button>
+        >{seatNeeded ? '살아있음' : '필요없음'}</button>
       </div>
 
       {/* 자리앉음 → 올리기 전달(버튼). R2: 그 전엔 비활성. R5: 메뉴 나감은 매니저만 */}

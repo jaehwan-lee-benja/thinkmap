@@ -1,207 +1,411 @@
-/* 자리후 시스템 — 다크 모드(ThinkMap 디자인 토큰 재사용). 건조한 스타일·태블릿 키오스크 기준.
-   토큰(src/styles/variables.css)을 var()로 쓰되, 미리보기 등 토큰 미로드 환경 대비 fallback 지정.
-   터치 타겟 ≥36px, 입력 폰트 16px. (DESIGN-PHILOSOPHY / MOBILE-DESIGN) */
+/* 자리후 시스템 — ★Google Material Design 3 (이 위성 한정 디자인 오버라이드).
+   프로젝트 기본 '건조한 스타일'을 seat 위성에서만 머티리얼로 대체(유저 지시). 공유 토큰(packages/core
+   variables.css)은 건드리지 않고, 아래 --md-* 는 .seat-app / 로그인 화면에만 스코프된다.
+   다크 우선 + 라이트(data-theme) 지원. 터치 타겟 ≥48dp, 입력 폰트 16px, state layer·elevation·라운드.
+   태블릿 키오스크 기준. (SEAT-SPEC §12 / MOBILE-DESIGN) */
 
+/* ── 디자인 토큰 (Material 3, seat 스코프) — 기본=다크 ───────────────────────── */
 .seat-app {
+  /* surface tiers */
+  --md-surface: #16181C;
+  --md-surface-container-low: #1B1E22;
+  --md-surface-container: #202327;
+  --md-surface-container-high: #282B30;
+  --md-surface-container-highest: #33363B;
+  --md-on-surface: #E3E2E6;
+  --md-on-surface-variant: #C3C7CF;
+  --md-outline: #8C9199;
+  --md-outline-variant: #40474F;
+
+  /* primary (Google 다크 블루 계열) */
+  --md-primary: #A6C8FF;
+  --md-on-primary: #00325B;
+  --md-primary-container: #234B76;
+  --md-on-primary-container: #D3E4FF;
+
+  /* 상태색 — 시맨틱 유지(살아있음=초록 / 필요없음=앰버), 머티리얼 톤 컨테이너 */
+  --md-alive: #A6F0B0;
+  --md-on-alive: #00390F;
+  --md-none: #FFDDB0;
+  --md-on-none: #452B00;
+  --md-error: #FFB4AB;
+  --md-on-error: #690005;
+
+  /* elevation (Material 3 그림자) */
+  --md-elev-1: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15);
+  --md-elev-2: 0 1px 2px rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.15);
+  --md-elev-3: 0 1px 3px rgba(0,0,0,.30), 0 4px 8px 3px rgba(0,0,0,.15);
+
+  /* shape */
+  --md-radius-sm: 8px;
+  --md-radius-md: 12px;
+  --md-radius-lg: 16px;
+  --md-radius-full: 999px;
+
+  /* motion (Material 3 emphasized) */
+  --md-ease: cubic-bezier(.2, 0, 0, 1);
+  --md-dur: 160ms;
+
   position: fixed;
   inset: 0;
   z-index: 1000; /* 키오스크: 탭바/사이드바 등 크롬 위를 덮는다 */
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-primary, #242424);
-  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
+  background: var(--md-surface);
+  color: var(--md-on-surface);
   font-size: 16px;
+  font-family: Roboto, 'Roboto Flex', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  letter-spacing: .0125em;
   color-scheme: dark;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 상단: 날짜 + 역할 탭 */
+/* 라이트 테마 오버라이드 (index.html 이 <html data-theme> 세팅) */
+:root[data-theme="light"] .seat-app {
+  --md-surface: #FBF8FD;
+  --md-surface-container-low: #F5F1F7;
+  --md-surface-container: #EFEBF1;
+  --md-surface-container-high: #E9E5EC;
+  --md-surface-container-highest: #E3DFE6;
+  --md-on-surface: #1A1C1E;
+  --md-on-surface-variant: #43474E;
+  --md-outline: #73777F;
+  --md-outline-variant: #C3C7CF;
+  --md-primary: #0B57D0;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #D3E4FF;
+  --md-on-primary-container: #001C3B;
+  --md-alive: #1E6B33;
+  --md-on-alive: #FFFFFF;
+  --md-none: #8A5000;
+  --md-on-none: #FFFFFF;
+  --md-error: #BA1A1A;
+  --md-on-error: #FFFFFF;
+  color-scheme: light;
+}
+
+/* ── State layer (M3 상호작용) — 인터랙티브 요소 공통 ───────────────────────── */
+.seat-role-tab,
+.seat-btn,
+.seat-toggle {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: box-shadow var(--md-dur) var(--md-ease), background-color var(--md-dur) var(--md-ease);
+}
+.seat-role-tab::after,
+.seat-btn::after,
+.seat-toggle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--md-dur) var(--md-ease);
+  pointer-events: none;
+}
+.seat-role-tab:hover::after,
+.seat-btn:hover::after,
+.seat-toggle:hover:not(:disabled)::after { opacity: .08; }
+.seat-role-tab:active::after,
+.seat-btn:active::after,
+.seat-toggle:active:not(:disabled)::after { opacity: .12; }
+
+/* 포커스 링 (Material 포커스 인디케이터) */
+.seat-app :focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+/* ── 상단 앱바 + 역할 탭 (Material primary tabs) ───────────────────────────── */
 .seat-header {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--color-border-light, rgba(255, 255, 255, 0.08));
+  padding: 8px 16px;
+  background: var(--md-surface-container);
+  box-shadow: var(--md-elev-2);
+  z-index: 2;
 }
-.seat-header-date { font-weight: 700; }
+.seat-header-date {
+  font-weight: 500;
+  font-size: 18px;
+  letter-spacing: .0125em;
+}
 .seat-role-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
 .seat-role-tab {
-  min-height: 40px;
-  padding: 8px 16px;
-  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
-  background: var(--color-bg-input, rgba(255, 255, 255, 0.03));
-  color: var(--color-text-secondary, rgba(255, 255, 255, 0.7));
-  font-size: 16px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: none;
+  border-radius: var(--md-radius-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font: inherit;
+  font-weight: 500;
   cursor: pointer;
 }
 .seat-role-tab.is-active {
-  background: var(--color-primary, #646cff);
-  color: #fff;
-  border-color: transparent;
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
   font-weight: 700;
+  box-shadow: var(--md-elev-1);
 }
 
-.seat-main { flex: 1 1 auto; overflow: auto; padding: 12px; }
+.seat-main { flex: 1 1 auto; overflow: auto; padding: 16px; }
 
-/* 레이아웃 — mobile-first: 기본 1열(본문 위, 사이드 아래). 넓은 화면에서 2열로 보강. */
-.seat-screen-grid { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+/* 레이아웃 — mobile-first: 기본 1열, 넓은 화면 2열. */
+.seat-screen-grid { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
 .seat-col-main { flex: 1 1 auto; min-width: 0; }
-.seat-col-side { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.seat-col-side { display: flex; flex-direction: column; gap: 16px; width: 100%; }
 
-.seat-toolbar { margin-bottom: 8px; }
+/* ── 버튼 (Material filled / tonal / text) ────────────────────────────────── */
+.seat-toolbar { margin-bottom: 12px; }
 .seat-btn {
-  min-height: 40px;
-  padding: 8px 16px;
-  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
-  background: var(--color-bg-input, rgba(255, 255, 255, 0.03));
-  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
-  font-size: 16px;
+  min-height: 48px;
+  padding: 0 24px;
+  border: none;
+  border-radius: var(--md-radius-full);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  font: inherit;
+  font-weight: 500;
   cursor: pointer;
 }
 .seat-btn-primary {
-  background: var(--color-primary, #646cff);
-  color: #fff;
-  border-color: transparent;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
   font-weight: 700;
+  box-shadow: var(--md-elev-1);
 }
+.seat-btn-primary:hover { box-shadow: var(--md-elev-2); }
 
-/* 주문 테이블(행 기반). mobile-first: 좁으면 셀이 줄바꿈(가로 스크롤 회피), 넓으면 한 줄. */
-.seat-table { display: flex; flex-direction: column; }
+/* ── 주문 테이블(행 기반) ─────────────────────────────────────────────────── */
+.seat-table {
+  display: flex;
+  flex-direction: column;
+  background: var(--md-surface-container-low);
+  border-radius: var(--md-radius-md);
+  box-shadow: var(--md-elev-1);
+  overflow: hidden;
+}
 .seat-row {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
-  min-height: 44px;
-  border-bottom: 1px solid var(--color-border-light, rgba(255, 255, 255, 0.08));
+  min-height: 56px;
+  border-bottom: 1px solid var(--md-outline-variant);
+  transition: background-color var(--md-dur) var(--md-ease);
 }
-.seat-row-head { font-weight: 700; border-bottom: 2px solid var(--color-border-strong, rgba(255, 255, 255, 0.3)); }
-.seat-cell { padding: 6px 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.seat-row:last-child { border-bottom: none; }
+.seat-row:not(.seat-row-head):hover { background: color-mix(in srgb, var(--md-on-surface) 5%, transparent); }
+.seat-row-head {
+  min-height: 44px;
+  font-weight: 500;
+  color: var(--md-on-surface-variant);
+  background: var(--md-surface-container);
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+.seat-cell { padding: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .seat-cell-no { flex: 0 0 44px; font-weight: 700; }
 .seat-cell-order { flex: 0 0 104px; }
-.seat-cell-deliver { flex: 0 0 100px; }
-.seat-cell-status { flex: 0 0 100px; }
+.seat-cell-deliver { flex: 0 0 108px; }
+.seat-cell-status { flex: 0 0 104px; }
 .seat-cell-opts { flex: 1 1 168px; }
-.seat-cell-seat { flex: 0 0 100px; }
-.seat-cell-raise { flex: 0 0 198px; }
+.seat-cell-seat { flex: 0 0 108px; }
+.seat-cell-raise { flex: 0 0 212px; }
 .seat-cell-notes { flex: 1 1 140px; }
-.seat-cell-broadcast { flex: 0 0 116px; }
-.seat-cell-confirm { flex: 0 0 92px; }
+.seat-cell-broadcast { flex: 0 0 120px; }
+.seat-cell-confirm { flex: 0 0 96px; }
 
+/* ── 조밀 모드(dense) — 자리안내/제조매니저 입력 테이블 한정 ─────────────────
+   주방에서 많은 주문/자리를 한 화면에 (Material 3 "dense data table").
+   ★.seat-table 스코프 안에서만 압축 → 스테이션 등 다른 화면은 48dp 유지.
+   터치 조작은 유지(입력·탭 가능), 세로 밀도 우선. 입력 폰트는 16px 유지(모바일 확대 방지). */
+.seat-table .seat-row { min-height: 40px; }
+.seat-table .seat-row-head { min-height: 34px; }
+.seat-table .seat-cell { padding: 2px 8px; gap: 4px; }
+.seat-table .seat-input,
+.seat-table .seat-select { min-height: 36px; padding: 2px 10px; }
+.seat-table .seat-toggle { min-height: 36px; padding: 0 12px; font-size: 15px; }
+.seat-table .seat-check { min-height: 36px; }
+
+/* ── 입력 (Material filled text field) ────────────────────────────────────── */
 .seat-input,
 .seat-select {
   width: 100%;
-  min-height: 36px;
+  min-height: 48px;
+  font: inherit;
   font-size: 16px;
-  padding: 4px 6px;
-  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
-  background: var(--color-bg-input, rgba(255, 255, 255, 0.03));
-  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
+  padding: 4px 12px;
+  border: none;
+  border-bottom: 1px solid var(--md-outline);
+  border-radius: var(--md-radius-sm) var(--md-radius-sm) 0 0;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  transition: border-color var(--md-dur) var(--md-ease), box-shadow var(--md-dur) var(--md-ease);
 }
-.seat-input::placeholder { color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
-.seat-check { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; }
-.seat-check input { width: 20px; height: 20px; accent-color: var(--color-primary, #646cff); }
+.seat-input:focus,
+.seat-select:focus {
+  outline: none;
+  border-bottom: 2px solid var(--md-primary);
+  box-shadow: inset 0 -1px 0 0 var(--md-primary);
+}
+.seat-input::placeholder { color: var(--md-on-surface-variant); opacity: .7; }
+.seat-check { display: inline-flex; align-items: center; gap: 6px; min-height: 48px; }
+.seat-check input { width: 22px; height: 22px; accent-color: var(--md-primary); }
 
+/* ── 토글 버튼 (Material tonal — 상태색 유지) ─────────────────────────────── */
 .seat-toggle {
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
-  background: var(--color-bg-input, rgba(255, 255, 255, 0.03));
-  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
-  font-size: 16px;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-full);
+  background: transparent;
+  color: var(--md-on-surface);
+  font: inherit;
+  font-weight: 500;
   cursor: pointer;
 }
-.seat-toggle.is-on { background: var(--color-primary, #646cff); color: #fff; border-color: transparent; font-weight: 700; }
-/* 자리순서 상태 색구분: 살아있음=초록(순서 살아있음) / 필요없음=앰버(자리 불필요) */
-.seat-toggle.is-alive { background: var(--color-success, #4CAF50); color: #fff; border-color: transparent; font-weight: 700; }
-.seat-toggle.is-none { background: var(--color-amber, rgba(245, 158, 11, 0.9)); color: #fff; border-color: transparent; font-weight: 700; }
-.seat-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
-/* 전달 버튼 라벨 줄바꿈 방지(자리후 전달 / 전체에게 전달 등) */
+.seat-toggle.is-on {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  border-color: transparent;
+  font-weight: 700;
+  box-shadow: var(--md-elev-1);
+}
+/* 자리순서 상태: 살아있음=초록 톤 / 필요없음=앰버 톤 */
+.seat-toggle.is-alive {
+  background: var(--md-alive);
+  color: var(--md-on-alive);
+  border-color: transparent;
+  font-weight: 700;
+}
+.seat-toggle.is-none {
+  background: var(--md-none);
+  color: var(--md-on-none);
+  border-color: transparent;
+  font-weight: 700;
+}
+.seat-toggle:disabled { opacity: .38; cursor: not-allowed; }
+/* 자리순서 버튼: 제조옵션으로 잠겨도 '필요없음'(앰버)을 정상 표시 — 비활성 룩(흐림) 제거 */
+.seat-toggle.seat-order-btn:disabled { opacity: 1; cursor: default; }
+/* 전달 버튼 라벨 줄바꿈 방지 */
 .seat-cell-deliver .seat-toggle,
 .seat-cell-broadcast .seat-toggle,
 .seat-cell-confirm .seat-toggle { white-space: nowrap; }
 
-.seat-empty { padding: 24px; color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
+.seat-empty { padding: 32px 24px; color: var(--md-on-surface-variant); text-align: center; }
 
-/* 거울(자리안내 하단) / 사이드 패널 */
-.seat-mirror { margin-top: 16px; }
-.seat-mirror-title { font-weight: 700; margin-bottom: 8px; }
-.seat-mirror-stations { display: flex; flex-wrap: wrap; gap: 12px; }
-.seat-mirror-col { flex: 1 1 240px; min-width: 0; border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12)); }
-.seat-mirror-col-title { font-weight: 700; padding: 6px 8px; }
-.seat-mirror-col-body { padding: 8px; color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
+/* ── 카드 / 패널 (Material filled card + elevation) ───────────────────────── */
+.seat-panel,
+.seat-mirror-col {
+  background: var(--md-surface-container);
+  border: none;
+  border-radius: var(--md-radius-md);
+  box-shadow: var(--md-elev-1);
+  overflow: hidden;
+}
+.seat-panel-title,
+.seat-mirror-col-title {
+  font-weight: 500;
+  padding: 12px 16px;
+  color: var(--md-on-surface);
+}
+.seat-panel-hint { font-weight: 400; color: var(--md-on-surface-variant); }
+.seat-panel-body,
+.seat-mirror-col-body { padding: 0 16px 16px; color: var(--md-on-surface-variant); }
 
-.seat-panel { border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12)); }
-.seat-panel-title { font-weight: 700; padding: 8px; }
-.seat-panel-hint { font-weight: 400; color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
-.seat-panel-body { padding: 8px; }
+/* 거울(자리안내 하단) */
+.seat-mirror { margin-top: 20px; }
+.seat-mirror-title { font-weight: 500; font-size: 18px; margin-bottom: 12px; }
+.seat-mirror-stations { display: flex; flex-wrap: wrap; gap: 16px; }
+.seat-mirror-col { flex: 1 1 240px; min-width: 0; }
 
-/* 번호 칩(자리후 대기·올림·완료) */
-.seat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.seat-chips-empty { color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); }
+/* ── 번호 칩 (Material assist chip) ──────────────────────────────────────── */
+.seat-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.seat-chips-empty { color: var(--md-on-surface-variant); padding: 4px 0; }
 .seat-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
-  min-height: 36px;
-  padding: 4px 10px;
-  border: 1px solid var(--color-border-medium, rgba(255, 255, 255, 0.12));
-  border-radius: 6px;
+  min-width: 44px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
   font-weight: 700;
 }
-.seat-chip-done { opacity: 0.5; text-decoration: line-through; }
+.seat-chip-done { opacity: .5; text-decoration: line-through; }
 
-/* 올림(자리잡음) 카드 — 번호 + 변동사항 + 완료 */
-.seat-raised-list { display: flex; flex-direction: column; gap: 8px; }
-.seat-raised-card { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* 올림(자리잡음) 카드 */
+.seat-raised-list { display: flex; flex-direction: column; gap: 10px; }
+.seat-raised-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px;
+  border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-high);
+}
 .seat-raised-no {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
-  min-height: 36px;
-  padding: 4px 10px;
-  border: 1px solid var(--color-border-strong, rgba(255, 255, 255, 0.3));
-  border-radius: 6px;
+  min-width: 52px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border-radius: var(--md-radius-sm);
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
   font-weight: 700;
 }
 .seat-raised-note { flex: 1 1 160px; }
 
-/* 제조매니저: 입력 테이블 아래 가로 배치(카메라 + 요약 패널) */
-.seat-manager-side { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; align-items: flex-start; }
+/* 제조매니저: 입력 아래 가로 배치(카메라 + 요약 패널) */
+.seat-manager-side { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
 .seat-manager-side .seat-camera { flex: 0 0 240px; }
 .seat-manager-side .seat-panel { flex: 1 1 200px; }
 
-/* 카이막/커피: 슬라이드 레이아웃 [카메라 大 좌] · [올림+완료 중] · [자리후 우]
-   mobile-first: 기본 세로(카메라 위), 넓을 때 3열. */
-.seat-station-grid { display: flex; flex-direction: column; gap: 12px; }
-.seat-station-work { display: flex; flex-direction: column; gap: 12px; }
+/* 카이막/커피 스테이션: [카메라 大] · [올림+완료] · [자리후] */
+.seat-station-grid { display: flex; flex-direction: column; gap: 16px; }
+.seat-station-work { display: flex; flex-direction: column; gap: 16px; }
 .seat-station-camera .seat-camera { min-height: 220px; }
 @media (min-width: 1024px) {
   .seat-station-grid { flex-direction: row; align-items: stretch; }
   .seat-station-camera { flex: 1.2 1 0; }
   .seat-station-work { flex: 1 1 0; }
-  .seat-station-waiting { flex: 0 0 200px; }
+  .seat-station-waiting { flex: 0 0 220px; }
   .seat-station-camera .seat-camera { aspect-ratio: auto; height: 100%; min-height: 420px; }
 }
 
-/* 카메라 슬롯(순수 표시) */
+/* ── 카메라 슬롯 (Material surface) ──────────────────────────────────────── */
 .seat-camera {
   aspect-ratio: 4 / 3;
-  background: var(--color-bg-secondary, #1a1a1a);
+  background: var(--md-surface-container-low);
+  border-radius: var(--md-radius-md);
+  box-shadow: var(--md-elev-1);
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 .seat-camera-stream { width: 100%; height: 100%; object-fit: cover; }
-.seat-camera-placeholder { color: var(--color-text-tertiary, rgba(255, 255, 255, 0.5)); text-align: center; padding: 12px; }
-.seat-camera-placeholder-title { font-weight: 700; margin-bottom: 4px; }
-.seat-camera-placeholder-sub { color: var(--color-text-disabled, rgba(255, 255, 255, 0.35)); }
+.seat-camera-placeholder { color: var(--md-on-surface-variant); text-align: center; padding: 16px; }
+.seat-camera-placeholder-title { font-weight: 500; margin-bottom: 4px; }
+.seat-camera-placeholder-sub { color: var(--md-on-surface-variant); opacity: .7; }
 
-/* 넓은 화면(가로 태블릿/데스크톱): 2열 레이아웃 + 주문 행 한 줄 정렬 */
+/* ── 넓은 화면: 2열 + 주문 행 한 줄 ──────────────────────────────────────── */
 @media (min-width: 1024px) {
   .seat-screen-grid { flex-direction: row; align-items: flex-start; }
-  .seat-col-side { flex: 0 0 280px; width: auto; }
+  .seat-col-side { flex: 0 0 300px; width: auto; }
   .seat-row { flex-wrap: nowrap; }
+}
+
+/* ── 모션 감소 선호 ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .seat-app * { transition: none !important; }
 }

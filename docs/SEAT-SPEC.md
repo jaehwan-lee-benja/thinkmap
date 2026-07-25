@@ -125,7 +125,7 @@ seat_orders (
   opt_outdoor          boolean NOT NULL DEFAULT false, -- 야외
   opt_takeout          boolean NOT NULL DEFAULT false, -- 포장
   opt_outdoor_parallel boolean NOT NULL DEFAULT false, -- 야외병행
-  seat_order_alive     boolean NOT NULL DEFAULT true,  -- R4: 살아있음 / false=순서없이(취소)
+  seat_order_alive     boolean NOT NULL DEFAULT true,  -- R4: 살아있음 / false=필요없음(순서취소)
   seated          boolean NOT NULL DEFAULT false,      -- 자리앉음
   raised          boolean NOT NULL DEFAULT false,      -- 올리기 전달
   raised_at       timestamptz,                         -- 올림 시각(후속 소요시간 분석)
@@ -232,7 +232,7 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 
 ### 9.1 자리안내 (`guide`) — 입력 핵심 (원본 슬라이드 열 구성 기준)
 - 행: queue_no / order_no(텍스트) / **[자리후 전달]**(명시 버튼) / 상태선택(확인필요·주문중·차후주문, 기본 '-')
-  / 제조옵션 체크(야외·포장·야외병행) / 자리순서 살아있음·자리순서없이(취소)
+  / 제조옵션 체크(야외·포장·야외병행) / 자리순서 살아있음·필요없음(제조옵션 또는 순서취소 시 앰버 '필요없음')
   / 자리앉음 → **[올리기 전달]**(명시 버튼, R2) / 특이사항 / **[전체에게 전달]**(명시 버튼, R7)
   / **확인필요**(상태선택과 별개의 행 플래그 = `confirm_flag`).
 - **전달 흐름 = 명시 버튼 방식(A안)**: 입력 후 [자리후 전달]/[올리기 전달]/[전체에게 전달]을 눌러 공유
@@ -255,10 +255,10 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 
 | # | 규칙 | 구현 위치 |
 | --- | --- | --- |
-| R1 | 제조옵션(야외/포장/야외병행) 하나라도 체크되면 자리후 아님 → 자리후 비활성, 올림으로 처리 | OrderRow 파생상태 |
-| R2 | 자리앉음/올리기 전달 시에만 오른쪽 제조 칸 활성화(그 전엔 비활성) | OrderRow 파생상태 |
+| R1 | 제조옵션(야외/포장/야외병행) 하나라도 체크되면 자리후 아님 → 자리순서 '필요없음'(앰버) 표시, 수동토글 잠금(비활성 룩 없음). 올림 대상이나 [올리기 전달] 클릭 전까지 대기/올림 요약 리스트엔 미집계(§14 미해결) | OrderRow 파생상태 / seatRules |
+| R2 | 자리앉음/올리기 전달/제조옵션(R1) 중 하나라도 충족 시 오른쪽 제조 칸 활성화(그 전엔 비활성) | OrderRow·seatRules.isRaiseEnabled |
 | R3 | 상태선택 기본값 '-'(=`review_flag='none'`) | 스키마 DEFAULT |
-| R4 | "자리 순서없이"=자리대기 취소(`seat_order_alive=false`), "살아있음"=순서 유지 | OrderRow 토글 |
+| R4 | "필요없음"=자리대기 취소(`seat_order_alive=false`) 또는 제조옵션(R1), "살아있음"=순서 유지. 파생: `seatNeeded = seat_order_alive && !제조옵션` | OrderRow 토글 |
 | R5 | "메뉴 나감"(`menu_out`)은 제조매니저만 | 역할 게이트(config) |
 | R6 | 카이막/커피 완료는 서로 독립 | `seat_station_status` 행 분리 |
 | R7 | "전체에게 전달"=해당 행을 모든 역할 화면에 즉시 실시간 반영 | Realtime 구독(§8) |
@@ -295,6 +295,15 @@ src/components/Seat/
     useStationStatus.js     fetch + Realtime + CRUD
 ```
 
+### 12.1 디자인 — ★Google Material Design 3 (seat 위성 한정 예외)
+
+- seat 위성(`apps/seat`)은 프로젝트 기본 **'건조한 스타일'**(docs/DESIGN-PHILOSOPHY.md)을 **이 위성에 한해 Material Design 3 으로 오버라이드**한다(2026-07-25 유저 지시). 다른 위성·모선은 건조 스타일 유지.
+- 구현 = **기존 컴포넌트에 Material 3 디자인토큰**(@material/web 미채택). JSX/DOM/클래스명 불변, 스타일만 Material. → 기능·구조 보존.
+- 토큰(`--md-*`: surface tiers·primary/container·shape·elevation·state layer)은 **`.seat-app`/`.pv-center` 스코프에만** 정의 → `@thinkmap/core` 공유 토큰 무변(타 위성·모선 누수 0). `Seat.css` / `index.css`.
+- 상태색은 시맨틱 유지(살아있음=초록 톤 / 필요없음=앰버 톤 / is-on=primary). 라이트/다크(`data-theme`) 양 지원, reduced-motion.
+- 터치타겟 48dp 기본(주방 태블릿). **단 자리안내/제조매니저 입력 테이블(`.seat-table`)은 dense 모드**(행·패딩 압축)로 한 화면에 더 많은 행 — 세로 밀도 우선(유저 조정). 입력 폰트는 16px 유지.
+- design-guardian(건조 스타일 검수)은 seat 위성엔 **비적용**(이 예외 때문). 향후 seat UI 작업은 Material 3 방향 유지.
+
 ## 13. 단계별 로드맵
 
 - **Phase 0 (완료)**: 본 기획서 합의.
@@ -328,6 +337,7 @@ src/components/Seat/
 - [x] 권한·로그인 = 워크스페이스 grant(editor)로 확정. 태블릿이 어느 계정으로 로그인하든 editor 면 동작.
 - [ ] 완료 처리 후 행 표시 — 완료 행을 리스트에서 숨길지/접을지/유지할지.
 - [ ] 카메라 enabled/streamUrl 저장 위치(env vs Supabase config 레코드) 최종 결정.
+- [ ] **제조옵션만 체크·미올림 주문의 요약 리스트 배치** — `isWaitingOrder`(제조옵션 있으면 제외)와 `isRaisedOrder`(`raised=true`만) 사이 틈에 빠져 Manager/Station "대기중"·"올림" 및 자리안내 하단 거울 어디에도 안 잡힘. R1의 "올림으로 처리"를 자동화(제조옵션 시 `raised` 자동 세팅)할지, 리스트 판정을 `seatNeeded` 기준으로 통일할지 결정 필요. (2026-07-20 spec-auditor 발견)
 
 ## 15. 수정 전 체크리스트
 
