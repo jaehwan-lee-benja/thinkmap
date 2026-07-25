@@ -6,20 +6,17 @@
 import { useAuth } from '@thinkmap/core'
 import MembershipKiosk from './components/Kiosk/MembershipKiosk'
 
-// 모선(Hub) base — 같은 origin 형제 서브경로.
-const HUB_BASE = import.meta.env.VITE_HUB_BASE || '/thinkmap/'
-
 export default function MembershipApp() {
   const { session, authLoading, handleGoogleLogin } = useAuth()
 
   if (authLoading) return <div className="pv-center">로딩 중…</div>
 
+  // 모선 복귀 링크 제거 — 매장 고정 단말이라 모선 이동 불필요(유저결정 2026-07-25).
   if (!session) return (
     <div className="pv-center pv-login">
       <h1>멤버십 키오스크</h1>
       <p>매장 계정으로 로그인하세요.</p>
       <button onClick={handleGoogleLogin}>Google로 로그인</button>
-      <a href={HUB_BASE}>← 모선</a>
     </div>
   )
 

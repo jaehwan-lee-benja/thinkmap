@@ -103,10 +103,6 @@
 .mk-modeswitch button.is-active {
   background: var(--md-primary-container); color: var(--md-on-primary-container); font-weight: 700;
 }
-.mk-hublink {
-  color: var(--md-primary); text-decoration: none; min-height: 48px;
-  display: inline-flex; align-items: center; padding: 0 8px; font-size: 15px;
-}
 
 /* ── 본문 ──────────────────────────────────────────────────────────────────── */
 .mk-main { flex: 1 1 auto; overflow: auto; display: flex; }

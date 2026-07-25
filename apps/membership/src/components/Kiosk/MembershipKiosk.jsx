@@ -5,8 +5,6 @@ import StaffLookupScreen from './StaffLookupScreen'
 import CustomerSignupScreen from './CustomerSignupScreen'
 import './Kiosk.css'
 
-const HUB_BASE = import.meta.env.VITE_HUB_BASE || '/thinkmap/'
-
 export default function MembershipKiosk({ session }) {
   // 'staff' = 직원 조회모드(기본). 'customer' = 고객 가입모드(태블릿 가로로 돌려 고객에게, 화면 정방향).
   const [mode, setMode] = useState('staff')
@@ -32,7 +30,7 @@ export default function MembershipKiosk({ session }) {
             고객 가입 ⟳
           </button>
         </div>
-        <a className="mk-hublink" href={HUB_BASE}>← 모선</a>
+        {/* 모선 복귀 링크 제거 — 매장 고정 단말이라 모선 이동 불필요(유저결정 2026-07-25). */}
       </header>
 
       <main className="mk-main">
