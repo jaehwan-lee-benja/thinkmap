@@ -36,7 +36,7 @@ export function claimEvent(memberId, eventType, date) {
   return callProxy('membership-event', { member_id: memberId, event_type: eventType, event_date: date })
 }
 
-// ③ 가입: 최소 필드(phone/name/consent, source:'kiosk'). crm intake 가 dedup·검증.
+// ③ 가입: phone/name/email/consent(source:'kiosk'). crm intake 가 email→p_email 캡처(0013)·dedup·검증.
 // 반환: { member_id, created }
 export function signupMember(payload) {
   return callProxy('membership-signup', { ...payload, source: 'kiosk' })

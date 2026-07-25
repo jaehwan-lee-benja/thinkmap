@@ -36,8 +36,14 @@
 .mk-signup-head { text-align: center; }
 .mk-signup-head h2 { margin: 0 0 4px; font-weight: 700; }
 .mk-signup-head p { margin: 0; color: var(--color-text-secondary); }
-.mk-signup-body { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
-.mk-signup-fields { display: flex; flex-direction: column; gap: 14px; min-width: 240px; }
+
+/* 2단: 좌=전화+번호패드, 우=이름·이메일·동의·가입. 좁으면 세로 스택. */
+.mk-signup-grid {
+  display: flex; gap: 32px; align-items: flex-start; justify-content: center; flex-wrap: wrap;
+  width: 100%;
+}
+.mk-signup-left { display: flex; flex-direction: column; align-items: center; }
+.mk-signup-right { display: flex; flex-direction: column; gap: 14px; min-width: 260px; max-width: 340px; flex: 0 1 340px; }
 
 .mk-field { display: flex; flex-direction: column; gap: 6px; }
 .mk-field span { color: var(--color-text-secondary); }
@@ -46,8 +52,17 @@
   border: 1px solid var(--color-border-medium); border-radius: 8px;
   background: var(--color-bg-secondary); color: var(--color-text-primary);
 }
-.mk-consent { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.mk-field input:disabled { opacity: 0.5; }
+.mk-field-hint { font-size: 13px; color: var(--color-danger, #d9534f); }
+.mk-consent { display: flex; align-items: center; gap: 10px; font-size: 16px; cursor: pointer; }
 .mk-consent input { width: 22px; height: 22px; }
+
+.mk-signup-submit {
+  min-height: 56px; border: 1px solid var(--color-primary); border-radius: 8px;
+  background: var(--color-primary); color: #fff; font-size: 20px; cursor: pointer;
+  touch-action: manipulation;
+}
+.mk-signup-submit:disabled { opacity: 0.45; cursor: default; }
 
 /* 결과 카드 */
 .mk-result { min-height: 200px; justify-content: center; }

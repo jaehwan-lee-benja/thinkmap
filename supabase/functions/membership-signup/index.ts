@@ -14,11 +14,14 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json() } catch { /* noop */ }
   const phone = String(body?.phone ?? '').replace(/\D/g, '')
   const name = String(body?.name ?? '').trim()
+  const email = String(body?.email ?? '').trim()   // crm intake 가 body.email → p_email 로 캡처(0013)
   const consent = body?.consent === true
-  if (phone.length < 10 || !name || !consent) return json({ error: 'bad_request' }, 400)
+  // 이메일은 형식만 가볍게 검증(최종 검증/정규화는 crm). 빈 값은 거부(폼에서 필수).
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  if (phone.length < 10 || !name || !emailOk || !consent) return json({ error: 'bad_request' }, 400)
 
   const limited = await rateLimitAndAudit(g, 'signup', null)
   if (limited) return limited
 
-  return callCrm(g, 'membership-intake', { phone, name, consent: true, source: 'kiosk' })
+  return callCrm(g, 'membership-intake', { phone, name, email, consent: true, source: 'kiosk' })
 })

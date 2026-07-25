@@ -23,6 +23,7 @@ export default function NumberPad({
   submitLabel = '조회',
   disabled = false,
   submitDisabled = false,   // 입력(disabled)과 제출 게이트(submitDisabled)를 분리 — 가입폼처럼 제출만 조건부일 때
+  hideSubmit = false,       // 제출 버튼을 폼 쪽(우측)에 따로 둘 때 패드 내부 버튼 숨김(Enter 제출은 유지)
   maxLength = 11,
 }) {
   const canSubmit = !disabled && !submitDisabled && digits.length >= 10
@@ -76,14 +77,16 @@ export default function NumberPad({
           </button>
         ))}
       </div>
-      <button
-        type="button"
-        className="mk-pad-submit"
-        onClick={() => canSubmit && onSubmit?.()}
-        disabled={!canSubmit}
-      >
-        {submitLabel}
-      </button>
+      {!hideSubmit && (
+        <button
+          type="button"
+          className="mk-pad-submit"
+          onClick={() => canSubmit && onSubmit?.()}
+          disabled={!canSubmit}
+        >
+          {submitLabel}
+        </button>
+      )}
     </div>
   )
 }
