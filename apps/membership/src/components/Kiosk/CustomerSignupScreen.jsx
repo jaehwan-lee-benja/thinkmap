@@ -48,7 +48,8 @@ export default function CustomerSignupScreen({ onDone }) {
           onChange={setDigits}
           onSubmit={handleSubmit}
           submitLabel="가입"
-          disabled={!canSubmit}
+          disabled={status === 'submitting'}
+          submitDisabled={!canSubmit}
         />
         <div className="mk-signup-fields">
           <label className="mk-field">
