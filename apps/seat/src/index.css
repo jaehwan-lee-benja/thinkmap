@@ -1,27 +1,57 @@
-/* 자리후 위성 — 셸 최소 스타일. 로그인/로딩 화면만; 본 UI는 풀스크린 키오스크(Seat.css, fixed inset:0). */
+/* 자리후 위성 — 셸 최소 스타일(로그인/로딩). 본 UI는 풀스크린 키오스크(Seat.css).
+   ★로그인 화면도 Material 3(이 위성 한정 오버라이드). --md-* 토큰은 .pv-center 스코프 →
+   @thinkmap/core 공유 토큰 무변(타 위성 누수 없음). */
 :root {
   color-scheme: light dark;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-family: Roboto, 'Roboto Flex', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   font-size: 16px;
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body { background: var(--color-bg-primary); color: var(--color-text-primary); }
 
-/* 로그인/로딩 (inventory/canvas 위성과 동일 클래스 체계) */
+/* 로그인/로딩 — Material 3 (seat 스코프 토큰) */
 .pv-center {
+  /* 다크 기본 */
+  --md-surface: #16181C;
+  --md-surface-container-high: #282B30;
+  --md-on-surface: #E3E2E6;
+  --md-on-surface-variant: #C3C7CF;
+  --md-outline-variant: #40474F;
+  --md-primary: #A6C8FF;
+  --md-on-primary: #00325B;
+  --md-elev-1: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15);
+  --md-elev-2: 0 1px 2px rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.15);
+
   min-height: 100vh;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; padding: 24px; text-align: center;
+  gap: 16px; padding: 24px; text-align: center;
+  background: var(--md-surface); color: var(--md-on-surface);
+  font-family: Roboto, 'Roboto Flex', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 }
-.pv-login h1 { margin: 0; font-weight: 700; }
-.pv-login p { margin: 0; color: var(--color-text-secondary); }
+:root[data-theme="light"] .pv-center {
+  --md-surface: #FBF8FD;
+  --md-surface-container-high: #E9E5EC;
+  --md-on-surface: #1A1C1E;
+  --md-on-surface-variant: #43474E;
+  --md-outline-variant: #C3C7CF;
+  --md-primary: #0B57D0;
+  --md-on-primary: #FFFFFF;
+}
+.pv-login h1 { margin: 0; font-weight: 700; font-size: 28px; letter-spacing: .0125em; }
+.pv-login p { margin: 0; color: var(--md-on-surface-variant); }
 .pv-center button {
-  min-height: 36px; padding: 8px 16px; border: 1px solid var(--color-border-medium); border-radius: 6px;
-  background: var(--color-bg-hover); color: var(--color-text-primary); cursor: pointer; font-size: 15px;
+  min-height: 48px; padding: 0 24px;
+  border: none; border-radius: 999px;
+  background: var(--md-primary); color: var(--md-on-primary);
+  cursor: pointer; font: inherit; font-weight: 700;
+  box-shadow: var(--md-elev-1);
+  transition: box-shadow 160ms cubic-bezier(.2,0,0,1);
 }
-.pv-center button:hover { background: var(--color-bg-active); }
+.pv-center button:hover { box-shadow: var(--md-elev-2); }
+.pv-center button:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
 .pv-center a {
-  color: var(--color-primary); text-decoration: none;
-  display: inline-flex; align-items: center; min-height: 36px; padding: 0 4px;
+  color: var(--md-primary); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px;
+  border-radius: 999px;
 }
