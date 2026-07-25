@@ -1,5 +1,5 @@
-// 고객 가입모드 — 화면 180° 회전(직원이 태블릿을 고객 쪽으로 돌림). 최소 필드(번호·이름·동의).
-// ★조회 결과가 화면에 없음(§5 격리): 고객이 만져도 타인 정보 미노출. 가입은 계약 미확정(STUB).
+// 고객 가입모드 — 직원이 태블릿을 가로로 돌려 고객을 향하게 함(물리 회전, 화면 UI는 정방향). 최소 필드(번호·이름·동의).
+// ★조회 결과가 화면에 없음(§5 격리): 고객이 만져도 타인 정보 미노출. 가입은 프록시 Edge(LIVE 게이트).
 import { useState } from 'react'
 import NumberPad from './NumberPad'
 import { signupMember, CONTRACT_PENDING } from '../../api/membership'
@@ -26,7 +26,7 @@ export default function CustomerSignupScreen({ onDone }) {
 
   if (status === 'done') {
     return (
-      <div className="mk-screen mk-customer mk-flip">
+      <div className="mk-screen mk-customer">
         <div className="mk-card mk-card-member mk-thanks">
           <div className="mk-badge">가입 완료 🎉</div>
           <p>멤버십에 오신 것을 환영합니다.</p>
@@ -37,7 +37,7 @@ export default function CustomerSignupScreen({ onDone }) {
   }
 
   return (
-    <div className="mk-screen mk-customer mk-flip">
+    <div className="mk-screen mk-customer">
       <div className="mk-signup-head">
         <h2>멤버십 가입</h2>
         <p>전화번호와 이름을 입력해 주세요.</p>

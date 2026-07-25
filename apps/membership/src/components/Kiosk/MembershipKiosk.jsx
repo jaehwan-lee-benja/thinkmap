@@ -1,4 +1,4 @@
-// 멤버십 키오스크 본체 — 직원 조회모드 ⇄ 고객 가입모드(180° 회전) 전환.
+// 멤버십 키오스크 본체 — 직원 조회모드 ⇄ 고객 가입모드 전환(고객모드는 태블릿을 가로로 돌려 고객에게, 화면 정방향).
 // 계약 무관 UI 골격. 데이터 호출은 src/api/membership.js(현재 STUB) 경유 — 계약 확정 시 화면 내부만 배선.
 import { useState } from 'react'
 import StaffLookupScreen from './StaffLookupScreen'
@@ -8,7 +8,7 @@ import './Kiosk.css'
 const HUB_BASE = import.meta.env.VITE_HUB_BASE || '/thinkmap/'
 
 export default function MembershipKiosk({ session }) {
-  // 'staff' = 직원 조회모드(기본). 'customer' = 고객 가입모드(화면 180° 회전).
+  // 'staff' = 직원 조회모드(기본). 'customer' = 고객 가입모드(태블릿 가로로 돌려 고객에게, 화면 정방향).
   const [mode, setMode] = useState('staff')
 
   return (
