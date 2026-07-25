@@ -71,11 +71,19 @@ export const useAuth = () => {
 
   // 인증 상태 확인
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setAuthLoading(false)
-      handleSessionChange(session)
-    })
+    // ★getSession 실패(저장 토큰 만료·손상·갱신 실패) 시에도 authLoading 을 반드시 해제한다.
+    //   .finally 없으면 실패 시 setAuthLoading(false) 미호출 → "로딩 중…" 무한(공유 core 버그).
+    //   실패 경로는 세션 없음(null)으로 폴백 = 로그인 화면. 엄격히 additive(성공 경로 무변경).
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session)
+        handleSessionChange(session)
+      })
+      .catch(() => {
+        setSession(null)
+        handleSessionChange(null)
+      })
+      .finally(() => setAuthLoading(false))
 
     const {
       data: { subscription },
