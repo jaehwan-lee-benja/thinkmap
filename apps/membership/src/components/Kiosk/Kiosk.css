@@ -115,6 +115,20 @@
 .mk-signup-entry { margin-top: 4px; }
 .mk-optional { font-style: normal; font-weight: 400; font-size: 14px; color: var(--md-on-surface-variant); }
 
+/* 전체화면 토글 버튼 — 우하단 코너, 반투명(키오스크 세팅용). */
+.mk-fs-btn {
+  position: fixed; right: 12px; bottom: 12px; z-index: 1100;
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid var(--md-outline-variant); background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant); font-size: 20px; cursor: pointer; opacity: 0.55;
+  display: flex; align-items: center; justify-content: center;
+}
+.mk-fs-btn:hover { opacity: 1; }
+/* 전체화면(standalone/fullscreen)로 실행 중이면 버튼 숨김 — 이미 전체화면. */
+@media (display-mode: fullscreen), (display-mode: standalone) {
+  .mk-fs-btn { display: none; }
+}
+
 /* ── 본문 ──────────────────────────────────────────────────────────────────── */
 .mk-main { flex: 1 1 auto; overflow: auto; display: flex; flex-direction: column; }
 .mk-screen {

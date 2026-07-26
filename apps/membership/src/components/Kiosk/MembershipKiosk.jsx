@@ -4,6 +4,7 @@
 //   매장 룸      = ?store=<id>(고정). Realtime 채널 인가는 매장 계정 세션(private 채널, 마이그 게이트).
 import CustomerView from './CustomerView'
 import StaffView from './StaffView'
+import FullscreenButton from './FullscreenButton'
 import { readRoleAndStore } from './kioskUtils'
 import './Kiosk.css'
 
@@ -12,6 +13,7 @@ export default function MembershipKiosk({ session }) {
 
   return (
     <div className={`mk-app mk-role-${role}`}>
+      <FullscreenButton />
       <main className="mk-main">
         {role === 'staff'
           ? <StaffView store={store} />

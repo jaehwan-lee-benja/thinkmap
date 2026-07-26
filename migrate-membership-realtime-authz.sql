@@ -11,11 +11,21 @@
 --
 -- ※ Supabase Realtime Authorization: private 채널은 realtime.messages 에 대한 RLS 로 인가한다.
 --   topic 헬퍼 = realtime.topic(). (Supabase 버전에 따라 함수명 확인 — guardian 검수 포인트.)
+--
+-- ★★다매장 확장 필수 조건(guardian 2026-07-26 🟠주1 · 유저 승인 시 명시 요구):
+--   is_store()는 매장 구분 없는 전역 boolean 이고 topic 은 client 파라미터일 뿐이라, 현재 정책은
+--   "어느 매장 계정이든 membership:<타매장> 채널 구독/브로드캐스트 가능"을 허용한다.
+--   ▸ 현재 단일 매장(1 룸)이라 즉시 노출 없음 → 이 범위에서 적용 승인됨.
+--   ▸ 다매장 확장 전 반드시: app_users.store_id + topic='membership:'||store_id 바인딩으로 store 스코프화.
+--     안 하면 교차 매장 도청 경로.
+-- ※ 적용 실측(2026-07-26): realtime.messages 는 supabase_realtime_admin 소유 → MCP 역할로 ALTER ENABLE RLS /
+--   COMMENT ON POLICY 불가(소유권). RLS 는 이미 활성이었고 CREATE POLICY 는 통과 → 정책만 생성. 재적용/타
+--   환경 시 RLS 활성 여부 먼저 확인(미활성이면 ENABLE 은 SQL Editor postgres 로).
 -- ============================================================================
 
 BEGIN;
 
--- realtime.messages RLS 활성(이미 켜져 있을 수 있음 — 멱등).
+-- realtime.messages RLS 활성(이미 켜져 있을 수 있음 — 멱등). ※소유권 없으면 이 줄은 SQL Editor(postgres)로.
 ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
 
 -- 멤버십 매장 채널: 인증된 매장(store)/마스터 세션만 read+write. topic 접두 'membership:' 로 스코프.
