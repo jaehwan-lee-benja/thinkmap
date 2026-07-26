@@ -10,7 +10,8 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
   const raiseEnabled = isRaiseEnabled(order)     // R2: 앉음/올림(또는 옵션) 전엔 올리기 비활성
   // 게이팅(제조매니저 화면 전용): "자리후 전달" 전(!seat_delivered) 행은 dim + 하위단계 버튼 숨김.
   // gated=true 는 ManagerScreen 만 넘긴다. 자리안내(Guide)는 입력·전달 주체라 게이팅 제외.
-  const undelivered = gated && !order.seat_delivered
+  // ★제조옵션 주문(optChecked)은 자리 불필요(R1) → 자리후 전달 대상이 아니므로 게이팅 제외(항상 활성).
+  const undelivered = gated && !order.seat_delivered && !optChecked
   // R1+R4 수렴: 제조옵션(자리 불필요) 또는 순서취소 → 둘 다 '필요없음'. 비활성 룩 없이 앰버 표시.
   const seatNeeded = order.seat_order_alive && !optChecked
 
@@ -38,11 +39,18 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
         />
       </div>
 
-      {/* 자리후 전달(버튼). R1: 제조옵션 체크 시 자리후 아님 → 비활성 */}
+      {/* 자리후 전달 = 체크박스(전달 여부 시각확인 + 토글, 버튼 대체로 중복 UX 제거).
+          상태원본=seat_delivered. 체크→commitOrder('seat')(seat_status pending + seat_delivered=true) /
+          해제→seat_delivered=false. R1: 제조옵션 시 자리후 아님 → 비활성. */}
       <div className="seat-cell seat-cell-deliver">
-        <button className="seat-toggle" disabled={optChecked} onClick={() => onCommit?.(order.id, 'seat')}>
-          자리후 전달
-        </button>
+        <label className="seat-check seat-deliver-check">
+          <input
+            type="checkbox"
+            disabled={optChecked}
+            checked={!!order.seat_delivered}
+            onChange={(e) => (e.target.checked ? onCommit?.(order.id, 'seat') : patch({ seat_delivered: false }))}
+          /> 전달
+        </label>
       </div>
 
       <div className="seat-cell seat-cell-status">
