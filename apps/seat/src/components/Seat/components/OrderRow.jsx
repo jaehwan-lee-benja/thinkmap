@@ -39,20 +39,6 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
         />
       </div>
 
-      {/* 자리후 전달 = 체크박스(전달 여부 시각확인 + 토글, 버튼 대체로 중복 UX 제거).
-          상태원본=seat_delivered. 체크→commitOrder('seat')(seat_status pending + seat_delivered=true) /
-          해제→seat_delivered=false. R1: 제조옵션 시 자리후 아님 → 비활성. */}
-      <div className="seat-cell seat-cell-deliver">
-        <label className="seat-check seat-deliver-check">
-          <input
-            type="checkbox"
-            disabled={optChecked}
-            checked={!!order.seat_delivered}
-            onChange={(e) => (e.target.checked ? onCommit?.(order.id, 'seat') : patch({ seat_delivered: false }))}
-          /> 전달
-        </label>
-      </div>
-
       <div className="seat-cell seat-cell-status">
         <select
           className="seat-select"
@@ -63,6 +49,21 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
             <option key={f.value} value={f.value}>{f.label}</option>
           ))}
         </select>
+      </div>
+
+      {/* 자리후 전달 = 체크박스(전달 여부 시각확인 + 토글, 버튼 대체로 중복 UX 제거).
+          컬럼 위치 = 상태와 제조옵션 사이(유저 지시). 상태원본=seat_delivered.
+          체크→commitOrder('seat')(seat_status pending + seat_delivered=true) / 해제→seat_delivered=false.
+          R1: 제조옵션 시 자리후 아님 → 비활성. */}
+      <div className="seat-cell seat-cell-deliver">
+        <label className="seat-check seat-deliver-check">
+          <input
+            type="checkbox"
+            disabled={optChecked}
+            checked={!!order.seat_delivered}
+            onChange={(e) => (e.target.checked ? onCommit?.(order.id, 'seat') : patch({ seat_delivered: false }))}
+          /> 전달
+        </label>
       </div>
 
       {/* 제조옵션 = 드랍다운 단일 선택(선택지=기존 항목). 데이터모델 불변(3 boolean에 매핑). */}
