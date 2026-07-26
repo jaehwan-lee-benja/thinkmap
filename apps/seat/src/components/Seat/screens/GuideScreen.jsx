@@ -8,10 +8,6 @@ import { isRaisedOrder } from '../utils/seatRules'
 export default function GuideScreen({ orders = [], stations = [], onPatch, onCommit, onCreate }) {
   return (
     <div className="seat-screen seat-screen-guide">
-      <div className="seat-toolbar">
-        <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.()}>+ 새 주문</button>
-      </div>
-
       <div className="seat-table" role="table">
         <div className="seat-row seat-row-head" role="row">
           <div className="seat-cell seat-cell-no">대기</div>
@@ -32,6 +28,11 @@ export default function GuideScreen({ orders = [], stations = [], onPatch, onCom
             <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} canMenuOut={false} />
           ))
         )}
+      </div>
+
+      {/* 새 주문 추가 = 표 아래, 왼쪽 정렬(유저 지시). */}
+      <div className="seat-toolbar seat-toolbar-below">
+        <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.()}>+ 새 주문</button>
       </div>
 
       {/* 하단 거울: 카이막·커피 현황(올라감/제조완료함, 읽기). StationScreen 과 동일 분류(R6). */}
