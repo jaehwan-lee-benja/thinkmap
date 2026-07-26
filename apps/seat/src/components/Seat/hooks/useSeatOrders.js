@@ -91,8 +91,9 @@ export function useSeatOrders(businessDate) {
   }, [refetch])
 
   // 명시 전달 버튼(A안): 'seat'=자리후 확정 / 'all'=전체에게 전달(touch→Realtime 재발사)
+  // 'seat' 전달 시 seat_delivered=true → 제조매니저 화면 게이팅 해제(전달 전 dim, 전달 후 활성).
   const commitOrder = useCallback(async (id, scope) => {
-    if (scope === 'seat') return patchOrder(id, { seat_status: 'pending' })
+    if (scope === 'seat') return patchOrder(id, { seat_status: 'pending', seat_delivered: true })
     return patchOrder(id, { updated_at: new Date().toISOString() })
   }, [patchOrder])
 

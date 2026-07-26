@@ -126,6 +126,7 @@ seat_orders (
   opt_takeout          boolean NOT NULL DEFAULT false, -- 포장
   opt_outdoor_parallel boolean NOT NULL DEFAULT false, -- 야외병행
   seat_order_alive     boolean NOT NULL DEFAULT true,  -- R4: 살아있음 / false=필요없음(순서취소)
+  seat_delivered  boolean NOT NULL DEFAULT false,      -- R8: "자리후 전달" 눌렀는가(제조매니저 게이팅). migrate-seat-delivered.sql
   seated          boolean NOT NULL DEFAULT false,      -- 자리앉음
   raised          boolean NOT NULL DEFAULT false,      -- 올리기 전달
   raised_at       timestamptz,                         -- 올림 시각(후속 소요시간 분석)
@@ -262,6 +263,7 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 | R5 | "메뉴 나감"(`menu_out`)은 제조매니저만 | 역할 게이트(config) |
 | R6 | 카이막/커피 완료는 서로 독립 | `seat_station_status` 행 분리 |
 | R7 | "전체에게 전달"=해당 행을 모든 역할 화면에 즉시 실시간 반영 | Realtime 구독(§8) |
+| R8 | "자리후 전달" 전(`seat_delivered=false`) 주문은 **제조매니저(ManagerScreen) 화면에서만** 게이팅: 행 dim + 하위단계 버튼(자리순서·올림·메뉴나감) 숨김. 전달(commitOrder 'seat') 시 `seat_delivered=true`→활성. 자리안내(Guide)는 게이팅 제외 | OrderRow(`gated`)·ManagerScreen·commitOrder |
 
 ## 11. 라이브 카메라 모듈
 
