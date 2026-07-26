@@ -1,0 +1,31 @@
+/* 멤버십 키오스크 — 정본 브랜딩(팔레트 #2D4B82/#3CB44B, 타이틀=오동통·본문=G마켓산스).
+   고객 대면 화면이라 브랜드 풀적용. gh-pages 정적 호스팅 → 웹폰트 CDN 로드 가능. */
+
+/* G마켓산스(본문) — noonnu jsdelivr(널리 쓰이는 정본 URL). font-display:swap 로 FOUC 방지. */
+@font-face {
+  font-family: 'GmarketSans'; font-weight: 300; font-style: normal; font-display: swap;
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff') format('woff');
+}
+@font-face {
+  font-family: 'GmarketSans'; font-weight: 500; font-style: normal; font-display: swap;
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
+}
+@font-face {
+  font-family: 'GmarketSans'; font-weight: 700; font-style: normal; font-display: swap;
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');
+}
+
+/* 오동통(타이틀) — ★정확한 webfont 파일 확인 필요(호스팅되면 아래 URL 교체). 미해결 시 G마켓 Bold 로 폴백.
+   @font-face { font-family:'Odongtong'; font-display:swap; src:url('<오동통 woff2 URL>') format('woff2'); }
+*/
+
+:root {
+  /* 브랜드 팔레트 */
+  --brand-blue: #2D4B82;
+  --brand-blue-strong: #223A66;
+  --brand-green: #3CB44B;
+  --brand-green-strong: #2E9440;
+  /* 폰트 스택 */
+  --mk-font-body: 'GmarketSans', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --mk-font-title: 'Odongtong', 'GmarketSans', var(--mk-font-body);
+}

@@ -4,15 +4,8 @@
 //   (조회·가입 두 화면이 각자 NumberPad 를 쓰므로 한 번에 하나만 마운트 → 전역 리스너 안전).
 //   텍스트 입력(이름 등)에 포커스가 있으면 그쪽이 처리하도록 양보한다.
 import { useEffect } from 'react'
+import { formatPhone } from './kioskUtils'
 import './NumberPad.css'
-
-// 010-1234-5678 형태로 그룹핑(최대 11자리). 오타 인지를 쉽게.
-function formatPhone(digits) {
-  const d = digits.slice(0, 11)
-  if (d.length <= 3) return d
-  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`
-  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`
-}
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back']
 
@@ -24,6 +17,7 @@ export default function NumberPad({
   disabled = false,
   submitDisabled = false,   // 입력(disabled)과 제출 게이트(submitDisabled)를 분리 — 가입폼처럼 제출만 조건부일 때
   hideSubmit = false,       // 제출 버튼을 폼 쪽(우측)에 따로 둘 때 패드 내부 버튼 숨김(Enter 제출은 유지)
+  size = 'md',              // 'md' | 'xl'(조회 화면 주인공, 어르신 대형)
   maxLength = 11,
 }) {
   const canSubmit = !disabled && !submitDisabled && digits.length >= 10
@@ -60,7 +54,7 @@ export default function NumberPad({
   }, [digits, disabled, submitDisabled, maxLength, onChange, onSubmit])
 
   return (
-    <div className="mk-pad">
+    <div className={`mk-pad ${size === 'xl' ? 'mk-pad-xl' : ''}`}>
       <div className="mk-pad-display" aria-live="polite">
         {digits ? formatPhone(digits) : <span className="mk-pad-placeholder">전화번호</span>}
       </div>

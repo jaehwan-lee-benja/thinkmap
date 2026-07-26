@@ -30,3 +30,12 @@
   cursor: pointer; touch-action: manipulation; box-shadow: var(--md-elev-1);
 }
 .mk-pad-submit:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+
+/* ★XL — 조회 화면 주인공(어르신·원거리 가독). 버튼·숫자 획기적 대형. */
+.mk-pad-xl { max-width: 560px; gap: 20px; }
+.mk-pad-xl .mk-pad-display { min-height: 96px; font-size: 54px; letter-spacing: 3px; }
+.mk-pad-xl .mk-pad-placeholder { font-size: 30px; }
+.mk-pad-xl .mk-pad-grid { gap: 18px; }
+.mk-pad-xl .mk-key { min-height: 108px; font-size: 46px; }
+.mk-pad-xl .mk-key-aux { font-size: 26px; }
+.mk-pad-xl .mk-pad-submit { min-height: 88px; font-size: 30px; }

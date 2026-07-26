@@ -1,4 +1,12 @@
-// 키오스크 공용 유틸 — 날짜·역할·룸.
+// 키오스크 공용 유틸 — 날짜·역할·룸·전화포맷.
+
+// 010-1234-5678 형태로 그룹핑(최대 11자리).
+export function formatPhone(digits) {
+  const d = String(digits).slice(0, 11)
+  if (d.length <= 3) return d
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`
+}
 
 // 오늘 날짜(로컬) YYYY-MM-DD.
 export function todayStr() {
