@@ -111,8 +111,18 @@
   padding: 10px 16px; background: var(--md-surface-container); box-shadow: var(--md-elev-1);
 }
 .mk-customer-view { align-items: center; justify-content: center; }
-.mk-customer-lookup { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 420px; width: 100%; }
-.mk-signup-entry { margin-top: 4px; }
+.mk-customer-lookup { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; max-width: 860px; }
+/* 조회(좌) + 가입 CTA(우) 2단 — 한 화면 above-the-fold. 좁으면 세로 스택. */
+.mk-lookup-grid {
+  display: flex; gap: 40px; align-items: center; justify-content: center; flex-wrap: wrap; width: 100%;
+}
+.mk-lookup-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.mk-lookup-cta { display: flex; flex-direction: column; align-items: center; min-width: 280px; max-width: 360px; flex: 0 1 340px; }
+/* 가입 CTA 카드 — 눈에 띄게(primary 강조). */
+.mk-cta-card { border: 2px solid var(--md-primary); background: var(--md-surface-container-high); gap: 16px; }
+.mk-cta-title { font-size: 24px; font-weight: 700; color: var(--md-on-surface); }
+.mk-cta-card p { margin: 0; color: var(--md-on-surface-variant); font-size: 17px; }
+.mk-cta-big { min-height: 60px; font-size: 21px; padding: 12px 28px; background: var(--md-primary); color: var(--md-on-primary); border: none; box-shadow: var(--md-elev-1); }
 .mk-optional { font-style: normal; font-weight: 400; font-size: 14px; color: var(--md-on-surface-variant); }
 
 /* 전체화면 토글 버튼 — 우하단 코너, 반투명(키오스크 세팅용). */

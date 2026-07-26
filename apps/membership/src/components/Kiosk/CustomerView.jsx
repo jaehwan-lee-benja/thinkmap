@@ -38,34 +38,45 @@ export default function CustomerView({ store }) {
         <div className="mk-customer-lookup">
           <div className="mk-signup-head">
             <h2>멤버십 조회</h2>
-            <p>전화번호를 입력하시면 멤버십 정보와 팝콘 이벤트를 확인할 수 있어요.</p>
+            {/* '팝콘' 등 특정 이벤트명 제거 — 이벤트 가변이라 일반화(유저결정 2026-07-26). */}
+            <p>전화번호를 입력하시면 멤버십 정보와 이벤트를 확인할 수 있어요.</p>
           </div>
-          <NumberPad
-            digits={digits}
-            onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
-            onSubmit={() => lookup(digits)}
-            submitLabel="조회"
-            disabled={status === 'loading'}
-          />
-          {CONTRACT_PENDING && <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>}
-          {status === 'loading' && <div className="mk-placeholder">조회 중…</div>}
-          {status === 'notfound' && (
-            <div className="mk-card mk-card-none">
-              <div className="mk-badge mk-badge-none">회원 아님</div>
-              <p>아직 멤버십 회원이 아니세요.</p>
-              <button className="mk-signup-cta" onClick={() => setShowSignup(true)}>회원가입 하기 →</button>
-              <button className="mk-reset" onClick={resetAll}>다시</button>
+
+          {/* 2단: 좌=조회(번호패드) / 우=가입 CTA. 둘 다 스크롤 없이 한 화면(above-the-fold). */}
+          <div className="mk-lookup-grid">
+            <div className="mk-lookup-col">
+              <NumberPad
+                digits={digits}
+                onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
+                onSubmit={() => lookup(digits)}
+                submitLabel="조회"
+                disabled={status === 'loading'}
+              />
+              {CONTRACT_PENDING && <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>}
+              {status === 'loading' && <div className="mk-placeholder">조회 중…</div>}
+              {status === 'error' && (
+                <div className="mk-card mk-card-err"><p className="mk-err">{errMsg}</p>
+                  <button className="mk-reset" onClick={resetAll}>다시</button></div>
+              )}
             </div>
-          )}
-          {status === 'error' && (
-            <div className="mk-card mk-card-err"><p className="mk-err">{errMsg}</p>
-              <button className="mk-reset" onClick={resetAll}>다시</button></div>
-          )}
-          {status === 'idle' && (
-            <button className="mk-signup-cta mk-signup-entry" onClick={() => setShowSignup(true)}>
-              처음이세요? 회원가입 →
-            </button>
-          )}
+
+            <div className="mk-lookup-cta">
+              {status === 'notfound' ? (
+                <div className="mk-card mk-cta-card mk-card-none">
+                  <div className="mk-badge mk-badge-none">회원 아님</div>
+                  <p>아직 멤버십 회원이 아니세요.</p>
+                  <button className="mk-signup-cta mk-cta-big" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
+                  <button className="mk-reset" onClick={resetAll}>다시</button>
+                </div>
+              ) : (
+                <div className="mk-card mk-cta-card">
+                  <div className="mk-cta-title">처음 오셨나요?</div>
+                  <p>멤버십에 가입하고 혜택을 받아보세요.</p>
+                  <button className="mk-signup-cta mk-cta-big" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

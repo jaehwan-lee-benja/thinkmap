@@ -20,7 +20,8 @@ export default function MemberCard({ member, history = [], claiming, errMsg, onC
             {claiming ? '적립 중…' : '사르르 팝콘 이벤트 참여'}
           </button>
         )}
-        {member._justClaimed && <div className="mk-claimed">팝콘 수령 완료 🍿</div>}
+        {/* 성공 확인은 이벤트명 비하드코딩(일반화). 실제 이벤트 버튼명은 위에서 유지. */}
+        {member._justClaimed && <div className="mk-claimed">참여 완료 🎉</div>}
 
         {history.length > 0 && (
           <ul className="mk-history">
