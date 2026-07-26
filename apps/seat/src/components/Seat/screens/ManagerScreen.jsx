@@ -23,8 +23,8 @@ export default function ManagerScreen({ role, orders = [], stations = [], onPatc
         <div className="seat-row seat-row-head" role="row">
           <div className="seat-cell seat-cell-no">대기</div>
           <div className="seat-cell seat-cell-order">주문번호</div>
-          <div className="seat-cell seat-cell-deliver">자리후</div>
           <div className="seat-cell seat-cell-status">상태</div>
+          <div className="seat-cell seat-cell-deliver">자리후</div>
           <div className="seat-cell seat-cell-opts">제조옵션</div>
           <div className="seat-cell seat-cell-seat">자리순서</div>
           <div className="seat-cell seat-cell-raise">올림 / 메뉴나감</div>
