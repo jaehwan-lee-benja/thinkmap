@@ -215,7 +215,7 @@
 .seat-cell-order { flex: 0 0 104px; }
 .seat-cell-deliver { flex: 0 0 108px; }
 .seat-cell-status { flex: 0 0 104px; }
-.seat-cell-opts { flex: 1 1 168px; }
+.seat-cell-opts { flex: 0 0 104px; } /* 드랍다운(-·야외·포장·야외병행) 짧아짐 → 폭 축소 */
 .seat-cell-seat { flex: 0 0 108px; }
 .seat-cell-raise { flex: 0 0 212px; }
 .seat-cell-notes { flex: 1 1 140px; }
