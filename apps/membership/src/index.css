@@ -16,6 +16,7 @@ body { background: var(--color-bg-primary); color: var(--color-text-primary); }
 }
 .pv-login h1 { margin: 0; font-weight: 700; }
 .pv-login p { margin: 0; color: var(--color-text-secondary); }
+.pv-denied { color: var(--color-danger, #d9534f); max-width: 320px; line-height: 1.5; }
 .pv-center button {
   min-height: 44px; padding: 10px 20px; border: 1px solid var(--color-border-medium); border-radius: 6px;
   background: var(--color-bg-hover); color: var(--color-text-primary); cursor: pointer; font-size: 16px;
