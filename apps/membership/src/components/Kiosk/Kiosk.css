@@ -104,8 +104,19 @@
   background: var(--md-primary-container); color: var(--md-on-primary-container); font-weight: 700;
 }
 
+/* ── 역할 뷰(2대 분리) ─────────────────────────────────────────────────────── */
+/* 직원 뷰 상단바(회원 리스트 진입). 고객 뷰는 상단바 없음(풀스크린 고객 경험). */
+.mk-staff-bar {
+  flex: 0 0 auto; display: flex; justify-content: flex-end;
+  padding: 10px 16px; background: var(--md-surface-container); box-shadow: var(--md-elev-1);
+}
+.mk-customer-view { align-items: center; justify-content: center; }
+.mk-customer-lookup { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 420px; width: 100%; }
+.mk-signup-entry { margin-top: 4px; }
+.mk-optional { font-style: normal; font-weight: 400; font-size: 14px; color: var(--md-on-surface-variant); }
+
 /* ── 본문 ──────────────────────────────────────────────────────────────────── */
-.mk-main { flex: 1 1 auto; overflow: auto; display: flex; }
+.mk-main { flex: 1 1 auto; overflow: auto; display: flex; flex-direction: column; }
 .mk-screen {
   flex: 1; display: flex; gap: 32px; padding: 28px;
   align-items: flex-start; justify-content: center;

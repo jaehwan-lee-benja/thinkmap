@@ -23,17 +23,20 @@ export default function CustomerSignupScreen({ onDone }) {
   const [status, setStatus] = useState('idle') // idle | submitting | done | error
   const [errMsg, setErrMsg] = useState('')
 
+  // ★이메일 선택(유저 큐: "이메일 없이 가입"). 입력을 시작했으면 형식 검증, 비우면 스킵.
   const domain = emailDomain === CUSTOM ? emailCustom.trim() : emailDomain
-  const email = `${emailLocal.trim()}@${domain}`
-  const emailValid = emailLocal.trim().length > 0 && domain.length > 0 && EMAIL_RE.test(email)
+  const emailProvided = emailLocal.trim().length > 0 || domain.length > 0
+  const email = emailProvided ? `${emailLocal.trim()}@${domain}` : ''
+  const emailOk = !emailProvided || (emailLocal.trim().length > 0 && domain.length > 0 && EMAIL_RE.test(email))
 
   const canSubmit =
-    digits.length >= 10 && name.trim().length > 0 && emailValid && consent && status !== 'submitting'
+    digits.length >= 10 && name.trim().length > 0 && emailOk && consent && status !== 'submitting'
 
   const handleSubmit = async () => {
     if (!canSubmit) return
     setStatus('submitting'); setErrMsg('')
     try {
+      // 이메일 미입력이면 email 생략(전화·이름만 가입). crm intake p_email=null.
       await signupMember({ phone: digits, name: name.trim(), email, consent: true, source: 'kiosk' })
       setStatus('done')
     } catch (e) {
@@ -78,7 +81,7 @@ export default function CustomerSignupScreen({ onDone }) {
           </label>
 
           <div className="mk-field">
-            <span>이메일</span>
+            <span>이메일 <em className="mk-optional">(선택 — 없이도 가입 가능)</em></span>
             <div className="mk-email-row">
               <input
                 className="mk-email-local"
@@ -110,7 +113,7 @@ export default function CustomerSignupScreen({ onDone }) {
                 ← 목록에서 선택
               </button>
             )}
-            {(emailLocal.length > 0 || domain.length > 0) && !emailValid && (
+            {emailProvided && !emailOk && (
               <span className="mk-field-hint">이메일 주소를 확인해 주세요.</span>
             )}
           </div>

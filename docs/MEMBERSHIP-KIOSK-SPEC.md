@@ -3,6 +3,7 @@
 > 상태: **아키텍처 A 확정 + CRM 계약 확정(초안) + 인증모델 확정 (2026-07-24).** 프론트 셸 스캐폴드 완료(미커밋·미배포). 데이터 플레인은 하드게이트(§8) 대기.
 > 작성: membership 세션(홈 `thinkmap-membership`, feat/membership-kiosk).
 > 근거 문서: [SITE-SPLIT-PLAN.md](./SITE-SPLIT-PLAN.md)(위성 모델) · CRM-BOARD-SPEC(engine-metrics 계약 패턴) · CONDUCTOR.md(크로스도메인 규율) · `crm-archive/MEMBERSHIP-KIOSK-CONTRACT.md`(crm producer 계약 정본).
+> **2대 분리(고객 태블릿 + 직원 노트북, 연동)**: [MEMBERSHIP-2DEVICE-SPLIT-PROPOSAL.md](./MEMBERSHIP-2DEVICE-SPLIT-PROPOSAL.md) — 유저결정 A(연동+셀프검색)·A-2(매장 고정 룸) 확정, 구현 착수(2026-07-26). URL role(고객=기본/직원=?role=staff) + Realtime private 채널(마이그 게이트).
 >
 > **이 문서는 합의서다.** §1 확정. §3 계약은 crm 계약문서와 정합. §2~§6이 구현 기준.
 

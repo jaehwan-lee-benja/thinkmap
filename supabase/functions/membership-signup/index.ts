@@ -16,12 +16,15 @@ Deno.serve(async (req: Request) => {
   const name = String(body?.name ?? '').trim()
   const email = String(body?.email ?? '').trim()   // crm intake 가 body.email → p_email 로 캡처(0013)
   const consent = body?.consent === true
-  // 이메일은 형식만 가볍게 검증(최종 검증/정규화는 crm). 빈 값은 거부(폼에서 필수).
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  // ★이메일 선택(유저결정: 이메일 없이 가입 허용). 입력됐으면 형식만 검증, 비면 통과(p_email=null).
+  const emailOk = email === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   if (phone.length < 10 || !name || !emailOk || !consent) return json({ error: 'bad_request' }, 400)
 
   const limited = await rateLimitAndAudit(g, 'signup', null)
   if (limited) return limited
 
-  return callCrm(g, 'membership-intake', { phone, name, email, consent: true, source: 'kiosk' })
+  // email 빈 문자열이면 생략(crm intake p_email=null).
+  const payload: Record<string, unknown> = { phone, name, consent: true, source: 'kiosk' }
+  if (email) payload.email = email
+  return callCrm(g, 'membership-intake', payload)
 })
