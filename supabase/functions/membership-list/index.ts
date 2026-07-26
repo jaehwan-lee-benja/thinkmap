@@ -4,7 +4,7 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { gate, rateLimitAndAudit, callCrm, json } from '../_shared/membershipGate.ts'
 
-const MIN_LEN = 1
+const MIN_LEN = 2 // crm 확정: 검색어 min2(2자 미만은 열거 방지 위해 프록시가 먼저 차단).
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -15,13 +15,13 @@ Deno.serve(async (req: Request) => {
 
   let body: any = {}
   try { body = await req.json() } catch { /* noop */ }
-  const q = String(body?.q ?? '').trim()
-  // ★검색필수: 빈/짧은 검색어는 거부(전체 명단 덤프 방지).
+  const q = String(body?.q ?? body?.search ?? '').trim()
+  // ★검색필수(min2): 빈/짧은 검색어는 거부(전체 명단 덤프 방지). crm RPC 도 min2·LIMIT20.
   if (q.length < MIN_LEN) return json({ members: [] })
 
   const limited = await rateLimitAndAudit(g, 'list', null)
   if (limited) return limited
 
-  // crm 이 원본 검색 + 마스킹(성만·끝4자리) 후 매치만 반환.
-  return callCrm(g, 'membership-list', { q })
+  // crm Edge 입력 = {search}. crm 이 원본 검색 + 마스킹(성만·끝4자리)·member_id 미반환 후 매치만 반환.
+  return callCrm(g, 'membership-list', { search: q })
 })

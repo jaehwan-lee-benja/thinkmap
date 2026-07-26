@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { searchMembers, CONTRACT_PENDING } from '../../api/membership'
 
-const MIN_LEN = 1 // 검색어 최소 길이(이 미만이면 결과 없음).
+const MIN_LEN = 2 // crm 확정: 검색어 min2(2자 미만은 결과 없음, 열거 방지).
 
 export default function MemberListScreen({ onBack }) {
   const [q, setQ] = useState('')
@@ -51,7 +51,7 @@ export default function MemberListScreen({ onBack }) {
       {CONTRACT_PENDING && (
         <div className="mk-note">※ 회원 검색은 CRM 연결(마스킹 RPC) 후 활성화됩니다(현재 미리보기).</div>
       )}
-      {status === 'empty' && <div className="mk-placeholder">이름 또는 전화로 검색하세요.</div>}
+      {status === 'empty' && <div className="mk-placeholder">이름 또는 전화로 검색하세요. (2자 이상)</div>}
       {status === 'loading' && <div className="mk-placeholder">검색 중…</div>}
       {status === 'error' && <div className="mk-err">{errMsg}</div>}
 
@@ -62,8 +62,9 @@ export default function MemberListScreen({ onBack }) {
             <table className="mk-ml-table">
               <thead><tr><th>이름</th><th>전화번호</th><th>상태</th></tr></thead>
               <tbody>
-                {members.map((m) => (
-                  <tr key={m.member_id}>
+                {/* crm 이 member_id 미반환(마스킹 전량) → 인덱스 key. 리스트는 표시 전용. */}
+                {members.map((m, i) => (
+                  <tr key={`${m.name}-${m.phone}-${i}`}>
                     <td>{m.name}</td><td>{m.phone}</td><td>{m.status || '멤버십'}</td>
                   </tr>
                 ))}
