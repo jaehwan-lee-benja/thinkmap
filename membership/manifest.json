@@ -1,0 +1,16 @@
+{
+  "name": "멤버십 키오스크",
+  "short_name": "멤버십",
+  "description": "사르르목장 멤버십 매장 키오스크",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#16181C",
+  "theme_color": "#16181C",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
