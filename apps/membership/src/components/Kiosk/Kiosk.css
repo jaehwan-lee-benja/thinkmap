@@ -70,9 +70,9 @@
   color-scheme: light;
 }
 
-/* 타이틀 = 오동통(폴백 G마켓 Bold). 인사말·화면 제목·CTA 타이틀. */
+/* 타이틀 = G마켓산스 Bold(확정). 인사말·화면 제목·CTA 타이틀. */
 .mk-greeting, .mk-signup-head h2, .mk-cta-title, .mk-ml-head h2, .pv-login h1 {
-  font-family: var(--mk-font-title); letter-spacing: 0;
+  font-family: var(--mk-font-title); font-weight: 700; letter-spacing: 0;
 }
 
 /* ── State layer (M3 상호작용) ─────────────────────────────────────────────── */
