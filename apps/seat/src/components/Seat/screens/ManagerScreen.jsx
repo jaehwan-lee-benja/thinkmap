@@ -36,7 +36,7 @@ export default function ManagerScreen({ role, orders = [], stations = [], onPatc
           <div className="seat-empty">주문이 없습니다.</div>
         ) : (
           orders.map((o) => (
-            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} canMenuOut={role?.canMenuOut} />
+            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} canMenuOut={role?.canMenuOut} gated />
           ))
         )}
       </div>

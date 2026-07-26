@@ -4,15 +4,29 @@
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import { hasManufactureOption, isRaiseEnabled } from '../utils/seatRules'
 
-export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false }) {
+export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false, gated = false }) {
   const patch = (p) => onPatch?.(order.id, p)
   const optChecked = hasManufactureOption(order) // R1: 제조옵션 있으면 자리후 아님
   const raiseEnabled = isRaiseEnabled(order)     // R2: 앉음/올림(또는 옵션) 전엔 올리기 비활성
+  // 게이팅(제조매니저 화면 전용): "자리후 전달" 전(!seat_delivered) 행은 dim + 하위단계 버튼 숨김.
+  // gated=true 는 ManagerScreen 만 넘긴다. 자리안내(Guide)는 입력·전달 주체라 게이팅 제외.
+  const undelivered = gated && !order.seat_delivered
   // R1+R4 수렴: 제조옵션(자리 불필요) 또는 순서취소 → 둘 다 '필요없음'. 비활성 룩 없이 앰버 표시.
   const seatNeeded = order.seat_order_alive && !optChecked
 
+  // 제조옵션 = 드랍다운(단일 선택). 데이터모델(3 boolean 컬럼) 불변 — 선택값을 boolean 3개에 매핑.
+  // (기존 체크박스 다중선택 → 단일선택으로 UX 수렴. hasManufactureOption/R1 그대로 성립.)
+  const optValue = order.opt_outdoor ? 'outdoor'
+    : order.opt_takeout ? 'takeout'
+    : order.opt_outdoor_parallel ? 'parallel' : 'none'
+  const setOpt = (v) => patch({
+    opt_outdoor: v === 'outdoor',
+    opt_takeout: v === 'takeout',
+    opt_outdoor_parallel: v === 'parallel',
+  })
+
   return (
-    <div className="seat-row" role="row">
+    <div className={`seat-row${undelivered ? ' seat-row--gated' : ''}`} role="row">
       <div className="seat-cell seat-cell-no">{order.queue_no ?? '-'}</div>
 
       <div className="seat-cell seat-cell-order">
@@ -43,45 +57,53 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false 
         </select>
       </div>
 
+      {/* 제조옵션 = 드랍다운 단일 선택(선택지=기존 항목). 데이터모델 불변(3 boolean에 매핑). */}
       <div className="seat-cell seat-cell-opts">
-        <label className="seat-check">
-          <input type="checkbox" checked={!!order.opt_outdoor} onChange={(e) => patch({ opt_outdoor: e.target.checked })} /> 야외
-        </label>
-        <label className="seat-check">
-          <input type="checkbox" checked={!!order.opt_takeout} onChange={(e) => patch({ opt_takeout: e.target.checked })} /> 포장
-        </label>
-        <label className="seat-check">
-          <input type="checkbox" checked={!!order.opt_outdoor_parallel} onChange={(e) => patch({ opt_outdoor_parallel: e.target.checked })} /> 야외병행
-        </label>
+        <select
+          className="seat-select"
+          value={optValue}
+          onChange={(e) => setOpt(e.target.value)}
+        >
+          <option value="none">제조옵션 없음</option>
+          <option value="outdoor">야외</option>
+          <option value="takeout">포장</option>
+          <option value="parallel">야외병행</option>
+        </select>
       </div>
 
-      {/* R1+R4: 제조옵션 또는 순서취소 → '필요없음'(앰버)으로 수렴. 제조옵션 시 토글만 잠그되 비활성 룩은 없앰. */}
+      {/* R1+R4: 제조옵션 또는 순서취소 → '필요없음'(앰버)으로 수렴. 제조옵션 시 토글만 잠그되 비활성 룩은 없앰.
+          게이팅: 전달 전(undelivered)엔 하위단계라 숨김(셀은 정렬 유지 위해 유지). */}
       <div className="seat-cell seat-cell-seat" aria-disabled={optChecked}>
-        <button
-          className={`seat-toggle seat-order-btn ${seatNeeded ? 'is-alive' : 'is-none'}`}
-          disabled={optChecked}
-          onClick={() => patch({ seat_order_alive: !order.seat_order_alive })}
-        >{seatNeeded ? '살아있음' : '필요없음'}</button>
+        {!undelivered && (
+          <button
+            className={`seat-toggle seat-order-btn ${seatNeeded ? 'is-alive' : 'is-none'}`}
+            disabled={optChecked}
+            onClick={() => patch({ seat_order_alive: !order.seat_order_alive })}
+          >{seatNeeded ? '살아있음' : '필요없음'}</button>
+        )}
       </div>
 
-      {/* 자리앉음 → 올리기 전달(버튼). R2: 그 전엔 비활성. R5: 메뉴 나감은 매니저만 */}
+      {/* 자리앉음 → 올리기 전달(버튼). R2: 그 전엔 비활성. R5: 메뉴 나감은 매니저만.
+          게이팅: 전달 전(undelivered)엔 올림 단계 전체 숨김. */}
       <div className="seat-cell seat-cell-raise">
-        <button
-          className={`seat-toggle${order.seated ? ' is-on' : ''}`}
-          disabled={optChecked}
-          onClick={() => patch({ seated: !order.seated })}
-        >자리앉음</button>
-        <button
-          className={`seat-toggle${order.raised ? ' is-on' : ''}`}
-          disabled={!raiseEnabled}
-          onClick={() => patch({ raised: !order.raised, raised_at: !order.raised ? new Date().toISOString() : null, seat_status: !order.raised ? 'raised' : 'pending' })}
-        >올리기 전달</button>
-        {canMenuOut && (
+        {!undelivered && (<>
           <button
-            className={`seat-toggle${order.menu_out ? ' is-on' : ''}`}
-            onClick={() => patch({ menu_out: !order.menu_out })}
-          >메뉴 나감</button>
-        )}
+            className={`seat-toggle${order.seated ? ' is-on' : ''}`}
+            disabled={optChecked}
+            onClick={() => patch({ seated: !order.seated })}
+          >자리앉음</button>
+          <button
+            className={`seat-toggle${order.raised ? ' is-on' : ''}`}
+            disabled={!raiseEnabled}
+            onClick={() => patch({ raised: !order.raised, raised_at: !order.raised ? new Date().toISOString() : null, seat_status: !order.raised ? 'raised' : 'pending' })}
+          >올리기 전달</button>
+          {canMenuOut && (
+            <button
+              className={`seat-toggle${order.menu_out ? ' is-on' : ''}`}
+              onClick={() => patch({ menu_out: !order.menu_out })}
+            >메뉴 나감</button>
+          )}
+        </>)}
       </div>
 
       <div className="seat-cell seat-cell-notes">
