@@ -73,7 +73,7 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
           value={optValue}
           onChange={(e) => setOpt(e.target.value)}
         >
-          <option value="none">제조옵션 없음</option>
+          <option value="none">-</option>
           <option value="outdoor">야외</option>
           <option value="takeout">포장</option>
           <option value="parallel">야외병행</option>
