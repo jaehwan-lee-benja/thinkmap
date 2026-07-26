@@ -76,7 +76,9 @@ export default function CustomerSignupScreen({ onDone }) {
             <span>이름</span>
             <input
               type="text" value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="이름" autoComplete="off" disabled={submitting}
+              placeholder="이름" disabled={submitting}
+              /* ★공용 키오스크 자동완성 차단(앞 손님 정보 노출 방지): off + 비의미 name + PW매니저 무시 */
+              autoComplete="off" name="mk-noauto-name" data-lpignore="true" data-1p-ignore
             />
           </label>
 
@@ -87,8 +89,8 @@ export default function CustomerSignupScreen({ onDone }) {
                 className="mk-email-local"
                 type="text" inputMode="email" value={emailLocal}
                 onChange={(e) => setEmailLocal(e.target.value)}
-                placeholder="이메일 아이디" autoComplete="off" autoCapitalize="none" spellCheck={false}
-                disabled={submitting}
+                placeholder="이메일 아이디" autoCapitalize="none" spellCheck={false} disabled={submitting}
+                autoComplete="off" name="mk-noauto-emaillocal" data-lpignore="true" data-1p-ignore
               />
               <span className="mk-email-at">@</span>
               <div className="mk-email-domain">

@@ -49,9 +49,9 @@ export function getEventHistory(memberId, eventType = 'popcorn') {
   return callProxy('membership-history', { member_id: memberId, event_type: eventType })
 }
 
-// ⑤ ★회원 리스트(직원용 검색) — 이름+전화 전량. 프록시 → crm membership-list(신규, 게이트 대기).
-//    ⚠️ 보안: 계약 §5 "목록·부분검색 금지"를 뒤집는 PII 노출면 → 유저 결정 게이트(to-conductor) 전엔 미배포.
-//    검색은 클라 측 부분일치 필터(다운로드된 리스트에 대해). 반환: { members: [{ member_id, name, phone }] }
-export function listMembers() {
-  return callProxy('membership-list', {})
+// ⑤ ★회원 검색(직원용) — 유저결정: 스토어 계정 열람 허용 + ★서버측 마스킹·검색필수(전체 다운로드 없음).
+//    검색어(이름/전화 부분일치)를 crm 이 원본으로 검색 → **마스킹된 매치만** 반환(성만·전화 끝4자리·상태).
+//    프론트는 원본 미취급(169). 빈/짧은 검색어는 호출 안 함(검색해야 결과). 반환: { members: [{ member_id, name, phone, status }] }
+export function searchMembers(query) {
+  return callProxy('membership-list', { q: query })
 }
