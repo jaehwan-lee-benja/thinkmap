@@ -5,6 +5,13 @@
 export const hasManufactureOption = (o) =>
   !!(o?.opt_outdoor || o?.opt_takeout || o?.opt_outdoor_parallel)
 
+// 주문 시작 갈래(도메인 모델, order_origin). 실내(dine_in)만 자리후 전달 관문 대상.
+// 하위호환: 값 없으면(마이그 전/구데이터) 실내로 간주.
+export const isDineIn = (o) => (o?.order_origin ?? 'dine_in') === 'dine_in'
+
+// 자리 순서(대기 줄)에서 빠지는 제조옵션 = 야외/포장만. ★야외병행은 자리순서 유지(실내 자리 나면 입장).
+export const removesFromSeatQueue = (o) => !!(o?.opt_outdoor || o?.opt_takeout)
+
 // R1: 제조옵션이 하나라도 있으면 그 주문은 '자리후'가 아니다 → 자리후(자리순서) 컨트롤 비활성.
 export const isSeatWaiting = (o) => !hasManufactureOption(o)
 
@@ -12,9 +19,9 @@ export const isSeatWaiting = (o) => !hasManufactureOption(o)
 export const isRaiseEnabled = (o) => !!(o?.seated || o?.raised) || hasManufactureOption(o)
 
 // 스테이션/매니저 화면 목록 분류 (순수)
-// 자리후 '대기중': 아직 안 올라가고, 제조옵션 없고, 순서 살아있고, 취소 아님.
+// 자리후 '대기중': 실내 시작 + 아직 안 올라감 + 자리큐 유지(야외/포장로 안 빠짐, 야외병행은 유지) + 순서 살아있음 + 취소 아님.
 export const isWaitingOrder = (o) =>
-  !o?.raised && !hasManufactureOption(o) && o?.seat_order_alive !== false && o?.seat_status !== 'canceled'
+  isDineIn(o) && !o?.raised && !removesFromSeatQueue(o) && o?.seat_order_alive !== false && o?.seat_status !== 'canceled'
 // 올림(자리잡음)된 주문.
 export const isRaisedOrder = (o) => !!o?.raised
 // 주문 표시 번호 — 주문번호 우선, 없으면 자리대기번호.
