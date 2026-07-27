@@ -213,6 +213,7 @@
 .seat-cell { padding: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .seat-cell-no { flex: 0 0 44px; font-weight: 700; }
 .seat-cell-order { flex: 0 0 104px; }
+.seat-cell-origin { flex: 0 0 76px; } /* 시작 갈래(실내/포장/야외) */
 .seat-cell-deliver { flex: 0 0 108px; }
 .seat-cell-status { flex: 0 0 104px; }
 .seat-cell-opts { flex: 0 0 104px; } /* 드랍다운(-·야외·포장·야외병행) 짧아짐 → 폭 축소 */
@@ -237,10 +238,19 @@
 /* ── 게이팅(제조매니저 전용): "자리후 전달" 전 행 = dim + 비활성 ─────────────
    전달 전(!seat_delivered)엔 하위단계 버튼(자리순서·올림·메뉴나감)은 JSX에서 숨기고,
    남은 셀은 흐릿(연한 글씨)+조작 잠금으로 "전달 전 정보만" 표시. 전달되면 정상 활성. */
+/* Manager 모드: 전달 전 실내 주문 = 행 전체 dim + 비활성(하위 버튼은 JSX에서 숨김) */
 .seat-row--gated { opacity: .5; }
 .seat-row--gated .seat-input,
 .seat-row--gated .seat-select,
 .seat-row--gated .seat-toggle { pointer-events: none; }
+/* Guide 모드: 전달 전 실내 주문 = 자리후 전달까지는 활성, 제조옵션부터 이후 컨트롤만 dim/비활성.
+   (전달 체크박스를 살려둬야 전달 가능 → seat-cell-deliver 이전 컬럼은 그대로) */
+.seat-row--guide-locked .seat-cell-opts,
+.seat-row--guide-locked .seat-cell-seat,
+.seat-row--guide-locked .seat-cell-raise,
+.seat-row--guide-locked .seat-cell-notes,
+.seat-row--guide-locked .seat-cell-broadcast,
+.seat-row--guide-locked .seat-cell-confirm { opacity: .4; pointer-events: none; }
 
 /* ── 입력 (Material filled text field) ────────────────────────────────────── */
 .seat-input,

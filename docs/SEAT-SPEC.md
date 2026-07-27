@@ -126,7 +126,9 @@ seat_orders (
   opt_takeout          boolean NOT NULL DEFAULT false, -- 포장
   opt_outdoor_parallel boolean NOT NULL DEFAULT false, -- 야외병행
   seat_order_alive     boolean NOT NULL DEFAULT true,  -- R4: 살아있음 / false=필요없음(순서취소)
-  seat_delivered  boolean NOT NULL DEFAULT false,      -- R8: "자리후 전달" 눌렀는가(제조매니저 게이팅). migrate-seat-delivered.sql
+  order_origin    text NOT NULL DEFAULT 'dine_in'      -- R9: 시작 갈래 dine_in(실내)/takeout(포장)/outdoor(야외). migrate-seat-order-origin.sql
+                    CHECK (order_origin IN ('dine_in','takeout','outdoor')),
+  seat_delivered  boolean NOT NULL DEFAULT false,      -- R8: 실내 주문 "자리후 전달" 관문. migrate-seat-delivered.sql
   seated          boolean NOT NULL DEFAULT false,      -- 자리앉음
   raised          boolean NOT NULL DEFAULT false,      -- 올리기 전달
   raised_at       timestamptz,                         -- 올림 시각(후속 소요시간 분석)
@@ -232,8 +234,8 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 공통: 상단에 오늘 날짜 + 역할 탭. 주문은 행 리스트, queue_no 1,2,3… 자동.
 
 ### 9.1 자리안내 (`guide`) — 입력 핵심 (원본 슬라이드 열 구성 기준)
-- 행: queue_no / order_no(텍스트) / 상태선택(확인필요·주문중·차후주문, 기본 '-') / **자리후 전달 체크박스**(전달 여부 시각확인+토글, `seat_delivered` 반영·R8. 컬럼 위치=상태와 제조옵션 사이)
-  / 제조옵션 드랍다운('-'·야외·포장·야외병행 단일선택, 폭 축소) / 자리순서 살아있음·필요없음(제조옵션 또는 순서취소 시 앰버 '필요없음')
+- 행: queue_no / order_no(텍스트) / **시작 갈래**(실내/포장/야외 = `order_origin`·R9) / 상태선택(확인필요·주문중·차후주문, 기본 '-') / **자리후 전달 체크박스**(실내만 표시, `seat_delivered` 반영·R8. 상태와 제조옵션 사이)
+  / 제조옵션 드랍다운('-'·야외·포장·야외병행 단일선택, 폭 축소) / 자리순서 살아있음·필요없음(포장/야외 또는 순서취소 시 앰버 '필요없음'; 야외병행은 유지)
   / 자리앉음 → **[올리기 전달]**(명시 버튼, R2) / 특이사항 / **[전체에게 전달]**(명시 버튼, R7)
   / **확인필요**(상태선택과 별개의 행 플래그 = `confirm_flag`).
 - **전달 흐름 = 명시 트리거(A안)**: 자리후 전달=체크박스 토글 / [올리기 전달]·[전체에게 전달]=버튼. 누른 순간 Realtime push
@@ -264,7 +266,8 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 | R5 | "메뉴 나감"(`menu_out`)은 제조매니저만 | 역할 게이트(config) |
 | R6 | 카이막/커피 완료는 서로 독립 | `seat_station_status` 행 분리 |
 | R7 | "전체에게 전달"=해당 행을 모든 역할 화면에 즉시 실시간 반영 | Realtime 구독(§8) |
-| R8 | "자리후 전달" 전(`seat_delivered=false`) 주문은 **제조매니저(ManagerScreen) 화면에서만** 게이팅: 행 dim + 하위단계 버튼(자리순서·올림·메뉴나감) 숨김. 전달(commitOrder 'seat') 시 `seat_delivered=true`→활성. 자리안내(Guide)는 게이팅 제외 | OrderRow(`gated`)·ManagerScreen·commitOrder |
+| R8 | **실내(dine_in) 주문**은 "자리후 전달"(`seat_delivered`)이 관문. 전달 전 게이팅 — **Manager**: 행 dim + 하위버튼(자리순서·올림) 숨김 / **Guide**: 전달 체크박스는 살리고 제조옵션부터 이후 컨트롤 dim/disable. 포장·야외 시작은 관문 없음(전달 체크박스 미표시, 즉시 활성) | OrderRow(`gateMode`)·Guide/Manager·commitOrder |
+| R9 | **주문 시작 갈래 `order_origin`**: dine_in(실내→자리후 관문)/takeout(포장)/outdoor(야외, 자리후 우회). 제조옵션(opt_*)은 실내 주문의 *전달 후 변경기록*: 야외·포장=자리큐 제외 / **야외병행=자리순서 유지**(실내 자리 나면 입장). `seatNeeded=dineIn && seat_order_alive && !(opt_outdoor\|\|opt_takeout)` | OrderRow·seatRules(isDineIn·removesFromSeatQueue) |
 
 ## 11. 라이브 카메라 모듈
 

@@ -23,6 +23,7 @@ export default function ManagerScreen({ role, orders = [], stations = [], onPatc
         <div className="seat-row seat-row-head" role="row">
           <div className="seat-cell seat-cell-no">대기</div>
           <div className="seat-cell seat-cell-order">주문번호</div>
+          <div className="seat-cell seat-cell-origin">시작</div>
           <div className="seat-cell seat-cell-status">상태</div>
           <div className="seat-cell seat-cell-deliver">자리후</div>
           <div className="seat-cell seat-cell-opts">제조옵션</div>
@@ -36,7 +37,7 @@ export default function ManagerScreen({ role, orders = [], stations = [], onPatc
           <div className="seat-empty">주문이 없습니다.</div>
         ) : (
           orders.map((o) => (
-            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} canMenuOut={role?.canMenuOut} gated />
+            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} canMenuOut={role?.canMenuOut} gateMode="manager" />
           ))
         )}
       </div>

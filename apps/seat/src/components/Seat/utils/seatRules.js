@@ -15,8 +15,9 @@ export const removesFromSeatQueue = (o) => !!(o?.opt_outdoor || o?.opt_takeout)
 // R1: 제조옵션이 하나라도 있으면 그 주문은 '자리후'가 아니다 → 자리후(자리순서) 컨트롤 비활성.
 export const isSeatWaiting = (o) => !hasManufactureOption(o)
 
-// R2: 자리앉음 또는 올리기 전달이 되어야(또는 제조옵션이 있어야) 제조(올림) 칸이 활성화된다.
-export const isRaiseEnabled = (o) => !!(o?.seated || o?.raised) || hasManufactureOption(o)
+// R2: 자리앉음/올림, 또는 자리큐서 빠지는 제조옵션(야외/포장), 또는 포장/야외 시작 주문이면 올림 활성.
+//     ★야외병행은 자리순서 유지 → 자리앉음 전엔 올림 비활성(실내 자리 나면 입장).
+export const isRaiseEnabled = (o) => !!(o?.seated || o?.raised) || removesFromSeatQueue(o) || !isDineIn(o)
 
 // 스테이션/매니저 화면 목록 분류 (순수)
 // 자리후 '대기중': 실내 시작 + 아직 안 올라감 + 자리큐 유지(야외/포장로 안 빠짐, 야외병행은 유지) + 순서 살아있음 + 취소 아님.
