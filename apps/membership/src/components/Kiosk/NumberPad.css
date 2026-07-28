@@ -9,7 +9,8 @@
   display: flex; align-items: center; justify-content: center;
   border: 2px solid var(--md-outline); border-radius: var(--md-radius-md);
   background: var(--md-surface-container-low); color: var(--md-on-surface);
-  font-size: 38px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 2px;
+  font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 1px;
+  white-space: nowrap; overflow: hidden;   /* ★한 줄 고정 — 다 눌러도 두 줄 래핑 금지 */
 }
 .mk-pad-placeholder { color: var(--md-on-surface-variant); font-size: 22px; letter-spacing: 0; font-weight: 400; }
 
@@ -33,7 +34,8 @@
 
 /* ★XL — 조회 화면 주인공(어르신·원거리 가독). 버튼·숫자 획기적 대형. 고정폭. */
 .mk-pad-xl { width: 500px; max-width: 92vw; gap: 20px; }
-.mk-pad-xl .mk-pad-display { min-height: 96px; font-size: 54px; letter-spacing: 3px; }
+/* ★XL 표시 = 전체 자릿수(010-xxxx-xxxx, 13자)가 고정폭 500px 한 줄에 들도록 조정. nowrap 은 base 에서. */
+.mk-pad-xl .mk-pad-display { min-height: 96px; font-size: 44px; letter-spacing: 1px; }
 .mk-pad-xl .mk-pad-placeholder { font-size: 30px; }
 .mk-pad-xl .mk-pad-grid { gap: 18px; }
 .mk-pad-xl .mk-key { min-height: 108px; font-size: 46px; }
