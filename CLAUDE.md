@@ -34,8 +34,9 @@
 ## 디자인 / UI 작업
 
 UI·스타일을 만들거나 다듬기 전에 아래 기준을 따른다:
-- [docs/DESIGN-PHILOSOPHY.md](docs/DESIGN-PHILOSOPHY.md) — 건조한 스타일(폰트 크기 계층 X, 장식선 X, bold·들여쓰기·기능적 레이아웃만).
+- [docs/DESIGN-PHILOSOPHY.md](docs/DESIGN-PHILOSOPHY.md) — 건조한 스타일(폰트 크기 계층 X, 장식선 X, bold·들여쓰기·기능적 레이아웃만). ★**내부 앱**(daily·roster·schedule·dashboard 등 모선)에 적용.
 - [docs/MOBILE-DESIGN.md](docs/MOBILE-DESIGN.md) — mobile-first, 기능=데스크톱 동등, 가로 스크롤 X, 터치 타겟 ≥36px, 입력 폰트 ≥16px, 360/768/1024/1440 검증.
+- [@DESIGN.md](DESIGN.md) — ★**사르르목장 정본 브랜드 디자인 시스템**(단일소스, design 소유 `saruru-design/DESIGN.md` 복사본). YAML 토큰(팔레트 #2D4B82/#3CB44B·G마켓산스 타입)+프로즈, lint 통과·WCAG-AA. ★적용 범위 = **브랜드/공개 위성**(멤버십 키오스크·대시보드·게임). 내부 건조 앱(위 DESIGN-PHILOSOPHY)엔 미적용. 배포 시 ops가 `npx @google/design.md lint`로 토큰·대비 검증(위반=완료 보류). 갱신은 design 정본→여기 재복사.
 
 ### frontend-design 플러그인 사용 규칙
 이 프로젝트는 공식 플러그인 `frontend-design@claude-plugins-official`을 디자인 보조로 쓴다(`.claude/settings.json`의 `enabledPlugins`에 선언 — repo 클론 시 자동 설치/활성).
