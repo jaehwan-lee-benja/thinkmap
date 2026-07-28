@@ -152,22 +152,36 @@
   flex-direction: column; align-items: center; justify-content: center; gap: 22px;
   height: 100%; width: 100%; padding: 0; text-align: center;
 }
-/* ★로고 정지 + 차분한 점(dots) 로더 — 선/링 없음, 간결·차분(유저정정). */
+/* ★로고 정지 + 레트로 모래시계 + 글씨 고정 + 제자리 스케일 점(위치점프 없음)(유저정정). */
 .mk-loading-logo { width: min(300px, 44vw); height: auto; }
-.mk-loading-dots { display: flex; gap: 14px; }
+/* 레트로 모래시계 — 작게·은은히, 뒤집히는 미니 모션(옛 대기 커서 감성). */
+.mk-loading-glass {
+  font-size: 34px; line-height: 1; filter: grayscale(.1);
+  animation: mk-flip 2.4s ease-in-out infinite;
+}
+@keyframes mk-flip {
+  0%, 38%  { transform: rotate(0deg); }
+  50%, 88% { transform: rotate(180deg); }
+  100%     { transform: rotate(360deg); }
+}
+/* "조회 중" 글씨는 자리 고정. 점은 제자리(고정 슬롯)에서 커졌다 작아졌다(위치 이동 없음). */
+.mk-loading-text {
+  font-size: 22px; font-weight: 700; color: var(--md-primary); font-family: var(--mk-font-title);
+  display: inline-flex; align-items: center;
+}
+.mk-loading-dots { display: inline-flex; gap: 6px; margin-left: 8px; }
 .mk-loading-dots span {
-  width: 16px; height: 16px; border-radius: 50%; background: var(--md-primary);
-  animation: mk-dot 1.4s ease-in-out infinite;
+  width: 9px; height: 9px; border-radius: 50%; background: currentColor; display: inline-block;
+  transform-origin: center; animation: mk-ell 1.4s ease-in-out infinite;
 }
-.mk-loading-dots span:nth-child(2) { animation-delay: .2s; background: var(--md-alive); }
-.mk-loading-dots span:nth-child(3) { animation-delay: .4s; }
-@keyframes mk-dot {
-  0%, 80%, 100% { transform: translateY(0); opacity: .35; }
-  40%           { transform: translateY(-14px); opacity: 1; }
+.mk-loading-dots span:nth-child(2) { animation-delay: .18s; }
+.mk-loading-dots span:nth-child(3) { animation-delay: .36s; }
+@keyframes mk-ell {
+  0%, 70%, 100% { transform: scale(.55); opacity: .3; }
+  35%           { transform: scale(1.15); opacity: 1; }
 }
-.mk-loading-text { font-size: 22px; font-weight: 700; color: var(--md-primary); font-family: var(--mk-font-title); }
 @media (prefers-reduced-motion: reduce) {
-  .mk-loading-dots span { animation: none; opacity: .7; }
+  .mk-loading-glass, .mk-loading-dots span { animation: none; }
 }
 
 /* ★#4·#3 조회 결과 = 전체화면 가득·큰 글씨 + 가로화면답게 넓은 2단(인사말 | 이벤트/내역) */
