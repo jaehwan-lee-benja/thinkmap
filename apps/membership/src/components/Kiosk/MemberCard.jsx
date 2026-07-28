@@ -36,7 +36,7 @@ export default function MemberCard({ member, history = [], claiming, errMsg, onC
 
           {history.length > 0 && (
             <div className="mk-history-wrap">
-              <div className="mk-history-title">수령 내역</div>
+              <div className="mk-history-title">참여 내역</div>
               <ul className="mk-history">
                 {history.map((h, i) => <li key={h.claimed_at || i}>{formatClaim(h.claimed_at)}</li>)}
               </ul>
