@@ -5,9 +5,16 @@ export default function MemberCard({ member, history = [], claiming, errMsg, onC
   if (!member) return null
   return (
     <div className={`mk-card mk-member-card ${variant === 'hero' ? 'mk-member-card-hero' : ''}`}>
-      {/* 히어로 — 브랜드 배너 + 인사말 */}
+      {/* 히어로 — 브랜드 배너 + 인증 배지 + 인사말 */}
       <div className="mk-member-hero">
-        <div className="mk-member-badge">멤버십 회원</div>
+        <div className="mk-member-badge-row">
+          {/* ★인증 배지(프리미엄·VIP 느낌) — 정본 팔레트 인라인 SVG(이모지 아님) */}
+          <svg className="mk-verified" viewBox="0 0 24 24" aria-label="인증 회원" role="img">
+            <circle cx="12" cy="12" r="11" />
+            <path d="M6.8 12.5 L10.4 16 L17.2 8.4" />
+          </svg>
+          <span className="mk-member-badge">멤버십 회원</span>
+        </div>
         <div className="mk-greeting">
           안녕하세요,<br /><b>{member.display_name || '회원'}</b> 회원님!
         </div>

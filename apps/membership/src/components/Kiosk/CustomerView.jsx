@@ -31,8 +31,11 @@ export default function CustomerView({ store }) {
   if (status === 'loading') {
     return (
       <div className="mk-screen mk-customer-view mk-loading-screen">
-        {/* 로고 정지 + 컬러 3점 통통 바운스(27da1bb 복귀, 모래시계 제거 — 유저정정 2026-07-28) */}
-        <img className="mk-loading-logo" src={`${import.meta.env.BASE_URL}img/mascot.png`} alt="사르르목장" />
+        {/* 로고 위치 고정 + 눈만 깜박(2프레임 교차: 열림↔눈감음, 다크배경=화이트 세트) + 컬러 3점 바운스 */}
+        <div className="mk-loading-logo mk-blink">
+          <img className="mk-blink-open" src={`${import.meta.env.BASE_URL}img/cow-mark-white.png`} alt="사르르목장" />
+          <img className="mk-blink-closed" src={`${import.meta.env.BASE_URL}img/cow-mark-white-blink.png`} alt="" aria-hidden="true" />
+        </div>
         <div className="mk-loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
         <div className="mk-loading-text">조회 중</div>
       </div>

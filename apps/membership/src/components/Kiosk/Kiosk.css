@@ -152,8 +152,13 @@
   flex-direction: column; align-items: center; justify-content: center; gap: 22px;
   height: 100%; width: 100%; padding: 0; text-align: center;
 }
-/* ★로고 정지 + 컬러 3점 통통 바운스(27da1bb 복귀 — 모래시계 제거, 점으로 움직이는 컬러 버전). */
+/* ★로고 위치 고정 + 눈만 깜박(2프레임) + 컬러 3점 통통 바운스. */
 .mk-loading-logo { width: min(300px, 44vw); height: auto; }
+/* 눈 깜박: 열림 프레임 위에 눈감음 프레임을 겹쳐, 짧게 교차(제자리·크기변동 없음). */
+.mk-blink { position: relative; }
+.mk-blink img { display: block; width: 100%; height: auto; }
+.mk-blink-closed { position: absolute; inset: 0; opacity: 0; animation: mk-blink 3.4s ease-in-out infinite; }
+@keyframes mk-blink { 0%, 92%, 100% { opacity: 0; } 94%, 97% { opacity: 1; } }
 .mk-loading-dots { display: flex; gap: 14px; }
 .mk-loading-dots span {
   width: 16px; height: 16px; border-radius: 50%; background: var(--md-primary);
@@ -168,6 +173,7 @@
 .mk-loading-text { font-size: 22px; font-weight: 700; color: var(--md-primary); font-family: var(--mk-font-title); }
 @media (prefers-reduced-motion: reduce) {
   .mk-loading-dots span { animation: none; opacity: .7; }
+  .mk-blink-closed { animation: none; opacity: 0; }
 }
 
 /* ★#4·#3 조회 결과 = 전체화면 가득·큰 글씨 + 가로화면답게 넓은 2단(인사말 | 이벤트/내역) */
@@ -403,6 +409,13 @@
 }
 .mk-ml-table td { padding: 14px 18px; border-top: 1px solid var(--md-outline-variant); }
 .mk-ml-empty { text-align: center; color: var(--md-on-surface-variant); padding: 24px; }
+
+/* ★인증 배지 — 원형 체크(정본 팔레트, 프리미엄/VIP) + "멤버십 회원" 나란히 */
+.mk-member-badge-row { display: inline-flex; align-items: center; gap: 10px; }
+.mk-verified { width: 34px; height: 34px; flex: 0 0 auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+.mk-verified circle { fill: var(--md-primary); }
+.mk-verified path { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.mk-member-card-hero .mk-verified { width: 40px; height: 40px; }
 
 .mk-badge {
   font-size: 20px; font-weight: 700; color: var(--md-on-alive);
