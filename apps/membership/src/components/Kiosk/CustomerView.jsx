@@ -27,12 +27,20 @@ export default function CustomerView({ store }) {
     return <CustomerSignupScreen onDone={() => { setShowSignup(false); resetAll() }} />
   }
 
-  // ★조회 중(로딩) = 사르르 마스코트 귀여운 애니메이션(#5).
+  // ★조회 중(로딩): 로고(마스코트)는 정지, 주변 요소로 귀여운 효과(유저정정 2026-07-28) — 펄스 링 + 떠다니는 방울.
   if (status === 'loading') {
     return (
       <div className="mk-screen mk-customer-view mk-loading-screen">
-        <img className="mk-loading-logo" src={`${import.meta.env.BASE_URL}img/mascot.png`} alt="사르르목장" />
-        <div className="mk-loading-text">조회 중…</div>
+        <div className="mk-loading-stage">
+          <span className="mk-loading-ring" aria-hidden="true"></span>
+          <span className="mk-loading-ring mk-loading-ring2" aria-hidden="true"></span>
+          <img className="mk-loading-logo" src={`${import.meta.env.BASE_URL}img/mascot.png`} alt="사르르목장" />
+          <span className="mk-bubble mk-bubble-1" aria-hidden="true"></span>
+          <span className="mk-bubble mk-bubble-2" aria-hidden="true"></span>
+          <span className="mk-bubble mk-bubble-3" aria-hidden="true"></span>
+          <span className="mk-bubble mk-bubble-4" aria-hidden="true"></span>
+        </div>
+        <div className="mk-loading-text">조회 중</div>
       </div>
     )
   }

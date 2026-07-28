@@ -152,24 +152,43 @@
   flex-direction: column; align-items: center; justify-content: center; gap: 22px;
   height: 100%; width: 100%; padding: 0; text-align: center;
 }
-.mk-loading-logo {
-  width: min(300px, 44vw); height: auto; image-rendering: auto;
-  transform-origin: center bottom;   /* 착지 스쿼시 느낌 */
-  animation: mk-bounce 1.15s cubic-bezier(.34,1.56,.64,1) infinite;
+/* ★로고는 정지, 주변 요소가 움직인다(유저정정). 스테이지=상대좌표 컨테이너. */
+.mk-loading-stage { position: relative; display: flex; align-items: center; justify-content: center; }
+.mk-loading-logo { position: relative; z-index: 2; width: min(300px, 44vw); height: auto; }
+/* 은은한 펄스 링(로고 뒤) */
+.mk-loading-ring {
+  position: absolute; z-index: 1; left: 50%; top: 50%; width: 300px; height: 300px;
+  margin: -150px 0 0 -150px; border-radius: 50%;
+  border: 3px solid var(--md-primary); opacity: 0;
+  animation: mk-pulse 2s var(--md-ease) infinite;
+}
+.mk-loading-ring2 { animation-delay: 1s; border-color: var(--md-alive); }
+@keyframes mk-pulse {
+  0%   { transform: scale(0.7); opacity: .55; }
+  70%  { opacity: .12; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+/* 떠다니는 방울(우유/브랜드색) — 로고 주변에서 위로 살랑 */
+.mk-bubble {
+  position: absolute; z-index: 1; width: 16px; height: 16px; border-radius: 50%;
+  opacity: 0; bottom: 30%;
+  animation: mk-drift 2.6s ease-in-out infinite;
+}
+.mk-bubble-1 { left: 16%;  background: var(--md-primary);  animation-delay: 0s;   }
+.mk-bubble-2 { left: 34%;  background: var(--md-alive);    animation-delay: .7s;  width: 12px; height: 12px; }
+.mk-bubble-3 { right: 30%; background: #FFD166;            animation-delay: 1.2s; width: 20px; height: 20px; }
+.mk-bubble-4 { right: 14%; background: var(--md-primary);  animation-delay: 1.8s; width: 12px; height: 12px; }
+@keyframes mk-drift {
+  0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+  20%  { opacity: .85; }
+  60%  { opacity: .85; }
+  100% { transform: translateY(-120px) scale(1); opacity: 0; }
 }
 .mk-loading-text { font-size: 22px; font-weight: 700; color: var(--md-primary); font-family: var(--mk-font-title); }
 .mk-loading-text::after { content: '…'; animation: mk-dots 1.4s steps(4) infinite; }
-@keyframes mk-bounce {
-  0%   { transform: translateY(0) scale(1, 1) rotate(0deg); }
-  14%  { transform: translateY(2px) scale(1.09, 0.91) rotate(-3deg); }   /* 착지 스쿼시 */
-  40%  { transform: translateY(-34px) scale(0.93, 1.07) rotate(4deg); }  /* 통통 튀어오름 */
-  58%  { transform: translateY(0) scale(1.07, 0.93) rotate(-3deg); }
-  74%  { transform: translateY(-12px) scale(0.98, 1.02) rotate(2deg); }
-  100% { transform: translateY(0) scale(1, 1) rotate(0deg); }
-}
 @keyframes mk-dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
 @media (prefers-reduced-motion: reduce) {
-  .mk-loading-logo { animation: none; }
+  .mk-loading-ring, .mk-bubble { animation: none; opacity: 0; }
   .mk-loading-text::after { animation: none; content: '…'; }
 }
 
