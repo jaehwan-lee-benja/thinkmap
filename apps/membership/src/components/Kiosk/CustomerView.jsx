@@ -35,14 +35,26 @@ export default function CustomerView({ store }) {
           onClaim={claim} onReset={resetAll} resetLabel="처음으로"
         />
       ) : (
-        <div className="mk-customer-lookup">
-          <div className="mk-signup-head">
-            <h2>멤버십 조회</h2>
-            <p>전화번호를 입력하시면 멤버십 정보와 이벤트를 확인할 수 있어요.</p>
+        // ★좌우 2분할 + 뷰포트높이 정렬(무스크롤). 좌=멘트+처음이세요, 우=전화번호 입력(유저결정 2026-07-28).
+        <div className="mk-lookup-split">
+          {/* 좌: 멘트 + 처음이세요 안내 */}
+          <div className="mk-lookup-left">
+            <div className="mk-lookup-ment">사르르목장 멤버십<br />이벤트에 참여해보세요!</div>
+            {status === 'notfound' ? (
+              <div className="mk-card mk-card-none mk-signup-mini">
+                <p>아직 멤버십 회원이 아니세요.</p>
+                <button className="mk-signup-cta" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
+                <button className="mk-reset" onClick={resetAll}>다시</button>
+              </div>
+            ) : (
+              <button className="mk-signup-link" onClick={() => setShowSignup(true)}>
+                처음이세요? <b>멤버십 가입하기 →</b>
+              </button>
+            )}
           </div>
 
-          {/* ★번호패드가 주인공(대형). 가입 진입은 작게(약 9:1, 유저결정 2026-07-26). */}
-          <div className="mk-lookup-main">
+          {/* 우: 전화번호 입력(번호패드/조회) */}
+          <div className="mk-lookup-right">
             <NumberPad
               digits={digits}
               onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
@@ -58,19 +70,6 @@ export default function CustomerView({ store }) {
                 <button className="mk-reset" onClick={resetAll}>다시</button></div>
             )}
           </div>
-
-          {/* 가입 진입점(작게) */}
-          {status === 'notfound' ? (
-            <div className="mk-card mk-card-none mk-signup-mini">
-              <p>아직 멤버십 회원이 아니세요.</p>
-              <button className="mk-signup-cta" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
-              <button className="mk-reset" onClick={resetAll}>다시</button>
-            </div>
-          ) : (
-            <button className="mk-signup-link" onClick={() => setShowSignup(true)}>
-              처음이세요? <b>멤버십 가입하기 →</b>
-            </button>
-          )}
         </div>
       )}
     </div>
