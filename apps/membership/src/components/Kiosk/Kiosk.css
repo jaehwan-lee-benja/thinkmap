@@ -410,6 +410,9 @@
 .mk-ml-table td { padding: 14px 18px; border-top: 1px solid var(--md-outline-variant); }
 .mk-ml-empty { text-align: center; color: var(--md-on-surface-variant); padding: 24px; }
 
+/* 결과 히어로 흰 소 캐릭터(상단 악센트) — 배지와 과밀 안 되게 적당히. */
+.mk-hero-cow { height: clamp(110px, 20vh, 180px); width: auto; margin-bottom: 10px; }
+
 /* ★인증 배지 — 원형 체크(정본 팔레트, 프리미엄/VIP) + "멤버십 회원" 나란히 */
 .mk-member-badge-row { display: inline-flex; align-items: center; gap: 10px; }
 .mk-verified { width: 34px; height: 34px; flex: 0 0 auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
