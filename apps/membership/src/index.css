@@ -1,7 +1,8 @@
 /* 멤버십 키오스크 위성 — 셸 최소 스타일(로그인/로딩). 본 UI는 풀스크린 키오스크(Kiosk.css, fixed inset:0). */
 :root {
   color-scheme: light dark;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  /* ★정본 웹폰트 통일(G마켓산스) — 로그인·로딩 등 셸 밖 화면까지. 정본 §6. */
+  font-family: var(--mk-font-body, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif);
   font-size: 16px;
 }
 * { box-sizing: border-box; }

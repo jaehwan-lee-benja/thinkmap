@@ -27,51 +27,66 @@ export default function CustomerView({ store }) {
     return <CustomerSignupScreen onDone={() => { setShowSignup(false); resetAll() }} />
   }
 
-  return (
-    <div className="mk-screen mk-customer-view">
-      {status === 'found' && member ? (
+  // ★조회 중(로딩) = 사르르 마스코트 귀여운 애니메이션(#5).
+  if (status === 'loading') {
+    return (
+      <div className="mk-screen mk-customer-view mk-loading-screen">
+        <img className="mk-loading-logo" src={`${import.meta.env.BASE_URL}img/mascot.png`} alt="사르르목장" />
+        <div className="mk-loading-text">조회 중…</div>
+      </div>
+    )
+  }
+
+  // ★조회 결과 = 전체화면 가득·큰 글씨(#4).
+  if (status === 'found' && member) {
+    return (
+      <div className="mk-screen mk-customer-view mk-result-view">
         <MemberCard
+          variant="hero"
           member={member} history={history} claiming={claiming} errMsg={errMsg}
           onClaim={claim} onReset={resetAll} resetLabel="처음으로"
         />
-      ) : (
-        // ★좌우 2분할 + 뷰포트높이 정렬(무스크롤). 좌=멘트+처음이세요, 우=전화번호 입력(유저결정 2026-07-28).
-        <div className="mk-lookup-split">
-          {/* 좌: 멘트 + 처음이세요 안내 */}
-          <div className="mk-lookup-left">
-            <div className="mk-lookup-ment">사르르목장 멤버십<br />이벤트에 참여해보세요!</div>
-            {status === 'notfound' ? (
-              <div className="mk-card mk-card-none mk-signup-mini">
-                <p>아직 멤버십 회원이 아니세요.</p>
-                <button className="mk-signup-cta" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
-                <button className="mk-reset" onClick={resetAll}>다시</button>
-              </div>
-            ) : (
-              <button className="mk-signup-link" onClick={() => setShowSignup(true)}>
-                처음이세요? <b>멤버십 가입하기 →</b>
-              </button>
-            )}
-          </div>
+      </div>
+    )
+  }
 
-          {/* 우: 전화번호 입력(번호패드/조회) */}
-          <div className="mk-lookup-right">
-            <NumberPad
-              digits={digits}
-              onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
-              onSubmit={() => lookup(digits)}
-              submitLabel="조회"
-              disabled={status === 'loading'}
-              size="xl"
-            />
-            {CONTRACT_PENDING && <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>}
-            {status === 'loading' && <div className="mk-placeholder">조회 중…</div>}
-            {status === 'error' && (
-              <div className="mk-card mk-card-err"><p className="mk-err">{errMsg}</p>
-                <button className="mk-reset" onClick={resetAll}>다시</button></div>
-            )}
-          </div>
+  return (
+    <div className="mk-screen mk-customer-view">
+      {/* ★좌우 2분할 + 뷰포트높이 정렬(무스크롤). 좌=멘트+안내, 우=전화번호 입력. */}
+      <div className="mk-lookup-split">
+        {/* 좌: 멘트 + 가입 안내 */}
+        <div className="mk-lookup-left">
+          <div className="mk-lookup-ment">사르르목장 멤버십<br />이벤트에 참여해보세요!</div>
+          {status === 'notfound' ? (
+            <div className="mk-card mk-card-none mk-signup-mini">
+              <p>아직 멤버십 회원이 아니세요.</p>
+              <button className="mk-signup-cta" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
+              <button className="mk-reset" onClick={resetAll}>다시</button>
+            </div>
+          ) : (
+            <div className="mk-signup-invite">
+              <p className="mk-invite-copy">아직 멤버십 회원이 아니신가요?<br />멤버십에 가입하시면 사르르를 더욱 즐기실 수 있습니다.</p>
+              <button className="mk-signup-cta" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* 우: 전화번호 입력(번호패드/조회) */}
+        <div className="mk-lookup-right">
+          <NumberPad
+            digits={digits}
+            onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
+            onSubmit={() => lookup(digits)}
+            submitLabel="조회"
+            size="xl"
+          />
+          {CONTRACT_PENDING && <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>}
+          {status === 'error' && (
+            <div className="mk-card mk-card-err"><p className="mk-err">{errMsg}</p>
+              <button className="mk-reset" onClick={resetAll}>다시</button></div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

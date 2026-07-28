@@ -3,16 +3,17 @@
 
 /* G마켓산스(본문) — ★self-host(외부 CDN 금지, 표준=self-host·CSP·오프라인·안정성).
    design 대시보드와 동일 TTF 파일 재사용(public/fonts/). base 하위이므로 상대경로 './fonts/'. */
+/* ★weight 범위로 300~700 전 구간 커버 — 본문 기본 400 도 Medium face 로 매핑(폴백 폰트 섞임 방지). */
 @font-face {
-  font-family: 'GmarketSans'; font-weight: 300; font-style: normal; font-display: swap;
+  font-family: 'GmarketSans'; font-weight: 100 349; font-style: normal; font-display: swap;
   src: url('/thinkmap/membership/fonts/GmarketSansTTFLight.ttf') format('truetype');
 }
 @font-face {
-  font-family: 'GmarketSans'; font-weight: 500; font-style: normal; font-display: swap;
+  font-family: 'GmarketSans'; font-weight: 350 599; font-style: normal; font-display: swap;
   src: url('/thinkmap/membership/fonts/GmarketSansTTFMedium.ttf') format('truetype');
 }
 @font-face {
-  font-family: 'GmarketSans'; font-weight: 700; font-style: normal; font-display: swap;
+  font-family: 'GmarketSans'; font-weight: 600 900; font-style: normal; font-display: swap;
   src: url('/thinkmap/membership/fonts/GmarketSansTTFBold.ttf') format('truetype');
 }
 

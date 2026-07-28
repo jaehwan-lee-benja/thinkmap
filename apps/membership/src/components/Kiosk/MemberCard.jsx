@@ -1,10 +1,10 @@
 // 공용 회원 카드 — 세련화(C): 브랜드 히어로(인사말)+본문(이벤트·수령내역). 고객뷰·직원뷰 공용.
 import { formatClaim, todayStr } from './kioskUtils'
 
-export default function MemberCard({ member, history = [], claiming, errMsg, onClaim, onReset, resetLabel = '새 조회' }) {
+export default function MemberCard({ member, history = [], claiming, errMsg, onClaim, onReset, resetLabel = '새 조회', variant = 'card' }) {
   if (!member) return null
   return (
-    <div className="mk-card mk-member-card">
+    <div className={`mk-card mk-member-card ${variant === 'hero' ? 'mk-member-card-hero' : ''}`}>
       {/* 히어로 — 브랜드 배너 + 인사말 */}
       <div className="mk-member-hero">
         <div className="mk-member-badge">멤버십 회원</div>
