@@ -56,7 +56,7 @@ export default function CustomerView({ store }) {
       <div className="mk-lookup-split">
         {/* 좌: 사르르 로고 + 멘트 + 가입 안내 (첫 화면=로고만, 앰블럼 미배선 — 유저결정 2026-07-28) */}
         <div className="mk-lookup-left">
-          <img className="mk-brand-logo" src={`${import.meta.env.BASE_URL}img/logo.png`} alt="사르르목장" />
+          <img className="mk-brand-logo" src={`${import.meta.env.BASE_URL}img/cow-mark-white.png`} alt="사르르목장" />
           <div className="mk-lookup-ment">사르르목장 멤버십<br />이벤트에 참여해보세요!</div>
           {status === 'notfound' ? (
             <div className="mk-card mk-card-none mk-signup-mini">
