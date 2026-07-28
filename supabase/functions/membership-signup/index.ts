@@ -1,7 +1,7 @@
-// Edge: membership-signup — 가입 프록시(직원게이트+감사+시크릿→crm membership-intake).
-// ★배포 전 초안. 읽기 없이 쓰기만(고객모드 안전, §5.5). dedup/검증은 crm intake RPC(0013).
+// Edge: membership-signup — 가입 프록시(직원게이트+감사+로컬 membership_intake RPC).
+// 읽기 없이 쓰기만(고객모드 안전, §5.5). dedup/검증은 intake RPC(0013) 서버단.
 import { corsHeaders } from '../_shared/cors.ts'
-import { gate, rateLimitAndAudit, callCrm, json } from '../_shared/membershipGate.ts'
+import { gate, rateLimitAndAudit, callRpc, json } from '../_shared/membershipGate.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -23,8 +23,9 @@ Deno.serve(async (req: Request) => {
   const limited = await rateLimitAndAudit(g, 'signup', null)
   if (limited) return limited
 
-  // email 빈 문자열이면 생략(crm intake p_email=null).
-  const payload: Record<string, unknown> = { phone, name, consent: true, source: 'kiosk' }
-  if (email) payload.email = email
-  return callCrm(g, 'membership-intake', payload)
+  // 로컬 membership_intake RPC(0013). email 빈 문자열이면 생략(p_email 기본 null).
+  // ★intake RPC 파라미터명은 crm 확정 필요 — p_phone/p_name/p_email 가정(0013 core). consent/source 는 RPC 미수용 가정(미전달).
+  const params: Record<string, unknown> = { p_phone: phone, p_name: name }
+  if (email) params.p_email = email
+  return callRpc(g, 'membership_intake', params)
 })

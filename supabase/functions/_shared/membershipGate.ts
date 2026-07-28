@@ -1,13 +1,11 @@
-// 멤버십 키오스크 프록시 Edge 공용 — 직원게이트 + 시크릿 프록시 + 레이트리밋/감사.
-// SPEC docs/MEMBERSHIP-KIOSK-SPEC.md §3.3·§5 · 계약 crm-archive/MEMBERSHIP-KIOSK-CONTRACT.md.
+// 멤버십 키오스크 프록시 Edge 공용 — 직원게이트 + 레이트리밋/감사 + ★로컬 crm RPC 직접호출(1-hop).
+// SPEC docs/MEMBERSHIP-KIOSK-SPEC.md §3.3·§5.
 //
-// ★배포 전 초안. 하드게이트(SPEC §8): is_store() RPC·membership_kiosk_audit 테이블(thinkmap 마이그)·
-//   MEMBERSHIP_KIOSK_KEY 시크릿·crm Edge 배포가 선행돼야 실동작한다.
+// ★1-hop 전환(2026-07-28): CRM이 thinkmap DB로 통합됨 → crm RPC가 로컬(thinkmap public, SECURITY DEFINER).
+//   기존 크로스프로젝트 HTTP(x-api-key MEMBERSHIP_KIOSK_KEY) → service_role client 로 로컬 RPC 직접 호출.
+//   MEMBERSHIP_KIOSK_KEY 소멸. 직원게이트·레이트리밋·감사는 그대로. 마스킹·검색필수·1일1회는 RPC 서버단.
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.78.0'
 import { corsHeaders } from './cors.ts'
-
-// crm Edge 베이스(x-api-key 게이트). 계약문서 §1.
-export const CRM_FN_BASE = 'https://rstazttwlghsorpzsugy.supabase.co/functions/v1'
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -30,23 +28,17 @@ const PG_UNDEFINED_TABLE = '42P01'
 type GateOk = {
   ok: true
   operator: string          // app_user id(감사·레이트리밋 키)
-  service: SupabaseClient    // service_role(감사/레이트리밋 기록)
-  crmKey: string
+  service: SupabaseClient    // service_role(로컬 RPC·감사/레이트리밋)
 }
 type GateErr = { ok: false; res: Response }
 
-// 직원 게이트: JWT 검증 + (is_master() OR is_store()). 통과 시 operator·service·시크릿 반환.
+// 직원 게이트: JWT 검증 + (is_master() OR is_store()). 통과 시 operator·service 반환.
 export async function gate(req: Request): Promise<GateOk | GateErr> {
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
   const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
-  const crmKey = Deno.env.get('MEMBERSHIP_KIOSK_KEY')
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
     return { ok: false, res: json({ error: 'server_misconfigured' }, 500) }
-  }
-  if (!crmKey) {
-    // 유저가 프록시 Edge 시크릿 미세팅 — 값=crm 발급 MEMBERSHIP_KIOSK_KEY(engine-metrics 규율).
-    return { ok: false, res: json({ error: 'kiosk_key_not_set' }, 503) }
   }
 
   const authHeader = req.headers.get('Authorization') ?? ''
@@ -72,7 +64,6 @@ export async function gate(req: Request): Promise<GateOk | GateErr> {
     ok: true,
     operator: userData.user.id,
     service: createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } }),
-    crmKey,
   }
 }
 
@@ -110,17 +101,15 @@ export async function rateLimitAndAudit(
   return null
 }
 
-// crm Edge 서버사이드 호출(시크릿 헤더). 시크릿/응답을 로그하지 않는다.
-export async function callCrm(g: GateOk, fn: string, body: unknown): Promise<Response> {
-  try {
-    const res = await fetch(`${CRM_FN_BASE}/${fn}`, {
-      method: 'POST',
-      headers: { 'x-api-key': g.crmKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body ?? {}),
-    })
-    if (!res.ok) return json({ error: 'crm_fetch_failed', upstream_status: res.status }, 502)
-    return json(await res.json())
-  } catch (_e) {
-    return json({ error: 'crm_unreachable' }, 502)
+// ★로컬 crm RPC 직접 호출(service_role, SECURITY DEFINER). 1-hop. 마스킹·검색필수·1일1회는 RPC 서버단.
+//   wrap: RPC 원출력을 프론트 계약 형태로 감싼다(예: 배열 → {events:[...]}). 없으면 원출력 그대로.
+export async function callRpc(
+  g: GateOk, name: string, params: Record<string, unknown>, wrap?: (d: unknown) => unknown,
+): Promise<Response> {
+  const { data, error } = await g.service.rpc(name, params)
+  if (error) {
+    console.error('[membership] rpc failed', { name, code: (error as { code?: string }).code })
+    return json({ error: 'rpc_failed' }, 502)
   }
+  return json(wrap ? wrap(data) : data)
 }
