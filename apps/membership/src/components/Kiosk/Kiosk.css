@@ -189,6 +189,13 @@
 }
 .mk-optional { font-style: normal; font-weight: 400; font-size: 14px; color: var(--md-on-surface-variant); }
 
+/* 가입 화면 뒤로가기(큰 터치영역, 어르신 친화) */
+.mk-back-btn {
+  align-self: flex-start; min-height: 52px; padding: 10px 22px; font-size: 18px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--md-outline); border-radius: var(--md-radius-xl);
+  background: var(--md-surface-container-high); color: var(--md-on-surface-variant); margin-bottom: 4px;
+}
+
 /* ★D: 정돈된 3칸 폼(줄맞춤) */
 .mk-form { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 460px; }
 .mk-form-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 12px; }

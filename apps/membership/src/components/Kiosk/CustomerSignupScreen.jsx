@@ -60,9 +60,11 @@ export default function CustomerSignupScreen({ onDone }) {
 
   return (
     <div className="mk-screen mk-customer">
+      {/* 뒤로가기(조회/첫 화면으로) — 어르신 친화 큰 터치영역 */}
+      <button type="button" className="mk-back-btn" onClick={onDone}>← 뒤로</button>
       <div className="mk-signup-head">
         <h2>멤버십 가입</h2>
-        <p>이름·이메일·전화번호를 입력해 주세요.</p>
+        <p>이름·전화번호·이메일을 입력해 주세요.</p>
       </div>
 
       {/* 정돈된 3칸 폼(줄맞춤) */}
@@ -72,6 +74,14 @@ export default function CustomerSignupScreen({ onDone }) {
           <input className="mk-form-input" type="text" value={name}
             onChange={(e) => setName(e.target.value)} placeholder="이름"
             disabled={submitting} name="mk-noauto-name" {...noauto} />
+        </label>
+
+        <label className="mk-form-row">
+          <span className="mk-form-label">전화번호</span>
+          {/* 탭하면 번호패드 팝업(항상 표시 아님) */}
+          <button type="button" className="mk-form-input mk-phone-btn" onClick={() => setPadOpen(true)} disabled={submitting}>
+            {digits ? formatPhone(digits) : <span className="mk-phone-ph">탭하여 번호 입력</span>}
+          </button>
         </label>
 
         <div className="mk-form-row">
@@ -95,14 +105,6 @@ export default function CustomerSignupScreen({ onDone }) {
             )}
           </div>
         </div>
-
-        <label className="mk-form-row">
-          <span className="mk-form-label">전화번호</span>
-          {/* 탭하면 번호패드 팝업(항상 표시 아님) */}
-          <button type="button" className="mk-form-input mk-phone-btn" onClick={() => setPadOpen(true)} disabled={submitting}>
-            {digits ? formatPhone(digits) : <span className="mk-phone-ph">탭하여 번호 입력</span>}
-          </button>
-        </label>
 
         {/* 이메일 없는 손님 안내(B) — 셀프가입은 이메일 필수, 없으면 직원 경로 */}
         <div className="mk-staff-refer">이메일이 없으시면 직원에게 문의 바랍니다.</div>
