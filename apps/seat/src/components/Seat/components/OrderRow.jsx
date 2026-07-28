@@ -4,13 +4,6 @@
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import { isRaiseEnabled, isDineIn, removesFromSeatQueue } from '../utils/seatRules'
 
-// 주문 시작 갈래 선택지(order_origin).
-const ORIGINS = [
-  { value: 'dine_in', label: '실내' },
-  { value: 'takeout', label: '포장' },
-  { value: 'outdoor', label: '야외' },
-]
-
 export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false, gateMode }) {
   const patch = (p) => onPatch?.(order.id, p)
   const dineIn = isDineIn(order)                 // 실내 시작만 자리후 전달 관문 대상
@@ -51,18 +44,8 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
         />
       </div>
 
-      {/* 시작 갈래(order_origin): 실내=자리후 전달 관문 / 포장·야외=자리후 우회. 생성 시 선택. */}
-      <div className="seat-cell seat-cell-origin">
-        <select
-          className="seat-select"
-          value={order.order_origin || 'dine_in'}
-          onChange={(e) => patch({ order_origin: e.target.value })}
-        >
-          {ORIGINS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </div>
+      {/* 시작 갈래(order_origin)는 표에 열로 노출하지 않음(내부 게이팅 로직·DB에만 유지, 유저 지시).
+          세팅은 '+새 주문' 툴바의 컴팩트 픽커에서 생성 시 결정. */}
 
       <div className="seat-cell seat-cell-status">
         <select

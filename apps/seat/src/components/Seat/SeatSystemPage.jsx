@@ -38,7 +38,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
   const stations = demoStations || liveStations.stations
   const onPatch = isDemo ? () => {} : live.patchOrder
   const onCommit = isDemo ? () => {} : live.commitOrder
-  const onCreate = isDemo ? () => {} : () => live.createOrder({})
+  const onCreate = isDemo ? () => {} : (draft) => live.createOrder(draft || {})
   const onPatchStation = isDemo ? () => {} : liveStations.patchStation
 
   return (

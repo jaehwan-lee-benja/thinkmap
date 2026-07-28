@@ -1,18 +1,26 @@
 // 자리안내 화면 — 입력 핵심. (SEAT-SPEC §9.1 / 슬라이드 자리안내)
 // 명시 전달 버튼(자리후 전달·올리기 전달·전체에게 전달) + 확인필요 플래그.
 // 하단에 카이막·커피 현황 거울(올라감/제조완료함, 읽기). 카메라 없음.
+import { useState } from 'react'
 import OrderRow from '../components/OrderRow'
 import { STATIONS } from '../config/seatRoles'
 import { isRaisedOrder } from '../utils/seatRules'
 
+// 주문 시작 갈래(order_origin) — 표에 열로 노출하지 않고, 생성 시에만 선택.
+const ORIGINS = [
+  { value: 'dine_in', label: '실내' },
+  { value: 'takeout', label: '포장' },
+  { value: 'outdoor', label: '야외' },
+]
+
 export default function GuideScreen({ orders = [], stations = [], onPatch, onCommit, onCreate }) {
+  const [newOrigin, setNewOrigin] = useState('dine_in') // 새 주문 시작 갈래(내부 게이팅용)
   return (
     <div className="seat-screen seat-screen-guide">
       <div className="seat-table" role="table">
         <div className="seat-row seat-row-head" role="row">
-          <div className="seat-cell seat-cell-no">대기</div>
+          <div className="seat-cell seat-cell-no">테이블링</div>
           <div className="seat-cell seat-cell-order">주문번호</div>
-          <div className="seat-cell seat-cell-origin">시작</div>
           <div className="seat-cell seat-cell-status">상태</div>
           <div className="seat-cell seat-cell-deliver">자리후</div>
           <div className="seat-cell seat-cell-opts">제조옵션</div>
@@ -31,9 +39,19 @@ export default function GuideScreen({ orders = [], stations = [], onPatch, onCom
         )}
       </div>
 
-      {/* 새 주문 추가 = 표 아래, 왼쪽 정렬(유저 지시). */}
+      {/* 새 주문 추가 = 표 아래, 왼쪽 정렬. 시작 갈래는 여기서만 선택(상시 열 노출 없음). */}
       <div className="seat-toolbar seat-toolbar-below">
-        <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.()}>+ 새 주문</button>
+        <select
+          className="seat-select seat-origin-picker"
+          value={newOrigin}
+          onChange={(e) => setNewOrigin(e.target.value)}
+          aria-label="새 주문 시작 갈래"
+        >
+          {ORIGINS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.({ order_origin: newOrigin })}>+ 새 주문</button>
       </div>
 
       {/* 하단 거울: 카이막·커피 현황(올라감/제조완료함, 읽기). StationScreen 과 동일 분류(R6). */}
