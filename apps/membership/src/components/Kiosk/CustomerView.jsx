@@ -31,15 +31,9 @@ export default function CustomerView({ store }) {
   if (status === 'loading') {
     return (
       <div className="mk-screen mk-customer-view mk-loading-screen">
-        <div className="mk-loading-stage">
-          <span className="mk-loading-ring" aria-hidden="true"></span>
-          <span className="mk-loading-ring mk-loading-ring2" aria-hidden="true"></span>
-          <img className="mk-loading-logo" src={`${import.meta.env.BASE_URL}img/mascot.png`} alt="사르르목장" />
-          <span className="mk-bubble mk-bubble-1" aria-hidden="true"></span>
-          <span className="mk-bubble mk-bubble-2" aria-hidden="true"></span>
-          <span className="mk-bubble mk-bubble-3" aria-hidden="true"></span>
-          <span className="mk-bubble mk-bubble-4" aria-hidden="true"></span>
-        </div>
+        {/* 로고 정지 + 차분한 점(dots) 로더 — 선/링 제거, 간결하게(유저정정 2026-07-28) */}
+        <img className="mk-loading-logo" src={`${import.meta.env.BASE_URL}img/mascot.png`} alt="사르르목장" />
+        <div className="mk-loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
         <div className="mk-loading-text">조회 중</div>
       </div>
     )

@@ -152,44 +152,22 @@
   flex-direction: column; align-items: center; justify-content: center; gap: 22px;
   height: 100%; width: 100%; padding: 0; text-align: center;
 }
-/* ★로고는 정지, 주변 요소가 움직인다(유저정정). 스테이지=상대좌표 컨테이너. */
-.mk-loading-stage { position: relative; display: flex; align-items: center; justify-content: center; }
-.mk-loading-logo { position: relative; z-index: 2; width: min(300px, 44vw); height: auto; }
-/* 은은한 펄스 링(로고 뒤) */
-.mk-loading-ring {
-  position: absolute; z-index: 1; left: 50%; top: 50%; width: 300px; height: 300px;
-  margin: -150px 0 0 -150px; border-radius: 50%;
-  border: 3px solid var(--md-primary); opacity: 0;
-  animation: mk-pulse 2s var(--md-ease) infinite;
+/* ★로고 정지 + 차분한 점(dots) 로더 — 선/링 없음, 간결·차분(유저정정). */
+.mk-loading-logo { width: min(300px, 44vw); height: auto; }
+.mk-loading-dots { display: flex; gap: 14px; }
+.mk-loading-dots span {
+  width: 16px; height: 16px; border-radius: 50%; background: var(--md-primary);
+  animation: mk-dot 1.4s ease-in-out infinite;
 }
-.mk-loading-ring2 { animation-delay: 1s; border-color: var(--md-alive); }
-@keyframes mk-pulse {
-  0%   { transform: scale(0.7); opacity: .55; }
-  70%  { opacity: .12; }
-  100% { transform: scale(1.25); opacity: 0; }
-}
-/* 떠다니는 방울(우유/브랜드색) — 로고 주변에서 위로 살랑 */
-.mk-bubble {
-  position: absolute; z-index: 1; width: 16px; height: 16px; border-radius: 50%;
-  opacity: 0; bottom: 30%;
-  animation: mk-drift 2.6s ease-in-out infinite;
-}
-.mk-bubble-1 { left: 16%;  background: var(--md-primary);  animation-delay: 0s;   }
-.mk-bubble-2 { left: 34%;  background: var(--md-alive);    animation-delay: .7s;  width: 12px; height: 12px; }
-.mk-bubble-3 { right: 30%; background: #FFD166;            animation-delay: 1.2s; width: 20px; height: 20px; }
-.mk-bubble-4 { right: 14%; background: var(--md-primary);  animation-delay: 1.8s; width: 12px; height: 12px; }
-@keyframes mk-drift {
-  0%   { transform: translateY(0) scale(0.6); opacity: 0; }
-  20%  { opacity: .85; }
-  60%  { opacity: .85; }
-  100% { transform: translateY(-120px) scale(1); opacity: 0; }
+.mk-loading-dots span:nth-child(2) { animation-delay: .2s; background: var(--md-alive); }
+.mk-loading-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes mk-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: .35; }
+  40%           { transform: translateY(-14px); opacity: 1; }
 }
 .mk-loading-text { font-size: 22px; font-weight: 700; color: var(--md-primary); font-family: var(--mk-font-title); }
-.mk-loading-text::after { content: '…'; animation: mk-dots 1.4s steps(4) infinite; }
-@keyframes mk-dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
 @media (prefers-reduced-motion: reduce) {
-  .mk-loading-ring, .mk-bubble { animation: none; opacity: 0; }
-  .mk-loading-text::after { animation: none; content: '…'; }
+  .mk-loading-dots span { animation: none; opacity: .7; }
 }
 
 /* ★#4·#3 조회 결과 = 전체화면 가득·큰 글씨 + 가로화면답게 넓은 2단(인사말 | 이벤트/내역) */
