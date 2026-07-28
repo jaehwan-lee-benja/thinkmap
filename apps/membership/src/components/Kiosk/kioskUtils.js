@@ -14,11 +14,11 @@ export function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// claimed_at(ISO) → "N월 N일 N시에 팝콘 이벤트 참여"
-export function formatClaim(claimedAt) {
+// claimed_at(ISO) → "N월 N일 N시에" (이벤트명은 JSX에서 태그로 강조). 로컬(KST) 시각.
+export function formatClaimPrefix(claimedAt) {
   const d = new Date(claimedAt)
   if (isNaN(d)) return String(claimedAt)
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours()}시에 팝콘 이벤트 참여`
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours()}시에`
 }
 
 // URL 파라미터 → 역할('customer' 기본 | 'staff')과 매장 룸 id.
