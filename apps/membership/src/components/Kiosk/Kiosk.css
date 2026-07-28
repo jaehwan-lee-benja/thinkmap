@@ -410,15 +410,15 @@
 .mk-ml-table td { padding: 14px 18px; border-top: 1px solid var(--md-outline-variant); }
 .mk-ml-empty { text-align: center; color: var(--md-on-surface-variant); padding: 24px; }
 
-/* 결과 히어로 흰 소 캐릭터(상단 악센트) — 배지와 과밀 안 되게 적당히. */
-.mk-hero-cow { height: clamp(110px, 20vh, 180px); width: auto; margin-bottom: 10px; }
+/* 환영 포즈 소(전신) — 인사말 아래 빈 공간에 은은히(선호 레이아웃 유지, 과밀 금지). */
+.mk-hero-pose { width: clamp(120px, 13vw, 180px); height: auto; margin-top: clamp(16px, 3.5vh, 32px); }
 
-/* ★인증 배지 — 원형 체크(정본 팔레트, 프리미엄/VIP) + "멤버십 회원" 나란히 */
-.mk-member-badge-row { display: inline-flex; align-items: center; gap: 10px; }
-.mk-verified { width: 34px; height: 34px; flex: 0 0 auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+/* ★인증 배지 — 원형 체크(정본 팔레트) + "멤버십 회원". 절제되게 작게(깔끔함 유지). */
+.mk-member-badge-row { display: inline-flex; align-items: center; gap: 8px; }
+.mk-verified { width: 26px; height: 26px; flex: 0 0 auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
 .mk-verified circle { fill: var(--md-primary); }
 .mk-verified path { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-.mk-member-card-hero .mk-verified { width: 40px; height: 40px; }
+.mk-member-card-hero .mk-verified { width: 28px; height: 28px; }
 
 .mk-badge {
   font-size: 20px; font-weight: 700; color: var(--md-on-alive);
