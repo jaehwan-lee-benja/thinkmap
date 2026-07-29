@@ -110,7 +110,7 @@ components:
     rounded: "{rounded.lg}"
     padding: 24px
   caption-meta:
-    textColor: "{colors.slate}"
+    textColor: "{colors.ink}"
     typography: "{typography.caption}"
   input:
     backgroundColor: "{colors.surface}"
@@ -145,7 +145,7 @@ components:
 - **Neutral — Cream (#FCFAF4):** 페이지 바탕. 순백보다 부드럽고 목장답게 따뜻.
 - **Surface (#FFFFFF):** 카드·입력 표면.
 - **Ink (#40465A):** 본문 보조 텍스트(순네이비가 과할 때).
-- **Slate (#8C96A8):** 캡션·메타·비활성.
+- **Slate (#8C96A8):** 비활성·대형 라벨·비필수 메타 **전용**(흰 배경 대비 3.0:1 — 작은 본문/캡션엔 부적합, 캡션은 Ink 사용).
 - **Line (#CED6E4):** 보더·구분선.
 - **On-Primary (#FFFFFF):** 네이비/그린 위 텍스트.
 
@@ -192,7 +192,8 @@ components:
 - 왼끝 정렬 그리드·여백 존중. 워드마크는 브랜드 노출물에만(opt-in).
 
 **Don't**
-- 그린을 흰 배경 본문 텍스트로 쓰지 않기(대비 부족).
+- 그린을 흰 배경 본문 텍스트로 쓰지 않기(green on white 2.7:1 미달).
+- ★**그린 배경 위 흰 텍스트 금지**(white on green 2.7:1 미달) → 그린 면엔 **네이비/검정 텍스트**(black on green 6.9:1 ✓). Slate는 작은 본문/캡션 금지(3.0:1).
 - 보라→파랑 그라디언트, 드롭섀도우·글로우 남발(‘AI slop’·촌스러움).
 - 멤버십=뱃지+리본+별+동심원 클리셰, 중앙정렬+rounded 남발.
 - 구(舊) 네이비 #38528a / 구 그린 #45bc51 사용 금지(정본과 이탈).
