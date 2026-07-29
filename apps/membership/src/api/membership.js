@@ -49,6 +49,18 @@ export function getEventHistory(memberId, eventType = 'popcorn') {
   return callProxy('membership-history', { member_id: memberId, event_type: eventType })
 }
 
+// ⑥ 스탬프 상태 새로고침(수령/적립 후). 프록시 → crm membership_stamp_status.
+// 반환: { stamp:{claims_total,current_stamps,threshold,rewards_earned,rewards_redeemed,rewards_available,next_reward} }
+export function getStampStatus(memberId) {
+  return callProxy('membership-stamp', { member_id: memberId })
+}
+
+// ⑦ ★리워드 수령(아이스크림) — 직원 확정 write. 프록시 → crm membership_reward_redeem.
+// 반환: { ok, milestone?, rewards_available? } | { ok:false, reason:'no_reward'|'retry' }
+export function redeemReward(memberId, rewardType = 'icecream') {
+  return callProxy('membership-reward', { member_id: memberId, reward_type: rewardType })
+}
+
 // ⑤ ★회원 검색(직원용) — 유저결정: 스토어 계정 열람 허용 + ★서버측 마스킹·검색필수(전체 다운로드 없음).
 //    검색어(이름/전화 부분일치)를 crm 이 원본으로 검색 → **마스킹된 매치만** 반환(성만·전화 끝4자리·상태).
 //    프론트는 원본 미취급(169). 빈/짧은 검색어는 호출 안 함(검색해야 결과). 반환: { members: [{ member_id, name, phone, status }] }

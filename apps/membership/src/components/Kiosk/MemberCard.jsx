@@ -4,23 +4,19 @@ import { formatClaimPrefix, todayStr } from './kioskUtils'
 const EVENT_LABEL = '팝콘 이벤트'   // 이벤트명(태그 강조). 이벤트가 늘면 엔티티로 확장.
 const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크림(시안, 데이터모델=crm 조율).
 
-export default function MemberCard({ member, history = [], claiming, errMsg, onClaim, onReset, resetLabel = '새 조회', variant = 'card' }) {
+export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card' }) {
   if (!member) return null
 
-  // ★#1 날짜버그 수정: "오늘 참여 완료"는 오늘(로컬=KST) 날짜의 참여 기록이 있을 때만.
-  //   서버 today_event_claimed(UTC 경계 오판 의심) 대신 참여내역의 event_date(=참여 당시 KST 날짜)로 판정.
-  //   내역이 없을 때만 서버 플래그로 폴백(미리보기 등).
+  // ★오늘 참여 여부 = 서버 today_event_claimed(0017에서 KST 교정됨). 프론트 KST 우회 제거.
   const today = todayStr()
-  const claimedToday = history.length
-    ? history.some((h) => String(h.event_date || '').slice(0, 10) === today)
-    : !!member.today_event_claimed
+  const claimedToday = !!member.today_event_claimed
 
-  // ★#4 스탬프(시안): 참여 누적으로 아이스크림까지 진행. 현재 사이클 진행도.
-  const count = history.length
-  const inCycle = count % STAMP_GOAL
-  const cycleFilled = count > 0 && inCycle === 0 ? STAMP_GOAL : inCycle // 딱 달성 순간은 가득 표시
-  const remain = STAMP_GOAL - cycleFilled
-  const reached = count > 0 && inCycle === 0
+  // ★스탬프 = crm 실값(0017). current_stamps(0~9)/threshold, rewards_available.
+  const stamp = member.stamp || null
+  const goal = stamp?.threshold ?? STAMP_GOAL
+  const filled = Math.max(0, Math.min(goal, stamp?.current_stamps ?? 0))
+  const remain = goal - filled
+  const rewardsAvail = stamp?.rewards_available ?? 0
 
   return (
     <div className={`mk-card mk-member-card ${variant === 'hero' ? 'mk-member-card-hero' : ''}`}>
@@ -55,22 +51,34 @@ export default function MemberCard({ member, history = [], claiming, errMsg, onC
             </>
           )}
           {member._justClaimed && <div className="mk-claimed">참여 완료 🎉</div>}
+          {member._justRedeemed && <div className="mk-claimed">아이스크림 수령 완료 🍦🎉</div>}
 
-          {/* ★#4 스탬프 진행(시안) — 아이스크림까지 */}
-          <div className="mk-stamp" aria-label={`아이스크림까지 ${remain}회`}>
-            <div className="mk-stamp-head">
-              <span className="mk-stamp-title">🍦 아이스크림까지</span>
-              <span className="mk-stamp-count">{cycleFilled}/{STAMP_GOAL}</span>
+          {/* ★스탬프 진행(실값) — 아이스크림까지. crm stamp 있을 때만. */}
+          {stamp && (
+            <div className="mk-stamp" aria-label={`아이스크림까지 ${remain}회`}>
+              <div className="mk-stamp-head">
+                <span className="mk-stamp-title">🍦 아이스크림까지</span>
+                <span className="mk-stamp-count">{filled}/{goal}</span>
+              </div>
+              <div className="mk-stamp-dots" aria-hidden="true">
+                {Array.from({ length: goal }).map((_, i) => (
+                  <span key={i} className={`mk-stamp-dot ${i < filled ? 'is-on' : ''}`} />
+                ))}
+              </div>
+              {rewardsAvail > 0 ? (
+                <div className="mk-reward-ready">
+                  <span className="mk-reward-msg">🍦 아이스크림 {rewardsAvail}개 수령 가능!</span>
+                  {onRedeem && (
+                    <button className="mk-reward-btn" onClick={onRedeem} disabled={redeeming}>
+                      {redeeming ? '수령 중…' : '수령'}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="mk-stamp-msg">{remain}번 더 모으면 아이스크림 🍦</div>
+              )}
             </div>
-            <div className="mk-stamp-dots" aria-hidden="true">
-              {Array.from({ length: STAMP_GOAL }).map((_, i) => (
-                <span key={i} className={`mk-stamp-dot ${i < cycleFilled ? 'is-on' : ''}`} />
-              ))}
-            </div>
-            <div className="mk-stamp-msg">
-              {reached ? '🎉 아이스크림을 받으실 수 있어요!' : `${remain}번 더 모으면 아이스크림 🍦`}
-            </div>
-          </div>
+          )}
 
           {history.length > 0 && (
             <div className="mk-history-wrap">

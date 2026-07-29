@@ -13,7 +13,7 @@ import { CONTRACT_PENDING } from '../../api/membership'
 export default function CustomerView({ store }) {
   const [digits, setDigits] = useState('')
   const [showSignup, setShowSignup] = useState(false)
-  const { status, member, history, claiming, errMsg, lookup, claim, clear, setMemberDirect } = useMemberLookup()
+  const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear, setMemberDirect } = useMemberLookup()
 
   // 원격 푸시(직원 → 고객). 로컬과 같은 currentMember 로 세팅.
   useMembershipChannel(store, {
@@ -48,8 +48,8 @@ export default function CustomerView({ store }) {
       <div className="mk-screen mk-customer-view mk-result-view">
         <MemberCard
           variant="hero"
-          member={member} history={history} claiming={claiming} errMsg={errMsg}
-          onClaim={claim} onReset={resetAll} resetLabel="처음으로"
+          member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
+          onClaim={claim} onRedeem={redeem} onReset={resetAll} resetLabel="처음으로"
         />
       </div>
     )

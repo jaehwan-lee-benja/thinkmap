@@ -437,3 +437,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.membership-list]
 verify_jwt = false
+[functions.membership-stamp]
+verify_jwt = false
+[functions.membership-reward]
+verify_jwt = false

@@ -11,7 +11,7 @@ import { CONTRACT_PENDING } from '../../api/membership'
 export default function StaffView({ store }) {
   const [digits, setDigits] = useState('')
   const [showList, setShowList] = useState(false)
-  const { status, member, history, claiming, errMsg, lookup, claim, clear } = useMemberLookup()
+  const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear } = useMemberLookup()
   const { pushMember, pushClear, realtimeOn } = useMembershipChannel(store)
 
   // 조회된 회원/적립 상태가 바뀌면 고객 태블릿에 푸시(연동).
@@ -51,8 +51,8 @@ export default function StaffView({ store }) {
 
         {status === 'found' && member && (
           <MemberCard
-            member={member} history={history} claiming={claiming} errMsg={errMsg}
-            onClaim={claim} onReset={resetAll} resetLabel="새 조회"
+            member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
+            onClaim={claim} onRedeem={redeem} onReset={resetAll} resetLabel="새 조회"
           />
         )}
         {status === 'notfound' && (

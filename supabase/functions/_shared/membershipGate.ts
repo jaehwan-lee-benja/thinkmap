@@ -21,6 +21,8 @@ const RATE_MAX: Record<string, number> = {
   event_claim: 60,  // 적립 — 서버 1일1회 partial-unique 로 자연 제한, 느슨.
   history: 60,      // 수령내역 읽기 — 조회된 회원 한정, 느슨.
   list: 6,          // ★회원 리스트(전량 PII) — 매우 엄격(반복 덤프 방어).
+  stamp: 60,        // 스탬프 상태 읽기 — 조회된 회원 한정, 느슨.
+  reward: 12,       // ★리워드 수령 write — abuse 방어(서버 멱등·중복방지 있으나 프록시도 제한).
 }
 // 테이블 부재(마이그 전 부트스트랩) 코드 — 이때만 감사/레이트리밋을 조용히 skip 한다.
 const PG_UNDEFINED_TABLE = '42P01'

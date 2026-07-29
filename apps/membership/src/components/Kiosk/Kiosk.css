@@ -303,6 +303,14 @@
 .mk-stamp-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--md-surface-container-highest); border: 1px solid var(--md-outline-variant); }
 .mk-stamp-dot.is-on { background: var(--md-alive); border-color: var(--md-alive); }
 .mk-stamp-msg { font-size: 14px; color: var(--md-on-surface-variant); }
+/* 리워드 수령 가능 — 강조 + [수령] 버튼 */
+.mk-reward-ready { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.mk-reward-msg { font-size: 15px; font-weight: 800; color: var(--md-alive); }
+.mk-reward-btn {
+  min-height: 40px; padding: 8px 20px; font-size: 16px; font-weight: 700; cursor: pointer;
+  border: none; border-radius: var(--md-radius-xl); background: var(--md-alive); color: var(--md-on-alive);
+}
+.mk-reward-btn:disabled { opacity: .5; }
 .mk-history-wrap { width: 100%; }
 .mk-history-title { font-size: 14px; font-weight: 700; color: var(--md-on-surface-variant); margin-bottom: 8px; text-align: left; }
 
