@@ -133,7 +133,8 @@ seat_orders (
   raised          boolean NOT NULL DEFAULT false,      -- 올리기 전달
   raised_at       timestamptz,                         -- 올림 시각(후속 소요시간 분석)
   menu_out        boolean NOT NULL DEFAULT false,      -- R5: 제조매니저만
-  confirm_flag    boolean NOT NULL DEFAULT false,      -- 확인필요(상태선택과 별개의 행 플래그)
+  confirm_flag    boolean NOT NULL DEFAULT false,      -- 확인필요(주문서관리→자리안내 신호. 상태선택과 별개의 행 플래그)
+  confirm_done    boolean NOT NULL DEFAULT false,      -- 확인완료(자리안내가 처리 응답). migrate-seat-confirm-done.sql
   notes           text,                                -- 특이사항
   created_by_role text,                                -- 입력 주체 역할 key(스냅샷)
   created_by      uuid DEFAULT auth.uid(),             -- 작성자(감사용 보조; 공용계정 운영)
@@ -242,8 +243,10 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
   새 주문은 DB 기본값 `dine_in`(실내)으로 생성 → 항상 자리후 전달 관문(R8)을 거친다.
   포장·야외로 빠지는 건 전달 후 **제조옵션**(야외/포장/야외병행)에서 기록한다(R9).
 - **큰 마디 색 구분**: 자리후(착석) 단계 = 테이블링·주문번호·상태·자리후 = 한 색 그룹(자리후 우측 경계선), 이후 제조 단계와 시각 구별.
-  / 자리앉음 → **[올리기 전달]**(명시 버튼, R2) / 특이사항
-  / **확인필요**(상태선택과 별개의 행 플래그 = `confirm_flag`).
+  / 자리앉음·**올리기 전달** = 체크박스(2026-07-31 체크박스화, R2) / 특이사항
+  / **확인**: 확인필요(`confirm_flag`)·확인완료(`confirm_done`) 체크박스 2상태(§14 결정로그).
+  ※ 오늘(2026-07-31) UI 대개편으로 이 §9 서술 일부(명칭 주문서관리·그룹 카드 그리드·현황 앱바 모달·
+  menu_out 버튼 제거·열 숨김)는 코드가 앞선다. UI가 유저 피드백으로 안정된 뒤 §9 전면 갱신 예정.
 - **전달 흐름 = 명시 트리거(A안)**: 자리후 전달=체크박스 토글 / [올리기 전달]=버튼.
   ★명시 전달은 **상태를 실제로 바꾸는 관문에만** 둔다(`seat_delivered`·`raised`).
   일반 필드 수정(상태·제조옵션·특이사항 등)은 예나 지금이나 즉시 Realtime 전파된다.
@@ -373,6 +376,11 @@ src/components/Seat/
   "필드 편집도 눌러야 공유"가 정말 필요해지면 그건 초안 버퍼가 필요한 별도 작업.
   모든 변경 자동 전파가 아니라, 버튼을 눌러 공유하는 명시 트리거(주방 실수 방지). 향후 개선 가능.
 - '확인필요'는 상태선택(확인필요/주문중/차후주문)과 **별개의 행 플래그**(`confirm_flag`).
+  ※ **2026-07-31 확장**: 확인 신호는 2상태로 분리 — `confirm_flag`(확인필요, 주문서관리가 켜는 신호)
+  + `confirm_done`(확인완료, 자리안내가 처리했다는 응답). 하이라이트 = `confirm_flag AND NOT confirm_done`,
+  **양 화면(주문서관리·자리안내) 동일 표시**. 확인필요/확인완료 모두 체크박스(윗줄/아랫줄).
+  확인완료를 켜면 하이라이트만 꺼지고 확인필요 체크는 남는다(처리 기록). 확인필요를 껐다 켜면
+  `confirm_done`을 false로 되돌려 재신호(앱 컴포지트 patch). migrate-seat-confirm-done.sql.
 - 분석용 `raised_at`(올림 시각) 컬럼 추가.
 - ★ **권한 = 워크스페이스 grant 모델로 이관**(Phase A 토대 라이브). `board_id`+`is_board_member` 폐기 →
   `workspace_id` + `can_in_workspace(workspace_id, 'editor')`. 4역할은 RLS가 아닌 앱 가드. 공용 파트너

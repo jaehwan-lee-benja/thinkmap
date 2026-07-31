@@ -4,7 +4,7 @@
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import { isRaiseEnabled, isDineIn, removesFromSeatQueue } from '../utils/seatRules'
 
-export default function OrderRow({ order, onPatch, onCommit, gateMode }) {
+export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps }) {
   const patch = (p) => onPatch?.(order.id, p)
   const dineIn = isDineIn(order)                 // 실내 시작만 자리후 전달 관문 대상
   const removesQueue = removesFromSeatQueue(order) // 야외/포장 = 자리큐 제외(야외병행은 유지)
@@ -23,11 +23,24 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode }) {
   const optValue = order.opt_outdoor ? 'outdoor'
     : order.opt_takeout ? 'takeout'
     : order.opt_outdoor_parallel ? 'parallel' : 'none'
-  const setOpt = (v) => patch({
-    opt_outdoor: v === 'outdoor',
-    opt_takeout: v === 'takeout',
-    opt_outdoor_parallel: v === 'parallel',
-  })
+  // 제조옵션 선택 시 자동 전환(유저 지시 2026-07-31):
+  //   야외·포장  → 자리앉음 취소(seated=false, 자리큐 제외) + 올리기 전달 체크(raised=true).
+  //   야외병행   → 자리앉음은 빈 체크 유지(seated=false, 자리큐는 유지) + 올리기 전달 체크(raised=true).
+  //   (셋 다 seated=false·raised=true. 차이는 자리앉음 조작 가능 여부 — 야외/포장은 잠김(✕), 야외병행은 활성.)
+  const setOpt = (v) => {
+    const isOpt = v !== 'none'
+    patch({
+      opt_outdoor: v === 'outdoor',
+      opt_takeout: v === 'takeout',
+      opt_outdoor_parallel: v === 'parallel',
+      ...(isOpt ? {
+        seated: false,
+        raised: true,
+        raised_at: order.raised ? order.raised_at : new Date().toISOString(),
+        seat_status: 'raised',
+      } : {}),
+    })
+  }
 
   // 확인 신호(주문서관리 → 자리안내): 확인필요 켜짐 + 아직 확인완료 안 됨 = 하이라이트(자리안내 화면에서만).
   // 확인완료를 누르면 하이라이트만 꺼지고 확인필요 체크는 남는다(기록). 다시 확인필요를 껐다 켜면 재신호.
@@ -35,8 +48,25 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode }) {
   const rowCls = `seat-row${managerGated ? ' seat-row--gated' : ''}${guideLocked ? ' seat-row--guide-locked' : ''}${needsAttention ? ' seat-row--flagged' : ''}`
 
   return (
-    <div className={rowCls} role="row">
-      <div className="seat-cell seat-cell-no">{order.queue_no ?? '-'}</div>
+    <div className={rowCls} role="row" {...rowDropProps}>
+      {/* 테이블링(queue_no) = B방식: 생성 시 자동 순번이 붙되(자리안내가 부여) 여기서 나중에 수정 가능.
+          주문번호만 먼저 넣고 자리 배정 후 테이블링을 손봐도 되게 입력 필드로 둔다.
+          dragHandleProps 가 오면(자리안내) 왼쪽에 순서 이동 핸들. */}
+      <div className="seat-cell seat-cell-no">
+        {dragHandleProps && (
+          <span className="seat-drag-handle" title="순서 이동" aria-label="순서 이동" {...dragHandleProps}>⠿</span>
+        )}
+        <input
+          className="seat-input seat-input-no"
+          value={order.queue_no ?? ''}
+          placeholder="-"
+          inputMode="numeric"
+          onChange={(e) => {
+            const v = e.target.value.replace(/[^0-9]/g, '')
+            patch({ queue_no: v === '' ? null : Number(v) })
+          }}
+        />
+      </div>
 
       <div className="seat-cell seat-cell-order">
         <input
@@ -80,15 +110,13 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode }) {
           두 열은 한 묶음(제조 단계)으로 음영을 달리한다 — Seat.css 마디 2 밴드.
           ※셀 순서를 바꾸면 Guide·Manager 헤더 2곳도 같이 바꿔야 한다(3곳 동기화). */}
 
-      {/* 자리순서 살아있음/필요없음. 시작/옵션이 결정하면 수동토글 잠금(비활성 룩은 없앰).
-          게이팅: manager 모드 전달 전엔 숨김(정렬 위해 셀은 유지). guide 모드는 CSS로 dim/disable. */}
-      <div className="seat-cell seat-cell-seat" aria-disabled={seatToggleLocked}>
+      {/* 자리순서 = 상태 표시 전용(클릭 불가, 2026-07-31 유저 지시). 값은 다른 액션이 결정:
+          자리앉음·야외/포장 옵션 → '필요없음' / 그 외 실내 대기 → '살아있음'. */}
+      <div className="seat-cell seat-cell-seat">
         {!managerGated && (
-          <button
-            className={`seat-toggle seat-order-btn ${seatNeeded ? 'is-alive' : 'is-none'}`}
-            disabled={seatToggleLocked}
-            onClick={() => patch({ seat_order_alive: !order.seat_order_alive })}
-          >{seatNeeded ? '살아있음' : '필요없음'}</button>
+          <span className={`seat-order-status ${seatNeeded ? 'is-alive' : 'is-none'}`}>
+            {seatNeeded ? '살아있음' : '필요없음'}
+          </span>
         )}
       </div>
 
@@ -111,13 +139,14 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode }) {
           '메뉴 나감' 버튼은 제거(menu_out 컬럼은 DB에 그대로 둔다). */}
       <div className="seat-cell seat-cell-raise">
         {!managerGated && (<>
-          {/* 자리앉음: 자리순서가 필요없어져(야외/포장) 잠기면 체크박스를 ✕ + 취소선으로 = '이 단계 무효'. */}
+          {/* 자리앉음: 자리순서가 필요없어져(야외/포장) 잠기면 체크박스를 ✕ + 취소선으로 = '이 단계 무효'.
+              체크하면 자리 배정 완료 → 자리순서를 '필요없음'으로(seat_order_alive=false, 2026-07-31 유저 지시). */}
           <label className={`seat-check${seatToggleLocked ? ' seat-check--void' : ''}`}>
             <input
               type="checkbox"
               checked={!!order.seated}
               disabled={seatToggleLocked}
-              onChange={(e) => patch({ seated: e.target.checked })}
+              onChange={(e) => patch({ seated: e.target.checked, ...(e.target.checked ? { seat_order_alive: false } : {}) })}
             /> <span className="seat-check-text">자리앉음</span>
           </label>
           <label className="seat-check">

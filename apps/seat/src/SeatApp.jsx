@@ -11,6 +11,16 @@ const HUB_BASE = import.meta.env.VITE_HUB_BASE || '/thinkmap/'
 export default function SeatApp() {
   const { session, authLoading, handleGoogleLogin } = useAuth()
 
+  // 프리뷰(로그인 우회 + 로컬 데모 데이터) — ★dev 서버에서만. 프로덕션 빌드에선 무시된다.
+  //   예: http://<host>:5177/thinkmap/seat/?preview=1&role=manager  (role=guide|manager|kaymak|coffee)
+  // UI(배치·색·인터랙션) 확인용 — 실 DB/Realtime 없음, 새로고침 시 초기화. 배포 없이 HMR 로 즉시 확인.
+  if (import.meta.env.DEV) {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('preview')) {
+      return <SeatSystemPage preview initialRole={params.get('role') || undefined} />
+    }
+  }
+
   if (authLoading) return <div className="pv-center">로딩 중…</div>
 
   if (!session) return (
