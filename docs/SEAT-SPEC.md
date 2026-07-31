@@ -227,7 +227,8 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 - 이벤트 `*`(INSERT/UPDATE/DELETE). 콜백은 로컬 상태 머지(낙관적 UI) 또는 단순 리페치.
 - 충돌 = **last-write-wins**. `created_at`·`completed_at` 등 타임스탬프를 남겨 후속 소요시간 분석.
 - cleanup: `supabase.removeChannel(channel)`. 언마운트 보호 `mountedRef`.
-- R7("전체에게 전달") = 해당 행 변경이 Realtime으로 모든 역할 화면에 즉시 반영 = 위 구독으로 자동 충족.
+- R7(행 변경의 전역 반영) = 해당 행 변경이 Realtime으로 모든 역할 화면에 즉시 반영 = 위 구독으로 자동 충족.
+  (별도 "전체에게 전달" 버튼은 2026-07-31 제거 — 구독이 이미 충족하므로 버튼은 no-op 이었다.)
 
 ## 9. 화면 명세
 
@@ -236,12 +237,16 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 ### 9.1 자리안내 (`guide`) — 입력 핵심 (원본 슬라이드 열 구성 기준)
 - 행: **테이블링**(=queue_no, 자동 1,2,3…) / order_no(텍스트) / 상태선택(확인필요·주문중·차후주문, 기본 '-') / **자리후 전달 체크박스**(실내만 표시, `seat_delivered` 반영·R8. 상태와 제조옵션 사이)
   / 제조옵션 드랍다운('-'·야외·포장·야외병행 단일선택, 폭 축소) / 자리순서 살아있음·필요없음(포장/야외 또는 순서취소 시 앰버 '필요없음'; 야외병행은 유지)
-- **시작 갈래(`order_origin`·R9)는 표에 열로 노출하지 않음** — 내부 게이팅 로직·DB에만 유지. 세팅은 '+새 주문' 툴바의 컴팩트 픽커(실내/포장/야외)에서 생성 시 결정(상시 열 노출 없음).
+- **시작 갈래(`order_origin`·R9)는 UI에 아예 노출하지 않음** — 내부 게이팅 로직·DB에만 유지.
+  표의 열도 없고, **생성 시 선택 픽커도 두지 않는다**(2026-07-31 유저 지시로 '+새 주문' 툴바 픽커 제거).
+  새 주문은 DB 기본값 `dine_in`(실내)으로 생성 → 항상 자리후 전달 관문(R8)을 거친다.
+  포장·야외로 빠지는 건 전달 후 **제조옵션**(야외/포장/야외병행)에서 기록한다(R9).
 - **큰 마디 색 구분**: 자리후(착석) 단계 = 테이블링·주문번호·상태·자리후 = 한 색 그룹(자리후 우측 경계선), 이후 제조 단계와 시각 구별.
-  / 자리앉음 → **[올리기 전달]**(명시 버튼, R2) / 특이사항 / **[전체에게 전달]**(명시 버튼, R7)
+  / 자리앉음 → **[올리기 전달]**(명시 버튼, R2) / 특이사항
   / **확인필요**(상태선택과 별개의 행 플래그 = `confirm_flag`).
-- **전달 흐름 = 명시 트리거(A안)**: 자리후 전달=체크박스 토글 / [올리기 전달]·[전체에게 전달]=버튼. 누른 순간 Realtime push
-  (주방 실수 방지, 자동 전파 아님 — 결정 로그 §14).
+- **전달 흐름 = 명시 트리거(A안)**: 자리후 전달=체크박스 토글 / [올리기 전달]=버튼.
+  ★명시 전달은 **상태를 실제로 바꾸는 관문에만** 둔다(`seat_delivered`·`raised`).
+  일반 필드 수정(상태·제조옵션·특이사항 등)은 예나 지금이나 즉시 Realtime 전파된다.
 - **새 주문 추가 버튼 = 표 아래·왼쪽 정렬**(`.seat-toolbar-below`).
 - 하단: 카이막·커피 현황 거울(각 '올라감 / 제조완료함', 읽기).
 - 카메라 없음.
@@ -267,7 +272,7 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 | R4 | "필요없음"=자리대기 취소(`seat_order_alive=false`) 또는 제조옵션(R1), "살아있음"=순서 유지. 파생: `seatNeeded = seat_order_alive && !제조옵션` | OrderRow 토글 |
 | R5 | "메뉴 나감"(`menu_out`)은 제조매니저만 | 역할 게이트(config) |
 | R6 | 카이막/커피 완료는 서로 독립 | `seat_station_status` 행 분리 |
-| R7 | "전체에게 전달"=해당 행을 모든 역할 화면에 즉시 실시간 반영 | Realtime 구독(§8) |
+| R7 | 해당 행 변경을 모든 역할 화면에 즉시 실시간 반영 (전용 버튼 없음 — 구독이 자동 충족, 2026-07-31) | Realtime 구독(§8) |
 | R8 | **실내(dine_in) 주문**은 "자리후 전달"(`seat_delivered`)이 관문. 전달 전 게이팅 — **Manager**: 행 dim + 하위버튼(자리순서·올림) 숨김 / **Guide**: 전달 체크박스는 살리고 제조옵션부터 이후 컨트롤 dim/disable. 포장·야외 시작은 관문 없음(전달 체크박스 미표시, 즉시 활성) | OrderRow(`gateMode`)·Guide/Manager·commitOrder |
 | R9 | **주문 시작 갈래 `order_origin`**: dine_in(실내→자리후 관문)/takeout(포장)/outdoor(야외, 자리후 우회). 제조옵션(opt_*)은 실내 주문의 *전달 후 변경기록*: 야외·포장=자리큐 제외 / **야외병행=자리순서 유지**(실내 자리 나면 입장). `seatNeeded=dineIn && seat_order_alive && !(opt_outdoor\|\|opt_takeout)` | OrderRow·seatRules(isDineIn·removesFromSeatQueue) |
 
@@ -277,8 +282,21 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 - 현재: `enabled=false` 또는 `streamUrl` 없으면 placeholder("카메라 연동 예정 — 하드웨어 입고 후
   MJPEG 연결") 박스.
 - 향후: `streamUrl` 주입 시 같은 슬롯에 `<img src={streamUrl}>` 드롭인(레이아웃 재작업 없이).
-- 설정: `enabled`/`streamUrl`은 env 또는 Supabase config 레코드(운영자가 URL만 넣으면 켜짐).
+- **표시 여부 = 설정 패널의 `cameraEnabled`**(§11.1). 꺼져 있으면 화면이 카메라 슬롯 자체를
+  렌더하지 않는다(placeholder도 안 보임) → 스테이션 작업 영역이 그만큼 넓어진다. 기본값 **off**.
+- 설정: `streamUrl`(실제 스트림 주소)은 env 또는 Supabase config 레코드(운영자가 URL만 넣으면 켜짐) — 미결.
 - 배치: 제조매니저·카이막·커피 화면에만. 자리안내 없음.
+
+### 11.1 설정 패널 (기기별 로컬 설정)
+
+- 진입 = 상단 앱바 **우측 끝 "설정" 버튼** → 모달 다이얼로그(스크림 클릭·Esc·닫기로 종료).
+- **저장 = 기기별 localStorage**(`seat.settings.v1`). 주방 태블릿마다 역할이 달라 기기 단위가 맞고,
+  DB 마이그레이션 없이 늘릴 수 있다. (계정/워크스페이스 단위 설정이 필요해지면 그때 승격.)
+- **확장 규칙**: 설정 항목은 `config/seatSettings.js`의 `SEAT_SETTINGS` 배열에 **항목만 추가**한다.
+  `SettingsPanel`은 그 배열만 보고 그리는 범용 렌더러 — 새 항목 때문에 UI 코드를 고치지 않는다
+  (새 `type` 도입 시에만 렌더 분기 추가). 저장값에 없는 키는 로드 시 기본값으로 채워진다(하위호환).
+- 현재 항목: `cameraEnabled`(토글, 기본 off) — 카메라 연동 보기/끄기.
+- **경계**: 설정은 표시(view)에만 관여. orders/station_status 데이터 로직·권한과 결합 금지.
 - **모듈 경계**: orders/station_status 데이터 로직과 결합 금지. 순수 "스트림 표시"만.
 
 ## 12. 진입 & 컴포넌트 구조
@@ -291,6 +309,7 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 src/components/Seat/
   SeatSystemPage.jsx        풀스크린 컨테이너 + 상단 역할 탭 → 선택 역할 화면 렌더 + boardId 해석
   config/seatRoles.js       ROLES[] · STATIONS[] 데이터(하드코딩 금지)
+  config/seatSettings.js    SEAT_SETTINGS[] · 기본값 · localStorage load/save (§11.1)
   screens/
     GuideScreen.jsx         자리안내 입력 핵심(R1~R4)
     ManagerScreen.jsx       제조매니저(R5 menu_out, 완료 리스트, 카메라)
@@ -298,9 +317,11 @@ src/components/Seat/
   components/
     OrderRow.jsx            행 단위 입력/표시 + R1·R2 파생상태
     LiveCameraFeed.jsx      격리된 카메라 슬롯(placeholder)
+    SettingsPanel.jsx       설정 다이얼로그(SEAT_SETTINGS 범용 렌더러)
   hooks/
     useSeatOrders.js        fetch + Realtime + CRUD
     useStationStatus.js     fetch + Realtime + CRUD
+    useSeatSettings.js      기기별 설정 상태 + localStorage 지속
 ```
 
 ### 12.1 디자인 — ★Google Material Design 3 (seat 위성 한정 예외)
@@ -311,6 +332,19 @@ src/components/Seat/
 - 상태색은 시맨틱 유지(살아있음=초록 톤 / 필요없음=앰버 톤 / is-on=primary). 라이트/다크(`data-theme`) 양 지원, reduced-motion.
 - 터치타겟 48dp 기본(주방 태블릿). **단 자리안내/제조매니저 입력 테이블(`.seat-table`)은 dense 모드**(행·패딩 압축)로 한 화면에 더 많은 행 — 세로 밀도 우선(유저 조정). 입력 폰트는 16px 유지.
 - design-guardian(건조 스타일 검수)은 seat 위성엔 **비적용**(이 예외 때문). 향후 seat UI 작업은 Material 3 방향 유지.
+- **운용 기기·방향(2026-07-31 유저 확인)** — 레이아웃 검증 기준:
+  - **제조매니저 = 태블릿 세로(portrait) 주력.** 입력 테이블이 10열이라 세로 폭(≈768px)에서 가장 빡빡하다.
+    가로 스크롤 없이 한 화면에 들어오는지가 이 화면의 합격선.
+    → **`max-width:1023px`에서 행 하나를 2줄 카드로 접는다**(CSS Grid `grid-template-areas`, Seat.css).
+    좌측 = **테이블링·주문번호가 좌우로 나란히, 각각 2줄 높이를 통째로 차지**(세로 병합) +
+    그 오른쪽에 **상태(위)/자리후(아래)가 두 줄로 한 칸**, 우측 = 나머지 전부
+    (제조옵션·특이사항·전달·확인 / 자리순서·올림). 헤더 행은 세로에서 숨긴다.
+    ★**DOM 은 건드리지 않는다** — OrderRow 는 자리안내와 공용이라 셀 순서를 바꾸면 헤더 3곳 동기화
+    함정에 걸린다. 세로 대응은 CSS 배치만으로.
+  - **카이막·커피 = 가로·세로 둘 다.** 스테이션 3분할([카메라]·[올림/완료]·[자리후 대기])은
+    가로에서만 3열, 세로에선 세로 적층으로 떨어진다(현재 분기 `min-width:1024px`).
+    카메라를 끈 상태(§11.1 기본값)에선 세로에서도 작업 영역이 충분해야 한다.
+  - **자리안내**는 기존대로 넓은 화면 우선.
 
 ## 13. 단계별 로드맵
 
@@ -334,6 +368,9 @@ src/components/Seat/
 
 **결정됨 (2026-06-25, 원본 기획서·슬라이드 대조)**
 - 자리안내 전달 흐름 = **명시 버튼 방식(A안)**: [자리후 전달]·[올리기 전달]·[전체에게 전달].
+  ※ **2026-07-31 정정**: [전체에게 전달]은 제거. `updated_at`만 갱신하는 no-op 이었고(모든 필드 수정이
+  이미 Realtime 전파), 원칙을 지탱하던 건 상태를 바꾸는 두 관문(`seat_delivered`·`raised`)이었다.
+  "필드 편집도 눌러야 공유"가 정말 필요해지면 그건 초안 버퍼가 필요한 별도 작업.
   모든 변경 자동 전파가 아니라, 버튼을 눌러 공유하는 명시 트리거(주방 실수 방지). 향후 개선 가능.
 - '확인필요'는 상태선택(확인필요/주문중/차후주문)과 **별개의 행 플래그**(`confirm_flag`).
 - 분석용 `raised_at`(올림 시각) 컬럼 추가.
@@ -344,7 +381,9 @@ src/components/Seat/
 **미해결 (진행하며 합의)**
 - [x] 권한·로그인 = 워크스페이스 grant(editor)로 확정. 태블릿이 어느 계정으로 로그인하든 editor 면 동작.
 - [ ] 완료 처리 후 행 표시 — 완료 행을 리스트에서 숨길지/접을지/유지할지.
-- [ ] 카메라 enabled/streamUrl 저장 위치(env vs Supabase config 레코드) 최종 결정.
+- [x] 카메라 **표시 on/off** = 설정 패널 `cameraEnabled`(기기별 localStorage, 기본 off)로 확정
+      (2026-07-31 유저 지시 "카메라는 당장 필요없으니 설정 칸을 만들어 거기서 켜고 끄자").
+- [ ] 카메라 **streamUrl** 저장 위치(env vs Supabase config 레코드) 최종 결정 — 하드웨어 입고 후.
 - [ ] **제조옵션만 체크·미올림 주문의 요약 리스트 배치** — `isWaitingOrder`(제조옵션 있으면 제외)와 `isRaisedOrder`(`raised=true`만) 사이 틈에 빠져 Manager/Station "대기중"·"올림" 및 자리안내 하단 거울 어디에도 안 잡힘. R1의 "올림으로 처리"를 자동화(제조옵션 시 `raised` 자동 세팅)할지, 리스트 판정을 `seatNeeded` 기준으로 통일할지 결정 필요. (2026-07-20 spec-auditor 발견)
 
 ## 15. 수정 전 체크리스트

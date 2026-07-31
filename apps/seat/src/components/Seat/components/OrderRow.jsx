@@ -1,10 +1,10 @@
-// 자리안내·제조매니저 화면의 주문 입력 행. (SEAT-SPEC §9 / 게이팅 도메인 모델 R8~R9)
+// 자리안내·주문서관리 화면의 주문 입력 행. (SEAT-SPEC §9 / 게이팅 도메인 모델 R8~R9)
 // order 객체 + onPatch(id, patch)(필드 수정) + onCommit(id, scope)(명시 전달) 콜백.
 // gateMode: 'guide'(전달버튼 살리고 제조옵션부터 잠금) | 'manager'(행 dim + 하위버튼 숨김) | undefined.
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import { isRaiseEnabled, isDineIn, removesFromSeatQueue } from '../utils/seatRules'
 
-export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false, gateMode }) {
+export default function OrderRow({ order, onPatch, onCommit, gateMode }) {
   const patch = (p) => onPatch?.(order.id, p)
   const dineIn = isDineIn(order)                 // 실내 시작만 자리후 전달 관문 대상
   const removesQueue = removesFromSeatQueue(order) // 야외/포장 = 자리큐 제외(야외병행은 유지)
@@ -29,7 +29,10 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
     opt_outdoor_parallel: v === 'parallel',
   })
 
-  const rowCls = `seat-row${managerGated ? ' seat-row--gated' : ''}${guideLocked ? ' seat-row--guide-locked' : ''}`
+  // 확인 신호(주문서관리 → 자리안내): 확인필요 켜짐 + 아직 확인완료 안 됨 = 하이라이트(자리안내 화면에서만).
+  // 확인완료를 누르면 하이라이트만 꺼지고 확인필요 체크는 남는다(기록). 다시 확인필요를 껐다 켜면 재신호.
+  const needsAttention = !!order.confirm_flag && !order.confirm_done
+  const rowCls = `seat-row${managerGated ? ' seat-row--gated' : ''}${guideLocked ? ' seat-row--guide-locked' : ''}${needsAttention ? ' seat-row--flagged' : ''}`
 
   return (
     <div className={rowCls} role="row">
@@ -73,6 +76,22 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
         )}
       </div>
 
+      {/* ★열 순서: 자리순서 → 제조옵션 (2026-07-31 유저 지시로 교체).
+          두 열은 한 묶음(제조 단계)으로 음영을 달리한다 — Seat.css 마디 2 밴드.
+          ※셀 순서를 바꾸면 Guide·Manager 헤더 2곳도 같이 바꿔야 한다(3곳 동기화). */}
+
+      {/* 자리순서 살아있음/필요없음. 시작/옵션이 결정하면 수동토글 잠금(비활성 룩은 없앰).
+          게이팅: manager 모드 전달 전엔 숨김(정렬 위해 셀은 유지). guide 모드는 CSS로 dim/disable. */}
+      <div className="seat-cell seat-cell-seat" aria-disabled={seatToggleLocked}>
+        {!managerGated && (
+          <button
+            className={`seat-toggle seat-order-btn ${seatNeeded ? 'is-alive' : 'is-none'}`}
+            disabled={seatToggleLocked}
+            onClick={() => patch({ seat_order_alive: !order.seat_order_alive })}
+          >{seatNeeded ? '살아있음' : '필요없음'}</button>
+        )}
+      </div>
+
       {/* 제조옵션 = 드랍다운 단일 선택. 실내 주문의 전달 후 변경기록(야외·포장=큐 제외 / 야외병행=큐 유지). */}
       <div className="seat-cell seat-cell-opts">
         <select
@@ -87,38 +106,28 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
         </select>
       </div>
 
-      {/* 자리순서 살아있음/필요없음. 시작/옵션이 결정하면 수동토글 잠금(비활성 룩은 없앰).
-          게이팅: manager 모드 전달 전엔 숨김(정렬 위해 셀은 유지). guide 모드는 CSS로 dim/disable. */}
-      <div className="seat-cell seat-cell-seat" aria-disabled={seatToggleLocked}>
-        {!managerGated && (
-          <button
-            className={`seat-toggle seat-order-btn ${seatNeeded ? 'is-alive' : 'is-none'}`}
-            disabled={seatToggleLocked}
-            onClick={() => patch({ seat_order_alive: !order.seat_order_alive })}
-          >{seatNeeded ? '살아있음' : '필요없음'}</button>
-        )}
-      </div>
-
-      {/* 자리앉음 → 올리기 전달(버튼). R2: 그 전엔 비활성. R5: 메뉴 나감은 매니저만.
-          게이팅: manager 모드 전달 전엔 올림 단계 숨김. guide 모드는 CSS dim/disable. */}
+      {/* 자리앉음 → 올리기 전달 = '전달'과 같은 체크박스 구조(2026-07-31 유저 지시). R2: 올리기는 그 전엔 비활성.
+          게이팅: manager 모드 전달 전엔 올림 단계 숨김. guide 모드는 CSS dim/disable.
+          '메뉴 나감' 버튼은 제거(menu_out 컬럼은 DB에 그대로 둔다). */}
       <div className="seat-cell seat-cell-raise">
         {!managerGated && (<>
-          <button
-            className={`seat-toggle${order.seated ? ' is-on' : ''}`}
-            disabled={seatToggleLocked}
-            onClick={() => patch({ seated: !order.seated })}
-          >자리앉음</button>
-          <button
-            className={`seat-toggle${order.raised ? ' is-on' : ''}`}
-            disabled={!raiseEnabled}
-            onClick={() => patch({ raised: !order.raised, raised_at: !order.raised ? new Date().toISOString() : null, seat_status: !order.raised ? 'raised' : 'pending' })}
-          >올리기 전달</button>
-          {canMenuOut && (
-            <button
-              className={`seat-toggle${order.menu_out ? ' is-on' : ''}`}
-              onClick={() => patch({ menu_out: !order.menu_out })}
-            >메뉴 나감</button>
-          )}
+          {/* 자리앉음: 자리순서가 필요없어져(야외/포장) 잠기면 체크박스를 ✕ + 취소선으로 = '이 단계 무효'. */}
+          <label className={`seat-check${seatToggleLocked ? ' seat-check--void' : ''}`}>
+            <input
+              type="checkbox"
+              checked={!!order.seated}
+              disabled={seatToggleLocked}
+              onChange={(e) => patch({ seated: e.target.checked })}
+            /> <span className="seat-check-text">자리앉음</span>
+          </label>
+          <label className="seat-check">
+            <input
+              type="checkbox"
+              checked={!!order.raised}
+              disabled={!raiseEnabled}
+              onChange={(e) => patch({ raised: e.target.checked, raised_at: e.target.checked ? new Date().toISOString() : null, seat_status: e.target.checked ? 'raised' : 'pending' })}
+            /> 올리기 전달
+          </label>
         </>)}
       </div>
 
@@ -131,17 +140,32 @@ export default function OrderRow({ order, onPatch, onCommit, canMenuOut = false,
         />
       </div>
 
-      {/* 전체에게 전달(버튼). R7: 해당 행을 모든 역할 화면에 즉시 반영 */}
-      <div className="seat-cell seat-cell-broadcast">
-        <button className="seat-toggle" onClick={() => onCommit?.(order.id, 'all')}>전체에게 전달</button>
-      </div>
+      {/* '전체에게 전달' 버튼은 제거(2026-07-31). updated_at 만 건드리는 no-op 이었고,
+          모든 필드 수정이 이미 Realtime 으로 즉시 전파된다. 명시 전달 원칙(R7)은
+          상태를 실제로 바꾸는 두 관문 — 자리후 전달(seat_delivered)·올리기 전달(raised) — 이 지탱한다. */}
 
-      {/* 확인필요 플래그 — 상태선택과 별개의 빠른 플래그 */}
+      {/* 확인 = 주문서관리(확인필요) → 자리안내(확인완료) 신호. 윗줄/아랫줄 체크박스.
+          · 확인필요 체크 → 자리안내에 하이라이트. 해제 → 확인완료도 리셋(다시 확인 필요 준비).
+          · 확인완료 체크 → 하이라이트만 꺼짐. 확인필요 체크는 남음(처리 기록). 확인필요 없으면 확인완료 비활성. */}
       <div className="seat-cell seat-cell-confirm">
-        <button
-          className={`seat-toggle${order.confirm_flag ? ' is-on' : ''}`}
-          onClick={() => patch({ confirm_flag: !order.confirm_flag })}
-        >확인필요</button>
+        <label className="seat-check">
+          <input
+            type="checkbox"
+            checked={!!order.confirm_flag}
+            onChange={(e) => patch(e.target.checked
+              ? { confirm_flag: true, confirm_done: false }
+              : { confirm_flag: false, confirm_done: false })}
+          /> <span className="seat-check-text">확인필요</span>
+        </label>
+        {/* 확인완료 = 취소 개념 없음. 체크/해제만(확인필요 없으면 비활성). ✕·취소선 안 씀. */}
+        <label className="seat-check">
+          <input
+            type="checkbox"
+            checked={!!order.confirm_done}
+            disabled={!order.confirm_flag}
+            onChange={(e) => patch({ confirm_done: e.target.checked })}
+          /> 확인완료
+        </label>
       </div>
     </div>
   )

@@ -1,10 +1,11 @@
 // 카이막/커피 스테이션 화면 — 동일 컴포넌트를 role.station 으로 재사용, 서로 독립(R6). (SEAT-SPEC §9.3)
-// 슬라이드 레이아웃: [카메라 大 좌측] · [올림(자리잡음)+완료 중앙] · [자리후 대기 우측].
+// 멀리서 빠르게 보는 화면 → 큼직·단순. 메인=올림 카드(번호 大 + 완료 버튼 大),
+// 하단 풋터=자리후 대기(위) → 완료된 리스트(아래, 가로 스크롤).
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import QueueChips from '../components/QueueChips'
 import { isWaitingOrder, isRaisedOrder, orderLabel } from '../utils/seatRules'
 
-export default function StationScreen({ role, orders = [], stations = [], onPatchStation }) {
+export default function StationScreen({ role, orders = [], stations = [], onPatchStation, settings = {} }) {
   const stationKey = role?.station
   const stStatus = (orderId) => stations.find((s) => s.order_id === orderId && s.station === stationKey)
 
@@ -17,57 +18,72 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
 
   return (
     <div className="seat-screen seat-screen-station">
-      <div className="seat-station-grid">
-        {/* 좌: 카메라 라이브(큰 영역) */}
+      {/* 카메라(설정 시) — 끄면 슬롯 자체를 렌더하지 않아 작업 영역이 넓어진다. */}
+      {settings.cameraEnabled ? (
         <div className="seat-station-camera">
           <LiveCameraFeed station={stationKey} label={role?.label} enabled={false} />
         </div>
+      ) : null}
 
-        {/* 중: 올림(자리잡음) + 완료된 리스트 */}
-        <div className="seat-station-work">
-          <div className="seat-panel">
-            <div className="seat-panel-title">
-              자리 잡음 (올림) <span className="seat-panel-hint">* 해당 없으면 완료 누르기</span>
-            </div>
-            <div className="seat-panel-body">
-              {active.length === 0 ? (
-                <div className="seat-chips-empty">— 올림 없음 —</div>
-              ) : (
-                <div className="seat-raised-list">
-                  {active.map((o) => {
-                    const st = stStatus(o.id)
-                    return (
-                      <div key={o.id} className="seat-raised-card">
-                        <span className="seat-raised-no">{orderLabel(o)}</span>
-                        <input
-                          className="seat-input seat-raised-note"
-                          value={st?.change_note || ''}
-                          placeholder="변동 사항 (예: 포장으로 변경)"
-                          onChange={(e) => setStation(o.id, { change_note: e.target.value })}
-                        />
-                        <button className="seat-toggle" onClick={() => setStation(o.id, { completed: true })}>완료</button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="seat-panel">
-            <div className="seat-panel-title">완료된 리스트 (내 완료)</div>
-            <div className="seat-panel-body"><QueueChips orders={completed} empty="— 완료 없음 —" done /></div>
-          </div>
-        </div>
-
-        {/* 우: 자리후(대기중) */}
-        <div className="seat-station-waiting">
-          <div className="seat-panel">
-            <div className="seat-panel-title">자리 후 (대기중)</div>
-            <div className="seat-panel-body"><QueueChips orders={waiting} empty="— 대기 없음 —" /></div>
-          </div>
-        </div>
+      {/* 메인: 올림(자리잡음) 카드 — 번호 큼직 + 완료 버튼 큼직. 해당 없으면 바로 완료. */}
+      <div className="seat-station-active">
+        {active.length === 0 ? (
+          <div className="seat-station-empty">— 올림 없음 —</div>
+        ) : (
+          active.map((o) => {
+            const st = stStatus(o.id)
+            return (
+              <div key={o.id} className="seat-station-card">
+                <div className="seat-station-no">{orderLabel(o)}</div>
+                <input
+                  className="seat-input"
+                  value={st?.change_note || ''}
+                  placeholder="변동 (예: 포장)"
+                  onChange={(e) => setStation(o.id, { change_note: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="seat-complete-btn"
+                  onClick={() => setStation(o.id, { completed: true })}
+                >
+                  <span className="seat-complete-check" aria-hidden="true">✓</span> 완료
+                </button>
+              </div>
+            )
+          })
+        )}
       </div>
+
+      {/* 풋터: 자리후 대기(위) → 완료된 리스트(아래, 가로 스크롤). 완료가 제일 아래. */}
+      <footer className="seat-station-footer">
+        <div className="seat-station-foot-row">
+          <span className="seat-station-foot-label">자리 후</span>
+          <div className="seat-station-foot-chips"><QueueChips orders={waiting} empty="— 대기 없음 —" /></div>
+        </div>
+        <div className="seat-station-foot-row seat-station-done">
+          <span className="seat-station-foot-label">완료</span>
+          <div className="seat-station-foot-chips">
+            {completed.length === 0 ? (
+              <div className="seat-chips-empty">— 완료 없음 —</div>
+            ) : (
+              <div className="seat-chips">
+                {completed.map((o) => (
+                  <span key={o.id} className="seat-chip seat-chip-done seat-done-chip">
+                    {orderLabel(o)}
+                    {/* 잘못 완료했을 때 되돌리기 → 다시 올림(active)으로. */}
+                    <button
+                      type="button"
+                      className="seat-undo-btn"
+                      aria-label={`${orderLabel(o)} 완료 되돌리기`}
+                      onClick={() => setStation(o.id, { completed: false })}
+                    >↺</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

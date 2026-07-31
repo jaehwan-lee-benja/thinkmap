@@ -87,6 +87,8 @@
 /* ── State layer (M3 상호작용) — 인터랙티브 요소 공통 ───────────────────────── */
 .seat-role-tab,
 .seat-btn,
+.seat-status-btn,
+.seat-settings-btn,
 .seat-toggle {
   position: relative;
   overflow: hidden;
@@ -95,6 +97,8 @@
 }
 .seat-role-tab::after,
 .seat-btn::after,
+.seat-status-btn::after,
+.seat-settings-btn::after,
 .seat-toggle::after {
   content: '';
   position: absolute;
@@ -106,9 +110,13 @@
 }
 .seat-role-tab:hover::after,
 .seat-btn:hover::after,
+.seat-status-btn:hover::after,
+.seat-settings-btn:hover::after,
 .seat-toggle:hover:not(:disabled)::after { opacity: .08; }
 .seat-role-tab:active::after,
 .seat-btn:active::after,
+.seat-status-btn:active::after,
+.seat-settings-btn:active::after,
 .seat-toggle:active:not(:disabled)::after { opacity: .12; }
 
 /* 포커스 링 (Material 포커스 인디케이터) */
@@ -152,6 +160,78 @@
   box-shadow: var(--md-elev-1);
 }
 
+/* 앱바 우측 버튼(현황·설정) — 역할 탭과 구분되게 아웃라인 톤. 현황이 왼쪽, 설정이 오른쪽 끝. */
+.seat-status-btn,
+.seat-settings-btn {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+/* 현황 버튼이 우측 그룹의 시작 — 여기서 밀어 붙인다(설정은 gap 만큼 오른쪽). */
+.seat-status-btn { margin-left: auto; }
+
+/* ── 공용 모달(설정 · 현황 더보기) ────────────────────────────────────────── */
+.seat-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / .32);
+}
+.seat-modal {
+  width: min(720px, 100%);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: var(--md-radius-md);
+  background: var(--md-surface-container);
+  color: var(--md-on-surface);
+  box-shadow: var(--md-elev-2);
+}
+.seat-modal-head { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
+.seat-modal-title { flex: 1 1 auto; font-weight: 700; font-size: 18px; }
+.seat-modal-body { flex: 1 1 auto; overflow: auto; }
+.seat-modal-foot { flex: 0 0 auto; color: var(--md-on-surface-variant); opacity: .8; }
+.seat-settings-body { display: flex; flex-direction: column; gap: 4px; }
+.seat-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-high);
+  cursor: pointer;
+}
+/* 값이 여러 개인 설정(열 숨김 등) — 설명 아래로 항목을 편다. */
+.seat-settings-row--block { flex-direction: column; align-items: stretch; gap: 8px; cursor: default; }
+.seat-settings-cols { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.seat-settings-col {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 8px;
+  border-radius: var(--md-radius-sm);
+  cursor: pointer;
+}
+.seat-settings-col input { width: 22px; height: 22px; accent-color: var(--md-primary); }
+.seat-settings-row-text { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.seat-settings-row-label { font-weight: 500; }
+.seat-settings-row-hint { color: var(--md-on-surface-variant); opacity: .8; }
+
 .seat-main { flex: 1 1 auto; overflow: auto; padding: 16px; }
 
 /* 레이아웃 — mobile-first: 기본 1열, 넓은 화면 2열. */
@@ -163,8 +243,6 @@
 .seat-toolbar { margin-bottom: 12px; }
 /* 표 아래 배치(새 주문): 위쪽 여백 + 왼쪽 정렬. 시작 갈래 픽커 + 새 주문 버튼 가로 배치. */
 .seat-toolbar-below { margin: 12px 0 0; display: flex; align-items: center; gap: 8px; }
-/* 새 주문 시작 갈래 픽커(상시 열 아님, 생성 시에만) — 컴팩트 폭 */
-.seat-origin-picker { flex: 0 0 88px; width: 88px; }
 /* 자리후 전달 체크박스: 라벨 줄바꿈 방지 */
 .seat-deliver-check { white-space: nowrap; }
 .seat-btn {
@@ -195,9 +273,21 @@
   box-shadow: var(--md-elev-1);
   overflow: hidden;
 }
+/* 표 = 그룹 카드 그리드(가로·세로 공통). 각 그룹이 '한 제목 아래 위/아래 2칸'(유저 지시 2026-07-31):
+   테이블링·주문번호·확인 = 세로 병합 단일 / 상태·자리후 / 자리순서·제조옵션 / 올림·특이사항 = 위·아래 2칸.
+   ★DOM(OrderRow 셀 순서)은 불변 — grid-area 로만 배치(헤더 3곳 동기화 함정 회피). */
 .seat-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns:
+    84px                    /* 테이블링 */
+    minmax(104px, 120px)    /* 주문번호 */
+    minmax(112px, 150px)    /* 상태 / 자리후 */
+    minmax(100px, 132px)    /* 자리순서 / 제조옵션 */
+    minmax(200px, 1fr)      /* 올림 / 특이사항 */
+    minmax(120px, 148px);   /* 확인 */
+  grid-template-areas:
+    "tno tord status  seat raise confirm"
+    "tno tord deliver opts notes confirm";
   align-items: stretch;
   min-height: 56px;
   border-bottom: 1px solid var(--md-outline-variant);
@@ -205,36 +295,101 @@
 }
 .seat-row:last-child { border-bottom: none; }
 .seat-row:not(.seat-row-head):hover { background: color-mix(in srgb, var(--md-on-surface) 5%, transparent); }
+/* 헤더 = 그룹 제목 1행(테이블링·주문번호·상태·자리순서·올림·확인). 데이터와 같은 6트랙 → 정렬. */
 .seat-row-head {
+  grid-template-areas: "tno tord hg1 hg2 hg3 confirm";
   min-height: 44px;
   font-weight: 500;
   color: var(--md-on-surface-variant);
   background: var(--md-surface-container);
   border-bottom: 1px solid var(--md-outline-variant);
 }
-.seat-cell { padding: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.seat-cell-no { flex: 0 0 64px; font-weight: 700; }
-.seat-cell-order { flex: 0 0 104px; }
-.seat-cell-deliver { flex: 0 0 108px; }
-.seat-cell-status { flex: 0 0 104px; }
-.seat-cell-opts { flex: 0 0 104px; } /* 드랍다운(-·야외·포장·야외병행) 짧아짐 → 폭 축소 */
-.seat-cell-seat { flex: 0 0 108px; }
-.seat-cell-raise { flex: 0 0 212px; }
-.seat-cell-notes { flex: 1 1 140px; }
-.seat-cell-broadcast { flex: 0 0 120px; }
-.seat-cell-confirm { flex: 0 0 96px; }
+/* ★min-width:0 — grid 아이템 기본 min-width:auto 는 콘텐츠(제목) 폭을 최소값으로 잡아
+   좁은 트랙을 넘어 옆 칸과 겹친다. 0 으로 두면 셀이 트랙 폭을 지킨다. */
+.seat-cell { padding: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+/* 헤더 그룹 제목: 한 줄 유지 + 트랙을 넘으면 …로 잘라 겹침 방지. */
+.seat-row-head .seat-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ── 큰 마디(단계) 색 구분: 자리후(착석) 단계 = 테이블링·주문번호·상태·자리후 ─────
-   자리후 전달까지의 컬럼을 한 색 그룹으로 묶어, 이후(제조/제조매니저) 단계와 시각 구별.
-   헤더·데이터행이 같은 셀 클래스를 공유하므로 세로로 연속된 색 밴드가 된다. */
+/* 셀 → 트랙 배치(공통, 가로·세로 동일). */
+.seat-cell-no      { grid-area: tno; }
+.seat-cell-order   { grid-area: tord; }
+.seat-cell-status  { grid-area: status; }
+.seat-cell-deliver { grid-area: deliver; }
+.seat-cell-seat    { grid-area: seat; }
+.seat-cell-opts    { grid-area: opts; }
+.seat-cell-raise   { grid-area: raise; }
+.seat-cell-notes   { grid-area: notes; }
+.seat-cell-confirm { grid-area: confirm; }
+.seat-cell-hg1     { grid-area: hg1; }
+.seat-cell-hg2     { grid-area: hg2; }
+.seat-cell-hg3     { grid-area: hg3; }
+
+.seat-cell-no { font-weight: 700; justify-content: center; text-align: center; } /* 테이블링 숫자 가운데 */
+/* 확인 = 세로 2칸(확인필요/확인완료), 세로 가운데. */
+.seat-cell-confirm { flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.seat-cell-confirm .seat-check { white-space: nowrap; }
+
+/* ── 비활성(무효) 체크박스 = ✕ + 취소선 ────────────────────────────────────
+   자리앉음이 잠기거나(자리순서 필요없음) 확인완료가 아직 불가할 때, '이 단계 무효'를 ✕로 표시. */
+.seat-check--void { opacity: .55; }
+.seat-check--void input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: 4px;
+  background: transparent;
+  display: inline-grid;
+  place-items: center;
+}
+.seat-check--void input::after {
+  content: '✕';
+  font-size: 16px; /* 라벨 글씨와 동일 크기 */
+  line-height: 1;
+  color: var(--md-on-surface-variant);
+}
+.seat-check--void .seat-check-text { text-decoration: line-through; }
+
+/* ── 큰 마디(단계) 색 구분 — 3그룹이 각기 다른 음영으로 한 덩어리 (가로·세로 공통) ────
+   마디1(테이블링·주문번호·상태·자리후)=파랑 / 마디2(자리순서·제조옵션)=중성 회색 / 마디3(올림·특이사항)=옅은 회색.
+   grid-area 로 위·아래 셀이 같은 트랙에 stretch → 세로로 연속된 색 밴드가 된다. */
 .seat-cell-no,
 .seat-cell-order,
 .seat-cell-status,
-.seat-cell-deliver { background: color-mix(in srgb, var(--md-primary) 10%, transparent); }
-/* 마디 경계선 — 자리후(착석) 단계 끝(자리후) 오른쪽 */
-.seat-cell-deliver { box-shadow: inset -2px 0 0 0 var(--md-outline-variant); }
+.seat-cell-deliver { background: color-mix(in srgb, var(--md-primary) 8%, transparent); }
+.seat-cell-seat,
+.seat-cell-opts { background: color-mix(in srgb, var(--md-on-surface) 7%, transparent); }
+.seat-cell-raise,
+.seat-cell-notes { background: color-mix(in srgb, var(--md-on-surface) 4%, transparent); }
 
-/* ── 조밀 모드(dense) — 자리안내/제조매니저 입력 테이블 한정 ─────────────────
+/* 마디 경계선 — 각 그룹 트랙의 오른쪽 끝(위·아래 두 셀 모두). */
+.seat-cell-status, .seat-cell-deliver,
+.seat-cell-seat, .seat-cell-opts,
+.seat-cell-raise, .seat-cell-notes { box-shadow: inset -2px 0 0 0 var(--md-outline-variant); }
+
+/* ── 열 숨김(기기별 설정) ─────────────────────────────────────────────────────
+   설정 > '표에 보일 열' 에서 끈 열은 루트에 is-hide-<key> 가 붙는다.
+   헤더·데이터행이 같은 셀 클래스를 쓰므로 이 한 줄로 두 곳이 함께 숨는다(DOM 무변경).
+   ★열을 새로 만들면 config/seatSettings.js 의 SEAT_COLUMNS + 아래 목록에 각각 한 줄 추가. */
+.seat-app.is-hide-no      .seat-cell-no,
+.seat-app.is-hide-order   .seat-cell-order,
+.seat-app.is-hide-status  .seat-cell-status,
+.seat-app.is-hide-deliver .seat-cell-deliver,
+.seat-app.is-hide-opts    .seat-cell-opts,
+.seat-app.is-hide-seat    .seat-cell-seat,
+.seat-app.is-hide-raise   .seat-cell-raise,
+.seat-app.is-hide-notes   .seat-cell-notes,
+.seat-app.is-hide-confirm .seat-cell-confirm { display: none; }
+
+/* ★그룹 헤더 제목도 열 숨김에 연동 — 그룹의 두 열이 모두 숨겨지면 제목(hg1/2/3)도 숨긴다.
+   안 그러면 세로형에서 트랙이 0px 로 접힌 자리에 제목이 남아 옆 칸으로 삐져나온다. */
+.seat-app.is-hide-status.is-hide-deliver .seat-cell-hg1,
+.seat-app.is-hide-seat.is-hide-opts     .seat-cell-hg2,
+.seat-app.is-hide-raise.is-hide-notes   .seat-cell-hg3 { display: none; }
+
+/* ── 조밀 모드(dense) — 자리안내/주문서관리 입력 테이블 한정 ─────────────────
    주방에서 많은 주문/자리를 한 화면에 (Material 3 "dense data table").
    ★.seat-table 스코프 안에서만 압축 → 스테이션 등 다른 화면은 48dp 유지.
    터치 조작은 유지(입력·탭 가능), 세로 밀도 우선. 입력 폰트는 16px 유지(모바일 확대 방지). */
@@ -246,7 +401,59 @@
 .seat-table .seat-toggle { min-height: 36px; padding: 0 12px; font-size: 15px; }
 .seat-table .seat-check { min-height: 36px; }
 
-/* ── 게이팅(제조매니저 전용): "자리후 전달" 전 행 = dim + 비활성 ─────────────
+/* ── 세로(portrait) 최적화 — 주문서관리 전용 (SEAT-SPEC §12.1 운용 기기·방향) ──
+   주문서관리는 태블릿 세로가 주력. 9열을 가로로 늘어놓으면 세로 폭(≈768px)에서 잘리므로
+   행 하나를 2줄 카드로 접는다. JSX/DOM 은 그대로 두고 CSS Grid 배치만 바꾼다
+   (OrderRow 는 자리안내와 공용 — DOM 을 건드리면 헤더 3곳 동기화 함정에 걸린다).
+
+     ┌────────┬────────┬────────┬────────┬────────┬──────┐
+     │        │        │  상태  │자리순서│  올림  │      │
+     │테이블링│주문번호├────────┼────────┼────────┤ 확인 │
+     │ (2행)  │ (2행)  │ 자리후 │제조옵션│특이사항│(2행) │
+     └────────┴────────┴────────┴────────┴────────┴──────┘
+   · 테이블링·주문번호 = 각각 좌우로 나란히, 두 줄 높이를 통째로 차지(세로 병합).
+   · 상태(위)/자리후(아래), 자리순서(위)/제조옵션(아래), 올림(위)/특이사항(아래) = 각각 두 줄이 한 묶음.
+   · 확인 = 오른쪽 끝 두 줄 병합(확인필요/확인완료 세로).
+   좌측 4셀 = 기존 '자리후(착석) 단계' 색 밴드 그룹과 정확히 일치 → 밴드 규칙 그대로 재사용. */
+@media (max-width: 1023px) {
+  /* 세로형(주문서관리 주력): 그룹 카드 구조(areas·grid-area·마디색·경계)는 공통 규칙을 그대로 쓰고,
+     여기선 트랙을 좁게 오버라이드만 한다. 헤더도 그룹 제목 1행이라 데이터 2행 카드와 정렬 → 표시. */
+  .seat-screen-manager .seat-table .seat-row {
+    /* 트랙 폭은 변수로 — 열을 숨겨 트랙이 통째로 비면 아래에서 0px 로 접는다. */
+    grid-template-columns:
+      var(--seat-pcol-no, minmax(60px, 76px))       /* 테이블링 */
+      var(--seat-pcol-order, minmax(92px, 108px))   /* 주문번호 */
+      var(--seat-pcol-mid, minmax(84px, 100px))     /* 상태 / 자리후 */
+      var(--seat-pcol-opts, minmax(64px, 92px))     /* 자리순서 / 제조옵션 = 버튼·드랍다운이라 좁게 */
+      var(--seat-pcol-notes, minmax(0, 1fr))        /* 올림 / 특이사항 = 남는 폭 */
+      var(--seat-pcol-confirm, minmax(100px, 116px)); /* 확인 = 확인필요/확인완료 라벨이 안 잘리게 */
+  }
+
+  /* 트랙 접기 — 그 트랙의 셀이 전부 숨겨졌을 때만. */
+  .seat-app.is-hide-no .seat-screen-manager .seat-table .seat-row { --seat-pcol-no: 0px; }
+  .seat-app.is-hide-order .seat-screen-manager .seat-table .seat-row { --seat-pcol-order: 0px; }
+  .seat-app.is-hide-status.is-hide-deliver .seat-screen-manager .seat-table .seat-row { --seat-pcol-mid: 0px; }
+  .seat-app.is-hide-opts.is-hide-seat .seat-screen-manager .seat-table .seat-row { --seat-pcol-opts: 0px; }
+  .seat-app.is-hide-notes.is-hide-raise .seat-screen-manager .seat-table .seat-row { --seat-pcol-notes: 0px; }
+  .seat-app.is-hide-confirm .seat-screen-manager .seat-table .seat-row { --seat-pcol-confirm: 0px; }
+
+  /* 테이블링 = 좁은 트랙, 폰트 축소(굵기로 구분). */
+  .seat-screen-manager .seat-cell-no { font-size: 15px; }
+  /* 주문번호 = 세로에서 가장 자주 읽는 값 → 크게. */
+  .seat-table .seat-cell-order .seat-input { font-size: 20px; font-weight: 700; text-align: center; }
+
+  /* 세로에서는 '+ 새 주문' 숨김(자리안내가 생성). '현황 더보기'는 남긴다. */
+  .seat-screen-manager .seat-btn-new-order { display: none; }
+
+  /* 세로형 그룹 헤더: 좁은 트랙에 맞춰 제목을 작게 + 가운데 정렬(트랙 위 중앙). 겹침/잘림 여유. */
+  .seat-screen-manager .seat-row-head .seat-cell {
+    font-size: 13px;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* ── 게이팅(주문서관리 전용): "자리후 전달" 전 행 = dim + 비활성 ─────────────
    전달 전(!seat_delivered)엔 하위단계 버튼(자리순서·올림·메뉴나감)은 JSX에서 숨기고,
    남은 셀은 흐릿(연한 글씨)+조작 잠금으로 "전달 전 정보만" 표시. 전달되면 정상 활성. */
 /* Manager 모드: 전달 전 실내 주문 = 행 전체 dim + 비활성(하위 버튼은 JSX에서 숨김) */
@@ -260,8 +467,31 @@
 .seat-row--guide-locked .seat-cell-seat,
 .seat-row--guide-locked .seat-cell-raise,
 .seat-row--guide-locked .seat-cell-notes,
-.seat-row--guide-locked .seat-cell-broadcast,
 .seat-row--guide-locked .seat-cell-confirm { opacity: .4; pointer-events: none; }
+
+/* ── 확인필요 = 주문서관리 → 자리안내 신호 ──────────────────────────────────
+   '확인필요'가 켜지고 아직 '확인완료' 전이면(needsAttention) 그 줄이 통째로 하이라이트된다.
+   ★양 화면 동일 — 주문서관리·자리안내 모두에서 같은 줄이 강조된다(신호를 서로 본다).
+   확인완료를 누르면 하이라이트만 꺼지고 확인필요 체크는 남는다. Realtime 으로 즉시 전파. */
+.seat-row--flagged {
+  background: color-mix(in srgb, var(--md-error) 16%, transparent);
+}
+/* 마디 색 밴드(자체 배경이 있는 셀)는 행 배경을 덮는다 → 밴드 자리도 같은 계열로 덮되
+   조금 더 진하게 해서 단계 구분은 남긴다(행이 얼룩덜룩해지지 않게). */
+.seat-row--flagged .seat-cell-no,
+.seat-row--flagged .seat-cell-order,
+.seat-row--flagged .seat-cell-status,
+.seat-row--flagged .seat-cell-deliver,
+.seat-row--flagged .seat-cell-seat,
+.seat-row--flagged .seat-cell-opts,
+.seat-row--flagged .seat-cell-raise,
+.seat-row--flagged .seat-cell-notes {
+  background: color-mix(in srgb, var(--md-error) 24%, transparent);
+}
+/* 좌측 강조 바 — 목록을 훑을 때 눈에 먼저 걸리게. */
+.seat-row--flagged .seat-cell-no {
+  box-shadow: inset 4px 0 0 0 var(--md-error);
+}
 
 /* ── 입력 (Material filled text field) ────────────────────────────────────── */
 .seat-input,
@@ -307,7 +537,7 @@
   font-weight: 700;
   box-shadow: var(--md-elev-1);
 }
-/* 자리순서 상태: 살아있음=초록 톤 / 필요없음=앰버 톤 */
+/* 자리순서 상태: 살아있음=초록 톤 / 필요없음=회색(중성) 톤 */
 .seat-toggle.is-alive {
   background: var(--md-alive);
   color: var(--md-on-alive);
@@ -315,18 +545,21 @@
   font-weight: 700;
 }
 .seat-toggle.is-none {
-  background: var(--md-none);
-  color: var(--md-on-none);
-  border-color: transparent;
-  font-weight: 700;
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface-variant);
+  border-color: var(--md-outline-variant);
+  font-weight: 500;
 }
 .seat-toggle:disabled { opacity: .38; cursor: not-allowed; }
-/* 자리순서 버튼: 제조옵션으로 잠겨도 '필요없음'(앰버)을 정상 표시 — 비활성 룩(흐림) 제거 */
+/* 자리순서 버튼: 잠겨도(옵션/시작이 결정) '필요없음'을 정상 표시 — 비활성 룩(흐림) 제거 */
 .seat-toggle.seat-order-btn:disabled { opacity: 1; cursor: default; }
+/* 자리안내: 잠긴 자리순서 버튼은 눈에 덜 띄게 더 톤다운(읽기용, 조작은 매니저·옵션이 결정). */
+.seat-screen-guide .seat-toggle.seat-order-btn:disabled { opacity: .5; }
 /* 전달 버튼 라벨 줄바꿈 방지 */
 .seat-cell-deliver .seat-toggle,
-.seat-cell-broadcast .seat-toggle,
 .seat-cell-confirm .seat-toggle { white-space: nowrap; }
+/* 올림 셀 체크박스(자리앉음·올리기 전달) 라벨 줄바꿈 방지 */
+.seat-cell-raise .seat-check { white-space: nowrap; }
 
 .seat-empty { padding: 32px 24px; color: var(--md-on-surface-variant); text-align: center; }
 
@@ -350,8 +583,7 @@
 .seat-mirror-col-body { padding: 0 16px 16px; color: var(--md-on-surface-variant); }
 
 /* 거울(자리안내 하단) */
-.seat-mirror { margin-top: 20px; }
-.seat-mirror-title { font-weight: 500; font-size: 18px; margin-bottom: 12px; }
+/* 제조 현황 거울 — 자리안내의 '제조 현황 더보기' 모달 안에 들어간다(상시 표시 아님). */
 .seat-mirror-stations { display: flex; flex-wrap: wrap; gap: 16px; }
 .seat-mirror-col { flex: 1 1 240px; min-width: 0; }
 
@@ -398,22 +630,115 @@
 }
 .seat-raised-note { flex: 1 1 160px; }
 
-/* 제조매니저: 입력 아래 가로 배치(카메라 + 요약 패널) */
+/* 주문서관리: 입력 아래 가로 배치(카메라 + 요약 패널) */
 .seat-manager-side { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
 .seat-manager-side .seat-camera { flex: 0 0 240px; }
 .seat-manager-side .seat-panel { flex: 1 1 200px; }
 
-/* 카이막/커피 스테이션: [카메라 大] · [올림+완료] · [자리후] */
-.seat-station-grid { display: flex; flex-direction: column; gap: 16px; }
-.seat-station-work { display: flex; flex-direction: column; gap: 16px; }
-.seat-station-camera .seat-camera { min-height: 220px; }
-@media (min-width: 1024px) {
-  .seat-station-grid { flex-direction: row; align-items: stretch; }
-  .seat-station-camera { flex: 1.2 1 0; }
-  .seat-station-work { flex: 1 1 0; }
-  .seat-station-waiting { flex: 0 0 220px; }
-  .seat-station-camera .seat-camera { aspect-ratio: auto; height: 100%; min-height: 420px; }
+/* ── 카이막/커피 스테이션 — 멀리서 빠르게, 큼직·단순 ──────────────────────────
+   세로 흐름: [카메라(설정 시)] → [올림 카드(번호 大·완료 버튼 大)] → [풋터: 자리후 → 완료(가로스크롤)]. */
+.seat-screen-station { display: flex; flex-direction: column; gap: 16px; min-height: 100%; }
+.seat-station-camera { flex: 0 0 auto; }
+.seat-station-camera .seat-camera { aspect-ratio: auto; min-height: 180px; max-height: 30vh; }
+
+/* 메인 작업영역: 올림 카드 그리드(넓으면 여러 열). 카드가 많으면 이 영역만 스크롤. */
+.seat-station-active {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  align-content: start;
 }
+.seat-station-empty {
+  grid-column: 1 / -1;
+  padding: 48px 16px;
+  text-align: center;
+  font-size: 22px;
+  color: var(--md-on-surface-variant);
+}
+.seat-station-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--md-surface-container);
+  border-radius: var(--md-radius-md);
+  box-shadow: var(--md-elev-1);
+}
+/* 번호 = 멀리서 빠르게 읽는 핵심 → 아주 크게. */
+.seat-station-no {
+  font-size: clamp(44px, 8vw, 76px);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: .02em;
+  color: var(--md-on-surface);
+}
+/* 완료 버튼 = 큼직 + 누르면 초록으로 채워지며 pop(뿌듯한 피드백). */
+.seat-complete-btn {
+  min-height: 64px;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px solid var(--md-alive);
+  border-radius: var(--md-radius-lg);
+  background: transparent;
+  color: var(--md-alive);
+  cursor: pointer;
+  transition: background var(--md-dur) var(--md-ease), color var(--md-dur) var(--md-ease);
+}
+.seat-complete-btn .seat-complete-check { font-size: 26px; line-height: 1; }
+.seat-complete-btn:hover { background: color-mix(in srgb, var(--md-alive) 12%, transparent); }
+.seat-complete-btn:active {
+  background: var(--md-alive);
+  color: var(--md-on-alive);
+  border-color: transparent;
+  animation: seat-complete-pop .24s var(--md-ease);
+}
+@keyframes seat-complete-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* 풋터 = 화면 하단. 자리후(위) → 완료(아래, 가로 스크롤). */
+.seat-station-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--md-outline-variant);
+}
+.seat-station-foot-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.seat-station-foot-label { flex: 0 0 auto; min-width: 72px; font-weight: 700; }
+.seat-station-foot-chips { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
+.seat-station-foot-chips .seat-chips { flex-wrap: nowrap; }
+.seat-station-foot-chips .seat-chip { flex: 0 0 auto; min-width: 56px; min-height: 44px; font-size: 20px; }
+/* 완료 칩 = 번호 + 되돌리기(↺). '완료' 섹션 위치로 완료가 자명하므로 흐림/취소선 없이 또렷하게. */
+.seat-done-chip { gap: 8px; text-decoration: none; opacity: 1; }
+.seat-undo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-full);
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 1;
+}
+.seat-undo-btn:hover { background: var(--md-primary-container); color: var(--md-on-primary-container); }
 
 /* ── 카메라 슬롯 (Material surface) ──────────────────────────────────────── */
 .seat-camera {
@@ -431,14 +756,13 @@
 .seat-camera-placeholder-title { font-weight: 500; margin-bottom: 4px; }
 .seat-camera-placeholder-sub { color: var(--md-on-surface-variant); opacity: .7; }
 
-/* ── 넓은 화면: 2열 + 주문 행 한 줄 ──────────────────────────────────────── */
+/* ── 넓은 화면: 사이드 2열 (주문 행은 grid 라 반응형 불필요) ─────────────────── */
 @media (min-width: 1024px) {
   .seat-screen-grid { flex-direction: row; align-items: flex-start; }
   .seat-col-side { flex: 0 0 300px; width: auto; }
-  .seat-row { flex-wrap: nowrap; }
 }
 
 /* ── 모션 감소 선호 ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .seat-app * { transition: none !important; }
+  .seat-app * { transition: none !important; animation: none !important; }
 }

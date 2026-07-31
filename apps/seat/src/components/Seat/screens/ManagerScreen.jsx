@@ -1,62 +1,40 @@
-// 제조매니저 화면 — 자리안내 입력부(전체폭) + 메뉴나감(R5) + 그 아래 카메라/자리후/올림/완료 요약. (SEAT-SPEC §9.2)
-// 입력 테이블이 넓어(10열) 사이드를 옆에 두면 좁아지므로, 사이드는 본문 아래 가로 배치.
+// 주문서관리 화면 — 주문 입력 테이블(전체폭) + 카메라. (SEAT-SPEC §9.2)
+// 자리후/올림/완료·제조현황 요약은 앱바 '현황'(모든 역할 공용 StatusOverview)으로 이동.
 import OrderRow from '../components/OrderRow'
 import LiveCameraFeed from '../components/LiveCameraFeed'
-import QueueChips from '../components/QueueChips'
-import { isWaitingOrder, isRaisedOrder } from '../utils/seatRules'
 
-export default function ManagerScreen({ role, orders = [], stations = [], onPatch, onCommit, onCreate }) {
-  const waiting = orders.filter(isWaitingOrder)
-  const raised = orders.filter(isRaisedOrder)
-  // 매니저는 두 스테이션을 모니터 — 어느 스테이션이든 완료면 완료로 집계.
-  const isDone = (o) => stations.some((s) => s.order_id === o.id && s.completed)
-  const active = raised.filter((o) => !isDone(o))
-  const completed = raised.filter(isDone)
-
+export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate, settings = {} }) {
   return (
     <div className="seat-screen seat-screen-manager">
       <div className="seat-toolbar">
-        <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.()}>+ 새 주문</button>
+        <button className="seat-btn seat-btn-primary seat-btn-new-order" onClick={() => onCreate?.()}>+ 새 주문</button>
       </div>
 
       <div className="seat-table" role="table">
+        {/* 헤더 = 그룹 제목 1행. 각 제목 아래 데이터가 위/아래 2칸으로 들어간다(상태·자리후 / 자리순서·제조옵션 / 올림·특이사항). */}
         <div className="seat-row seat-row-head" role="row">
           <div className="seat-cell seat-cell-no">테이블링</div>
           <div className="seat-cell seat-cell-order">주문번호</div>
-          <div className="seat-cell seat-cell-status">상태</div>
-          <div className="seat-cell seat-cell-deliver">자리후</div>
-          <div className="seat-cell seat-cell-opts">제조옵션</div>
-          <div className="seat-cell seat-cell-seat">자리순서</div>
-          <div className="seat-cell seat-cell-raise">올림 / 메뉴나감</div>
-          <div className="seat-cell seat-cell-notes">특이사항</div>
-          <div className="seat-cell seat-cell-broadcast">전달</div>
+          <div className="seat-cell seat-cell-hg1">상태</div>
+          <div className="seat-cell seat-cell-hg2">자리순서</div>
+          <div className="seat-cell seat-cell-hg3">올림</div>
           <div className="seat-cell seat-cell-confirm">확인</div>
         </div>
         {orders.length === 0 ? (
           <div className="seat-empty">주문이 없습니다.</div>
         ) : (
           orders.map((o) => (
-            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} canMenuOut={role?.canMenuOut} gateMode="manager" />
+            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} gateMode="manager" />
           ))
         )}
       </div>
 
-      {/* 본문 아래 가로 배치: 카메라 + 자리후/올림/완료 요약 */}
-      <div className="seat-manager-side">
-        <LiveCameraFeed station="manager" label="제조매니저" enabled={false} />
-        <div className="seat-panel">
-          <div className="seat-panel-title">자리 후 (대기중)</div>
-          <div className="seat-panel-body"><QueueChips orders={waiting} empty="— 대기 없음 —" /></div>
+      {/* 카메라는 계속 지켜보는 것이라 화면에 그대로 둔다(설정에서 끄면 아예 렌더 안 됨). */}
+      {settings.cameraEnabled ? (
+        <div className="seat-manager-side">
+          <LiveCameraFeed station="manager" label="주문서관리" enabled={false} />
         </div>
-        <div className="seat-panel">
-          <div className="seat-panel-title">올림 (자리잡음)</div>
-          <div className="seat-panel-body"><QueueChips orders={active} empty="— 올림 없음 —" /></div>
-        </div>
-        <div className="seat-panel">
-          <div className="seat-panel-title">완료된 리스트</div>
-          <div className="seat-panel-body"><QueueChips orders={completed} empty="— 완료 없음 —" done /></div>
-        </div>
-      </div>
+      ) : null}
     </div>
   )
 }
