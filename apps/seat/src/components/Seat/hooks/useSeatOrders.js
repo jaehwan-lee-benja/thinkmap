@@ -90,11 +90,12 @@ export function useSeatOrders(businessDate) {
     if (error) { console.error('useSeatOrders.patch', error); refetch() }
   }, [refetch])
 
-  // 명시 전달 버튼(A안): 'seat'=자리후 확정 / 'all'=전체에게 전달(touch→Realtime 재발사)
-  // 'seat' 전달 시 seat_delivered=true → 제조매니저 화면 게이팅 해제(전달 전 dim, 전달 후 활성).
+  // 명시 전달 버튼(A안): 'seat'=자리후 확정. seat_delivered=true → 주문서관리 게이팅 해제.
+  // ('all'=전체에게 전달은 2026-07-31 제거 — updated_at 만 만지는 no-op 이었고, 필드 수정은
+  //  이미 Realtime 으로 즉시 전파된다. 명시 전달은 상태를 바꾸는 관문에만 둔다.)
   const commitOrder = useCallback(async (id, scope) => {
-    if (scope === 'seat') return patchOrder(id, { seat_status: 'pending', seat_delivered: true })
-    return patchOrder(id, { updated_at: new Date().toISOString() })
+    if (scope !== 'seat') return
+    return patchOrder(id, { seat_status: 'pending', seat_delivered: true })
   }, [patchOrder])
 
   return { orders, loading, refetch, createOrder, patchOrder, commitOrder }

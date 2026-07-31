@@ -12,7 +12,7 @@ export const STATIONS = [
 // 역할 4종. 역할 추가 예: { key: 'dessert', label: '디저트', camera: true, station: 'dessert', canMenuOut: false }
 export const ROLES = [
   { key: 'guide',   label: '자리안내',   camera: false, station: null,     canMenuOut: false },
-  { key: 'manager', label: '제조매니저', camera: true,  station: null,     canMenuOut: true  }, // R5
+  { key: 'manager', label: '주문서관리', camera: true,  station: null,     canMenuOut: true  }, // R5
   { key: 'kaymak',  label: '카이막',     camera: true,  station: 'kaymak', canMenuOut: false },
   { key: 'coffee',  label: '커피',       camera: true,  station: 'coffee', canMenuOut: false },
 ]
