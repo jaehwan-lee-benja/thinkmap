@@ -5,7 +5,9 @@ import { useState, useEffect } from 'react'
 import { ROLES, DEFAULT_ROLE, ROLE_STORAGE_KEY, getRole } from './config/seatRoles'
 import { useSeatOrders } from './hooks/useSeatOrders'
 import { useStationStatus } from './hooks/useStationStatus'
+import { useDemoSeat } from './hooks/useDemoSeat'
 import { useSeatSettings } from './hooks/useSeatSettings'
+import { useColumnWidths } from './hooks/useColumnWidths'
 import { hiddenColumnClasses } from './config/seatSettings'
 import SettingsPanel from './components/SettingsPanel'
 import SeatModal from './components/SeatModal'
@@ -19,7 +21,7 @@ const pad2 = (n) => String(n).padStart(2, '0')
 const todayLabel = () => { const d = new Date(); return `${d.getFullYear()}.${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}` }
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` }
 
-export default function SeatSystemPage({ session, demoOrders, demoStations, initialRole }) {
+export default function SeatSystemPage({ session, demoOrders, demoStations, initialRole, preview }) {
   const [roleKey, setRoleKey] = useState(() => {
     if (initialRole) return initialRole // 미리보기 진입(?role=) 초기값
     try { return localStorage.getItem(ROLE_STORAGE_KEY) || DEFAULT_ROLE } catch { return DEFAULT_ROLE }
@@ -32,6 +34,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
 
   // 기기별 설정(카메라 표시 등). 데이터 훅과 분리 — 화면 표시에만 영향.
   const { settings, setSetting } = useSeatSettings()
+  const { widths, setWidth, resetWidths } = useColumnWidths() // 표 열 폭(기기별, 가로/세로 각각). 헤더 리사이즈 핸들이 갱신.
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false) // 통합 현황 — 모든 역할 공용(앱바)
 
@@ -39,24 +42,49 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
   //   const businessDate = todayISO()
   //   const { orders, patchOrder, createOrder } = useSeatOrders(businessDate)
   //   const { stations, patchStation } = useStationStatus(businessDate)
-  // 미리보기(demoOrders 주입) = 정적, 실제 = 데이터 훅 + Realtime. (훅은 항상 호출 — 인자만 null)
-  const isDemo = !!demoOrders
+  // 세 모드(훅은 항상 호출 — React 규칙, 인자만 비활성화):
+  //   preview = 로컬 메모리 CRUD(로그인 우회, 인터랙션 O, 저장 X) — dev 프리뷰.
+  //   demoOrders 주입 = 정적 미리보기(인터랙션 X).
+  //   그 외 = 실제 데이터 훅 + Realtime.
+  const isStaticDemo = !!demoOrders
+  const isLive = !preview && !isStaticDemo
   const businessDate = todayISO()
-  const live = useSeatOrders(isDemo ? null : businessDate)
-  const liveStations = useStationStatus(isDemo ? null : businessDate)
-  const orders = demoOrders || live.orders
-  const stations = demoStations || liveStations.stations
-  const onPatch = isDemo ? () => {} : live.patchOrder
-  const onCommit = isDemo ? () => {} : live.commitOrder
-  const onCreate = isDemo ? () => {} : (draft) => live.createOrder(draft || {})
-  const onPatchStation = isDemo ? () => {} : liveStations.patchStation
+  const demo = useDemoSeat(!!preview)
+  const live = useSeatOrders(isLive ? businessDate : null)
+  const liveStations = useStationStatus(isLive ? businessDate : null)
+
+  const orders = preview ? demo.orders : (demoOrders || live.orders)
+  const stations = preview ? demo.stations : (demoStations || liveStations.stations)
+  const onPatch = preview ? demo.patchOrder : (isStaticDemo ? () => {} : live.patchOrder)
+  const onCommit = preview ? demo.commitOrder : (isStaticDemo ? () => {} : live.commitOrder)
+  const onCreate = preview ? (draft) => demo.createOrder(draft || {}) : (isStaticDemo ? () => {} : (draft) => live.createOrder(draft || {}))
+  const onPatchStation = preview ? demo.patchStation : (isStaticDemo ? () => {} : liveStations.patchStation)
+  // 행 순서 재배열 = 현재 프리뷰만(실 DB는 순서 저장 필드 미구현 → 마이그 후 연결). 없으면 핸들 미표시.
+  const onReorder = preview ? demo.reorder : undefined
+  const onSortByNumber = preview ? demo.sortByNumber : undefined
+
+  // 열 리사이즈: 세로형(≤1023) + 주문서관리 화면이면 portrait 세트, 그 외 landscape.
+  //   (자리안내는 가로 주력이라 항상 landscape grid 를 쓴다 — SEAT-SPEC §12.1.)
+  const onResizeColumn = (key, px) => {
+    const portrait = typeof window !== 'undefined'
+      && window.matchMedia('(max-width: 1023px)').matches
+      && role.key === 'manager'
+    setWidth(portrait ? 'portrait' : 'landscape', key, px)
+  }
 
   // 숨긴 열 = 루트 클래스(is-hide-<key>)로 전달 → CSS 가 헤더·데이터행을 함께 숨긴다.
   // (OrderRow 는 자리안내와 공용이라 DOM 은 건드리지 않는다 — 헤더 3곳 동기화 함정 회피.)
   const hideCls = hiddenColumnClasses(settings.hiddenColumns)
 
+  // 열 폭 = CSS 변수로 주입. --sc-*(가로형) / --scp-*(세로형). Seat.css grid-template-columns 가 소비.
+  const L = widths.landscape, P = widths.portrait
+  const widthVars = {
+    '--sc-no': `${L.no}px`, '--sc-order': `${L.order}px`, '--sc-mid': `${L.mid}px`, '--sc-opts': `${L.opts}px`, '--sc-confirm': `${L.confirm}px`,
+    '--scp-no': `${P.no}px`, '--scp-order': `${P.order}px`, '--scp-mid': `${P.mid}px`, '--scp-opts': `${P.opts}px`, '--scp-confirm': `${P.confirm}px`,
+  }
+
   return (
-    <div className={`seat-app${hideCls ? ` ${hideCls}` : ''}`}>
+    <div className={`seat-app${hideCls ? ` ${hideCls}` : ''}`} style={widthVars}>
       <header className="seat-header">
         <div className="seat-header-date">{todayLabel()}</div>
         <nav className="seat-role-tabs" role="tablist" aria-label="역할 선택">
@@ -92,6 +120,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
         open={settingsOpen}
         settings={settings}
         onChange={setSetting}
+        onResetColumnWidths={resetWidths}
         onClose={() => setSettingsOpen(false)}
       />
 
@@ -101,9 +130,9 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
 
       <main className="seat-main">
         {role.key === 'guide' ? (
-          <GuideScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} />
+          <GuideScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={setWidth} />
         ) : role.key === 'manager' ? (
-          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} settings={settings} />
+          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} settings={settings} onResizeColumn={setWidth} />
         ) : role.station ? (
           <StationScreen role={role} orders={orders} stations={stations} onPatchStation={onPatchStation} settings={settings} />
         ) : null}

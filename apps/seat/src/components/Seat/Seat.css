@@ -241,6 +241,8 @@
 
 /* ── 버튼 (Material filled / tonal / text) ────────────────────────────────── */
 .seat-toolbar { margin-bottom: 12px; }
+/* 표 위 툴바(번호 정렬 등) — 왼쪽 정렬. */
+.seat-toolbar-above { display: flex; justify-content: flex-start; gap: 8px; }
 /* 표 아래 배치(새 주문): 위쪽 여백 + 왼쪽 정렬. 시작 갈래 픽커 + 새 주문 버튼 가로 배치. */
 .seat-toolbar-below { margin: 12px 0 0; display: flex; align-items: center; gap: 8px; }
 /* 자리후 전달 체크박스: 라벨 줄바꿈 방지 */
@@ -278,13 +280,14 @@
    ★DOM(OrderRow 셀 순서)은 불변 — grid-area 로만 배치(헤더 3곳 동기화 함정 회피). */
 .seat-row {
   display: grid;
+  /* 열 폭 = --sc-*(SeatSystemPage 가 저장값 주입). 헤더 리사이즈 핸들로 조절. 올림만 남는 폭(1fr). */
   grid-template-columns:
-    84px                    /* 테이블링 */
-    minmax(104px, 120px)    /* 주문번호 */
-    minmax(112px, 150px)    /* 상태 / 자리후 */
-    minmax(100px, 132px)    /* 자리순서 / 제조옵션 */
-    minmax(200px, 1fr)      /* 올림 / 특이사항 */
-    minmax(120px, 148px);   /* 확인 */
+    var(--sc-no, 84px)         /* 테이블링 */
+    var(--sc-order, 112px)     /* 주문번호 */
+    var(--sc-mid, 130px)       /* 상태 / 자리후 */
+    var(--sc-opts, 116px)      /* 자리순서 / 제조옵션 */
+    minmax(160px, 1fr)         /* 올림 / 특이사항 = 남는 폭 */
+    var(--sc-confirm, 132px);  /* 확인 */
   grid-template-areas:
     "tno tord status  seat raise confirm"
     "tno tord deliver opts notes confirm";
@@ -307,8 +310,41 @@
 /* ★min-width:0 — grid 아이템 기본 min-width:auto 는 콘텐츠(제목) 폭을 최소값으로 잡아
    좁은 트랙을 넘어 옆 칸과 겹친다. 0 으로 두면 셀이 트랙 폭을 지킨다. */
 .seat-cell { padding: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
-/* 헤더 그룹 제목: 한 줄 유지 + 트랙을 넘으면 …로 잘라 겹침 방지. */
-.seat-row-head .seat-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 헤더 그룹 제목: 한 줄 유지 + 트랙을 넘으면 …로 잘라 겹침 방지 + 각 트랙 가운데 정렬(그룹 위 중앙).
+   ★가로·세로 공통 — 왼쪽 정렬이면 넓은 트랙(상태 등)에서 제목이 치우쳐 다른 그룹과 안 맞아 보인다. */
+/* 헤더 셀은 overflow:visible — 리사이즈 핸들(셀 경계 밖)이 잘리지 않게. 제목 잘림은 라벨 span 이 담당. */
+.seat-row-head .seat-cell { white-space: nowrap; overflow: visible; justify-content: center; text-align: center; position: relative; }
+.seat-head-label { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* 열 너비 조절 핸들 — 헤더 셀 오른쪽 경계. 드래그(pointer)로 그 열 폭 변경. 가로형만(세로형은 자체 트랙). */
+.seat-col-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.seat-col-resizer--right { right: -5px; }
+.seat-col-resizer--left { left: -5px; } /* 마지막 열(확인) — 올림|확인 경계 */
+.seat-col-resizer::after {
+  content: '';
+  position: absolute;
+  top: 20%;
+  bottom: 20%;
+  left: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--md-outline-variant);
+  transition: background var(--md-dur) var(--md-ease);
+}
+.seat-col-resizer:hover::after,
+.seat-col-resizer:active::after { background: var(--md-primary); }
+@media (max-width: 1023px) {
+  /* 세로형 리사이즈는 주문서관리만(그 grid 가 --scp-* 소비). 자리안내는 가로 grid 라 세로형에선 핸들 숨김. */
+  .seat-screen-guide .seat-col-resizer { display: none; }
+}
 
 /* 셀 → 트랙 배치(공통, 가로·세로 동일). */
 .seat-cell-no      { grid-area: tno; }
@@ -325,44 +361,53 @@
 .seat-cell-hg3     { grid-area: hg3; }
 
 .seat-cell-no { font-weight: 700; justify-content: center; text-align: center; } /* 테이블링 숫자 가운데 */
+/* 테이블링 입력 필드 = 가운데·굵게(숫자). width:100% 대신 flex 로 두어 왼쪽 핸들과 한 줄에 나란히. */
+.seat-input-no { text-align: center; font-weight: 700; padding-left: 4px; padding-right: 4px; width: auto; flex: 1 1 auto; min-width: 0; }
+/* 순서 이동 핸들(자리안내) — 테이블링 셀 왼쪽. 드래그로 행 재배열. */
+.seat-drag-handle {
+  flex: 0 0 auto;
+  cursor: grab;
+  color: var(--md-on-surface-variant);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 2px;
+  user-select: none;
+  touch-action: none;
+}
+.seat-drag-handle:active { cursor: grabbing; }
+.seat-cell-no { gap: 2px; flex-wrap: nowrap; } /* 핸들+입력 한 줄, 최소 간격 */
 /* 확인 = 세로 2칸(확인필요/확인완료), 세로 가운데. */
 .seat-cell-confirm { flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .seat-cell-confirm .seat-check { white-space: nowrap; }
 
 /* ── 비활성(무효) 체크박스 = ✕ + 취소선 ────────────────────────────────────
-   자리앉음이 잠기거나(자리순서 필요없음) 확인완료가 아직 불가할 때, '이 단계 무효'를 ✕로 표시. */
+   공통 커스텀 체크박스(.seat-check input)와 같은 박스 — 색/글리프만 바꿔 크기·위치는 동일하게 유지.
+   자리앉음이 잠기거나(자리순서 필요없음) '이 단계 무효'를 ✕로 표시. */
 .seat-check--void { opacity: .55; }
-.seat-check--void input {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  border: 1px solid var(--md-outline-variant);
-  border-radius: 4px;
-  background: transparent;
-  display: inline-grid;
-  place-items: center;
-}
+.seat-check--void input { border-color: var(--md-outline-variant); background: transparent; }
 .seat-check--void input::after {
   content: '✕';
-  font-size: 16px; /* 라벨 글씨와 동일 크기 */
-  line-height: 1;
   color: var(--md-on-surface-variant);
+  font-size: 15px;
+  line-height: 1;
 }
 .seat-check--void .seat-check-text { text-decoration: line-through; }
 
 /* ── 큰 마디(단계) 색 구분 — 3그룹이 각기 다른 음영으로 한 덩어리 (가로·세로 공통) ────
    마디1(테이블링·주문번호·상태·자리후)=파랑 / 마디2(자리순서·제조옵션)=중성 회색 / 마디3(올림·특이사항)=옅은 회색.
    grid-area 로 위·아래 셀이 같은 트랙에 stretch → 세로로 연속된 색 밴드가 된다. */
+/* ★그룹 헤더(hg1/2/3)도 같은 마디 색 — 헤더 '상태'가 '주문번호'와 같은 색이 되도록(유저 지시). */
 .seat-cell-no,
 .seat-cell-order,
 .seat-cell-status,
-.seat-cell-deliver { background: color-mix(in srgb, var(--md-primary) 8%, transparent); }
+.seat-cell-deliver,
+.seat-cell-hg1 { background: color-mix(in srgb, var(--md-primary) 8%, transparent); }
 .seat-cell-seat,
-.seat-cell-opts { background: color-mix(in srgb, var(--md-on-surface) 7%, transparent); }
+.seat-cell-opts,
+.seat-cell-hg2 { background: color-mix(in srgb, var(--md-on-surface) 7%, transparent); }
 .seat-cell-raise,
-.seat-cell-notes { background: color-mix(in srgb, var(--md-on-surface) 4%, transparent); }
+.seat-cell-notes,
+.seat-cell-hg3 { background: color-mix(in srgb, var(--md-on-surface) 4%, transparent); }
 
 /* 마디 경계선 — 각 그룹 트랙의 오른쪽 끝(위·아래 두 셀 모두). */
 .seat-cell-status, .seat-cell-deliver,
@@ -393,9 +438,9 @@
    주방에서 많은 주문/자리를 한 화면에 (Material 3 "dense data table").
    ★.seat-table 스코프 안에서만 압축 → 스테이션 등 다른 화면은 48dp 유지.
    터치 조작은 유지(입력·탭 가능), 세로 밀도 우선. 입력 폰트는 16px 유지(모바일 확대 방지). */
-.seat-table .seat-row { min-height: 40px; }
+.seat-table .seat-row { min-height: 48px; }
 .seat-table .seat-row-head { min-height: 34px; }
-.seat-table .seat-cell { padding: 2px 8px; gap: 4px; }
+.seat-table .seat-cell { padding: 7px 8px; gap: 4px; } /* 위아래 공간 확보(2→7px) */
 .seat-table .seat-input,
 .seat-table .seat-select { min-height: 36px; padding: 2px 10px; }
 .seat-table .seat-toggle { min-height: 36px; padding: 0 12px; font-size: 15px; }
@@ -419,14 +464,14 @@
   /* 세로형(주문서관리 주력): 그룹 카드 구조(areas·grid-area·마디색·경계)는 공통 규칙을 그대로 쓰고,
      여기선 트랙을 좁게 오버라이드만 한다. 헤더도 그룹 제목 1행이라 데이터 2행 카드와 정렬 → 표시. */
   .seat-screen-manager .seat-table .seat-row {
-    /* 트랙 폭은 변수로 — 열을 숨겨 트랙이 통째로 비면 아래에서 0px 로 접는다. */
+    /* 트랙 폭: 열 숨김(--seat-pcol-*, 0px 접기)이 최우선, 없으면 세로형 리사이즈값(--scp-*), 없으면 기본 minmax. */
     grid-template-columns:
-      var(--seat-pcol-no, minmax(60px, 76px))       /* 테이블링 */
-      var(--seat-pcol-order, minmax(92px, 108px))   /* 주문번호 */
-      var(--seat-pcol-mid, minmax(84px, 100px))     /* 상태 / 자리후 */
-      var(--seat-pcol-opts, minmax(64px, 92px))     /* 자리순서 / 제조옵션 = 버튼·드랍다운이라 좁게 */
-      var(--seat-pcol-notes, minmax(0, 1fr))        /* 올림 / 특이사항 = 남는 폭 */
-      var(--seat-pcol-confirm, minmax(100px, 116px)); /* 확인 = 확인필요/확인완료 라벨이 안 잘리게 */
+      var(--seat-pcol-no, var(--scp-no, minmax(60px, 76px)))        /* 테이블링 */
+      var(--seat-pcol-order, var(--scp-order, minmax(92px, 108px))) /* 주문번호 */
+      var(--seat-pcol-mid, var(--scp-mid, minmax(84px, 100px)))     /* 상태 / 자리후 */
+      var(--seat-pcol-opts, var(--scp-opts, minmax(64px, 92px)))    /* 자리순서 / 제조옵션 */
+      var(--seat-pcol-notes, minmax(0, 1fr))                        /* 올림 / 특이사항 = 남는 폭 */
+      var(--seat-pcol-confirm, var(--scp-confirm, minmax(100px, 116px))); /* 확인 */
   }
 
   /* 트랙 접기 — 그 트랙의 셀이 전부 숨겨졌을 때만. */
@@ -442,15 +487,8 @@
   /* 주문번호 = 세로에서 가장 자주 읽는 값 → 크게. */
   .seat-table .seat-cell-order .seat-input { font-size: 20px; font-weight: 700; text-align: center; }
 
-  /* 세로에서는 '+ 새 주문' 숨김(자리안내가 생성). '현황 더보기'는 남긴다. */
-  .seat-screen-manager .seat-btn-new-order { display: none; }
-
-  /* 세로형 그룹 헤더: 좁은 트랙에 맞춰 제목을 작게 + 가운데 정렬(트랙 위 중앙). 겹침/잘림 여유. */
-  .seat-screen-manager .seat-row-head .seat-cell {
-    font-size: 13px;
-    justify-content: center;
-    text-align: center;
-  }
+  /* 세로형 그룹 헤더: 좁은 트랙에 맞춰 제목만 작게(가운데 정렬은 공통 규칙). */
+  .seat-screen-manager .seat-row-head .seat-cell { font-size: 13px; }
 }
 
 /* ── 게이팅(주문서관리 전용): "자리후 전달" 전 행 = dim + 비활성 ─────────────
@@ -516,7 +554,33 @@
 }
 .seat-input::placeholder { color: var(--md-on-surface-variant); opacity: .7; }
 .seat-check { display: inline-flex; align-items: center; gap: 6px; min-height: 48px; }
-.seat-check input { width: 22px; height: 22px; accent-color: var(--md-primary); }
+/* ★모든 체크박스 = 커스텀(appearance:none) 통일 — 네이티브 렌더 편차 제거.
+   무효(✕) 체크박스와 크기·위치가 정확히 같아, 상태가 바뀌어도 글씨가 흔들리지 않는다. */
+.seat-check input {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border: 1px solid var(--md-outline);
+  border-radius: 4px;
+  background: transparent;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+.seat-check input:checked {
+  background: var(--md-primary);
+  border-color: var(--md-primary);
+}
+.seat-check input:checked::after {
+  content: '✓';
+  color: var(--md-on-primary);
+  font-size: 15px;
+  line-height: 1;
+}
+.seat-check input:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── 토글 버튼 (Material tonal — 상태색 유지) ─────────────────────────────── */
 .seat-toggle {
@@ -537,6 +601,21 @@
   font-weight: 700;
   box-shadow: var(--md-elev-1);
 }
+/* 자리순서 = 상태 표시(클릭 불가). 살아있음=초록 / 필요없음=회색. */
+.seat-order-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--md-radius-full);
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.seat-order-status.is-alive { background: var(--md-alive); color: var(--md-on-alive); }
+.seat-order-status.is-none { background: var(--md-surface-container-highest); color: var(--md-on-surface-variant); font-weight: 500; }
+
 /* 자리순서 상태: 살아있음=초록 톤 / 필요없음=회색(중성) 톤 */
 .seat-toggle.is-alive {
   background: var(--md-alive);
@@ -720,20 +799,28 @@
 .seat-station-foot-chips { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
 .seat-station-foot-chips .seat-chips { flex-wrap: nowrap; }
 .seat-station-foot-chips .seat-chip { flex: 0 0 auto; min-width: 56px; min-height: 44px; font-size: 20px; }
-/* 완료 칩 = 번호 + 되돌리기(↺). '완료' 섹션 위치로 완료가 자명하므로 흐림/취소선 없이 또렷하게. */
+/* 완료 칩 = 번호 + 되돌리기(↺). '완료' 섹션 위치로 완료가 자명하므로 흐림/취소선 없이 또렷하게.
+   ★완료 카드만 자리후보다 2배 크게(유저 지시) — 멀리서 내가 완료한 걸 확인. 자리후 칩은 기본 크기. */
 .seat-done-chip { gap: 8px; text-decoration: none; opacity: 1; }
+.seat-station-done .seat-chip {
+  min-width: 112px;
+  min-height: 88px;
+  padding: 12px 24px;
+  font-size: 40px;
+  gap: 12px;
+}
 .seat-undo-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  min-height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border: 1px solid var(--md-outline-variant);
   border-radius: var(--md-radius-full);
   background: var(--md-surface-container-highest);
   color: var(--md-on-surface);
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
   cursor: pointer;
   opacity: 1;

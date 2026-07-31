@@ -1,26 +1,43 @@
 // 자리안내 화면 — 입력 핵심. (SEAT-SPEC §9.1 / 슬라이드 자리안내)
 // 명시 전달 체크박스(자리후 전달·자리앉음·올리기 전달) + 확인필요 플래그. 카메라 없음.
 // 제조현황 등 요약은 앱바 '현황'(모든 역할 공용 StatusOverview)으로 이동.
+import { useState } from 'react'
 import OrderRow from '../components/OrderRow'
+import SeatTableHead from '../components/SeatTableHead'
 
-export default function GuideScreen({ orders = [], onPatch, onCommit, onCreate }) {
+export default function GuideScreen({ orders = [], onPatch, onCommit, onCreate, onReorder, onSortByNumber, onResizeColumn }) {
+  const [dragIdx, setDragIdx] = useState(null)
+  const canReorder = !!onReorder // 순서 이동 핸들은 재배열 콜백이 있을 때만(현재 프리뷰)
   return (
     <div className="seat-screen seat-screen-guide">
-      <div className="seat-table" role="table">
-        {/* 헤더 = 그룹 제목 1행. 각 제목 아래 데이터가 위/아래 2칸으로 들어간다(상태·자리후 / 자리순서·제조옵션 / 올림·특이사항). */}
-        <div className="seat-row seat-row-head" role="row">
-          <div className="seat-cell seat-cell-no">테이블링</div>
-          <div className="seat-cell seat-cell-order">주문번호</div>
-          <div className="seat-cell seat-cell-hg1">상태</div>
-          <div className="seat-cell seat-cell-hg2">자리순서</div>
-          <div className="seat-cell seat-cell-hg3">올림</div>
-          <div className="seat-cell seat-cell-confirm">확인</div>
+      {/* 표 위 왼쪽: 드래그로 흐트러진 순서를 테이블링 번호순으로 되돌린다. */}
+      {onSortByNumber && (
+        <div className="seat-toolbar seat-toolbar-above">
+          <button className="seat-btn" onClick={onSortByNumber}>번호 맞춰 정렬하기</button>
         </div>
+      )}
+      <div className="seat-table" role="table">
+        <SeatTableHead resizable={!!onResizeColumn} onResize={onResizeColumn} />
         {orders.length === 0 ? (
           <div className="seat-empty">주문이 없습니다. “+ 새 주문”으로 추가하세요.</div>
         ) : (
-          orders.map((o) => (
-            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} gateMode="guide" />
+          orders.map((o, i) => (
+            <OrderRow
+              key={o.id}
+              order={o}
+              onPatch={onPatch}
+              onCommit={onCommit}
+              gateMode="guide"
+              dragHandleProps={canReorder ? {
+                draggable: true,
+                onDragStart: (e) => { setDragIdx(i); e.dataTransfer.effectAllowed = 'move' },
+                onDragEnd: () => setDragIdx(null),
+              } : null}
+              rowDropProps={canReorder ? {
+                onDragOver: (e) => e.preventDefault(),
+                onDrop: (e) => { e.preventDefault(); if (dragIdx != null && dragIdx !== i) onReorder(dragIdx, i); setDragIdx(null) },
+              } : null}
+            />
           ))
         )}
       </div>
