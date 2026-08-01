@@ -34,7 +34,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
 
   // 기기별 설정(카메라 표시 등). 데이터 훅과 분리 — 화면 표시에만 영향.
   const { settings, setSetting } = useSeatSettings()
-  const { widths, setWidth, resetWidths } = useColumnWidths() // 표 열 폭(기기별, 가로/세로 각각). 헤더 리사이즈 핸들이 갱신.
+  const { widths, setWidth, resetWidths } = useColumnWidths(session) // 표 열 폭(계정 귀속 서버 + localStorage 폴백). 가로/세로 각각.
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false) // 통합 현황 — 모든 역할 공용(앱바)
 
@@ -130,9 +130,9 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
 
       <main className="seat-main">
         {role.key === 'guide' ? (
-          <GuideScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={setWidth} />
+          <GuideScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} />
         ) : role.key === 'manager' ? (
-          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} settings={settings} onResizeColumn={setWidth} />
+          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} settings={settings} onResizeColumn={onResizeColumn} />
         ) : role.station ? (
           <StationScreen role={role} orders={orders} stations={stations} onPatchStation={onPatchStation} settings={settings} />
         ) : null}
