@@ -21,10 +21,11 @@ export function formatClaimPrefix(claimedAt) {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours()}시에`
 }
 
-// URL 파라미터 → 역할('customer' 기본 | 'staff')과 매장 룸 id.
+// URL 파라미터 → 역할('customer' 기본 | 'staff' | 'editor'=영수증 편집 | 'scan'=카운터 회수)과 매장 룸 id.
 export function readRoleAndStore() {
   const p = new URLSearchParams(window.location.search)
-  const role = p.get('role') === 'staff' ? 'staff' : 'customer'
+  const r = p.get('role')
+  const role = r === 'staff' ? 'staff' : r === 'editor' ? 'editor' : r === 'scan' ? 'scan' : 'customer'
   const store = p.get('store') || import.meta.env.VITE_MEMBERSHIP_STORE || 'default'
   return { role, store }
 }

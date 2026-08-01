@@ -10,8 +10,43 @@
 //   - game 채널: 회원 + score>=5000 요구
 //   - 스탬프: 회수 확정 건만 카운트(10=아이스크림, 0017 승계 개념)
 // 테스트용 확장: POST /_reset (전체 초기화) · POST /_time {now} (가짜 시계, 만료 시나리오)
+// ★계약 변경(crm 2026-08-01, 시그니처·상태값 불변 — 실 Edge 구현 시 적용):
+//   1) game 채널 인증 = 사용자 JWT + game Edge 서명 assertion(점수 검증 주체=game Edge, crm SQL score 체크=백스톱).
+//      ※crm=thinkmap DB·game=multi-store로 다른 프로젝트(교차 조회 불가) — SPEC §4 재정정.
+//   2) member_by_phone = 서버-투-서버 전용(브라우저에 member_id 직접 반환 금지 — 게임 클라는 game Edge 경유).
+//   스텁은 로컬 개발용이라 인증 미시뮬(계약 형태만 고정).
 // =============================================================================
 import http from 'node:http'
+import { webcrypto } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+// ★DEV ES256 공개키(kid:"dev-1") — assertion 실서명검증용. DEV ONLY(실키 아님).
+//   검증 스킵 env 금지(계약 — fail-open이면 게임 클라가 잘못된 성공에 길든다).
+const DEV_KEYS = JSON.parse(readFileSync(fileURLToPath(new URL('./dev-keys.json', import.meta.url)), 'utf8'))
+const TRUSTED_JWKS = { 'dev-1': DEV_KEYS.publicJwk }
+
+// compact JWS(ES256) fail-closed 검증. 반환 {ok, payload} | {ok:false, code}
+async function verifyAssertion(jws, todayDate) {
+  try {
+    const parts = String(jws || '').split('.')
+    if (parts.length !== 3) return { ok: false, code: 'assertion_invalid' }
+    const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'))
+    if (header.alg !== 'ES256') return { ok: false, code: 'assertion_invalid' }       // alg:none 등 전부 거부
+    const jwk = TRUSTED_JWKS[header.kid]
+    if (!jwk) return { ok: false, code: 'assertion_invalid' }                          // 미등록 kid
+    const key = await webcrypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
+    const valid = await webcrypto.subtle.verify(
+      { name: 'ECDSA', hash: 'SHA-256' }, key,
+      Buffer.from(parts[2], 'base64url'), Buffer.from(parts[0] + '.' + parts[1]))
+    if (!valid) return { ok: false, code: 'assertion_invalid' }
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
+    const nowSec = Math.floor(Date.now() / 1000)
+    if (typeof payload.exp !== 'number' || payload.exp < nowSec) return { ok: false, code: 'assertion_expired' }
+    if (payload.event_date !== todayDate) return { ok: false, code: 'date_mismatch' }
+    return { ok: true, payload }
+  } catch (e) { return { ok: false, code: 'assertion_invalid' } }
+}
 
 const PORT = Number(process.argv[2] || 8931)
 const THRESHOLD = 10
@@ -55,7 +90,11 @@ function tokenValid(t) {
   return AL[sum % AL.length] === t[11]
 }
 
-function mask(name) { return name.length >= 2 ? name[0] + '*' + name.slice(2) : name }
+// 마스킹 = 서버 정본(crm.mask_name)과 동형: 첫글자 + (중간 전부 *) + 끝글자. 예) 홍길동→홍*동, 가나다라→가**라.
+function mask(name) {
+  if (name.length < 3) return name.length === 2 ? name[0] + '*' : name
+  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1]
+}
 function stampOf(id) { return db.stamps.get(id) || 0 }
 function stampView(id) {
   const c = stampOf(id)
@@ -75,15 +114,28 @@ function ticketState(t) {
 // ── Edge 4종 (SPEC §3) ──────────────────────────────────────────────────────
 const rpc = {
   // 발권: 일일 유니크(member,type,channel,일자). 충돌=기존 토큰 반환(멱등).
-  ticket_issue(b) {
-    const member = db.members.get(b.member_id)
-    if (!member) return { status: 404, body: { error: 'member_not_found' } }
+  // ★game 채널(계약 v1.0): 본문 {channel:'game', meta:{score}, assertion}만 — member_id는 assertion.sub.
+  //   응답 6종 고정: 200 / 401 assertion_invalid / 401 assertion_expired / 400 date_mismatch /
+  //   400 score_below_threshold / 400 member_id_not_allowed.
+  async ticket_issue(b) {
     const channel = b.channel
     if (channel !== 'kiosk' && channel !== 'game') return { status: 400, body: { error: 'bad_channel' } }
+
+    let memberId = b.member_id
     if (channel === 'game') {
-      const score = b.meta && b.meta.score
+      if ('member_id' in b) return { status: 400, body: { error: 'member_id_not_allowed' } } // 조용한 무시 금지
+      const v = await verifyAssertion(b.assertion, today())
+      if (!v.ok) {
+        const status = v.code === 'date_mismatch' ? 400 : 401
+        return { status, body: { error: v.code } }
+      }
+      memberId = v.payload.sub
+      const score = v.payload.score
       if (!(typeof score === 'number' && score >= 5000)) return { status: 400, body: { error: 'score_below_threshold' } }
     }
+    const member = db.members.get(memberId)
+    if (!member) return { status: 404, body: { error: 'member_not_found' } }
+    b = { ...b, member_id: memberId }
     const eventDate = today()
     for (const t of db.tickets.values()) {
       if (t.member_id === b.member_id && t.event_type === 'popcorn' && t.channel === channel &&
@@ -169,8 +221,10 @@ const server = http.createServer((req, res) => {
     if (path === '/_seed_member') { seedMember(body.id, body.name, body.phone); return send(200, { ok: true }) }
     const fn = rpc[path.slice(1)]
     if (!fn) return send(404, { error: 'unknown_fn', path })
-    const out = fn(body)
-    return send(out.status, out.body)
+    Promise.resolve(fn(body))
+      .then((out) => send(out.status, out.body))
+      .catch((e) => send(500, { error: 'stub_error', message: String(e && e.message) }))
+    return undefined
   })
 })
 server.listen(PORT, '127.0.0.1', () => console.log('[popcorn-stub] listening http://127.0.0.1:' + PORT))

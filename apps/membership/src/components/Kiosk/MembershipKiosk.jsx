@@ -4,6 +4,8 @@
 //   매장 룸      = ?store=<id>(고정). Realtime 채널 인가는 매장 계정 세션(private 채널, 마이그 게이트).
 import CustomerView from './CustomerView'
 import StaffView from './StaffView'
+import ReceiptEditor from './ReceiptEditor'
+import ScanView from './ScanView'
 import IdleReset from './IdleReset'
 import { readRoleAndStore } from './kioskUtils'
 import './Kiosk.css'
@@ -18,9 +20,10 @@ export default function MembershipKiosk({ session }) {
       {/* 무조작 N초 → 첫 화면 복귀(고객 태블릿 개인정보 잔류 방지). 키 없이 role 별 적용. */}
       <IdleReset enabled={role === 'customer'} />
       <main className="mk-main">
-        {role === 'staff'
-          ? <StaffView store={store} />
-          : <CustomerView store={store} />}
+        {role === 'staff' && <StaffView store={store} />}
+        {role === 'editor' && <ReceiptEditor />}
+        {role === 'scan' && <ScanView />}
+        {role === 'customer' && <CustomerView store={store} />}
       </main>
     </div>
   )

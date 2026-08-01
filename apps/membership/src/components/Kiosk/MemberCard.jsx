@@ -7,9 +7,14 @@ const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크�
 export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card' }) {
   if (!member) return null
 
-  // ★오늘 참여 여부 = 서버 today_event_claimed(0017에서 KST 교정됨). 프론트 KST 우회 제거.
+  // ★티켓 모델(0018): today_event_claimed = "오늘 회수됨"(스탬프 확정). 발권됨(수령 대기)은 별도 상태.
   const today = todayStr()
   const claimedToday = !!member.today_event_claimed
+  // 오늘 kiosk 티켓(발권됨·미회수) — 방금 발권(_ticket) 또는 ticket_today 재표시(_todayTickets).
+  const todayList = member._todayTickets || []
+  const issuedTicket = member._ticket
+    || todayList.find((t) => t.channel === 'kiosk' && t.state === 'issued')
+    || null
 
   // ★스탬프 = crm 실값(0017). current_stamps(0~9)/threshold, rewards_available.
   const stamp = member.stamp || null
@@ -42,15 +47,21 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
           <div className="mk-event-label">멤버십 이벤트</div>
           {claimedToday ? (
             <div className="mk-event-done">오늘({today}) 참여 완료 ✓</div>
+          ) : issuedTicket ? (
+            /* 발권됨(수령 대기) — 카운터 회수 시 스탬프 확정. 토큰=수기 입력 검증 경로(인쇄는 현장 확정 대기). */
+            <div className="mk-ticket">
+              <div className="mk-ticket-title">참여권 발권 완료 — 카운터에서 보여주세요</div>
+              <div className="mk-ticket-token">{issuedTicket.token}</div>
+              <div className="mk-ticket-hint">유효기간: 오늘({issuedTicket.event_date || today})</div>
+            </div>
           ) : (
             <>
               <div className="mk-event-todo">오늘은 아직 참여 전이에요.</div>
               <button className="mk-claim-btn" onClick={onClaim} disabled={claiming || !onClaim}>
-                {claiming ? '적립 중…' : <>사르르 <span className="mk-evt-tag">{EVENT_LABEL}</span> 참여</>}
+                {claiming ? '발권 중…' : <>사르르 <span className="mk-evt-tag">{EVENT_LABEL}</span> 참여</>}
               </button>
             </>
           )}
-          {member._justClaimed && <div className="mk-claimed">참여 완료 🎉</div>}
           {member._justRedeemed && <div className="mk-claimed">아이스크림 수령 완료 🍦🎉</div>}
 
           {/* ★스탬프 진행(실값) — 아이스크림까지. crm stamp 있을 때만. */}
@@ -60,9 +71,14 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                 <span className="mk-stamp-title">🍦 아이스크림까지</span>
                 <span className="mk-stamp-count">{filled}/{goal}</span>
               </div>
-              <div className="mk-stamp-dots" aria-hidden="true">
+              {/* ★S9 종이 도장판 — 찍힌 칸=마스코트 도장(미세 회전으로 손도장 느낌), 마지막 칸=쿵 모션 */}
+              <div className="mk-stampcard" aria-hidden="true">
                 {Array.from({ length: goal }).map((_, i) => (
-                  <span key={i} className={`mk-stamp-dot ${i < filled ? 'is-on' : ''}`} />
+                  <span key={i} className={`mk-stamp-cell ${i < filled ? 'is-on' : ''} ${i === filled - 1 && member._justClaimed ? 'is-new' : ''}`}>
+                    {i < filled && (
+                      <img className="mk-stamp-ink" src={`${import.meta.env.BASE_URL}img/cow-mark-white.png`} alt="" style={{ transform: `rotate(${((i * 37) % 17) - 8}deg)` }} />
+                    )}
+                  </span>
                 ))}
               </div>
               {rewardsAvail > 0 ? (
