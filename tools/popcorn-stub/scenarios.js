@@ -3,6 +3,10 @@
 // 전 시나리오 PASS 시 exit 0 / 실패 있으면 exit 1 + 상세. "될 때까지 루프"의 판정기.
 const PORT = Number(process.argv[2] || 8931)
 const BASE = 'http://127.0.0.1:' + PORT
+import { signAssertion } from './dev-sign.js'
+
+// KST 오늘(스텁 today()와 동형)
+const kstToday = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 
 async function call(fn, body) {
   const r = await fetch(BASE + '/' + fn, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) })
@@ -57,11 +61,14 @@ async function main() {
   check('S5', '마스킹 서버정본 동형(가나다라→가**라)', p5d.body.display_name === '가**라', p5d)
 
   // ── S6. 5,000점 쿠폰 발행(조건·1일1회) ───────────────────────────────────
-  const g6low = await call('ticket_issue', { member_id: 'm-hong', channel: 'game', meta: { score: 4999 } })
-  check('S6', '5,000점 미만 거부', g6low.status === 400 && g6low.body.error === 'score_below_threshold', g6low)
-  const g6 = await call('ticket_issue', { member_id: 'm-hong', channel: 'game', meta: { score: 5200 } })
-  check('S6', '5,000점 이상 쿠폰 발행', g6.status === 200 && !!g6.body.token, g6)
-  const g6b = await call('ticket_issue', { member_id: 'm-hong', channel: 'game', meta: { score: 9000 } })
+  const aLow = await signAssertion({ memberId: 'm-hong', score: 4999, eventDate: kstToday() })
+  const g6low = await call('ticket_issue', { channel: 'game', assertion: aLow })
+  check('S6', '5,000점 미만 거부(서명은 유효)', g6low.status === 400 && g6low.body.error === 'score_below_threshold', g6low)
+  const aOk = await signAssertion({ memberId: 'm-hong', score: 5200, eventDate: kstToday() })
+  const g6 = await call('ticket_issue', { channel: 'game', assertion: aOk })
+  check('S6', '5,000점 이상 쿠폰 발행(assertion sub=member)', g6.status === 200 && !!g6.body.token, g6)
+  const aOk2 = await signAssertion({ memberId: 'm-hong', score: 9000, eventDate: kstToday() })
+  const g6b = await call('ticket_issue', { channel: 'game', assertion: aOk2 })
   check('S6', '같은날 game 재발행=동일 토큰(1일1회 멱등)', g6b.body.token === g6.body.token && g6b.body.reissued === true, g6b)
 
   // ── S7. 쿠폰 회수 ────────────────────────────────────────────────────────
@@ -73,7 +80,8 @@ async function main() {
   check('S8', '오늘 홍길동 스탬프=2(kiosk+game)', s8.body.stamp.current_stamps === 2, s8.body.stamp)
   const k8 = await call('ticket_issue', { member_id: 'm-hong', channel: 'kiosk' })
   check('S8', 'kiosk 3번째 시도=기존 토큰(추가 발권 불가)', k8.body.reissued === true, k8)
-  const g8 = await call('ticket_issue', { member_id: 'm-hong', channel: 'game', meta: { score: 8000 } })
+  const a8 = await signAssertion({ memberId: 'm-hong', score: 8000, eventDate: kstToday() })
+  const g8 = await call('ticket_issue', { channel: 'game', assertion: a8 })
   check('S8', 'game 3번째 시도=기존 토큰(추가 발권 불가)', g8.body.reissued === true, g8)
   // 회수도 이중스캔 거부라 스탬프 그대로 → 상한 2 유지
   const r8 = await call('ticket_redeem', { token: k8.body.token })
@@ -107,6 +115,27 @@ async function main() {
   let threw = false
   try { buildEscpos(bad10, data10) } catch (e) { threw = true }
   check('S10', '★토큰 바코드 누락 시 저장/생성 거부', v10.ok === false && threw, v10)
+
+  // ── S11. game assertion 계약 6종(확정 v1.0 — fail-closed) ────────────────
+  const aGood = await signAssertion({ memberId: 'm-lee', score: 6000, eventDate: kstToday() })
+  const s11ok = await call('ticket_issue', { channel: 'game', assertion: aGood })
+  check('S11', '유효 서명 → 200 발권', s11ok.status === 200 && !!s11ok.body.token, s11ok)
+  const aExp = await signAssertion({ memberId: 'm-lee', score: 6000, eventDate: kstToday(), now: Date.now() - 120000 })
+  const s11exp = await call('ticket_issue', { channel: 'game', assertion: aExp })
+  check('S11', '만료(exp+90s 초과) → 401 assertion_expired', s11exp.status === 401 && s11exp.body.error === 'assertion_expired', s11exp)
+  // alg:none 위조(서명 제거)
+  const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
+  const noneJws = b64u({ alg: 'none', kid: 'dev-1' }) + '.' + b64u({ sub: 'm-lee', score: 9999, event_date: kstToday(), exp: Math.floor(Date.now()/1000)+60 }) + '.'
+  const s11none = await call('ticket_issue', { channel: 'game', assertion: noneJws })
+  check('S11', 'alg:none 위조 → 401 assertion_invalid', s11none.status === 401 && s11none.body.error === 'assertion_invalid', s11none)
+  const aBadKid = await signAssertion({ memberId: 'm-lee', score: 6000, eventDate: kstToday(), kid: 'prod-2099' })
+  const s11kid = await call('ticket_issue', { channel: 'game', assertion: aBadKid })
+  check('S11', '미등록 kid → 401 assertion_invalid', s11kid.status === 401 && s11kid.body.error === 'assertion_invalid', s11kid)
+  const aWrongDate = await signAssertion({ memberId: 'm-lee', score: 6000, eventDate: '2020-01-01' })
+  const s11date = await call('ticket_issue', { channel: 'game', assertion: aWrongDate })
+  check('S11', 'event_date 불일치 → 400 date_mismatch', s11date.status === 400 && s11date.body.error === 'date_mismatch', s11date)
+  const s11mid = await call('ticket_issue', { channel: 'game', member_id: 'm-lee', assertion: aGood })
+  check('S11', '★game 본문 member_id → 400 member_id_not_allowed', s11mid.status === 400 && s11mid.body.error === 'member_id_not_allowed', s11mid)
 
   // ── 결과 ─────────────────────────────────────────────────────────────────
   const fails = results.filter((r) => !r.pass)

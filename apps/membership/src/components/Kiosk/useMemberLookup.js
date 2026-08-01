@@ -1,8 +1,7 @@
 // 회원 조회·적립·이력 공용 훅 — 직원 검색(로컬)·고객 셀프검색(로컬)·직원 푸시(원격) 모두 이걸 쓴다.
 // currentMember 를 로컬 조회 결과 또는 원격 브로드캐스트 payload 로 둘 다 세팅 가능(이중 경로, 유저결정 A).
 import { useState, useCallback } from 'react'
-import { lookupMember, claimEvent, getEventHistory, getStampStatus, redeemReward } from '../../api/membership'
-import { todayStr } from './kioskUtils'
+import { lookupMember, getEventHistory, getStampStatus, redeemReward, issueTicketFor, todayTickets } from '../../api/membership'
 
 const EVENT_TYPE = 'popcorn'
 
@@ -30,6 +29,14 @@ export function useMemberLookup() {
     } catch { /* noop */ }
   }, [])
 
+  // 오늘 티켓 로드(재표시 — 기기변경·캐시소실). 0019 가교 동안 tickets:[](폴백 정상).
+  const loadToday = useCallback(async (memberId) => {
+    try {
+      const t = await todayTickets(memberId)
+      setMember((prev) => (prev ? { ...prev, _todayTickets: Array.isArray(t?.tickets) ? t.tickets : [] } : prev))
+    } catch { /* noop — 가교/미배선 시 표시 생략 */ }
+  }, [])
+
   const clear = useCallback(() => {
     setStatus('idle'); setMember(null); setHistory([]); setErrMsg('')
   }, [])
@@ -39,35 +46,38 @@ export function useMemberLookup() {
     setStatus('loading'); setErrMsg(''); setHistory([])
     try {
       const r = await lookupMember(phone)
-      if (r?.found) { setMember(r); setStatus('found'); loadHistory(r.member_id); return r }
+      if (r?.found) { setMember(r); setStatus('found'); loadHistory(r.member_id); loadToday(r.member_id); return r }
       setMember(null); setStatus('notfound'); return null
     } catch (e) {
       setStatus('error'); setErrMsg(e?.message || '조회 실패'); return null
     }
-  }, [loadHistory])
+  }, [loadHistory, loadToday])
 
   // 원격 푸시(직원→고객 브로드캐스트 payload)로 직접 세팅.
   const setMemberDirect = useCallback((payload) => {
     if (!payload?.member_id) return
-    setMember(payload); setStatus('found'); setErrMsg(''); loadHistory(payload.member_id)
-  }, [loadHistory])
+    setMember(payload); setStatus('found'); setErrMsg(''); loadHistory(payload.member_id); loadToday(payload.member_id)
+  }, [loadHistory, loadToday])
 
+  // ★티켓 모델(0018 라이브): 참여 버튼 = 즉시적립이 아니라 "발권" — 스탬프는 카운터 회수 시 적립.
   const claim = useCallback(async () => {
     if (!member?.member_id) return null
     setClaiming(true); setErrMsg('')
     try {
-      // ★event_date = KST(Asia/Seoul) '오늘' — UTC 경계 오적립 방지(0017 정합).
-      const r = await claimEvent(member.member_id, EVENT_TYPE, todayStr())
-      setMember((prev) => ({ ...prev, today_event_claimed: true, _justClaimed: !r?.already }))
+      const r = await issueTicketFor(member.member_id)
+      if (r && r.token) {
+        setMember((prev) => ({ ...prev, _ticket: { token: r.token, reissued: !!r.reissued, event_date: r.event_date } }))
+      } else {
+        setErrMsg((r && r.error) === 'channel_not_enabled' ? '채널 설정 오류' : (r && r.error) || '발권 실패')
+      }
       loadHistory(member.member_id)
-      refreshStamp(member.member_id) // 스탬프 증가 반영
       return r
     } catch (e) {
-      setErrMsg(e?.message || '적립 실패'); return null
+      setErrMsg(e?.message || '발권 실패'); return null
     } finally {
       setClaiming(false)
     }
-  }, [member, loadHistory, refreshStamp])
+  }, [member, loadHistory])
 
   // ★리워드 수령(아이스크림) — 직원 확정 write. 성공 시 스탬프 새로고침.
   const redeem = useCallback(async () => {

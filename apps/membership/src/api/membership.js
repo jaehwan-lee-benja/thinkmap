@@ -49,6 +49,35 @@ export function getEventHistory(memberId, eventType = 'popcorn') {
   return callProxy('membership-history', { member_id: memberId, event_type: eventType })
 }
 
+// ── 팝콘 루프 티켓(발권→카운터 회수, 0018 라이브) ────────────────────────────
+// ⑧ 발권(키오스크 채널 — 서버가 channel:'kiosk' 고정). 멱등: 같은날=동일 토큰 reissued.
+// 반환: { ok, token, reissued, event_date } | { ok:false, error }
+export function issueTicket() {
+  return callProxy('membership-ticket-issue', {})
+}
+// ※호출부: issueTicketFor(memberId) 형태 필요 — Edge가 member_id 요구(키오스크 조회 후 발권).
+export function issueTicketFor(memberId) {
+  return callProxy('membership-ticket-issue', { member_id: memberId })
+}
+
+// ⑨ 조회(카운터 스캔): token → 상태·마스킹명·채널·스탬프. bad_token 400 / not_found 404.
+export function lookupTicket(token) {
+  return callProxy('membership-ticket-lookup', { token })
+}
+
+// ⑩ 회수(카운터 확정): ★redeemed_by는 서버가 게이트 operator 사용(본문 미수용).
+// 반환: { ok:true, display_name, channel, stamp } | { ok:false, reason }(200)
+export function redeemTicket(token) {
+  return callProxy('membership-ticket-redeem', { token })
+}
+
+// ⑪ 오늘 티켓 재표시(기기변경·캐시소실): ★배열. 0019 가교 동안 {tickets:[], stamp:null, pending_migration}.
+export function todayTickets(memberId, channel) {
+  const body = { member_id: memberId }
+  if (channel) body.channel = channel
+  return callProxy('membership-ticket-today', body)
+}
+
 // ⑥ 스탬프 상태 새로고침(수령/적립 후). 프록시 → crm membership_stamp_status.
 // 반환: { stamp:{claims_total,current_stamps,threshold,rewards_earned,rewards_redeemed,rewards_available,next_reward} }
 export function getStampStatus(memberId) {

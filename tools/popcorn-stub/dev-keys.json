@@ -1,0 +1,25 @@
+{
+  "_WARNING": "DEV ONLY - 실키 아님. 로컬 스텁 서명검증 개발 전용. 프로덕션 키는 배포 시점 생성·시크릿 보관(repo 금지).",
+  "kid": "dev-1",
+  "privateJwk": {
+    "key_ops": [
+      "sign"
+    ],
+    "ext": true,
+    "kty": "EC",
+    "x": "thohuUASJB-X_d8yUuv-bY1TGkQOc6lVlDpbdTlWGdY",
+    "y": "uZ8VV_KgOq76Q1FYi5jjBKDOQ2LHPVtubm2q4IPL3-E",
+    "crv": "P-256",
+    "d": "BEIZRP_fr5xJrS2LW_BuwxTJ4GgTaQG-yGM4BA4eq64"
+  },
+  "publicJwk": {
+    "key_ops": [
+      "verify"
+    ],
+    "ext": true,
+    "kty": "EC",
+    "x": "thohuUASJB-X_d8yUuv-bY1TGkQOc6lVlDpbdTlWGdY",
+    "y": "uZ8VV_KgOq76Q1FYi5jjBKDOQ2LHPVtubm2q4IPL3-E",
+    "crv": "P-256"
+  }
+}

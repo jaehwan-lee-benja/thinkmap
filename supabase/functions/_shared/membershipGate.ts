@@ -23,6 +23,8 @@ const RATE_MAX: Record<string, number> = {
   list: 6,          // ★회원 리스트(전량 PII) — 매우 엄격(반복 덤프 방어).
   stamp: 60,        // 스탬프 상태 읽기 — 조회된 회원 한정, 느슨.
   reward: 12,       // ★리워드 수령 write — abuse 방어(서버 멱등·중복방지 있으나 프록시도 제한).
+  // 티켓(팝콘 루프) — 카운터 연속 스캔·재발권 대비(기본 30이면 바쁜 시간 부족).
+  ticket_issue: 30, ticket_lookup: 90, ticket_redeem: 90, ticket_today: 60,
 }
 // 테이블 부재(마이그 전 부트스트랩) 코드 — 이때만 감사/레이트리밋을 조용히 skip 한다.
 const PG_UNDEFINED_TABLE = '42P01'

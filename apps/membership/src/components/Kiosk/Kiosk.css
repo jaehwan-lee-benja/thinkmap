@@ -342,6 +342,44 @@
 .mk-history-wrap { width: 100%; }
 .mk-history-title { font-size: 14px; font-weight: 700; color: var(--md-on-surface-variant); margin-bottom: 8px; text-align: left; }
 
+/* ── 키오스크 발권 티켓(수령 대기) ─────────────────────────────────────────── */
+.mk-ticket {
+  width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;
+  padding: 16px; border-radius: var(--md-radius-md);
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+}
+.mk-ticket-title { font-size: 18px; font-weight: 700; }
+.mk-ticket-token { font-family: monospace; font-size: 30px; letter-spacing: 3px; font-weight: 700; }
+.mk-ticket-hint { font-size: 13px; opacity: .85; }
+
+/* ── 카운터 스캔(?role=scan) ───────────────────────────────────────────────── */
+.mk-scan { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 28px; max-width: 640px; margin: 0 auto; width: 100%; }
+.mk-scan-title { margin: 0; font-size: 24px; font-family: var(--mk-font-title); }
+.mk-scan-input {
+  width: 100%; min-height: 64px; padding: 12px 18px; font-size: 24px; font-family: monospace; letter-spacing: 2px;
+  border: 2px solid var(--md-outline); border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-low); color: var(--md-on-surface); text-align: center;
+}
+.mk-scan-input:focus { border-color: var(--md-primary); outline: none; }
+.mk-scan-card {
+  width: 100%; display: flex; flex-direction: column; gap: 12px; align-items: center;
+  padding: 24px; border-radius: var(--md-radius-lg);
+}
+.mk-scan-ok   { background: rgba(111,217,126,.14); border: 2px solid var(--md-alive); }
+.mk-scan-done { background: var(--md-alive); color: var(--md-on-alive); }
+.mk-scan-bad  { background: rgba(255,180,171,.12); border: 2px solid var(--md-error); }
+.mk-scan-state { font-size: 26px; font-weight: 800; }
+.mk-scan-bad .mk-scan-state { color: var(--md-error); }
+.mk-scan-ok .mk-scan-state { color: var(--md-alive); }
+.mk-scan-meta { display: flex; gap: 16px; font-size: 18px; }
+.mk-scan-stamp { font-size: 17px; font-weight: 700; }
+.mk-scan-warn { font-size: 16px; color: var(--md-error); font-weight: 700; }
+.mk-scan-redeem {
+  min-height: 64px; padding: 12px 36px; font-size: 22px; font-weight: 800; cursor: pointer;
+  border: none; border-radius: var(--md-radius-xl); background: var(--md-alive); color: var(--md-on-alive);
+}
+.mk-scan-redeem:disabled { opacity: .5; }
+
 /* ── 영수증 레이아웃 편집기(?role=editor) ─────────────────────────────────── */
 .mk-editor { flex: 1; display: flex; gap: 24px; padding: 20px; overflow: auto; align-items: flex-start; }
 .mk-ed-panel { flex: 1 1 460px; max-width: 560px; display: flex; flex-direction: column; gap: 12px; }
