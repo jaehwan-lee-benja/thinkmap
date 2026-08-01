@@ -7,10 +7,6 @@ import SeatTableHead from '../components/SeatTableHead'
 export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate, settings = {}, onResizeColumn }) {
   return (
     <div className="seat-screen seat-screen-manager">
-      <div className="seat-toolbar">
-        <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.()}>+ 새 주문</button>
-      </div>
-
       <div className="seat-table" role="table">
         <SeatTableHead resizable={!!onResizeColumn} onResize={onResizeColumn} />
         {orders.length === 0 ? (
@@ -20,6 +16,11 @@ export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate
             <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} gateMode="manager" />
           ))
         )}
+      </div>
+
+      {/* 새 주문 = 표 아래·왼쪽(자리안내와 동일 위치, 유저 지시 2026-08-01). */}
+      <div className="seat-toolbar seat-toolbar-below">
+        <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.()}>+ 새 주문</button>
       </div>
 
       {/* 카메라는 계속 지켜보는 것이라 화면에 그대로 둔다(설정에서 끄면 아예 렌더 안 됨). */}
