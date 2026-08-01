@@ -4,10 +4,22 @@
 import { SEAT_SETTINGS, toggleHiddenColumn } from '../config/seatSettings'
 import SeatModal from './SeatModal'
 
-export default function SettingsPanel({ open, settings = {}, onChange, onResetColumnWidths, onClose }) {
+export default function SettingsPanel({ open, settings = {}, onChange, onResetColumnWidths, onOpenStatus, onClose }) {
   return (
     <SeatModal open={open} title="설정" onClose={onClose} foot="이 설정은 이 기기에만 저장됩니다.">
       <div className="seat-settings-body">
+        {/* 통합 현황 — 모든 역할 공용. 설정 안에서 연다(상단바에서 이동). */}
+        {onOpenStatus && (
+          <div className="seat-settings-row seat-settings-row--block">
+            <span className="seat-settings-row-text">
+              <span className="seat-settings-row-label">현황</span>
+              <span className="seat-settings-row-hint">모든 역할이 같은 통합 현황을 봅니다.</span>
+            </span>
+            <div>
+              <button type="button" className="seat-btn" onClick={onOpenStatus}>현황 열기</button>
+            </div>
+          </div>
+        )}
         {SEAT_SETTINGS.map((s) => {
           const head = (
             <span className="seat-settings-row-text">

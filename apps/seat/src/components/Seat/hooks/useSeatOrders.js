@@ -31,7 +31,7 @@ export function useSeatOrders(businessDate, onError) {
         .select('*')
         .eq('business_date', businessDate)
         .is('deleted_at', null)
-        .order('queue_no', { ascending: true, nullsFirst: false }) // '+주문번호만'(queue_no NULL)은 맨 뒤
+        .order('created_at', { ascending: true }) // 기본 = 만들어진 순서(번호 없는 줄도 생성순으로 쌓임). 번호순은 '번호 맞춰 정렬' 버튼.
       if (error) throw error
       if (!mountedRef.current) return
       // 저장 대기 중인(=타이핑 방금 끝난) 행은 로컬 낙관값 유지 → 뒷글자 유실 방지.
@@ -81,8 +81,8 @@ export function useSeatOrders(businessDate, onError) {
       .single()
     if (error) { console.error('useSeatOrders.create', error); onError?.(saveErrorMessage(error)); return null }
     if (mountedRef.current) {
-      // NULL(=‘+주문번호만’)은 맨 뒤 — refetch(nullsFirst:false)와 같은 순서로(위로 튀었다 내려오는 현상 제거).
-      setOrders((prev) => [...prev, data].sort((a, b) => (a.queue_no ?? Infinity) - (b.queue_no ?? Infinity)))
+      // 생성 순서 유지 — 새 주문은 맨 아래에 쌓인다(refetch 의 created_at asc 와 동일).
+      setOrders((prev) => [...prev, data])
     }
     return data
   }, [businessDate, onError])
@@ -94,7 +94,14 @@ export function useSeatOrders(businessDate, onError) {
     p.set(id, (p.get(id) || 0) + 1)
     const { error } = await supabase.from('seat_orders').update(patch).eq('id', id)
     const n = (p.get(id) || 1) - 1
-    if (n > 0) p.set(id, n); else p.delete(id)
+    if (n > 0) {
+      p.set(id, n)
+    } else {
+      // ★완료 후 짧은 유예 동안 보호 유지 — 마지막 글자 직후 도착한 self-write Realtime refetch 가
+      //   낙관값(마지막 글자)을 이전 서버값으로 덮어써 '끝 글자 지워짐'이 생기던 것을 막는다.
+      p.set(id, 0) // Map key 존재 = has(id) true → refetch 가 이 행을 보호
+      setTimeout(() => { if (p.get(id) === 0) p.delete(id) }, 600)
+    }
     if (error) { console.error('useSeatOrders.patch', error); onError?.(saveErrorMessage(error)); refetch() }
   }, [refetch, onError])
 

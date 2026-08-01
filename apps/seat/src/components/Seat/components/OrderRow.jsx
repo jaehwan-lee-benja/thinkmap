@@ -4,7 +4,7 @@
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import { isRaiseEnabled, isDineIn, removesFromSeatQueue } from '../utils/seatRules'
 
-export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, dupSuffix }) {
+export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, dupSuffix, numpadOn, onOpenNumpad }) {
   const patch = (p) => onPatch?.(order.id, p)
   const dineIn = isDineIn(order)                 // 실내 시작만 자리후 전달 관문 대상
   const removesQueue = removesFromSeatQueue(order) // 야외/포장 = 자리큐 제외(야외병행은 유지)
@@ -45,7 +45,9 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   // 확인 신호(주문서관리 → 자리안내): 확인필요 켜짐 + 아직 확인완료 안 됨 = 하이라이트(자리안내 화면에서만).
   // 확인완료를 누르면 하이라이트만 꺼지고 확인필요 체크는 남는다(기록). 다시 확인필요를 껐다 켜면 재신호.
   const needsAttention = !!order.confirm_flag && !order.confirm_done
-  const rowCls = `seat-row${managerGated ? ' seat-row--gated' : ''}${guideLocked ? ' seat-row--guide-locked' : ''}${needsAttention ? ' seat-row--flagged' : ''}`
+  const noQueue = !(order.queue_no > 0) // 테이블링 번호 없는 줄(‘+주문번호만’) = 파란 하이라이트
+  // ★순서: no-queue(파랑) 먼저 → flagged(확인필요) 뒤 = 겹치면 확인필요가 우선(뒤 규칙이 이김).
+  const rowCls = `seat-row${noQueue ? ' seat-row--no-queue' : ''}${managerGated ? ' seat-row--gated' : ''}${guideLocked ? ' seat-row--guide-locked' : ''}${needsAttention ? ' seat-row--flagged' : ''}`
 
   return (
     <div className={rowCls} role="row" {...rowDropProps}>
@@ -61,7 +63,9 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
           value={order.queue_no > 0 ? order.queue_no : ''}
           placeholder="-"
           inputMode="numeric"
-          onChange={(e) => {
+          readOnly={numpadOn}
+          onClick={numpadOn ? () => onOpenNumpad?.(order.id, 'queue_no') : undefined}
+          onChange={numpadOn ? undefined : (e) => {
             const v = e.target.value.replace(/[^0-9]/g, '')
             patch({ queue_no: v === '' ? null : Number(v) })
           }}
@@ -74,8 +78,10 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
         <input
           className="seat-input"
           value={order.order_no || ''}
-          placeholder="주문번호"
-          onChange={(e) => patch({ order_no: e.target.value })}
+          placeholder="-"
+          readOnly={numpadOn}
+          onClick={numpadOn ? () => onOpenNumpad?.(order.id, 'order_no') : undefined}
+          onChange={numpadOn ? undefined : (e) => patch({ order_no: e.target.value })}
         />
       </div>
 
@@ -96,14 +102,16 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
 
       {/* 자리후 전달 = 체크박스(전달 여부 시각확인 + 토글). 실내(dine_in) 주문만 표시(포장/야외는 관문 없음).
           체크→commitOrder('seat')(seat_status pending + seat_delivered=true) / 해제→seat_delivered=false. */}
+      {/* 주문번호가 없으면 전달 비활성(주문번호 먼저 입력해야 스테이션에 올릴 수 있음, 유저 지시 2026-08-01). */}
       <div className="seat-cell seat-cell-deliver">
         {dineIn && (
-          <label className="seat-check seat-deliver-check">
+          <label className={`seat-check seat-deliver-check${order.order_no ? '' : ' seat-check--void'}`}>
             <input
               type="checkbox"
               checked={!!order.seat_delivered}
+              disabled={!order.order_no}
               onChange={(e) => (e.target.checked ? onCommit?.(order.id, 'seat') : patch({ seat_delivered: false }))}
-            /> 전달
+            /> <span className="seat-check-text">전달</span>
           </label>
         )}
       </div>
@@ -142,21 +150,26 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
       <div className="seat-cell seat-cell-raise">
         {!managerGated && (<>
           {/* 자리앉음: 자리순서가 필요없어져(야외/포장) 잠기면 체크박스를 ✕ + 취소선으로 = '이 단계 무효'.
-              체크하면 자리 배정 완료 → 자리순서를 '필요없음'으로(seat_order_alive=false, 2026-07-31 유저 지시). */}
+              체크=자리 배정 완료 → 자리순서 '필요없음'(seat_order_alive=false).
+              해제=자리순서 '살아있음'으로 복귀(seat_order_alive=true) — 유저 지시 2026-08-01. */}
           <label className={`seat-check${seatToggleLocked ? ' seat-check--void' : ''}`}>
             <input
               type="checkbox"
               checked={!!order.seated}
               disabled={seatToggleLocked}
-              onChange={(e) => patch({ seated: e.target.checked, ...(e.target.checked ? { seat_order_alive: false } : {}) })}
+              onChange={(e) => patch({ seated: e.target.checked, seat_order_alive: !e.target.checked })}
             /> <span className="seat-check-text">자리앉음</span>
           </label>
+          {/* 올리기 전달 = 스테이션(카이막/커피) 올림. 취소하면 ★올리기 전(대기) 상태로 완전 복귀:
+              raised·자리앉음·순서를 되돌려 실내 주문이 스테이션 '자리후 대기중'으로 다시 들어간다(유저 지시 2026-08-01). */}
           <label className="seat-check">
             <input
               type="checkbox"
               checked={!!order.raised}
               disabled={!raiseEnabled}
-              onChange={(e) => patch({ raised: e.target.checked, raised_at: e.target.checked ? new Date().toISOString() : null, seat_status: e.target.checked ? 'raised' : 'pending' })}
+              onChange={(e) => patch(e.target.checked
+                ? { raised: true, raised_at: new Date().toISOString(), seat_status: 'raised' }
+                : { raised: false, raised_at: null, seat_status: 'pending', seated: false, seat_order_alive: true })}
             /> 올리기 전달
           </label>
         </>)}

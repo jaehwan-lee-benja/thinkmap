@@ -12,8 +12,7 @@ import { hiddenColumnClasses } from './config/seatSettings'
 import SettingsPanel from './components/SettingsPanel'
 import SeatModal from './components/SeatModal'
 import StatusOverview from './components/StatusOverview'
-import GuideScreen from './screens/GuideScreen'
-import ManagerScreen from './screens/ManagerScreen'
+import SeatOrderScreen from './screens/SeatOrderScreen'
 import StationScreen from './screens/StationScreen'
 import './Seat.css'
 
@@ -88,12 +87,10 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
   const onReorder = preview ? demo.reorder : undefined
   const onSortByNumber = preview ? demo.sortByNumber : undefined
 
-  // 열 리사이즈: 세로형(≤1023) + 주문서관리 화면이면 portrait 세트, 그 외 landscape.
-  //   (자리안내는 가로 주력이라 항상 landscape grid 를 쓴다 — SEAT-SPEC §12.1.)
+  // 열 리사이즈: 세로형(≤1023)이면 portrait 세트, 그 외 landscape. (자리안내·주문서관리 공통 — 동일 화면.)
   const onResizeColumn = (key, px) => {
     const portrait = typeof window !== 'undefined'
       && window.matchMedia('(max-width: 1023px)').matches
-      && role.key === 'manager'
     setWidth(portrait ? 'portrait' : 'landscape', key, px)
   }
 
@@ -132,14 +129,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
           title={isFullscreen ? '전체화면 나가기' : '전체화면'}
           onClick={toggleFullscreen}
         >{isFullscreen ? '전체화면 나가기' : '⛶'}</button>
-        {/* 현황 = 설정 왼쪽. 모든 역할에서 같은 통합 현황을 연다. */}
-        <button
-          type="button"
-          className="seat-status-btn"
-          aria-haspopup="dialog"
-          aria-expanded={statusOpen}
-          onClick={() => setStatusOpen(true)}
-        >현황</button>
+        {/* 현황은 설정 안으로 이동(설정 → ‘현황 열기’). */}
         <button
           type="button"
           className="seat-settings-btn"
@@ -154,6 +144,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
         settings={settings}
         onChange={setSetting}
         onResetColumnWidths={resetWidths}
+        onOpenStatus={() => { setSettingsOpen(false); setStatusOpen(true) }}
         onClose={() => setSettingsOpen(false)}
       />
 
@@ -162,12 +153,10 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
       </SeatModal>
 
       <main className="seat-main">
-        {role.key === 'guide' ? (
-          <GuideScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} />
-        ) : role.key === 'manager' ? (
-          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} settings={settings} onResizeColumn={onResizeColumn} onDelete={onDelete} />
+        {role.key === 'guide' || role.key === 'manager' ? (
+          <SeatOrderScreen key={role.key} role={role} orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} settings={settings} />
         ) : role.station ? (
-          <StationScreen role={role} orders={orders} stations={stations} onPatchStation={onPatchStation} settings={settings} />
+          <StationScreen role={role} orders={orders} stations={stations} onPatchStation={onPatchStation} onPatch={onPatch} settings={settings} />
         ) : null}
       </main>
 
