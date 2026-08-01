@@ -4,10 +4,13 @@ import OrderRow from '../components/OrderRow'
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import SeatTableHead from '../components/SeatTableHead'
 
-export default function ManagerScreen({ orders = [], onPatch, onCommit, settings = {}, onResizeColumn }) {
-  // 주문서관리는 새 주문을 만들지 않는다(자리안내가 생성) → '+ 새 주문' 버튼 없음.
+export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate, settings = {}, onResizeColumn }) {
   return (
     <div className="seat-screen seat-screen-manager">
+      <div className="seat-toolbar">
+        <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.()}>+ 새 주문</button>
+      </div>
+
       <div className="seat-table" role="table">
         <SeatTableHead resizable={!!onResizeColumn} onResize={onResizeColumn} />
         {orders.length === 0 ? (
