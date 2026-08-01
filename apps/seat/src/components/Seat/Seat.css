@@ -288,9 +288,10 @@
     var(--sc-opts, 116px)      /* 자리순서 / 제조옵션 */
     minmax(160px, 1fr)         /* 올림 / 특이사항 = 남는 폭 */
     var(--sc-confirm, 132px);  /* 확인 */
+  /* 자리후 그룹(hg1): 전달(deliver)이 위, 상태(status)가 아래 — 유저 지시 2026-08-01. */
   grid-template-areas:
-    "tno tord status  seat raise confirm"
-    "tno tord deliver opts notes confirm";
+    "tno tord deliver seat raise confirm"
+    "tno tord status  opts notes confirm";
   align-items: stretch;
   min-height: 56px;
   border-bottom: 1px solid var(--md-outline-variant);
@@ -756,6 +757,7 @@
 }
 /* 완료 버튼 = 큼직 + 누르면 초록으로 채워지며 pop(뿌듯한 피드백). */
 .seat-complete-btn {
+  position: relative;
   min-height: 64px;
   font: inherit;
   font-size: 22px;
@@ -773,16 +775,44 @@
 }
 .seat-complete-btn .seat-complete-check { font-size: 26px; line-height: 1; }
 .seat-complete-btn:hover { background: color-mix(in srgb, var(--md-alive) 12%, transparent); }
+
+/* ★완료 = 뿌듯한 축하 효과(유저 지시): 통통 튀는 bounce·wobble + 초록 glow + ✓ 팡 + 🎉 confetti. */
 .seat-complete-btn:active {
   background: var(--md-alive);
   color: var(--md-on-alive);
   border-color: transparent;
-  animation: seat-complete-pop .24s var(--md-ease);
+  animation: seat-complete-pop .38s var(--md-ease);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--md-alive) 35%, transparent);
 }
 @keyframes seat-complete-pop {
-  0% { transform: scale(1); }
-  45% { transform: scale(1.06); }
+  0%   { transform: scale(1) rotate(0); }
+  25%  { transform: scale(1.16) rotate(-4deg); }
+  50%  { transform: scale(.93) rotate(3deg); }
+  72%  { transform: scale(1.07) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+/* ✓ 가 팡 튀어오른다. */
+.seat-complete-btn:active .seat-complete-check { animation: seat-check-burst .38s var(--md-ease); }
+@keyframes seat-check-burst {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.75); }
   100% { transform: scale(1); }
+}
+/* 🎉 가 위로 떠오르며 사라진다(축포). 평소엔 안 보이고 누를 때만. */
+.seat-complete-btn::after {
+  content: '🎉';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  font-size: 22px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.seat-complete-btn:active::after { animation: seat-confetti .55s ease-out; }
+@keyframes seat-confetti {
+  0%   { opacity: 1; transform: translate(-50%, 0) scale(.6) rotate(0); }
+  100% { opacity: 0; transform: translate(-50%, -48px) scale(1.25) rotate(20deg); }
 }
 
 /* 풋터 = 화면 하단. 자리후(위) → 완료(아래, 가로 스크롤). */
