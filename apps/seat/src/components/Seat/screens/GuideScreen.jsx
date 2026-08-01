@@ -4,10 +4,12 @@
 import { useState } from 'react'
 import OrderRow from '../components/OrderRow'
 import SeatTableHead from '../components/SeatTableHead'
+import { queueSuffixes } from '../utils/seatRules'
 
 export default function GuideScreen({ orders = [], onPatch, onCommit, onCreate, onReorder, onSortByNumber, onResizeColumn, onDelete }) {
   const [dragIdx, setDragIdx] = useState(null)
   const canReorder = !!onReorder // 순서 이동 핸들은 재배열 콜백이 있을 때만(현재 프리뷰)
+  const suffixMap = queueSuffixes(orders) // 중복 테이블링 번호 → 1-a,1-b
   return (
     <div className="seat-screen seat-screen-guide">
       {/* 표 위 왼쪽: 드래그로 흐트러진 순서를 테이블링 번호순으로 되돌린다. */}
@@ -38,6 +40,7 @@ export default function GuideScreen({ orders = [], onPatch, onCommit, onCreate, 
                 onDrop: (e) => { e.preventDefault(); if (dragIdx != null && dragIdx !== i) onReorder(dragIdx, i); setDragIdx(null) },
               } : null}
               onDelete={onDelete}
+              dupSuffix={suffixMap[o.id]}
             />
           ))
         )}

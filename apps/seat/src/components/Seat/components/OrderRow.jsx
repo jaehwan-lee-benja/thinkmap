@@ -4,7 +4,7 @@
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import { isRaiseEnabled, isDineIn, removesFromSeatQueue } from '../utils/seatRules'
 
-export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete }) {
+export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, dupSuffix }) {
   const patch = (p) => onPatch?.(order.id, p)
   const dineIn = isDineIn(order)                 // 실내 시작만 자리후 전달 관문 대상
   const removesQueue = removesFromSeatQueue(order) // 야외/포장 = 자리큐 제외(야외병행은 유지)
@@ -66,6 +66,8 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             patch({ queue_no: v === '' ? null : Number(v) })
           }}
         />
+        {/* 같은 번호가 여러 개면 리스트에서 -a,-b 로 구분(중복 허용). */}
+        {dupSuffix ? <span className="seat-no-suffix">-{dupSuffix}</span> : null}
       </div>
 
       <div className="seat-cell seat-cell-order">

@@ -27,3 +27,21 @@ export const isWaitingOrder = (o) =>
 export const isRaisedOrder = (o) => !!o?.raised
 // 주문 표시 번호 — 주문번호 우선, 없으면 자리대기번호.
 export const orderLabel = (o) => o?.order_no || (o?.queue_no != null ? String(o.queue_no) : '-')
+
+// 같은 테이블링 번호(queue_no>0)를 여러 주문이 쓰면(중복) 리스트에서 1-a,1-b 로 구분.
+// 반환 = { orderId: 'a'|'b'|... } — 중복 그룹에 속한 주문만 포함(단일 사용은 접미사 없음).
+export function queueSuffixes(orders = []) {
+  const groups = new Map()
+  for (const o of orders) {
+    if (o?.queue_no > 0) {
+      if (!groups.has(o.queue_no)) groups.set(o.queue_no, [])
+      groups.get(o.queue_no).push(o.id)
+    }
+  }
+  const map = {}
+  for (const ids of groups.values()) {
+    if (ids.length < 2) continue
+    ids.forEach((id, i) => { map[id] = String.fromCharCode(97 + i) }) // a, b, c…
+  }
+  return map
+}
