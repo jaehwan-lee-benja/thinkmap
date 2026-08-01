@@ -3,8 +3,10 @@
 import OrderRow from '../components/OrderRow'
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import SeatTableHead from '../components/SeatTableHead'
+import { queueSuffixes } from '../utils/seatRules'
 
 export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate, settings = {}, onResizeColumn, onDelete }) {
+  const suffixMap = queueSuffixes(orders) // 중복 테이블링 번호 → 1-a,1-b
   return (
     <div className="seat-screen seat-screen-manager">
       <div className="seat-table" role="table">
@@ -13,7 +15,7 @@ export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate
           <div className="seat-empty">주문이 없습니다.</div>
         ) : (
           orders.map((o) => (
-            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} gateMode="manager" onDelete={onDelete} />
+            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} gateMode="manager" onDelete={onDelete} dupSuffix={suffixMap[o.id]} />
           ))
         )}
       </div>

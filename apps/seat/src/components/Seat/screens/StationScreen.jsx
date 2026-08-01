@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import QueueChips from '../components/QueueChips'
-import { isWaitingOrder, isRaisedOrder, orderLabel } from '../utils/seatRules'
+import { isWaitingOrder, isRaisedOrder, orderLabel, queueSuffixes } from '../utils/seatRules'
 
 export default function StationScreen({ role, orders = [], stations = [], onPatchStation, settings = {} }) {
   const stationKey = role?.station
@@ -16,6 +16,10 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
   const completed = raised.filter((o) => stStatus(o.id)?.completed) // 내가 완료한 것(스테이션 독립)
 
   const setStation = (orderId, patch) => onPatchStation?.(orderId, stationKey, patch)
+
+  // 중복 테이블링 번호 → 라벨에 -a,-b (order_no 빈 주문이 같은 queue_no 면 카드가 똑같이 보이는 오배정 방지).
+  const suffixMap = queueSuffixes(orders)
+  const labelOf = (o) => { const s = suffixMap[o.id]; return s ? `${orderLabel(o)}-${s}` : orderLabel(o) }
 
   // 완료 = 축하 애니메이션을 끝까지 보여준 뒤 완료 처리(여운). 카드별 Set 이라 A 축하 중에도 B 를 바로 누를 수 있다.
   const [celebrating, setCelebrating] = useState(() => new Set())
@@ -46,7 +50,7 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
             const st = stStatus(o.id)
             return (
               <div key={o.id} className="seat-station-card">
-                <div className="seat-station-no">{orderLabel(o)}</div>
+                <div className="seat-station-no">{labelOf(o)}</div>
                 <input
                   className="seat-input"
                   value={st?.change_note || ''}
@@ -82,12 +86,12 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
               <div className="seat-chips">
                 {completed.map((o) => (
                   <span key={o.id} className="seat-chip seat-chip-done seat-done-chip">
-                    {orderLabel(o)}
+                    {labelOf(o)}
                     {/* 잘못 완료했을 때 되돌리기 → 다시 올림(active)으로. */}
                     <button
                       type="button"
                       className="seat-undo-btn"
-                      aria-label={`${orderLabel(o)} 완료 되돌리기`}
+                      aria-label={`${labelOf(o)} 완료 되돌리기`}
                       onClick={() => setStation(o.id, { completed: false })}
                     >↺</button>
                   </span>

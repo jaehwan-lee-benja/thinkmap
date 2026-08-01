@@ -391,6 +391,8 @@
 /* 테이블링 입력 필드 = 가운데·굵게·크게(숫자, 2배 32px). width:100% 대신 flex 로 두어 왼쪽 핸들과 한 줄에. */
 .seat-input-no { text-align: center; font-weight: 700; font-size: 32px; padding-left: 4px; padding-right: 4px; width: auto; flex: 1 1 auto; min-width: 0; }
 .seat-table .seat-input-no { font-size: 32px; } /* dense 스코프에서도 유지 */
+/* 중복 번호 접미사(-a,-b) — 같은 테이블링 번호가 여럿일 때만 표시. */
+.seat-no-suffix { flex: 0 0 auto; font-size: 20px; font-weight: 700; color: var(--md-primary); }
 /* 주문번호도 테이블링과 나란히 큰 숫자(2배, 32px) — 가로·세로 공통. */
 .seat-cell-order .seat-input,
 .seat-table .seat-cell-order .seat-input { font-size: 32px; font-weight: 700; text-align: center; }
