@@ -179,6 +179,8 @@
 }
 /* 전체화면(⛶) = 아이콘 정사각. 우측 그룹의 시작 — 여기서 밀어 붙인다. */
 .seat-fullscreen-btn { margin-left: auto; padding: 0; width: 48px; font-size: 22px; line-height: 1; }
+/* 전체화면 중 = '전체화면 나가기' 텍스트 버튼(폭 auto). */
+.seat-fullscreen-btn.is-exit { width: auto; padding: 0 20px; font-size: inherit; font-weight: 500; }
 
 /* ── 공용 모달(설정 · 현황 더보기) ────────────────────────────────────────── */
 .seat-modal-scrim {
@@ -290,11 +292,12 @@
     var(--sc-mid, 130px)       /* 상태 / 자리후 */
     var(--sc-opts, 116px)      /* 자리순서 / 제조옵션 */
     minmax(160px, 1fr)         /* 올림 / 특이사항 = 남는 폭 */
-    var(--sc-confirm, 132px);  /* 확인 */
+    var(--sc-confirm, 132px)   /* 확인 */
+    44px;                      /* 삭제(제일 오른쪽) */
   /* 자리후 그룹(hg1): 전달(deliver)이 위, 상태(status)가 아래 — 유저 지시 2026-08-01. */
   grid-template-areas:
-    "tno tord deliver seat raise confirm"
-    "tno tord status  opts notes confirm";
+    "tno tord deliver seat raise confirm del"
+    "tno tord status  opts notes confirm del";
   align-items: stretch;
   min-height: 56px;
   border-bottom: 1px solid var(--md-outline-variant);
@@ -304,7 +307,7 @@
 .seat-row:not(.seat-row-head):hover { background: color-mix(in srgb, var(--md-on-surface) 5%, transparent); }
 /* 헤더 = 그룹 제목 1행(테이블링·주문번호·상태·자리순서·올림·확인). 데이터와 같은 6트랙 → 정렬. */
 .seat-row-head {
-  grid-template-areas: "tno tord hg1 hg2 hg3 confirm";
+  grid-template-areas: "tno tord hg1 hg2 hg3 confirm del";
   min-height: 44px;
   font-weight: 500;
   color: var(--md-on-surface-variant);
@@ -363,6 +366,26 @@
 .seat-cell-hg1     { grid-area: hg1; }
 .seat-cell-hg2     { grid-area: hg2; }
 .seat-cell-hg3     { grid-area: hg3; }
+.seat-cell-del     { grid-area: del; justify-content: center; }
+
+/* 줄 삭제 버튼 — 작은 ✕, 평소 흐릿하다 hover/press 시 에러색. */
+.seat-del-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .7;
+}
+.seat-del-btn:hover { opacity: 1; background: var(--md-error); color: var(--md-on-error); border-color: transparent; }
 
 .seat-cell-no { font-weight: 700; justify-content: center; text-align: center; } /* 테이블링 숫자 가운데 */
 /* 테이블링 입력 필드 = 가운데·굵게·크게(숫자, 2배 32px). width:100% 대신 flex 로 두어 왼쪽 핸들과 한 줄에. */
@@ -479,7 +502,8 @@
       var(--seat-pcol-mid, var(--scp-mid, minmax(84px, 100px)))     /* 상태 / 자리후 */
       var(--seat-pcol-opts, var(--scp-opts, minmax(64px, 92px)))    /* 자리순서 / 제조옵션 */
       var(--seat-pcol-notes, minmax(0, 1fr))                        /* 올림 / 특이사항 = 남는 폭 */
-      var(--seat-pcol-confirm, var(--scp-confirm, minmax(100px, 116px))); /* 확인 */
+      var(--seat-pcol-confirm, var(--scp-confirm, minmax(100px, 116px))) /* 확인 */
+      40px;                                                         /* 삭제 */
   }
 
   /* 트랙 접기 — 그 트랙의 셀이 전부 숨겨졌을 때만. */
@@ -891,6 +915,29 @@
 @media (min-width: 1024px) {
   .seat-screen-grid { flex-direction: row; align-items: flex-start; }
   .seat-col-side { flex: 0 0 300px; width: auto; }
+}
+
+/* ── 저장 실패 토스트 — 주방에서 멀리서도 보이게 큰 글씨·화면 상단 중앙 ─────────── */
+.seat-toast {
+  position: fixed;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  max-width: 90vw;
+  padding: 14px 28px;
+  border-radius: var(--md-radius-full);
+  background: var(--md-error);
+  color: var(--md-on-error);
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: var(--md-elev-3);
+  animation: seat-toast-in .2s var(--md-ease);
+}
+@keyframes seat-toast-in {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
 }
 
 /* ── 모션 감소 선호 ──────────────────────────────────────────────────────── */

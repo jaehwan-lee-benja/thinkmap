@@ -53,6 +53,8 @@ export default function SeatTableHead({ resizable = false, onResize }) {
           {resizable && !c.flex && onResize && <ColumnResizer colKey={c.key} onResize={onResize} side={c.side} />}
         </div>
       ))}
+      {/* 삭제 열(제목 없음) */}
+      <div className="seat-cell seat-cell-del" aria-hidden="true"></div>
     </div>
   )
 }

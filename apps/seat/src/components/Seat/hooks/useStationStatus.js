@@ -2,11 +2,12 @@
 // businessDate 가 falsy 면(미리보기 등) 네트워크/구독을 하지 않는다.
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@thinkmap/core'
+import { saveErrorMessage } from './useSeatOrders'
 
 // (order, station) 행 고유키 — UNIQUE(order_id, station) 대응.
 const rowKey = (orderId, station) => `${orderId}:${station}`
 
-export function useStationStatus(businessDate) {
+export function useStationStatus(businessDate, onError) {
   const [stations, setStations] = useState([])
   const mountedRef = useRef(true)
   // 저장 대기 중인 행 키 → 미결 쓰기 수. 편집 중(변동사항 입력) 행을 refetch clobber 로부터 보호.
@@ -85,8 +86,8 @@ export function useStationStatus(businessDate) {
       .upsert(payload, { onConflict: 'order_id,station' })
     const n = (p.get(k) || 1) - 1
     if (n > 0) p.set(k, n); else p.delete(k)
-    if (error) { console.error('useStationStatus.patch', error); refetch() }
-  }, [businessDate, refetch])
+    if (error) { console.error('useStationStatus.patch', error); onError?.(saveErrorMessage(error)); refetch() }
+  }, [businessDate, refetch, onError])
 
   return { stations, refetch, patchStation }
 }

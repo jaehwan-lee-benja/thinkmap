@@ -3,7 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@thinkmap/core'
 
-export function useSeatOrders(businessDate) {
+// 저장 실패 사유 → 직원용 문구(주방에서 멀리서도 읽히게 짧게). UNIQUE 충돌 등 원인별.
+export function saveErrorMessage(error) {
+  if (error?.code === '23505') return '이미 쓰는 번호입니다'
+  if (error?.code === '42501' || error?.code === 'PGRST301') return '권한이 없어 저장 안 됨'
+  return '저장 실패 — 다시 시도하세요'
+}
+
+export function useSeatOrders(businessDate, onError) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const mountedRef = useRef(true)
@@ -72,13 +79,13 @@ export function useSeatOrders(businessDate) {
       .insert({ business_date: businessDate, ...draft })
       .select()
       .single()
-    if (error) { console.error('useSeatOrders.create', error); return null }
+    if (error) { console.error('useSeatOrders.create', error); onError?.(saveErrorMessage(error)); return null }
     if (mountedRef.current) {
       // NULL(=‘+주문번호만’)은 맨 뒤 — refetch(nullsFirst:false)와 같은 순서로(위로 튀었다 내려오는 현상 제거).
       setOrders((prev) => [...prev, data].sort((a, b) => (a.queue_no ?? Infinity) - (b.queue_no ?? Infinity)))
     }
     return data
-  }, [businessDate])
+  }, [businessDate, onError])
 
   // 필드 수정(낙관적 갱신 + 실패 시 재조회). 저장 대기 마킹으로 편집 중 clobber 보호.
   const patchOrder = useCallback(async (id, patch) => {
@@ -88,8 +95,15 @@ export function useSeatOrders(businessDate) {
     const { error } = await supabase.from('seat_orders').update(patch).eq('id', id)
     const n = (p.get(id) || 1) - 1
     if (n > 0) p.set(id, n); else p.delete(id)
-    if (error) { console.error('useSeatOrders.patch', error); refetch() }
-  }, [refetch])
+    if (error) { console.error('useSeatOrders.patch', error); onError?.(saveErrorMessage(error)); refetch() }
+  }, [refetch, onError])
+
+  // 줄 삭제 = soft delete(deleted_at). refetch 는 deleted_at IS NULL 만 가져와 화면에서 사라진다(DB 복구 가능).
+  const deleteOrder = useCallback(async (id) => {
+    if (mountedRef.current) setOrders((prev) => prev.filter((o) => o.id !== id)) // 낙관적 제거
+    const { error } = await supabase.from('seat_orders').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    if (error) { console.error('useSeatOrders.delete', error); onError?.(saveErrorMessage(error)); refetch() }
+  }, [refetch, onError])
 
   // 명시 전달 버튼(A안): 'seat'=자리후 확정. seat_delivered=true → 주문서관리 게이팅 해제.
   // ('all'=전체에게 전달은 2026-07-31 제거 — updated_at 만 만지는 no-op 이었고, 필드 수정은
@@ -99,5 +113,5 @@ export function useSeatOrders(businessDate) {
     return patchOrder(id, { seat_status: 'pending', seat_delivered: true })
   }, [patchOrder])
 
-  return { orders, loading, refetch, createOrder, patchOrder, commitOrder }
+  return { orders, loading, refetch, createOrder, patchOrder, commitOrder, deleteOrder }
 }

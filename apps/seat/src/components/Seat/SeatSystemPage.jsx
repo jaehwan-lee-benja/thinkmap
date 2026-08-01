@@ -1,7 +1,7 @@
 // 자리후 시스템 — 풀스크린 키오스크 컨테이너. (SEAT-SPEC §12)
 // 상단 역할 탭(자리안내·주문서관리·카이막·커피) → 선택 역할 화면 렌더.
 // 역할은 화면 내 탭으로 전환하고, 마지막 역할을 localStorage에 기억.
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { ROLES, DEFAULT_ROLE, ROLE_STORAGE_KEY, getRole } from './config/seatRoles'
 import { useSeatOrders } from './hooks/useSeatOrders'
 import { useStationStatus } from './hooks/useStationStatus'
@@ -39,6 +39,12 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
   const [statusOpen, setStatusOpen] = useState(false) // 통합 현황 — 모든 역할 공용(앱바)
 
   // 전체화면 토글(브라우저 주소창까지 숨김 — 카이막 등 태블릿 키오스크용).
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
+  }, [])
   const toggleFullscreen = () => {
     try {
       if (document.fullscreenElement) document.exitFullscreen?.()
@@ -57,9 +63,19 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
   const isStaticDemo = !!demoOrders
   const isLive = !preview && !isStaticDemo
   const businessDate = todayISO()
+
+  // 저장 실패 토스트 — 직원이 "입력이 사라진" 걸 모르지 않게(주방에서 멀리서도 보이게 큰 글씨).
+  const [toast, setToast] = useState(null)
+  const toastTimer = useRef(null)
+  const showError = useCallback((msg) => {
+    setToast(msg)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3500)
+  }, [])
+
   const demo = useDemoSeat(!!preview)
-  const live = useSeatOrders(isLive ? businessDate : null)
-  const liveStations = useStationStatus(isLive ? businessDate : null)
+  const live = useSeatOrders(isLive ? businessDate : null, showError)
+  const liveStations = useStationStatus(isLive ? businessDate : null, showError)
 
   const orders = preview ? demo.orders : (demoOrders || live.orders)
   const stations = preview ? demo.stations : (demoStations || liveStations.stations)
@@ -67,6 +83,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
   const onCommit = preview ? demo.commitOrder : (isStaticDemo ? () => {} : live.commitOrder)
   const onCreate = preview ? (draft) => demo.createOrder(draft || {}) : (isStaticDemo ? () => {} : (draft) => live.createOrder(draft || {}))
   const onPatchStation = preview ? demo.patchStation : (isStaticDemo ? () => {} : liveStations.patchStation)
+  const onDelete = preview ? demo.deleteOrder : (isStaticDemo ? () => {} : live.deleteOrder)
   // 행 순서 재배열 = 현재 프리뷰만(실 DB는 순서 저장 필드 미구현 → 마이그 후 연결). 없으면 핸들 미표시.
   const onReorder = preview ? demo.reorder : undefined
   const onSortByNumber = preview ? demo.sortByNumber : undefined
@@ -107,14 +124,14 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
             >{r.label}</button>
           ))}
         </nav>
-        {/* 전체화면 토글 — 우측 그룹 시작(현황·설정 왼쪽). */}
+        {/* 전체화면 토글 — 우측 그룹 시작(현황·설정 왼쪽). 진입=⛶ 아이콘 / 전체화면 중=‘전체화면 나가기’ 텍스트. */}
         <button
           type="button"
-          className="seat-fullscreen-btn"
-          aria-label="전체화면"
-          title="전체화면"
+          className={`seat-fullscreen-btn${isFullscreen ? ' is-exit' : ''}`}
+          aria-label={isFullscreen ? '전체화면 나가기' : '전체화면'}
+          title={isFullscreen ? '전체화면 나가기' : '전체화면'}
           onClick={toggleFullscreen}
-        >⛶</button>
+        >{isFullscreen ? '전체화면 나가기' : '⛶'}</button>
         {/* 현황 = 설정 왼쪽. 모든 역할에서 같은 통합 현황을 연다. */}
         <button
           type="button"
@@ -146,13 +163,15 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
 
       <main className="seat-main">
         {role.key === 'guide' ? (
-          <GuideScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} />
+          <GuideScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} />
         ) : role.key === 'manager' ? (
-          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} settings={settings} onResizeColumn={onResizeColumn} />
+          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} settings={settings} onResizeColumn={onResizeColumn} onDelete={onDelete} />
         ) : role.station ? (
           <StationScreen role={role} orders={orders} stations={stations} onPatchStation={onPatchStation} settings={settings} />
         ) : null}
       </main>
+
+      {toast ? <div className="seat-toast" role="alert">{toast}</div> : null}
     </div>
   )
 }

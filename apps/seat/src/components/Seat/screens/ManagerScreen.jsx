@@ -4,7 +4,7 @@ import OrderRow from '../components/OrderRow'
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import SeatTableHead from '../components/SeatTableHead'
 
-export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate, settings = {}, onResizeColumn }) {
+export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate, settings = {}, onResizeColumn, onDelete }) {
   return (
     <div className="seat-screen seat-screen-manager">
       <div className="seat-table" role="table">
@@ -13,7 +13,7 @@ export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate
           <div className="seat-empty">주문이 없습니다.</div>
         ) : (
           orders.map((o) => (
-            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} gateMode="manager" />
+            <OrderRow key={o.id} order={o} onPatch={onPatch} onCommit={onCommit} gateMode="manager" onDelete={onDelete} />
           ))
         )}
       </div>
