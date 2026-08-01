@@ -28,6 +28,10 @@ export function useDemoSeat(active) {
     patchOrder(id, { seat_status: 'pending', seat_delivered: true })
   }, [patchOrder])
 
+  const deleteOrder = useCallback((id) => {
+    setOrders((prev) => prev.filter((o) => o.id !== id))
+  }, [])
+
   // 행 순서 재배열(드래그) — 프리뷰는 배열 순서만 바꾼다(queue_no 는 손대지 않음, 표시 순서).
   const reorder = useCallback((fromIdx, toIdx) => {
     setOrders((prev) => {
@@ -57,5 +61,5 @@ export function useDemoSeat(active) {
     })
   }, [])
 
-  return { orders, stations, patchOrder, createOrder, commitOrder, patchStation, reorder, sortByNumber }
+  return { orders, stations, patchOrder, createOrder, commitOrder, patchStation, reorder, sortByNumber, deleteOrder }
 }

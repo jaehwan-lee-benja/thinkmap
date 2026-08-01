@@ -5,7 +5,7 @@ import { useState } from 'react'
 import OrderRow from '../components/OrderRow'
 import SeatTableHead from '../components/SeatTableHead'
 
-export default function GuideScreen({ orders = [], onPatch, onCommit, onCreate, onReorder, onSortByNumber, onResizeColumn }) {
+export default function GuideScreen({ orders = [], onPatch, onCommit, onCreate, onReorder, onSortByNumber, onResizeColumn, onDelete }) {
   const [dragIdx, setDragIdx] = useState(null)
   const canReorder = !!onReorder // 순서 이동 핸들은 재배열 콜백이 있을 때만(현재 프리뷰)
   return (
@@ -37,6 +37,7 @@ export default function GuideScreen({ orders = [], onPatch, onCommit, onCreate, 
                 onDragOver: (e) => e.preventDefault(),
                 onDrop: (e) => { e.preventDefault(); if (dragIdx != null && dragIdx !== i) onReorder(dragIdx, i); setDragIdx(null) },
               } : null}
+              onDelete={onDelete}
             />
           ))
         )}
@@ -47,6 +48,8 @@ export default function GuideScreen({ orders = [], onPatch, onCommit, onCreate, 
           새 주문은 DB 기본값 dine_in(실내)로 생성되고, 포장·야외 전환은 '야외·포장' 열에서 기록한다. */}
       <div className="seat-toolbar seat-toolbar-below">
         <button className="seat-btn seat-btn-primary seat-btn-new-order" onClick={() => onCreate?.()}>+ 새 주문</button>
+        {/* '+ 주문번호만' = 테이블링(queue_no) 비우고 주문번호만 먼저 기록(자리 배정 후 테이블링 입력). */}
+        <button className="seat-btn" onClick={() => onCreate?.({ queue_no: null })}>+ 주문번호만</button>
       </div>
     </div>
   )

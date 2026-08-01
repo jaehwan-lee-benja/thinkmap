@@ -4,7 +4,7 @@
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import { isRaiseEnabled, isDineIn, removesFromSeatQueue } from '../utils/seatRules'
 
-export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps }) {
+export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete }) {
   const patch = (p) => onPatch?.(order.id, p)
   const dineIn = isDineIn(order)                 // 실내 시작만 자리후 전달 관문 대상
   const removesQueue = removesFromSeatQueue(order) // 야외/포장 = 자리큐 제외(야외병행은 유지)
@@ -195,6 +195,13 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             onChange={(e) => patch({ confirm_done: e.target.checked })}
           /> 확인완료
         </label>
+      </div>
+
+      {/* 줄 삭제 = 제일 오른쪽(확인 오른쪽). soft delete(deleted_at) — DB 복구 가능. */}
+      <div className="seat-cell seat-cell-del">
+        {onDelete && (
+          <button type="button" className="seat-del-btn" aria-label="줄 삭제" title="줄 삭제" onClick={() => onDelete(order.id)}>✕</button>
+        )}
       </div>
     </div>
   )
