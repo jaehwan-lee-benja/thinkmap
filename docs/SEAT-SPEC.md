@@ -49,15 +49,15 @@
 
 **범위 (Phase 1 — 이번 작업)**
 - `seat_orders`(주문 행) + `seat_station_status`(스테이션 진행) 2개 테이블 + RLS.
-- 역할별 화면 4종(자리안내·제조매니저·카이막·커피) + 상단 역할 탭 전환.
+- 역할별 화면 ~~4종~~ → **3화면**(주문 화면=자리안내·주문서관리 공용 · 카이막 · 커피) + 상단 역할 탭 전환(2026-08-02 통합).
 - Supabase Realtime(postgres_changes) 구독으로 모든 화면 실시간 갱신(last-write-wins).
-- 비즈니스 규칙 R1~R7.
+- 비즈니스 규칙 **R1~R10**(§10. R2·R5 는 폐지됨).
 - `<LiveCameraFeed>` 슬롯(placeholder. enabled=false 기본).
 
 **비범위 (향후)**
 - 영상 OCR 자동 주문번호 인식(별도 PC 과제 · 백로그).
 - POS / 영수증 프린터 연동.
-- 소요시간(자리후→올림→완료) 분석 리포트 — 타임스탬프는 지금부터 남겨 둠(후속에서 집계).
+- ~~소요시간(자리후→올림→완료) 분석 리포트~~ → **범위로 승격·구현 완료**(§13 통계, 2026-08-02).
 - 다매장 동시 운영(현재 단일 워크스페이스. 스키마는 workspace_id로 다중 워크스페이스 대비).
 
 ## 3. 도메인 용어
@@ -80,7 +80,7 @@
 2. **워크스페이스 grant 권한 모델**: 자리후 데이터는 "워크스페이스 자산"이다. 읽기·쓰기 모두
    `can_in_workspace(workspace_id, 'editor')` 단일 기준(능력 서열 owner>editor>viewer). board 멤버십·
    `is_board_member`는 쓰지 않는다(Phase A grant 토대로 이관). 4역할은 권한 등급이 아니라 운영 역할/
-   기기 모드 → RLS로 가르지 않고 앱 레벨 가드(예: 메뉴나감=매니저만).
+   기기 모드 → RLS로 가르지 않고 앱 레벨 가드. ※2026-08-02 현재 앱 레벨 역할 가드도 사실상 없다(guide·manager 동일 화면, 메뉴나감 UI 제거).
 3. **키오스크 전용 풀스크린**: 진입하면 사이드바/페인 크롬 없이 전체화면(태블릿 항상 켜둠). 단
    ThinkMap 페이지 시스템과는 `page_type='seat'` 1개로 연결(진입·생성은 기존 패턴).
 4. **역할은 화면 내 탭 전환**: 상단 역할 탭(자리안내·매니저·카이막·커피)으로 전환. 태블릿당 보통
@@ -95,13 +95,15 @@
 
 | key | 이름 | 성격 | 입력 권한 | 카메라 | 스테이션 |
 | --- | --- | --- | --- | --- | --- |
-| `guide` | 자리안내 | 기본 입력 주체 | 주문번호·자리후·올림·제조옵션·상태·특이사항 | ✗ | — |
-| `manager` | 제조매니저 | 공동 모니터/입력 | 자리안내 입력부 + **메뉴 나감(menu_out)** | ✓ | — |
+| `guide` | 자리안내 | 기본 입력 주체 | 주문 화면 풀기능(§9.0) | ✓* | — |
+| `manager` | 주문서관리 | 공동 모니터/입력 | 주문 화면 풀기능(§9.0 — guide 와 동일) | ✓* | — |
 | `kaymak` | 카이막 | 제조 스테이션 | 받음/완료/변동사항 | ✓ | `kaymak` |
 | `coffee` | 커피 | 제조 스테이션 | 받음/완료/변동사항 | ✓ | `coffee` |
 
 - 카이막·커피는 **동일 컴포넌트**(`StationScreen`)를 `station` 파라미터로 재사용. 서로 독립(R6).
-- `menu_out`은 매니저 역할만 토글 가능(R5).
+- ★2026-08-02: `guide`·`manager` 는 **같은 화면·같은 기능**(§9.0). 표의 "이름"만 다르고 권한 차이는 없다.
+- ★`*` 카메라 표시는 **역할이 아니라 설정 `cameraEnabled` 하나로** 결정된다(§11). `seatRoles.js` 의 `camera` 플래그는 현재 읽는 코드가 없다(죽은 데이터).
+- ~~`menu_out`은 매니저 역할만 토글 가능(R5)~~ → UI 제거(R5 참조).
 - 역할 추가(예: '디저트 스테이션') = `config`에 `{key:'dessert', station:'dessert', camera:true}` 한 줄.
 
 ## 6. 데이터 모델
@@ -134,7 +136,7 @@ seat_orders (
   raised          boolean NOT NULL DEFAULT false,      -- 올리기 전달
   raised_at       timestamptz,                         -- 올림 시각(후속 소요시간 분석)
   raise_canceled  text,                                -- R10: 올림취소 흔적+방식 takeout/outdoor/parallel/direct, NULL=이력없음. migrate-seat-raise-canceled.sql
-  menu_out        boolean NOT NULL DEFAULT false,      -- R5: 제조매니저만
+  menu_out        boolean NOT NULL DEFAULT false,      -- ※UI 제거(2026-07-31). 컬럼만 존치 — R5 참조
   confirm_flag    boolean NOT NULL DEFAULT false,      -- 확인필요(주문서관리→자리안내 신호. 상태선택과 별개의 행 플래그)
   confirm_done    boolean NOT NULL DEFAULT false,      -- 확인완료(자리안내가 처리 응답). migrate-seat-confirm-done.sql
   notes           text,                                -- 특이사항(=화면 표기 '전달사항'). 스테이션 카드에도 표시
@@ -308,11 +310,11 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 
 | # | 규칙 | 구현 위치 |
 | --- | --- | --- |
-| R1 | 제조옵션(야외/포장/야외병행) 하나라도 체크되면 자리후 아님 → 자리순서 '필요없음'(앰버) 표시, 수동토글 잠금(✕ + 취소선). ★제조옵션 선택 시 `raised=true` 자동 세팅(2026-07-31 결정, 구 '미집계' 미해결 항목 해소) | OrderRow.setOpt / seatRules |
+| R1 | **야외·포장**을 고르면 자리큐에서 빠진다 → 자리순서 '필요없음' 표시 + 자리앉음 잠금(✕ + 취소선). ★**야외병행은 예외 — 자리순서 유지·자리앉음 활성**(R9). ★제조옵션 셋 중 무엇을 골라도 `raised=true` 자동 세팅(2026-07-31 결정, 구 '미집계' 미해결 항목 해소) | OrderRow.setOpt / seatRules.removesFromSeatQueue |
 | ~~R2~~ | ~~자리앉음/올림/제조옵션 중 하나 충족 시 올림 활성~~ → **폐지(2026-08-02 유저 지시)**. 주방에서 자리 배정과 제조 올림은 순서가 고정돼 있지 않은데 이 선행조건이 절차를 꼬았다. **올림의 관문은 R8(자리후 전달) 하나뿐**이며 `isRaiseEnabled` 는 삭제됐다. ※자리앉음의 ✕(해당없음) 표시 규칙(R1·R4)은 유지 | (삭제됨) |
 | R3 | 상태선택 기본값 '-'(=`review_flag='none'`) | 스키마 DEFAULT |
-| R4 | "필요없음"=자리대기 취소(`seat_order_alive=false`) 또는 제조옵션(R1), "살아있음"=순서 유지. 파생: `seatNeeded = seat_order_alive && !제조옵션` | OrderRow 토글 |
-| R5 | "메뉴 나감"(`menu_out`)은 제조매니저만 | 역할 게이트(config) |
+| R4 | "필요없음"=자리대기 취소(`seat_order_alive=false`) 또는 야외·포장(R1), "살아있음"=순서 유지. 파생: **`seatNeeded = dineIn && seat_order_alive && !removesFromSeatQueue`** (★야외병행은 제외되지 않음 — R9) | OrderRow 파생상태 |
+| ~~R5~~ | ~~"메뉴 나감"(`menu_out`)은 제조매니저만~~ → **UI 제거(2026-07-31)**. `menu_out` 컬럼과 `config`의 `canMenuOut` 플래그는 존치하나 읽는 코드가 없다(죽은 플래그). 되살릴 때 역할 게이트를 다시 배선할 것 | (제거됨) |
 | R6 | 카이막/커피 완료는 서로 독립 | `seat_station_status` 행 분리 |
 | R7 | 해당 행 변경을 모든 역할 화면에 즉시 실시간 반영 (전용 버튼 없음 — 구독이 자동 충족, 2026-07-31) | Realtime 구독(§8) |
 | R8 | **실내(dine_in) 주문**은 "자리후 전달"(`seat_delivered`)이 **유일한** 관문. ★2026-08-02 갱신: 역할별 게이팅(`gateMode` — Manager 행 dim / Guide 부분 잠금)은 화면 통합으로 **폐지**. 대신 두 역할 공통으로 **전달 전에는 자리순서·야외포장·올림·전달사항 4셀을 비활성**(grayscale+클릭차단). 포장·야외 시작은 관문 없음. 주문번호가 없으면 전달 불가, 주문번호를 지우면 전달도 해제 | OrderRow(`preDeliver`)·commitOrder |
@@ -328,7 +330,7 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 - **표시 여부 = 설정 패널의 `cameraEnabled`**(§11.1). 꺼져 있으면 화면이 카메라 슬롯 자체를
   렌더하지 않는다(placeholder도 안 보임) → 스테이션 작업 영역이 그만큼 넓어진다. 기본값 **off**.
 - 설정: `streamUrl`(실제 스트림 주소)은 env 또는 Supabase config 레코드(운영자가 URL만 넣으면 켜짐) — 미결.
-- 배치: 제조매니저·카이막·커피 화면에만. 자리안내 없음.
+- 배치: **주문 화면(자리안내·주문서관리 공용)·카이막·커피 — 4탭 모두** `cameraEnabled` 하나로 통제(2026-08-02 화면 통합 후 역할 분기 없음).
 
 ### 11.1 설정 패널 (기기별 로컬 설정)
 
@@ -392,6 +394,7 @@ src/components/Seat/
     SeatModal.jsx           공용 모달(스크림·Esc)
     SettingsPanel.jsx       설정 다이얼로그(SEAT_SETTINGS 범용 렌더러 + 배열 밖 항목들)
     StatusOverview.jsx      통합 현황(역할 공용)
+    QueueChips.jsx          번호 칩 목록(StatusOverview 하위)
     SeatStats.jsx           통계 화면(§13) — 날짜 선택·과거 조회
     LiveCameraFeed.jsx      격리된 카메라 슬롯(placeholder)
   hooks/
