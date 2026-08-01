@@ -58,7 +58,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
         )}
         <input
           className="seat-input seat-input-no"
-          value={order.queue_no ?? ''}
+          value={order.queue_no > 0 ? order.queue_no : ''}
           placeholder="-"
           inputMode="numeric"
           onChange={(e) => {

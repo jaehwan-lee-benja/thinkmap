@@ -48,6 +48,8 @@
 
   position: fixed;
   inset: 0;
+  height: 100vh;
+  height: 100dvh; /* ★모바일 브라우저 주소창 반영(동적 뷰포트) — 세로형 하단 잘림 방지 */
   z-index: 1000; /* 키오스크: 탭바/사이드바 등 크롬 위를 덮는다 */
   display: flex;
   flex-direction: column;
@@ -160,7 +162,8 @@
   box-shadow: var(--md-elev-1);
 }
 
-/* 앱바 우측 버튼(현황·설정) — 역할 탭과 구분되게 아웃라인 톤. 현황이 왼쪽, 설정이 오른쪽 끝. */
+/* 앱바 우측 버튼(전체화면·현황·설정) — 역할 탭과 구분되게 아웃라인 톤. */
+.seat-fullscreen-btn,
 .seat-status-btn,
 .seat-settings-btn {
   flex: 0 0 auto;
@@ -174,8 +177,8 @@
   font-weight: 500;
   cursor: pointer;
 }
-/* 현황 버튼이 우측 그룹의 시작 — 여기서 밀어 붙인다(설정은 gap 만큼 오른쪽). */
-.seat-status-btn { margin-left: auto; }
+/* 전체화면(⛶) = 아이콘 정사각. 우측 그룹의 시작 — 여기서 밀어 붙인다. */
+.seat-fullscreen-btn { margin-left: auto; padding: 0; width: 48px; font-size: 22px; line-height: 1; }
 
 /* ── 공용 모달(설정 · 현황 더보기) ────────────────────────────────────────── */
 .seat-modal-scrim {
@@ -362,8 +365,12 @@
 .seat-cell-hg3     { grid-area: hg3; }
 
 .seat-cell-no { font-weight: 700; justify-content: center; text-align: center; } /* 테이블링 숫자 가운데 */
-/* 테이블링 입력 필드 = 가운데·굵게(숫자). width:100% 대신 flex 로 두어 왼쪽 핸들과 한 줄에 나란히. */
-.seat-input-no { text-align: center; font-weight: 700; padding-left: 4px; padding-right: 4px; width: auto; flex: 1 1 auto; min-width: 0; }
+/* 테이블링 입력 필드 = 가운데·굵게·크게(숫자, 2배 32px). width:100% 대신 flex 로 두어 왼쪽 핸들과 한 줄에. */
+.seat-input-no { text-align: center; font-weight: 700; font-size: 32px; padding-left: 4px; padding-right: 4px; width: auto; flex: 1 1 auto; min-width: 0; }
+.seat-table .seat-input-no { font-size: 32px; } /* dense 스코프에서도 유지 */
+/* 주문번호도 테이블링과 나란히 큰 숫자(2배, 32px) — 가로·세로 공통. */
+.seat-cell-order .seat-input,
+.seat-table .seat-cell-order .seat-input { font-size: 32px; font-weight: 700; text-align: center; }
 /* 순서 이동 핸들(자리안내) — 테이블링 셀 왼쪽. 드래그로 행 재배열. */
 .seat-drag-handle {
   flex: 0 0 auto;
@@ -485,8 +492,7 @@
 
   /* 테이블링 = 좁은 트랙, 폰트 축소(굵기로 구분). */
   .seat-screen-manager .seat-cell-no { font-size: 15px; }
-  /* 주문번호 = 세로에서 가장 자주 읽는 값 → 크게. */
-  .seat-table .seat-cell-order .seat-input { font-size: 20px; font-weight: 700; text-align: center; }
+  /* 주문번호 크기는 공통 규칙(32px)에서 정의 — 여기선 세로 전용 재정의 불요. */
 
   /* 세로형 그룹 헤더: 좁은 트랙에 맞춰 제목만 작게(가운데 정렬은 공통 규칙). */
   .seat-screen-manager .seat-row-head .seat-cell { font-size: 13px; }
@@ -776,43 +782,50 @@
 .seat-complete-btn .seat-complete-check { font-size: 26px; line-height: 1; }
 .seat-complete-btn:hover { background: color-mix(in srgb, var(--md-alive) 12%, transparent); }
 
-/* ★완료 = 뿌듯한 축하 효과(유저 지시): 통통 튀는 bounce·wobble + 초록 glow + ✓ 팡 + 🎉 confetti. */
-.seat-complete-btn:active {
+/* 누르는 즉각 피드백(짧게 눌림). 본 축하는 클릭 뒤 .is-celebrating 이 끝까지 재생한다. */
+.seat-complete-btn:active { transform: scale(.98); }
+
+/* ★완료 축하(유저 지시: 여운 남게 — 클릭 순간이 아니라 완료 처리 직전까지 ~0.7s 재생):
+   통통 튀는 bounce·wobble + 초록 glow + ✓ 팡 + 🎉 confetti 가 위로 떠오른다. */
+.seat-complete-btn.is-celebrating {
   background: var(--md-alive);
   color: var(--md-on-alive);
   border-color: transparent;
-  animation: seat-complete-pop .38s var(--md-ease);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--md-alive) 35%, transparent);
+  animation: seat-complete-pop .7s var(--md-ease);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--md-alive) 35%, transparent);
 }
 @keyframes seat-complete-pop {
   0%   { transform: scale(1) rotate(0); }
-  25%  { transform: scale(1.16) rotate(-4deg); }
-  50%  { transform: scale(.93) rotate(3deg); }
-  72%  { transform: scale(1.07) rotate(-2deg); }
+  18%  { transform: scale(1.18) rotate(-5deg); }
+  38%  { transform: scale(.92) rotate(4deg); }
+  58%  { transform: scale(1.1) rotate(-3deg); }
+  78%  { transform: scale(.97) rotate(1deg); }
   100% { transform: scale(1) rotate(0); }
 }
-/* ✓ 가 팡 튀어오른다. */
-.seat-complete-btn:active .seat-complete-check { animation: seat-check-burst .38s var(--md-ease); }
+/* ✓ 가 팡 튀어오르며 잠깐 머문다. */
+.seat-complete-btn.is-celebrating .seat-complete-check { animation: seat-check-burst .7s var(--md-ease); }
 @keyframes seat-check-burst {
   0%   { transform: scale(1); }
-  40%  { transform: scale(1.75); }
+  30%  { transform: scale(1.9); }
+  55%  { transform: scale(1.4); }
   100% { transform: scale(1); }
 }
-/* 🎉 가 위로 떠오르며 사라진다(축포). 평소엔 안 보이고 누를 때만. */
+/* 🎉 가 천천히 위로 떠오르며 사라진다(축포). 평소엔 안 보이고 완료 클릭 시에만. */
 .seat-complete-btn::after {
   content: '🎉';
   position: absolute;
   top: 2px;
   left: 50%;
-  font-size: 22px;
+  font-size: 26px;
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%);
 }
-.seat-complete-btn:active::after { animation: seat-confetti .55s ease-out; }
+.seat-complete-btn.is-celebrating::after { animation: seat-confetti .8s ease-out; }
 @keyframes seat-confetti {
-  0%   { opacity: 1; transform: translate(-50%, 0) scale(.6) rotate(0); }
-  100% { opacity: 0; transform: translate(-50%, -48px) scale(1.25) rotate(20deg); }
+  0%   { opacity: 0; transform: translate(-50%, 0) scale(.5) rotate(0); }
+  20%  { opacity: 1; transform: translate(-50%, -14px) scale(1) rotate(6deg); }
+  100% { opacity: 0; transform: translate(-50%, -60px) scale(1.3) rotate(24deg); }
 }
 
 /* 풋터 = 화면 하단. 자리후(위) → 완료(아래, 가로 스크롤). */
@@ -881,5 +894,8 @@
 
 /* ── 모션 감소 선호 ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .seat-app * { transition: none !important; animation: none !important; }
+  /* ::before/::after 도 명시 — `*`는 의사요소를 매칭하지 않아 🎉 confetti 가 계속 떴다. */
+  .seat-app *,
+  .seat-app *::before,
+  .seat-app *::after { transition: none !important; animation: none !important; }
 }

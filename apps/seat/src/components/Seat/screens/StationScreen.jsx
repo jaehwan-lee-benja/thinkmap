@@ -1,6 +1,7 @@
 // 카이막/커피 스테이션 화면 — 동일 컴포넌트를 role.station 으로 재사용, 서로 독립(R6). (SEAT-SPEC §9.3)
 // 멀리서 빠르게 보는 화면 → 큼직·단순. 메인=올림 카드(번호 大 + 완료 버튼 大),
 // 하단 풋터=자리후 대기(위) → 완료된 리스트(아래, 가로 스크롤).
+import { useState } from 'react'
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import QueueChips from '../components/QueueChips'
 import { isWaitingOrder, isRaisedOrder, orderLabel } from '../utils/seatRules'
@@ -15,6 +16,14 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
   const completed = raised.filter((o) => stStatus(o.id)?.completed) // 내가 완료한 것(스테이션 독립)
 
   const setStation = (orderId, patch) => onPatchStation?.(orderId, stationKey, patch)
+
+  // 완료 = 축하 애니메이션을 끝까지 보여준 뒤(카드가 곧장 사라지지 않게) 완료 처리. (유저 지시: 여운 남기기)
+  const [celebrating, setCelebrating] = useState(null)
+  const complete = (orderId) => {
+    if (celebrating) return
+    setCelebrating(orderId)
+    setTimeout(() => { setStation(orderId, { completed: true }); setCelebrating(null) }, 700)
+  }
 
   return (
     <div className="seat-screen seat-screen-station">
@@ -43,8 +52,9 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
                 />
                 <button
                   type="button"
-                  className="seat-complete-btn"
-                  onClick={() => setStation(o.id, { completed: true })}
+                  className={`seat-complete-btn${celebrating === o.id ? ' is-celebrating' : ''}`}
+                  onClick={() => complete(o.id)}
+                  disabled={celebrating === o.id}
                 >
                   <span className="seat-complete-check" aria-hidden="true">✓</span> 완료
                 </button>
