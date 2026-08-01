@@ -1,0 +1,32 @@
+/* 멤버십 키오스크 — 정본 브랜딩(팔레트 #2D4B82/#3CB44B, 타이틀=오동통·본문=G마켓산스).
+   고객 대면 화면이라 브랜드 풀적용. gh-pages 정적 호스팅 → 웹폰트 CDN 로드 가능. */
+
+/* G마켓산스(본문) — ★self-host(외부 CDN 금지, 표준=self-host·CSP·오프라인·안정성).
+   design 대시보드와 동일 TTF 파일 재사용(public/fonts/). base 하위이므로 상대경로 './fonts/'. */
+/* ★weight 범위로 300~700 전 구간 커버 — 본문 기본 400 도 Medium face 로 매핑(폴백 폰트 섞임 방지). */
+@font-face {
+  font-family: 'GmarketSans'; font-weight: 100 349; font-style: normal; font-display: swap;
+  src: url('/thinkmap/membership/fonts/GmarketSansTTFLight.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'GmarketSans'; font-weight: 350 599; font-style: normal; font-display: swap;
+  src: url('/thinkmap/membership/fonts/GmarketSansTTFMedium.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'GmarketSans'; font-weight: 600 900; font-style: normal; font-display: swap;
+  src: url('/thinkmap/membership/fonts/GmarketSansTTFBold.ttf') format('truetype');
+}
+
+/* ★웹 타이틀 = G마켓산스 Bold 확정(유저결정 2026-07-27) — 오동통/Cafe24 웹대체 안 씀(오동통=인쇄물 전용, design).
+   타이틀 요소는 font-weight:700 이라 'GmarketSans' 의 700 face(Bold) 로 렌더된다. */
+
+:root {
+  /* 브랜드 팔레트 */
+  --brand-blue: #2D4B82;
+  --brand-blue-strong: #223A66;
+  --brand-green: #3CB44B;
+  --brand-green-strong: #2E9440;
+  /* 폰트 스택 — 웹은 G마켓산스 한 벌(타이틀=Bold, 본문=Medium/Light). */
+  --mk-font-body: 'GmarketSans', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --mk-font-title: var(--mk-font-body);
+}

@@ -1,0 +1,528 @@
+/* 멤버십 키오스크 — Material 3 구조 + ★정본 브랜딩(팔레트 #2D4B82/#3CB44B, 오동통/G마켓산스).
+   --md-* 는 .mk-app 스코프. 어르신 이용 많음 → 번호·버튼·글자 대형. state layer·elevation·라운드. */
+@import './brand.css';
+
+/* ── 디자인 토큰 (Material 3) — 기본=다크.
+   ★:root 선언(구형 WebView 대응): postcss-custom-properties 가 이 값을 읽어 var() 사용처마다
+   정적 폴백을 함께 출력한다(CSS 변수 미지원 Chrome<49 에서도 색이 나옴). 라이트 오버라이드는
+   `:root[data-theme=light] .mk-app` 스코프라 최신 브라우저에선 그대로 우선한다. */
+:root {
+  --md-surface: #16181C;
+  --md-surface-container-low: #1B1E22;
+  --md-surface-container: #202327;
+  --md-surface-container-high: #282B30;
+  --md-surface-container-highest: #33363B;
+  --md-on-surface: #E3E2E6;
+  --md-on-surface-variant: #C3C7CF;
+  --md-outline: #8C9199;
+  --md-outline-variant: #40474F;
+
+  /* ★브랜드 — 다크에선 톤 살짝 밝게(대비). */
+  --md-primary: #6E93D6;
+  --md-on-primary: #10233F;
+  --md-primary-container: #2D4B82;
+  --md-on-primary-container: #E4ECF9;
+
+  --md-alive: #6FD97E;
+  --md-on-alive: #06310F;
+  --md-error: #FFB4AB;
+  --md-on-error: #690005;
+
+  --md-elev-1: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15);
+  --md-elev-2: 0 1px 2px rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.15);
+  --md-elev-3: 0 1px 3px rgba(0,0,0,.30), 0 4px 8px 3px rgba(0,0,0,.15);
+
+  --md-radius-sm: 8px;
+  --md-radius-md: 12px;
+  --md-radius-lg: 16px;
+  --md-radius-xl: 28px;
+
+  --md-ease: cubic-bezier(.2, 0, 0, 1);
+  --md-dur: 160ms;
+}
+
+.mk-app {
+  /* inset 롱핸드(구형 미지원 대비) */
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000;
+  display: flex; flex-direction: column;
+  background: var(--md-surface); color: var(--md-on-surface);
+  font-size: 16px;
+  font-family: var(--mk-font-body);
+  letter-spacing: .0125em;
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 라이트 테마 오버라이드 */
+:root[data-theme="light"] .mk-app {
+  --md-surface: #FBF8FD;
+  --md-surface-container-low: #F5F1F7;
+  --md-surface-container: #EFEBF1;
+  --md-surface-container-high: #E9E5EC;
+  --md-surface-container-highest: #E3DFE6;
+  --md-on-surface: #1A1C1E;
+  --md-on-surface-variant: #43474E;
+  --md-outline: #73777F;
+  --md-outline-variant: #C3C7CF;
+  /* ★브랜드(라이트) */
+  --md-primary: #2D4B82;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #D9E3F5;
+  --md-on-primary-container: #10233F;
+  --md-alive: #3CB44B;
+  --md-on-alive: #FFFFFF;
+  --md-error: #BA1A1A;
+  --md-on-error: #FFFFFF;
+  color-scheme: light;
+}
+
+/* 타이틀 = G마켓산스 Bold(확정). 인사말·화면 제목·CTA 타이틀. */
+.mk-greeting, .mk-signup-head h2, .mk-cta-title, .mk-ml-head h2, .pv-login h1 {
+  font-family: var(--mk-font-title); font-weight: 700; letter-spacing: 0;
+}
+
+/* ── State layer (M3 상호작용) ─────────────────────────────────────────────── */
+.mk-modeswitch button, .mk-key, .mk-pad-submit, .mk-signup-submit,
+.mk-claim-btn, .mk-signup-cta, .mk-reset {
+  position: relative; overflow: hidden; isolation: isolate;
+  transition: box-shadow var(--md-dur) var(--md-ease), background-color var(--md-dur) var(--md-ease);
+}
+.mk-modeswitch button::after, .mk-key::after, .mk-pad-submit::after, .mk-signup-submit::after,
+.mk-claim-btn::after, .mk-signup-cta::after, .mk-reset::after {
+  content: ''; position: absolute; inset: 0; background: currentColor; opacity: 0;
+  transition: opacity var(--md-dur) var(--md-ease); pointer-events: none;
+}
+.mk-modeswitch button:hover:not(:disabled)::after, .mk-key:hover:not(:disabled)::after,
+.mk-pad-submit:hover:not(:disabled)::after, .mk-signup-submit:hover:not(:disabled)::after,
+.mk-claim-btn:hover:not(:disabled)::after, .mk-signup-cta:hover::after, .mk-reset:hover::after { opacity: .08; }
+.mk-modeswitch button:active:not(:disabled)::after, .mk-key:active:not(:disabled)::after,
+.mk-pad-submit:active:not(:disabled)::after, .mk-signup-submit:active:not(:disabled)::after,
+.mk-claim-btn:active:not(:disabled)::after, .mk-signup-cta:active::after, .mk-reset:active::after { opacity: .12; }
+
+.mk-app :focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+
+/* ── 상단 앱바 + 모드 탭 (Material tabs) ───────────────────────────────────── */
+.mk-topbar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: var(--md-surface-container); box-shadow: var(--md-elev-2); z-index: 2;
+}
+.mk-modeswitch { display: flex; gap: 8px; }
+.mk-modeswitch button {
+  min-height: 48px; padding: 10px 22px; font-size: 17px; cursor: pointer; font-weight: 600;
+  border: none; border-radius: var(--md-radius-xl);
+  background: transparent; color: var(--md-on-surface-variant);
+}
+.mk-modeswitch button.is-active {
+  background: var(--md-primary-container); color: var(--md-on-primary-container); font-weight: 700;
+}
+
+/* ── 역할 뷰(2대 분리) ─────────────────────────────────────────────────────── */
+/* 직원 뷰 상단바(회원 리스트 진입). 고객 뷰는 상단바 없음(풀스크린 고객 경험). */
+.mk-staff-bar {
+  flex: 0 0 auto; display: flex; justify-content: flex-end;
+  padding: 10px 16px; background: var(--md-surface-container); box-shadow: var(--md-elev-1);
+}
+/* ★명시도 상향(.mk-app 스코프) — 뒤에 정의된 .mk-screen{align-items:flex-start} 를 이겨 확실히 중앙정렬.
+   (같은 단일클래스면 소스 순서상 .mk-screen 가 이겨 좌측으로 밀렸던 버그 수정 — QA 실측.) */
+.mk-app .mk-customer-view { align-items: center; justify-content: center; height: 100%; padding: 0; }
+/* ★조회 = 좌우 2분할 + 뷰포트높이 정렬(무스크롤). 태블릿 가로 기준. */
+.mk-role-customer .mk-main { overflow: hidden; }
+.mk-lookup-split {
+  display: flex; align-items: center; justify-content: center; gap: 56px;
+  width: 100%; height: 100%; max-width: 980px; margin: 0 auto; padding: 16px 24px;
+}
+.mk-lookup-left {
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: flex-start; gap: 24px;
+  max-width: 420px;
+}
+/* 첫 화면 사르르 마크(흰색 3젖소, 텍스트無) */
+.mk-brand-logo { width: clamp(160px, 20vw, 240px); height: auto; margin-bottom: 4px; }
+.mk-lookup-ment {
+  font-family: var(--mk-font-title); font-weight: 700; letter-spacing: 0;
+  font-size: clamp(28px, 3.4vw, 44px); line-height: 1.3; color: var(--md-on-surface);
+}
+.mk-lookup-right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.mk-signup-link {
+  background: none; border: none; cursor: pointer; font-size: 18px; color: var(--md-on-surface-variant);
+  padding: 10px 4px; min-height: 44px; text-align: left;
+}
+.mk-signup-link b { color: var(--md-primary); }
+.mk-signup-mini { max-width: 380px; gap: 10px; align-items: flex-start; text-align: left; }
+/* #2 가입 안내 문구(교체) */
+.mk-signup-invite { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.mk-invite-copy { margin: 0; font-size: 18px; line-height: 1.55; color: var(--md-on-surface-variant); }
+
+/* ★#5 조회중 로딩 = 마스코트 애니(더 귀엽게: 통통 스쿼시-스트레치 + 살랑 회전) · 화면 정중앙 */
+.mk-loading-screen {
+  flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  height: 100%; width: 100%; padding: 0; text-align: center;
+}
+/* ★로고 위치 고정 + 눈만 깜박(2프레임) + 컬러 3점 통통 바운스. */
+.mk-loading-logo { width: min(300px, 44vw); height: auto; }
+/* 눈 깜박: 열림 프레임 위에 눈감음 프레임을 겹쳐, 짧게 교차(제자리·크기변동 없음). */
+.mk-blink { position: relative; }
+.mk-blink img { display: block; width: 100%; height: auto; }
+.mk-blink-closed { position: absolute; inset: 0; opacity: 0; animation: mk-blink 3.4s ease-in-out infinite; }
+@keyframes mk-blink { 0%, 92%, 100% { opacity: 0; } 94%, 97% { opacity: 1; } }
+.mk-loading-dots { display: flex; gap: 14px; }
+.mk-loading-dots span {
+  width: 16px; height: 16px; border-radius: 50%; background: var(--md-primary);
+  animation: mk-dot 1.4s ease-in-out infinite;
+}
+.mk-loading-dots span:nth-child(2) { animation-delay: .2s; background: var(--md-alive); }
+.mk-loading-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes mk-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: .35; }
+  40%           { transform: translateY(-14px); opacity: 1; }
+}
+.mk-loading-text { font-size: 22px; font-weight: 700; color: var(--md-primary); font-family: var(--mk-font-title); }
+@media (prefers-reduced-motion: reduce) {
+  .mk-loading-dots span { animation: none; opacity: .7; }
+  .mk-blink-closed { animation: none; opacity: 0; }
+}
+
+/* ★#4·#3 조회 결과 = 전체화면 가득·큰 글씨 + 가로화면답게 넓은 2단(인사말 | 이벤트/내역) */
+.mk-result-view { padding: 0; }
+/* ★명시도 상향(.mk-result-view 스코프) — 뒤에 정의된 base .mk-card{max-width:380;flex-direction:column} 를 이김(QA 실측). */
+.mk-result-view .mk-member-card-hero {
+  flex-direction: row; align-items: stretch;   /* 가로 2단 — 좁은 모바일칸 느낌 제거 */
+  max-width: 1180px; width: 100%; height: 100%; max-height: 92vh; border-radius: 0;
+  box-shadow: none; background: transparent; gap: 28px; padding: clamp(16px, 3vh, 32px);
+}
+/* 좌: 인사말 히어로 밴드(넓게) */
+.mk-member-card-hero .mk-member-hero {
+  flex: 1 1 46%; border-radius: var(--md-radius-xl); padding: 32px;
+  justify-content: center; box-shadow: var(--md-elev-1);
+}
+.mk-member-card-hero .mk-member-badge { font-size: 19px; padding: 8px 22px; }
+.mk-member-card-hero .mk-greeting { font-size: clamp(34px, 4.4vw, 58px); }
+/* 우: 이벤트 + 수령내역(넓게) */
+.mk-member-card-hero .mk-member-body {
+  flex: 1 1 54%; padding: clamp(20px, 3vh, 36px); gap: 22px; justify-content: center;
+  background: var(--md-surface-container); border-radius: var(--md-radius-lg);
+}
+.mk-member-card-hero .mk-event-label { font-size: 24px; }
+.mk-member-card-hero .mk-claim-btn { min-height: 76px; font-size: 27px; padding: 14px 44px; }
+.mk-member-card-hero .mk-event-done { font-size: 27px; }
+.mk-member-card-hero .mk-claimed { font-size: 24px; }
+.mk-member-card-hero .mk-history { max-height: 28vh; }
+.mk-member-card-hero .mk-history li { font-size: 18px; padding: 11px 18px; }
+.mk-member-card-hero .mk-reset { min-height: 52px; font-size: 18px; padding: 10px 28px; }
+
+/* 좁은 화면(세로) — 결과도 세로 스택 폴백 */
+@media (max-width: 820px) {
+  .mk-result-view .mk-member-card-hero { flex-direction: column; align-items: center; max-height: none; }
+  .mk-member-card-hero .mk-member-hero, .mk-member-card-hero .mk-member-body { flex: 0 0 auto; width: 100%; }
+}
+
+/* 좁은 화면(세로) — 세로 스택 폴백(가로가 기본). */
+@media (max-width: 820px) {
+  .mk-lookup-split { flex-direction: column; gap: 24px; height: auto; justify-content: center; }
+  .mk-role-customer .mk-main { overflow: auto; }
+  .mk-lookup-left { align-items: center; text-align: center; max-width: 440px; }
+  .mk-lookup-ment { text-align: center; }
+  .mk-signup-mini { align-items: center; text-align: center; }
+}
+.mk-optional { font-style: normal; font-weight: 400; font-size: 14px; color: var(--md-on-surface-variant); }
+
+/* 가입 화면 뒤로가기(큰 터치영역, 어르신 친화) */
+.mk-back-btn {
+  align-self: flex-start; min-height: 52px; padding: 10px 22px; font-size: 18px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--md-outline); border-radius: var(--md-radius-xl);
+  background: var(--md-surface-container-high); color: var(--md-on-surface-variant); margin-bottom: 4px;
+}
+
+/* ★D: 정돈된 3칸 폼(줄맞춤) */
+.mk-form { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 460px; }
+.mk-form-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 12px; }
+.mk-form-label { color: var(--md-on-surface-variant); font-size: 16px; font-weight: 600; text-align: right; }
+.mk-form-input {
+  min-height: 56px; padding: 12px 16px; font-size: 19px;
+  border: 1px solid var(--md-outline); border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-low); color: var(--md-on-surface); width: 100%;
+}
+.mk-form-input:focus { border-color: var(--md-primary); outline: none; }
+.mk-email-inline { display: flex; align-items: center; gap: 8px; padding: 0; border: none; background: none; min-height: 0; }
+.mk-email-inline .mk-email-local { flex: 1 1 90px; min-width: 70px; }
+.mk-email-inline .mk-email-dom { flex: 1 1 120px; min-width: 110px; }
+.mk-email-inline input, .mk-email-inline select {
+  min-height: 56px; padding: 12px 12px; font-size: 18px;
+  border: 1px solid var(--md-outline); border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+}
+.mk-email-at { color: var(--md-on-surface-variant); font-size: 20px; }
+/* 전화 칸 = 탭하면 팝업 패드 */
+.mk-phone-btn { text-align: left; cursor: pointer; display: flex; align-items: center; font-variant-numeric: tabular-nums; }
+.mk-phone-ph { color: var(--md-on-surface-variant); font-variant-numeric: normal; }
+.mk-staff-refer {
+  grid-column: 1 / -1; font-size: 14px; color: var(--md-on-surface-variant);
+  background: var(--md-surface-container-low); border-radius: var(--md-radius-sm); padding: 10px 14px; text-align: center;
+}
+
+/* 전화번호 팝업 모달 */
+.mk-modal-overlay {
+  position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.mk-modal {
+  background: var(--md-surface-container); border-radius: var(--md-radius-lg); box-shadow: var(--md-elev-3);
+  padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.mk-modal-title { font-size: 20px; font-weight: 700; }
+
+/* ★C: 회원 카드 세련화(브랜드 히어로) */
+.mk-member-card { padding: 0; overflow: hidden; max-width: 440px; gap: 0; }
+.mk-member-hero {
+  width: 100%; padding: 28px 24px 24px; text-align: center;
+  background: linear-gradient(135deg, var(--md-primary-container), var(--md-surface-container-high));
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.mk-member-badge {
+  font-size: 14px; font-weight: 700; letter-spacing: .04em; color: var(--md-on-alive);
+  background: var(--md-alive); padding: 5px 14px; border-radius: var(--md-radius-xl);
+}
+.mk-member-hero .mk-greeting { font-size: 26px; line-height: 1.35; color: var(--md-on-surface); }
+.mk-member-hero .mk-greeting b { color: var(--md-primary); }
+.mk-member-body { width: 100%; padding: 24px; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.mk-event-done { font-size: 19px; font-weight: 700; color: var(--md-alive); }
+.mk-event-todo { font-size: 16px; color: var(--md-on-surface-variant); }
+
+/* ★#3 "팝콘 이벤트" 태그 강조(칩) — 이벤트명을 하나의 엔티티로 */
+.mk-evt-tag {
+  display: inline-block; padding: 1px 8px; border-radius: var(--md-radius-sm);
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+  font-weight: 800; white-space: nowrap;
+}
+.mk-claim-btn .mk-evt-tag { background: rgba(255,255,255,.22); color: #fff; }
+
+/* ★#4 스탬프 진행(아이스크림까지) — 시안 */
+.mk-stamp {
+  width: 100%; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 14px; border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-low); border: 1px solid var(--md-outline-variant);
+}
+.mk-stamp-head { display: flex; align-items: center; justify-content: space-between; }
+.mk-stamp-title { font-size: 15px; font-weight: 700; color: var(--md-on-surface); }
+.mk-stamp-count { font-size: 14px; font-weight: 700; color: var(--md-primary); font-variant-numeric: tabular-nums; }
+.mk-stamp-dots { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-stamp-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--md-surface-container-highest); border: 1px solid var(--md-outline-variant); }
+.mk-stamp-dot.is-on { background: var(--md-alive); border-color: var(--md-alive); }
+.mk-stamp-msg { font-size: 14px; color: var(--md-on-surface-variant); }
+/* 리워드 수령 가능 — 강조 + [수령] 버튼 */
+.mk-reward-ready { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.mk-reward-msg { font-size: 15px; font-weight: 800; color: var(--md-alive); }
+.mk-reward-btn {
+  min-height: 40px; padding: 8px 20px; font-size: 16px; font-weight: 700; cursor: pointer;
+  border: none; border-radius: var(--md-radius-xl); background: var(--md-alive); color: var(--md-on-alive);
+}
+.mk-reward-btn:disabled { opacity: .5; }
+.mk-history-wrap { width: 100%; }
+.mk-history-title { font-size: 14px; font-weight: 700; color: var(--md-on-surface-variant); margin-bottom: 8px; text-align: left; }
+
+/* (전체화면 버튼 제거 2026-08-01 — Fully Kiosk 몰입모드가 전체화면 담당) */
+
+/* 무조작 자동복귀 경고 배너(하단) — 카운트다운 */
+.mk-idle-warn {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 1300;
+  padding: 14px 20px; text-align: center; font-size: 18px; font-weight: 700;
+  background: var(--md-primary); color: var(--md-on-primary);
+}
+
+/* ── 본문 ──────────────────────────────────────────────────────────────────── */
+.mk-main { flex: 1 1 auto; overflow: auto; display: flex; flex-direction: column; }
+.mk-screen {
+  flex: 1; display: flex; gap: 32px; padding: 28px;
+  align-items: flex-start; justify-content: center;
+}
+.mk-col { flex: 1 1 0; max-width: 420px; display: flex; flex-direction: column; align-items: center; }
+
+/* ── 고객 가입모드 (2단: 좌=이름·이메일, 우=전화번호패드) ──────────────────── */
+.mk-customer { flex-direction: column; align-items: center; gap: 20px; }
+.mk-signup-head { text-align: center; }
+.mk-signup-head h2 { margin: 0 0 4px; font-weight: 700; font-size: 28px; }
+.mk-signup-head p { margin: 0; color: var(--md-on-surface-variant); font-size: 17px; }
+
+.mk-signup-grid {
+  display: flex; gap: 40px; align-items: flex-start; justify-content: center; flex-wrap: wrap; width: 100%;
+}
+.mk-signup-left { display: flex; flex-direction: column; gap: 18px; min-width: 300px; max-width: 400px; flex: 0 1 400px; }
+.mk-signup-right { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.mk-pad-label { color: var(--md-on-surface-variant); font-size: 16px; font-weight: 600; align-self: flex-start; }
+.mk-email-back { align-self: flex-start; }
+
+.mk-field { display: flex; flex-direction: column; gap: 8px; }
+.mk-field > span { color: var(--md-on-surface-variant); font-size: 16px; font-weight: 600; }
+.mk-field input, .mk-email-domain select, .mk-email-domain input {
+  min-height: 56px; padding: 12px 16px; font-size: 20px;
+  border: 1px solid var(--md-outline); border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+}
+.mk-field input:focus, .mk-email-domain select:focus, .mk-email-domain input:focus {
+  border-color: var(--md-primary); outline: none;
+}
+.mk-field input:disabled, .mk-email-domain select:disabled, .mk-email-domain input:disabled { opacity: 0.5; }
+
+/* 이메일: @앞 로컬 + @ + 도메인 드롭다운(또는 직접입력) */
+.mk-email-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mk-email-row .mk-email-local { flex: 1 1 120px; min-width: 100px; }
+.mk-email-at { font-size: 22px; color: var(--md-on-surface-variant); }
+.mk-email-domain { flex: 1 1 150px; min-width: 130px; display: flex; }
+.mk-email-domain select, .mk-email-domain input { width: 100%; }
+.mk-field-hint { font-size: 14px; color: var(--md-error); }
+
+.mk-consent {
+  display: flex; align-items: flex-start; gap: 12px; font-size: 16px; cursor: pointer;
+  line-height: 1.5; color: var(--md-on-surface);
+  background: var(--md-surface-container-low); border-radius: var(--md-radius-sm); padding: 14px 16px;
+}
+.mk-consent input { width: 26px; height: 26px; flex: 0 0 auto; margin-top: 1px; accent-color: var(--md-primary); }
+
+.mk-signup-submit {
+  min-height: 60px; border: none; border-radius: var(--md-radius-xl);
+  background: var(--md-primary); color: var(--md-on-primary); font-size: 22px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation; box-shadow: var(--md-elev-1);
+}
+.mk-signup-submit:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+
+/* ── 결과 카드(직원 조회) ──────────────────────────────────────────────────── */
+.mk-result { min-height: 220px; justify-content: center; }
+.mk-placeholder { color: var(--md-on-surface-variant); font-size: 20px; padding: 28px; text-align: center; }
+.mk-note { color: var(--md-on-surface-variant); font-size: 14px; margin-bottom: 12px; text-align: center; }
+
+.mk-card {
+  width: 100%; max-width: 380px;
+  display: flex; flex-direction: column; gap: 14px; align-items: center;
+  padding: 28px; border-radius: var(--md-radius-lg);
+  background: var(--md-surface-container); box-shadow: var(--md-elev-1); text-align: center;
+}
+/* 인사말 */
+.mk-greeting { font-size: 24px; font-weight: 700; color: var(--md-on-surface); }
+
+/* 팝콘 이벤트 섹션 */
+.mk-event-section {
+  width: 100%; display: flex; flex-direction: column; gap: 12px; align-items: center;
+  padding-top: 8px; border-top: 1px solid var(--md-outline-variant);
+}
+.mk-event-label { font-size: 17px; font-weight: 600; color: var(--md-on-surface-variant); }
+.mk-history {
+  list-style: none; margin: 4px 0 0; padding: 0; width: 100%;
+  max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+}
+.mk-history li {
+  font-size: 15px; color: var(--md-on-surface-variant);
+  background: var(--md-surface-container-low); border-radius: var(--md-radius-sm); padding: 8px 12px;
+}
+
+/* 회원 리스트(직원용) */
+.mk-ml-open {
+  min-height: 44px; padding: 8px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--md-outline); border-radius: var(--md-radius-xl);
+  background: transparent; color: var(--md-on-surface-variant);
+}
+.mk-memberlist {
+  flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 24px;
+  max-width: 720px; margin: 0 auto; width: 100%;
+}
+.mk-ml-head { display: flex; align-items: center; gap: 16px; }
+.mk-ml-head h2 { margin: 0; font-size: 24px; font-weight: 700; }
+.mk-ml-search {
+  min-height: 56px; padding: 12px 18px; font-size: 20px;
+  border: 1px solid var(--md-outline); border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+}
+.mk-ml-search:focus { border-color: var(--md-primary); outline: none; }
+.mk-ml-count { font-size: 15px; color: var(--md-on-surface-variant); }
+.mk-ml-tablewrap { overflow: auto; border-radius: var(--md-radius-md); background: var(--md-surface-container); }
+.mk-ml-table { width: 100%; border-collapse: collapse; font-size: 18px; }
+.mk-ml-table th {
+  text-align: left; padding: 14px 18px; font-weight: 700; color: var(--md-on-surface-variant);
+  background: var(--md-surface-container-high); position: sticky; top: 0;
+}
+.mk-ml-table td { padding: 14px 18px; border-top: 1px solid var(--md-outline-variant); }
+.mk-ml-empty { text-align: center; color: var(--md-on-surface-variant); padding: 24px; }
+
+/* 환영 포즈 소(전신) — 인사말 아래 빈 공간에 은은히(선호 레이아웃 유지, 과밀 금지). */
+.mk-hero-pose { width: clamp(120px, 13vw, 180px); height: auto; margin-top: clamp(16px, 3.5vh, 32px); }
+
+/* ★인증 배지 — 원형 체크(정본 팔레트) + "멤버십 회원". 절제되게 작게(깔끔함 유지). */
+.mk-member-badge-row { display: inline-flex; align-items: center; gap: 8px; }
+.mk-verified { width: 26px; height: 26px; flex: 0 0 auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+.mk-verified circle { fill: var(--md-primary); }
+.mk-verified path { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.mk-member-card-hero .mk-verified { width: 28px; height: 28px; }
+
+.mk-badge {
+  font-size: 20px; font-weight: 700; color: var(--md-on-alive);
+  background: var(--md-alive); padding: 6px 16px; border-radius: var(--md-radius-xl);
+}
+.mk-badge-none { color: var(--md-on-surface-variant); background: var(--md-surface-container-highest); }
+.mk-name { font-size: 30px; font-weight: 700; }
+.mk-event { font-size: 20px; }
+.mk-claimed { color: var(--md-alive); font-weight: 700; }
+
+.mk-claim-btn {
+  min-height: 52px; padding: 10px 24px; font-size: 19px; cursor: pointer; font-weight: 700;
+  border: none; border-radius: var(--md-radius-xl);
+  background: var(--md-primary); color: var(--md-on-primary); box-shadow: var(--md-elev-1);
+}
+.mk-claim-btn:disabled { opacity: 0.5; box-shadow: none; }
+.mk-signup-cta {
+  min-height: 52px; padding: 10px 24px; font-size: 18px; cursor: pointer; font-weight: 600;
+  border: 1px solid var(--md-outline); border-radius: var(--md-radius-xl);
+  background: transparent; color: var(--md-primary);
+}
+.mk-reset {
+  min-height: 44px; padding: 8px 20px; font-size: 16px; cursor: pointer;
+  border: none; border-radius: var(--md-radius-xl);
+  background: var(--md-surface-container-highest); color: var(--md-on-surface-variant);
+}
+.mk-err { color: var(--md-error); font-size: 15px; }
+.mk-thanks p { margin: 0; color: var(--md-on-surface-variant); font-size: 18px; }
+
+/* ── 가입 성공 축하 (컨페티 + 체크마크 팝) ─────────────────────────────────── */
+.mk-celebrate { position: relative; }
+.mk-check {
+  width: 96px; height: 96px; border-radius: 50%;
+  background: var(--md-alive); color: var(--md-on-alive);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 56px; font-weight: 700; margin: 4px auto 8px;
+  animation: mk-pop 480ms var(--md-ease) both;
+}
+.mk-confetti { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.mk-confetti i {
+  position: absolute; top: 40%; left: 50%; width: 10px; height: 14px; border-radius: 2px;
+  opacity: 0; animation: mk-confetti 900ms var(--md-ease) forwards;
+}
+.mk-confetti i:nth-child(1){ background:#FF6B6B; animation-delay:.05s; --dx:-120px; --dy:-90px; --rot:220deg; }
+.mk-confetti i:nth-child(2){ background:#FFD166; animation-delay:.10s; --dx:110px;  --dy:-100px;--rot:-180deg; }
+.mk-confetti i:nth-child(3){ background:#06D6A0; animation-delay:.02s; --dx:-150px; --dy:20px;  --rot:120deg; }
+.mk-confetti i:nth-child(4){ background:#4D96FF; animation-delay:.14s; --dx:150px;  --dy:10px;  --rot:-140deg; }
+.mk-confetti i:nth-child(5){ background:#C77DFF; animation-delay:.08s; --dx:-70px;  --dy:-130px;--rot:200deg; }
+.mk-confetti i:nth-child(6){ background:#FF9F1C; animation-delay:.12s; --dx:70px;   --dy:-120px;--rot:-90deg; }
+.mk-confetti i:nth-child(7){ background:#2EC4B6; animation-delay:.06s; --dx:-40px;  --dy:120px; --rot:160deg; }
+.mk-confetti i:nth-child(8){ background:#E71D64; animation-delay:.16s; --dx:40px;   --dy:130px; --rot:-160deg; }
+
+@keyframes mk-pop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes mk-confetti {
+  0% { opacity: 0; transform: translate(0,0) rotate(0); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-check { animation: none; }
+  .mk-confetti { display: none; }
+  .mk-modeswitch button, .mk-key, .mk-pad-submit, .mk-signup-submit { transition: none; }
+}
+
+/* ── 좁은 화면(세로 태블릿) ────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .mk-screen { flex-direction: column; align-items: center; }
+  .mk-col { max-width: 400px; width: 100%; }
+  .mk-signup-left, .mk-signup-right { max-width: 400px; width: 100%; flex: 1 1 100%; }
+}

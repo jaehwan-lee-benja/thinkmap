@@ -422,3 +422,22 @@ verify_jwt = false
 # (CORS preflight 를 함수가 직접 처리 + 마스터 전용 게이트). 비마스터/익명은 함수가 401/403 거부.
 # 시크릿 ENGINE_API_KEY 는 이 함수 env 에만 유저가 세팅(값=crm-archive/.env). CRM-BOARD-SPEC §8.
 verify_jwt = false
+
+# ── 멤버십 키오스크 프록시 3종 (SITE-SPLIT Phase 6) ──────────────────────────
+# 게이트웨이 JWT 검증은 끄고 함수 내부에서 getUser + (is_master() OR is_store()) 로 검증.
+# CORS preflight 를 함수가 직접 처리 + 직원 게이트. 시크릿 MEMBERSHIP_KIOSK_KEY 는 이 함수 env 에만
+# 유저가 세팅(값=crm 발급). MEMBERSHIP-KIOSK-SPEC §3.3·§5.
+[functions.membership-lookup]
+verify_jwt = false
+[functions.membership-event]
+verify_jwt = false
+[functions.membership-signup]
+verify_jwt = false
+[functions.membership-history]
+verify_jwt = false
+[functions.membership-list]
+verify_jwt = false
+[functions.membership-stamp]
+verify_jwt = false
+[functions.membership-reward]
+verify_jwt = false

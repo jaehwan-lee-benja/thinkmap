@@ -1,0 +1,43 @@
+/* 대형 번호패드 — 매장 터치 입력. ★어르신 이용 많음 → 버튼·숫자·표시 대형화(터치타겟 ≥76px, 숫자 34px).
+   Material 3 톤: .mk-app 스코프의 --md-* 토큰 사용(Kiosk.css). */
+.mk-pad {
+  display: flex; flex-direction: column; gap: 16px;
+  width: 360px; max-width: 92vw;   /* ★고정폭 — 입력 길이따라 폭 변동 없음(반응형 늘어남 방지) */
+}
+.mk-pad-display {
+  min-height: 72px; padding: 12px 20px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--md-outline); border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+  font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 1px;
+  white-space: nowrap; overflow: hidden;   /* ★한 줄 고정 — 다 눌러도 두 줄 래핑 금지 */
+}
+.mk-pad-placeholder { color: var(--md-on-surface-variant); font-size: 22px; letter-spacing: 0; font-weight: 400; }
+
+.mk-pad-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+}
+.mk-key {
+  min-height: 80px; border: none; border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-high); color: var(--md-on-surface);
+  font-size: 34px; font-weight: 500; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
+}
+.mk-key-aux { font-size: 20px; font-weight: 600; color: var(--md-on-surface-variant); background: var(--md-surface-container); }
+
+.mk-pad-submit {
+  min-height: 68px; border: none; border-radius: var(--md-radius-xl);
+  background: var(--md-primary); color: var(--md-on-primary); font-size: 24px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation; box-shadow: var(--md-elev-1);
+}
+.mk-pad-submit:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+
+/* ★XL — 조회 화면 주인공(어르신·원거리 가독). 버튼·숫자 획기적 대형. 고정폭. */
+.mk-pad-xl { width: 500px; max-width: 92vw; gap: 20px; }
+/* ★XL 표시 = 전체 자릿수(010-xxxx-xxxx, 13자)가 고정폭 500px 한 줄에 들도록 조정. nowrap 은 base 에서. */
+.mk-pad-xl .mk-pad-display { min-height: 96px; font-size: 44px; letter-spacing: 1px; }
+.mk-pad-xl .mk-pad-placeholder { font-size: 30px; }
+.mk-pad-xl .mk-pad-grid { gap: 18px; }
+.mk-pad-xl .mk-key { min-height: 108px; font-size: 46px; }
+.mk-pad-xl .mk-key-aux { font-size: 26px; }
+.mk-pad-xl .mk-pad-submit { min-height: 88px; font-size: 30px; }

@@ -139,6 +139,8 @@ payroll C-P 패턴 복제. **goals** 테이블: `goals_ws_owner_v2`(can_in_works
 
 **권고 접근**: members/roster 는 결정 1·2 확정 전 보류(규율 존중). daily_blocks 는 결정 3의 검증계획을 먼저 짜고 단독 진행. 즉 C-2 는 "일괄 clone"이 아니라 **테이블별 개별 판단**.
 
+> **membership(키오스크) 도메인 예외 등재 (2026-07-24).** 멤버십 키오스크 직원 게이트는 access-tiers(`can_in_workspace`)가 아닌 **도메인 헬퍼 `is_store()`**(+ `is_master()`)를 쓴다 — roster/member 선례와 동일 예외(최소권한·blast-radius 격리, MEMBERSHIP-KIOSK-SPEC §5.1). **전환 경로는 열어둔다**: Phase C 도메인 일괄 수렴 시 membership 도 함께 재평가. 정본 게이트=thinkmap 프록시 Edge(`_shared/membershipGate.ts`), RLS 확장 아님.
+
 ---
 
 ## C-3 — shares → grants + 개인 plane (스케치, 최고 위험)
