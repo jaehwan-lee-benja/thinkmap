@@ -17,6 +17,7 @@ export const SEAT_COLUMNS = [
   { key: 'raise', label: '올림' },
   { key: 'notes', label: '특이사항' },
   { key: 'confirm', label: '확인' },
+  { key: 'memo', label: '메모' }, // 자유 메모판(자리안내·주문서관리 공용, 행 단위)
 ]
 
 // 열 폭 조절(리사이즈) — 그룹 헤더 기준(테이블링·주문번호·상태·자리순서·올림·확인).
@@ -27,15 +28,16 @@ export const RESIZABLE_COLUMNS = [
   { key: 'mid', label: '자리후', cell: 'hg1' },
   { key: 'opts', label: '자리순서', cell: 'hg2' },
   { key: 'notes', label: '올림', cell: 'hg3', flex: true },
-  // 확인은 마지막 열 → 오른쪽 경계는 표 끝이라 무의미. 왼쪽 경계(올림|확인 사이)에 핸들을 둔다.
   { key: 'confirm', label: '확인', cell: 'confirm', side: 'left' },
+  // 메모는 마지막 열 → 오른쪽 경계는 표 끝이라 무의미. 왼쪽 경계(확인|메모 사이)에 핸들을 둔다.
+  { key: 'memo', label: '메모', cell: 'memo', side: 'left' },
 ]
 // 가로형(landscape)·세로형(portrait) 각각의 기본 폭. 세로형은 좁은 화면이라 기본값이 작다.
 export const DEFAULT_COLUMN_WIDTHS = {
-  landscape: { no: 84, order: 112, mid: 130, opts: 116, confirm: 132 },
-  portrait: { no: 76, order: 108, mid: 100, opts: 92, confirm: 116 },
+  landscape: { no: 84, order: 112, mid: 130, opts: 116, confirm: 132, memo: 180 },
+  portrait: { no: 76, order: 108, mid: 100, opts: 92, confirm: 116, memo: 140 },
 }
-export const COLUMN_WIDTH_KEYS = ['no', 'order', 'mid', 'opts', 'confirm']
+export const COLUMN_WIDTH_KEYS = ['no', 'order', 'mid', 'opts', 'confirm', 'memo']
 export const COLUMN_WIDTH_MIN = 56
 export const COLUMN_WIDTH_MAX = 360
 export const COLUMN_WIDTHS_KEY = 'seat.colwidths.v2'

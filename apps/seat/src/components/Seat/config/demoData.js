@@ -16,10 +16,12 @@ const orderDefaults = {
   seated: false,
   raised: false,
   raised_at: null,
+  raise_canceled: null,
   menu_out: false,
   confirm_flag: false,
   confirm_done: false,
   notes: '',
+  memo: '',
 }
 
 export const withOrderDefaults = (o) => ({ ...orderDefaults, ...o })
