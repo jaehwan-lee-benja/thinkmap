@@ -112,13 +112,44 @@ export function useSeatOrders(businessDate, onError) {
     if (error) { console.error('useSeatOrders.delete', error); onError?.(saveErrorMessage(error)); refetch() }
   }, [refetch, onError])
 
+  // 오늘자 초기화 = 오늘 영업일의 살아있는 주문을 전부 soft delete(deleted_at 한 타임스탬프로 묶음).
+  //   ★같은 타임스탬프를 되돌리기 키로 반환 → undoResetToday(ts) 가 정확히 그 묶음만 복구한다
+  //   (초기화 직후 새로 만든 주문이나 이전에 지운 줄은 건드리지 않는다).
+  const resetToday = useCallback(async () => {
+    if (!businessDate) return null
+    const stamp = new Date().toISOString()
+    const ids = orders.map((o) => o.id)
+    if (ids.length === 0) return null
+    if (mountedRef.current) setOrders([]) // 낙관적 비움
+    const { error } = await supabase
+      .from('seat_orders')
+      .update({ deleted_at: stamp })
+      .eq('business_date', businessDate)
+      .is('deleted_at', null)
+    if (error) { console.error('useSeatOrders.resetToday', error); onError?.(saveErrorMessage(error)); refetch(); return null }
+    return stamp
+  }, [businessDate, orders, refetch, onError])
+
+  // 초기화 되돌리기 — 그 타임스탬프로 지워진 행만 살린다.
+  const undoResetToday = useCallback(async (stamp) => {
+    if (!businessDate || !stamp) return
+    const { error } = await supabase
+      .from('seat_orders')
+      .update({ deleted_at: null })
+      .eq('business_date', businessDate)
+      .eq('deleted_at', stamp)
+    if (error) { console.error('useSeatOrders.undoResetToday', error); onError?.(saveErrorMessage(error)) }
+    refetch()
+  }, [businessDate, refetch, onError])
+
   // 명시 전달 버튼(A안): 'seat'=자리후 확정. seat_delivered=true → 주문서관리 게이팅 해제.
   // ('all'=전체에게 전달은 2026-07-31 제거 — updated_at 만 만지는 no-op 이었고, 필드 수정은
   //  이미 Realtime 으로 즉시 전파된다. 명시 전달은 상태를 바꾸는 관문에만 둔다.)
   const commitOrder = useCallback(async (id, scope) => {
     if (scope !== 'seat') return
-    return patchOrder(id, { seat_status: 'pending', seat_delivered: true })
+    // delivered_at = 통계용 전달 시각(주문→전달 / 전달→올림 구간).
+    return patchOrder(id, { seat_status: 'pending', seat_delivered: true, delivered_at: new Date().toISOString() })
   }, [patchOrder])
 
-  return { orders, loading, refetch, createOrder, patchOrder, commitOrder, deleteOrder }
+  return { orders, loading, refetch, createOrder, patchOrder, commitOrder, deleteOrder, resetToday, undoResetToday }
 }

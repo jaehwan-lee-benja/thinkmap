@@ -32,6 +32,19 @@ export function useDemoSeat(active) {
     setOrders((prev) => prev.filter((o) => o.id !== id))
   }, [])
 
+  // 오늘자 초기화 + 되돌리기 — 프리뷰는 지운 배열을 메모리에 들고 있다가 그대로 되살린다.
+  const resetBackupRef = useRef(new Map())
+  const resetToday = useCallback(() => {
+    const stamp = new Date().toISOString()
+    let had = false
+    setOrders((prev) => { if (prev.length) { resetBackupRef.current.set(stamp, prev); had = true } return [] })
+    return had ? stamp : null
+  }, [])
+  const undoResetToday = useCallback((stamp) => {
+    const backup = resetBackupRef.current.get(stamp)
+    if (backup) { setOrders(backup); resetBackupRef.current.delete(stamp) }
+  }, [])
+
   // 행 순서 재배열(드래그) — 프리뷰는 배열 순서만 바꾼다(queue_no 는 손대지 않음, 표시 순서).
   const reorder = useCallback((fromIdx, toIdx) => {
     setOrders((prev) => {
@@ -61,5 +74,5 @@ export function useDemoSeat(active) {
     })
   }, [])
 
-  return { orders, stations, patchOrder, createOrder, commitOrder, patchStation, reorder, sortByNumber, deleteOrder }
+  return { orders, stations, patchOrder, createOrder, commitOrder, patchStation, reorder, sortByNumber, deleteOrder, resetToday, undoResetToday }
 }

@@ -138,11 +138,47 @@
   box-shadow: var(--md-elev-2);
   z-index: 2;
 }
+/* 날짜 = 달력 입력(누르면 네이티브 달력). 지난 날짜를 보는 중이면 강조 + '오늘로'. */
 .seat-header-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 500;
   font-size: 18px;
   letter-spacing: .0125em;
 }
+.seat-date-input {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--md-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.seat-date-input:hover { border-color: var(--md-outline-variant); background: var(--md-surface-container-high); }
+/* ★filter:invert 를 쓰지 않는다 — <html style="color-scheme">(테마 헬퍼가 세팅)에 따라 브라우저가
+   이미 아이콘 명암을 맞춰 주는데, 덧씌우면 다크에서 까맣게 뒤집혀 안 보였다(유저 지시 2026-08-02). */
+.seat-date-input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .8; }
+/* 지난 날짜 열람 중 = 눈에 띄게(오늘 기록을 보고 있다고 착각하지 않도록).
+   ★배경색은 뒤집지 않는다 — 네이티브 달력 아이콘 명암이 color-scheme 을 따르므로
+   배경만 반전시키면 아이콘이 묻힌다. 테두리 + 옆 배지로 표시. */
+.seat-header-date.is-past .seat-date-input {
+  border-color: var(--md-none);
+  box-shadow: inset 0 0 0 1px var(--md-none);
+  font-weight: 700;
+}
+.seat-date-past-badge {
+  padding: 3px 8px;
+  border-radius: var(--md-radius-sm);
+  background: var(--md-none);
+  color: var(--md-on-none);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.seat-date-today { min-height: 36px; padding: 0 10px; font-size: 14px; }
 .seat-role-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
 .seat-role-tab {
   min-height: 48px;
@@ -293,11 +329,13 @@
     var(--sc-opts, 116px)      /* 자리순서 / 제조옵션 */
     minmax(160px, 1fr)         /* 올림 / 특이사항 = 남는 폭 */
     var(--sc-confirm, 132px)   /* 확인 */
+    var(--sc-memo, 180px)      /* 메모(자유 메모판) */
     44px;                      /* 삭제(제일 오른쪽) */
-  /* 자리후 그룹(hg1): 전달(deliver)이 위, 상태(status)가 아래 — 유저 지시 2026-08-01. */
+  /* 자리후 그룹(hg1): 전달(deliver)이 위, 상태(status)가 아래 — 유저 지시 2026-08-01.
+     메모(memo)는 두 줄 전체를 차지하는 자유 메모판. */
   grid-template-areas:
-    "tno tord deliver seat raise confirm del"
-    "tno tord status  opts notes confirm del";
+    "tno tord deliver seat raise confirm memo del"
+    "tno tord status  opts notes confirm memo del";
   align-items: stretch;
   min-height: 56px;
   border-bottom: 1px solid var(--md-outline-variant);
@@ -311,7 +349,7 @@
   position: sticky;
   top: 0;
   z-index: 3;
-  grid-template-areas: "tno tord hg1 hg2 hg3 confirm del";
+  grid-template-areas: "tno tord hg1 hg2 hg3 confirm memo del";
   min-height: 44px;
   font-weight: 500;
   color: var(--md-on-surface-variant);
@@ -364,6 +402,7 @@
 .seat-cell-raise   { grid-area: raise; }
 .seat-cell-notes   { grid-area: notes; }
 .seat-cell-confirm { grid-area: confirm; }
+.seat-cell-memo    { grid-area: memo; }
 .seat-cell-hg1     { grid-area: hg1; }
 .seat-cell-hg2     { grid-area: hg2; }
 .seat-cell-hg3     { grid-area: hg3; }
@@ -460,7 +499,8 @@
 .seat-app.is-hide-seat    .seat-cell-seat,
 .seat-app.is-hide-raise   .seat-cell-raise,
 .seat-app.is-hide-notes   .seat-cell-notes,
-.seat-app.is-hide-confirm .seat-cell-confirm { display: none; }
+.seat-app.is-hide-confirm .seat-cell-confirm,
+.seat-app.is-hide-memo    .seat-cell-memo { display: none; }
 
 /* ★그룹 헤더 제목도 열 숨김에 연동 — 그룹의 두 열이 모두 숨겨지면 제목(hg1/2/3)도 숨긴다.
    안 그러면 세로형에서 트랙이 0px 로 접힌 자리에 제목이 남아 옆 칸으로 삐져나온다. */
@@ -506,8 +546,15 @@
       var(--seat-pcol-opts, var(--scp-opts, minmax(64px, 92px)))    /* 자리순서 / 제조옵션 */
       var(--seat-pcol-notes, minmax(0, 1fr))                        /* 올림 / 특이사항 = 남는 폭 */
       var(--seat-pcol-confirm, var(--scp-confirm, minmax(100px, 116px))) /* 확인 */
-      40px;                                                         /* 삭제 */
+      var(--seat-pcol-memo, var(--scp-memo, minmax(96px, 140px)))    /* 메모(자유 메모판) */
+      var(--seat-pcol-del, 0px);   /* 삭제 — 평소 접힘, 왼쪽 스와이프 시 열림(아래) */
+    transition: grid-template-columns var(--md-dur) var(--md-ease);
   }
+  /* ★세로형 스와이프-삭제: 행을 왼쪽으로 밀면 삭제(✕) 열이 나타난다. 다시 오른쪽으로 밀면 닫힌다.
+     좁은 세로 화면에서 상시 삭제 버튼이 폭을 먹고 오터치도 나던 문제를 해소(유저 지시 2026-08-02). */
+  .seat-screen-order .seat-table .seat-row.is-swiped { --seat-pcol-del: 44px; }
+  /* 접힌 동안 버튼이 삐져나오지 않게. */
+  .seat-screen-order .seat-table .seat-cell-del { overflow: hidden; }
 
   /* 트랙 접기 — 그 트랙의 셀이 전부 숨겨졌을 때만. */
   .seat-app.is-hide-no .seat-screen-order .seat-table .seat-row { --seat-pcol-no: 0px; }
@@ -516,6 +563,7 @@
   .seat-app.is-hide-opts.is-hide-seat .seat-screen-order .seat-table .seat-row { --seat-pcol-opts: 0px; }
   .seat-app.is-hide-notes.is-hide-raise .seat-screen-order .seat-table .seat-row { --seat-pcol-notes: 0px; }
   .seat-app.is-hide-confirm .seat-screen-order .seat-table .seat-row { --seat-pcol-confirm: 0px; }
+  .seat-app.is-hide-memo .seat-screen-order .seat-table .seat-row { --seat-pcol-memo: 0px; }
 
   /* 테이블링 = 좁은 트랙, 폰트 축소(굵기로 구분). */
   .seat-screen-order .seat-cell-no { font-size: 15px; }
@@ -614,11 +662,16 @@
   background: var(--md-primary);
   border-color: var(--md-primary);
 }
+/* ★체크 표시 = 글리프(✓) 대신 굵게 '그린' 체크마크 — 폰트에 따라 가늘게 보이던 문제 해소
+   (박스 크기 22px 는 그대로. 유저 지시 2026-08-02 — 내부 체크만 또렷하게). */
 .seat-check input:checked::after {
-  content: '✓';
-  color: var(--md-on-primary);
-  font-size: 15px;
-  line-height: 1;
+  content: '';
+  width: 6px;
+  height: 11px;
+  border: solid var(--md-on-primary);
+  border-width: 0 3px 3px 0;
+  border-radius: 1px;
+  transform: translateY(-1px) rotate(45deg);
 }
 .seat-check input:disabled { opacity: .4; cursor: not-allowed; }
 
@@ -655,6 +708,15 @@
 }
 .seat-order-status.is-alive { background: var(--md-alive); color: var(--md-on-alive); }
 .seat-order-status.is-none { background: var(--md-surface-container-highest); color: var(--md-on-surface-variant); font-weight: 500; }
+/* 자리순서 리셋(↺) — 살아있음/필요없음 오른쪽. 처음 전달 상태로 되돌린다(재확인 모달). */
+.seat-seatreset-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 36px; min-height: 36px; margin-left: 6px; padding: 0;
+  border: 1px solid var(--md-outline-variant); border-radius: var(--md-radius-sm);
+  background: transparent; color: var(--md-on-surface-variant);
+  font: inherit; font-size: 16px; cursor: pointer;
+}
+.seat-seatreset-btn:hover { color: var(--md-on-surface); border-color: var(--md-primary); }
 
 /* 자리순서 상태: 살아있음=초록 톤 / 필요없음=회색(중성) 톤 */
 .seat-toggle.is-alive {
@@ -791,7 +853,10 @@
   color: var(--md-on-surface);
 }
 /* 영역별 카드 폭·번호 크기(절대, 크게). */
-.seat-st-active  .seat-st-card { width: 220px; }
+/* 올라감 카드 — space-between: 번호=위, 완료=아래에 붙어 버튼 하단 여백이 좌우 padding(14px)과 같아진다
+   (space-evenly 는 버튼 아래에 여분을 더 넣어 하단만 길어 보였다 — 유저 지시 2026-08-02).
+   번호가 위에 딱 붙지 않게 상단 padding 만 조금 더. */
+.seat-st-active  .seat-st-card { width: 220px; padding-top: 20px; justify-content: space-between; }
 .seat-st-waiting .seat-st-card { width: 168px; }
 .seat-st-done    .seat-st-card { width: 150px; background: var(--md-surface-container-high); }
 .seat-st-active  .seat-st-no { font-size: 60px; }
@@ -800,16 +865,57 @@
 
 /* 카드 내부 컨트롤 — 절대 크기(크게). */
 .seat-st-card .seat-input { min-height: 44px; height: auto; font-size: 18px; padding: 0 10px; text-align: center; }
-.seat-st-card .seat-complete-btn { min-height: 52px; font-size: 22px; }
+/* 완료 버튼 = 이전(52px)의 2배 높이(유저 지시 2026-08-02). 남는 공간을 다 먹지는 않는다(과대 방지). */
+.seat-st-card .seat-complete-btn { flex: 0 0 auto; min-height: 104px; font-size: 24px; }
+.seat-st-card .seat-complete-btn .seat-complete-check { font-size: 30px; }
+
+/* '포장으로 변경됨' 라벨 — 제조옵션이 포장으로 바뀐 올라감 카드에 특별히 붙는 강조 배지(오제조 방지). */
+/* ★오버레이 — 카드 흐름에서 빼서(absolute) 번호 위치 등 레이아웃이 전혀 안 밀리게 한다.
+   색은 --md-none / --md-on-none 정식 짝(라이트·다크 각각 대비 확보). */
+.seat-st-tag--takeout {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 4px 8px;
+  border-radius: var(--md-radius-sm) var(--md-radius-sm) 0 0;
+  background: var(--md-none);
+  color: var(--md-on-none);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  word-break: keep-all;
+  pointer-events: none;
+}
+/* 카드 자체도 테두리로 한 번 더 구분(outline 은 레이아웃 비침습). */
+.seat-st-card { position: relative; }
+.seat-st-card:has(.seat-st-tag--takeout) { outline: 2px solid var(--md-none); outline-offset: -2px; }
 .seat-st-card .seat-complete-check { font-size: 24px; }
+/* 올라감 = [카드] + 그 아래 [◀ ▶] 이동 버튼 한 묶음(버튼은 카드 밖 — 유저 지시 2026-08-02). */
+.seat-st-slot { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.seat-st-slot .seat-st-card { flex: 1 1 auto; min-height: 0; }
+.seat-st-move { flex: 0 0 auto; display: flex; justify-content: center; gap: 10px; }
+/* 동그라미 버튼. */
+.seat-move-btn {
+  flex: 0 0 auto;
+  width: 44px; height: 44px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--md-outline-variant); border-radius: 50%;
+  background: var(--md-surface-container); color: var(--md-on-surface-variant);
+  font: inherit; font-size: 16px; cursor: pointer;
+}
+.seat-move-btn:hover:not(:disabled) { color: var(--md-on-surface); border-color: var(--md-primary); }
+.seat-move-btn:disabled { opacity: .28; cursor: default; }
+
+/* 완료 카드 = 번호 + 되돌리기 아이콘 한 줄(세로로 쌓지 않아 카드 아래가 안 잘린다). */
+.seat-st-doneline { display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 0; }
 .seat-st-card--done .seat-undo-btn {
-  width: auto;
-  min-width: 0;
-  min-height: 48px;
-  height: auto;
-  padding: 0 16px;
-  font-size: 18px;
-  gap: 6px;
+  flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 22px;
   border-radius: var(--md-radius-full);
 }
 /* 변동(특이사항) — 한글 단어는 통째로 줄바꿈(끝 글자 안 쪼개짐), 잘 보이게 큰 글씨. */
@@ -873,22 +979,41 @@
   55%  { transform: scale(1.4); }
   100% { transform: scale(1); }
 }
-/* 🎉 가 천천히 위로 떠오르며 사라진다(축포). 평소엔 안 보이고 완료 클릭 시에만. */
-.seat-complete-btn::after {
-  content: '🎉';
+/* ★색종이 가루(confetti) — 이모지 대신 실제 입자가 버튼 중앙에서 터져 흩날린다(유저 지시 2026-08-02).
+   입자마다 --x/--y(방향) --r(회전) --d(지연)를 인라인으로 받는다. 색은 nth-child 로 순환. */
+.seat-confetti {
   position: absolute;
-  top: 2px;
+  top: 50%;
   left: 50%;
-  font-size: 26px;
-  opacity: 0;
+  width: 0;
+  height: 0;
   pointer-events: none;
-  transform: translateX(-50%);
 }
-.seat-complete-btn.is-celebrating::after { animation: seat-confetti .8s ease-out; }
-@keyframes seat-confetti {
-  0%   { opacity: 0; transform: translate(-50%, 0) scale(.5) rotate(0); }
-  20%  { opacity: 1; transform: translate(-50%, -14px) scale(1) rotate(6deg); }
-  100% { opacity: 0; transform: translate(-50%, -60px) scale(1.3) rotate(24deg); }
+.seat-confetti i {
+  position: absolute;
+  width: 7px;
+  height: 11px;
+  border-radius: 1px;
+  opacity: 0;
+  animation: seat-confetti-fly .75s cubic-bezier(.2, .7, .3, 1) var(--d, 0ms) both;
+}
+/* 알록달록 — 테마 토큰 + 축제색 몇 개를 섞는다. */
+.seat-confetti i:nth-child(6n+1) { background: var(--md-alive); }
+.seat-confetti i:nth-child(6n+2) { background: var(--md-primary); }
+.seat-confetti i:nth-child(6n+3) { background: var(--md-none); }
+.seat-confetti i:nth-child(6n+4) { background: #FF7BAC; }
+.seat-confetti i:nth-child(6n+5) { background: #FFD54F; }
+.seat-confetti i:nth-child(6n+6) { background: #7BE0FF; }
+/* 짝수 입자는 납작하게 — 팔랑이는 종잇조각 느낌. */
+.seat-confetti i:nth-child(even) { width: 10px; height: 6px; border-radius: 2px; }
+@keyframes seat-confetti-fly {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.4) rotate(0); }
+  10%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--x, 0)), calc(-50% + var(--y, 0) + 26px)) scale(1) rotate(var(--r, 180deg));
+  }
 }
 
 /* 완료 트랙 칩 = 번호 + 되돌리기(↺). 흐림/취소선 없이 또렷하게(완료 섹션 위치로 자명). */
@@ -957,7 +1082,7 @@
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
 
-/* ── 숫자 키패드 모달(번호모달) — 오른쪽으로 치우쳐 떠서 왼쪽 표가 계속 보인다 ─────── */
+/* ── 번호 화면키패드 — 오른쪽으로 치우쳐 떠서 왼쪽 표가 계속 보인다 ─────── */
 .seat-numpad-scrim {
   position: fixed;
   inset: 0;
@@ -1010,7 +1135,7 @@
 .seat-numpad-key:active { background: var(--md-primary); color: var(--md-on-primary); }
 .seat-numpad-key--fn { font-size: 20px; color: var(--md-primary); }
 
-/* 번호모달 사용하기 토글 — 툴바에서 줄바꿈 방지. */
+/* 번호 화면키패드 토글 — 툴바에서 줄바꿈 방지. */
 .seat-numpad-toggle { white-space: nowrap; }
 
 /* 새 주문 시작번호 설정 — 툴바 인라인 라벨 + 숫자 입력. */
@@ -1029,9 +1154,133 @@
   text-align: center;
 }
 
+/* ── 기능 설정(역할별) 모달 + 물음표 툴팁 ─────────────────────────────────── */
+.seat-func-open { display: inline-flex; align-items: center; gap: 6px; }
+/* 물음표 도움말 — hover/focus 시 설명 툴팁. */
+.seat-help {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--md-outline-variant);
+  background: var(--md-surface-container-high); color: var(--md-on-surface-variant);
+  font-size: 15px; font-weight: 700; cursor: help; position: relative;
+}
+.seat-help:hover, .seat-help:focus { color: var(--md-on-surface); border-color: var(--md-primary); outline: none; }
+/* hover(데스크톱) + focus(모바일 탭 — tabIndex=0) 둘 다 툴팁을 띄운다. */
+.seat-help:hover::after, .seat-help:focus::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  white-space: nowrap; padding: 6px 10px; border-radius: var(--md-radius-sm);
+  background: var(--md-inverse-surface, #313033); color: var(--md-inverse-on-surface, #f4eff4);
+  font-size: 13px; font-weight: 500; box-shadow: var(--md-elev-2); z-index: 5; pointer-events: none;
+}
+/* 각 기능 = 외곽선 박스 한 묶음(타이틀+힌트+컨트롤) → 위계 시각화. */
+.seat-func-body { display: flex; flex-direction: column; gap: 10px; }
+.seat-func-item {
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-md);
+  padding: 12px 14px;
+}
+/* 토글 = 체크박스를 라벨 왼쪽에 밀착(대상 인지 명확). 박스 전체가 클릭 영역. */
+.seat-func-item--toggle { display: flex; align-items: center; gap: 12px; cursor: pointer; min-height: 48px; }
+.seat-func-item--block { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.seat-func-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.seat-func-label { font-weight: 700; }
+.seat-func-hint { font-size: 13px; color: var(--md-on-surface-variant); }
+.seat-startnum-group { display: inline-flex; align-items: center; gap: 8px; }
+.seat-startnum-group input {
+  width: 96px; min-height: 44px; padding: 0 10px;
+  border: 1px solid var(--md-outline-variant); border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-high); color: var(--md-on-surface);
+  font: inherit; font-size: 18px; font-weight: 700; text-align: center;
+}
+
+/* ★자리후 전달 전 잠금 — 자리순서·올림 셀을 확실히 비활성(유저 지시 2026-08-02). */
+.seat-cell.is-locked {
+  opacity: .38;
+  pointer-events: none;              /* 체크박스/토글 클릭 자체 차단(disabled 와 병행) */
+  background: var(--md-surface-container-lowest, rgba(0,0,0,.04));
+  filter: grayscale(1);              /* 색 빠져 '꺼진' 느낌 */
+}
+
+/* 올리기 전달 세부 보기 — 올림 경로 텍스트(재확인은 모달로 분리됨). */
+.seat-raise-detail { margin-top: 4px; font-size: 13px; font-weight: 500; color: var(--md-on-surface-variant); }
+.seat-raise-detail.is-canceled { color: var(--md-error); }
+.seat-btn-danger { background: var(--md-error); color: var(--md-on-error); border-color: transparent; }
+.seat-btn-danger:hover { box-shadow: var(--md-elev-1); }
+
+/* ── 통계 ────────────────────────────────────────────────────────────────── */
+.seat-stats { display: flex; flex-direction: column; gap: 20px; }
+.seat-stats-datebar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.seat-stats-datelabel { display: inline-flex; align-items: center; gap: 8px; }
+.seat-stats-datelabel input {
+  min-height: 44px; padding: 0 10px; font: inherit; font-size: 16px;
+  border: 1px solid var(--md-outline-variant); border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-high); color: var(--md-on-surface);
+}
+.seat-stats-msg { padding: 16px 0; color: var(--md-on-surface-variant); }
+.seat-stats-sec { display: flex; flex-direction: column; gap: 8px; }
+.seat-stats-h { margin: 0; font-size: 16px; font-weight: 700; }
+/* 흐름 — 단계별 통과 건수. */
+.seat-stats-funnel { display: flex; gap: 8px; flex-wrap: wrap; }
+.seat-stats-fitem {
+  flex: 1 1 88px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 6px; border: 1px solid var(--md-outline-variant); border-radius: var(--md-radius-sm);
+}
+.seat-stats-fnum { font-size: 24px; font-weight: 800; }
+.seat-stats-flabel { font-size: 13px; color: var(--md-on-surface-variant); word-break: keep-all; }
+/* 표 — 가로 스크롤은 자기 컨테이너 안에서만. */
+.seat-stats-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.seat-stats-table th, .seat-stats-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--md-outline-variant); }
+.seat-stats-table th { font-weight: 700; color: var(--md-on-surface-variant); }
+.seat-stats-table td:not(:first-child), .seat-stats-table th:not(:first-child) { text-align: right; white-space: nowrap; }
+.seat-stats-note { margin: 0; font-size: 13px; color: var(--md-on-surface-variant); }
+
+/* 화면 테마 선택(시스템/라이트/다크). */
+.seat-theme-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* 메모 = 자유 메모판(두 줄 높이 전체를 채우는 textarea). */
+.seat-memo {
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  resize: none;
+  line-height: 1.35;
+  font-size: 16px;   /* 모바일 확대 방지 */
+}
+
+/* 행 안 재확인 모달(자리순서 리셋 등) — 화면 중앙. */
+.seat-confirm-scrim {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0, 0, 0, .45);
+}
+.seat-confirm {
+  width: min(420px, 100%);
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 20px; border-radius: var(--md-radius-md);
+  background: var(--md-surface-container); color: var(--md-on-surface);
+  box-shadow: var(--md-elev-3);
+}
+.seat-confirm-title { font-size: 18px; font-weight: 700; }
+.seat-confirm-desc { font-size: 15px; color: var(--md-on-surface-variant); }
+.seat-confirm-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+/* 오늘자 초기화 되돌리기 바 — 하단 중앙, 10초간. */
+.seat-undo-bar {
+  position: fixed;
+  left: 50%; bottom: 24px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px; border-radius: var(--md-radius-md);
+  background: var(--md-inverse-surface, #313033); color: var(--md-inverse-on-surface, #f4eff4);
+  box-shadow: var(--md-elev-3); z-index: 60; font-size: 16px;
+}
+.seat-undo-bar .seat-btn { min-height: 40px; background: transparent; color: var(--md-inverse-on-surface, #f4eff4); border: 1px solid currentColor; }
+
 /* ── 모션 감소 선호 ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  /* ::before/::after 도 명시 — `*`는 의사요소를 매칭하지 않아 🎉 confetti 가 계속 떴다. */
+  /* ::before/::after 도 명시 — `*`는 의사요소를 매칭하지 않아 과거 🎉 confetti 가 계속 떴다.
+     (현재 축하는 .seat-confetti i 실입자 — 아래 규칙이 animation:none 으로 함께 끈다.) */
   .seat-app *,
   .seat-app *::before,
   .seat-app *::after { transition: none !important; animation: none !important; }

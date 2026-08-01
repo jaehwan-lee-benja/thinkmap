@@ -15,9 +15,10 @@ export const removesFromSeatQueue = (o) => !!(o?.opt_outdoor || o?.opt_takeout)
 // R1: 제조옵션이 하나라도 있으면 그 주문은 '자리후'가 아니다 → 자리후(자리순서) 컨트롤 비활성.
 export const isSeatWaiting = (o) => !hasManufactureOption(o)
 
-// R2: 자리앉음/올림, 또는 자리큐서 빠지는 제조옵션(야외/포장), 또는 포장/야외 시작 주문이면 올림 활성.
-//     ★야외병행은 자리순서 유지 → 자리앉음 전엔 올림 비활성(실내 자리 나면 입장).
-export const isRaiseEnabled = (o) => !!(o?.seated || o?.raised) || removesFromSeatQueue(o) || !isDineIn(o)
+// R2(폐지, 2026-08-02 유저 지시): '자리앉음을 눌러야 올리기 전달이 활성' 선행조건을 없앴다.
+//   실제 주방에서 자리 배정과 제조 올림은 순서가 고정돼 있지 않은데, 게이팅이 절차를 꼬았다.
+//   현재 올림의 유일한 관문은 '자리후 전달'(OrderRow.preDeliver) 하나다.
+//   ※자리앉음의 ✕(해당없음) 표시 규칙(seatToggleLocked)은 그대로 유지 — 그건 상태 표시라 유효.
 
 // 스테이션/매니저 화면 목록 분류 (순수)
 // 자리후 '대기중' = 실내 + ★전달됨(seat_delivered) + 아직 안 올라감(!raised) + 자리큐 유지(야외/포장 아님) + 취소 아님.
@@ -27,6 +28,22 @@ export const isWaitingOrder = (o) =>
   isDineIn(o) && !!o?.seat_delivered && !o?.raised && !removesFromSeatQueue(o) && o?.seat_status !== 'canceled'
 // 올림(자리잡음)된 주문.
 export const isRaisedOrder = (o) => !!o?.raised
+
+// 올림 경로 라벨.
+const RAISE_LABEL = { takeout: '포장', outdoor: '야외', parallel: '야외병행', direct: '직접체크' }
+
+// 올리기 전달 '세부 설명' — 어떤 경로로 올림 전달이 이뤄졌는지(또는 취소됐는지) 텍스트.
+//   야외/포장/야외병행 = 제조옵션으로 올림 / 직접체크 = 제조옵션 없이 올리기 체크박스를 직접.
+//   raise_canceled(text: 취소 당시 방식)가 최우선 — 취소 시 제조옵션·raised 를 되돌리므로 방식 흔적을 여기 남겨
+//   '올림취소됨(야외)'처럼 한 스텝 히스토리를 보여준다. falsy 면 취소 이력 없음.
+export const raiseDetailText = (o) => {
+  if (o?.raise_canceled) return `올림취소됨(${RAISE_LABEL[o.raise_canceled] || ''})`
+  if (!o?.raised) return ''
+  if (o?.opt_takeout) return '포장'
+  if (o?.opt_outdoor) return '야외'
+  if (o?.opt_outdoor_parallel) return '야외병행'
+  return '직접체크'
+}
 // 주문 표시 번호 — 주문번호 우선, 없으면 자리대기번호.
 export const orderLabel = (o) => o?.order_no || (o?.queue_no != null ? String(o.queue_no) : '-')
 

@@ -1,4 +1,4 @@
-// 숫자 키패드 모달 — 태블릿 하단 키보드 대신 테이블링/주문번호 숫자 입력. (유저 지시 2026-08-01)
+// 번호 화면키패드 — 태블릿 하단 키보드 대신 테이블링/주문번호 숫자 입력. (유저 지시 2026-08-01)
 // 화면 오른쪽으로 치우치게 떠서 왼쪽 표 내용이 계속 보인다. 누를 때마다 실시간 patch.
 import { useEffect } from 'react'
 
@@ -20,7 +20,13 @@ export default function SeatNumpad({ order, field, onPatch, onClose }) {
 
   const setValue = (next) => {
     if (field === 'queue_no') onPatch?.(order.id, { queue_no: next === '' ? null : Number(next) })
-    else onPatch?.(order.id, { order_no: next })
+    else onPatch?.(order.id, {
+      order_no: next,
+      // 통계용: 주문번호가 처음 채워지는 순간만 시각 기록.
+      ...(!order.order_no && next && !order.order_no_at ? { order_no_at: new Date().toISOString() } : {}),
+      // ★주문번호를 비우면 전달 체크도 함께 풀린다(표 입력과 동일 규칙, 유저 지시 2026-08-02).
+      ...(!next && order.seat_delivered ? { seat_delivered: false, delivered_at: null } : {}),
+    })
   }
   const press = (d) => setValue((raw + d).slice(0, MAX_LEN))
   const backspace = () => setValue(raw.slice(0, -1))

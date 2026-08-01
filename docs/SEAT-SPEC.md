@@ -2,9 +2,10 @@
 
 > **자리후 시스템(seat) 관련 코드·마이그레이션을 만들거나 고치기 전에 이 문서를 먼저 본다.**
 >
-> 작성일: 2026-06-21
+> 작성일: 2026-06-21 / 최종 갱신: **2026-08-02**
 > 작성자: jaehwan-lee-benja (with Claude)
-> 상태: **Phase 0 (기획 합의 완료) — 스키마 승인·구현 대기**
+> 상태: **Phase 1 완료 — 프로덕션 운영 중**(자리안내·주문서관리 화면 통합, R1~R10, 통계 §13).
+> ※§9 는 2026-08-02 전면 갱신됨(현행 = §9.0/§9.3, §9.1~9.2 는 역사 참고).
 > 상위 컨텍스트: 카페 주방 실시간 협업. ThinkMap 하위 기능(신규 모듈로 격리).
 > 권한 맥락: [ACCESS-MODEL.md](./ACCESS-MODEL.md) — 신규 패러다임을 만들지 않고 B(공개형)+멤버십을 재사용한다.
 > 형제 참조: [MEMBER-SPEC.md](./MEMBER-SPEC.md) — `roster_assignments`(날짜별·매장 공유·보드멤버 편집)와 RLS·테넌시 패턴이 동일하다.
@@ -22,10 +23,10 @@
 - [7. 권한 / RLS](#7-권한--rls)
 - [8. 실시간 동기화](#8-실시간-동기화)
 - [9. 화면 명세](#9-화면-명세)
-- [10. 비즈니스 규칙 R1~R7](#10-비즈니스-규칙-r1r7)
+- [10. 비즈니스 규칙 R1~R10](#10-비즈니스-규칙-r1r10)
 - [11. 라이브 카메라 모듈](#11-라이브-카메라-모듈)
 - [12. 진입 & 컴포넌트 구조](#12-진입--컴포넌트-구조)
-- [13. 단계별 로드맵](#13-단계별-로드맵)
+- [13. 통계](#13-통계-2026-08-02-신설--구-phase-3)
 - [14. 결정 로그 / 미해결](#14-결정-로그--미해결)
 - [15. 수정 전 체크리스트](#15-수정-전-체크리스트)
 
@@ -132,10 +133,14 @@ seat_orders (
   seated          boolean NOT NULL DEFAULT false,      -- 자리앉음
   raised          boolean NOT NULL DEFAULT false,      -- 올리기 전달
   raised_at       timestamptz,                         -- 올림 시각(후속 소요시간 분석)
+  raise_canceled  text,                                -- R10: 올림취소 흔적+방식 takeout/outdoor/parallel/direct, NULL=이력없음. migrate-seat-raise-canceled.sql
   menu_out        boolean NOT NULL DEFAULT false,      -- R5: 제조매니저만
   confirm_flag    boolean NOT NULL DEFAULT false,      -- 확인필요(주문서관리→자리안내 신호. 상태선택과 별개의 행 플래그)
   confirm_done    boolean NOT NULL DEFAULT false,      -- 확인완료(자리안내가 처리 응답). migrate-seat-confirm-done.sql
-  notes           text,                                -- 특이사항
+  notes           text,                                -- 특이사항(=화면 표기 '전달사항'). 스테이션 카드에도 표시
+  memo            text,                                -- 비고/메모 — 표 오른쪽 자유 메모(스테이션 미노출). migrate-seat-memo.sql
+  order_no_at     timestamptz,                         -- 통계: 주문번호 최초 입력 시각(이후 수정해도 유지). migrate-seat-flow-timestamps.sql
+  delivered_at    timestamptz,                         -- 통계: 자리후 전달 시각(전달 해제 시 NULL). migrate-seat-flow-timestamps.sql
   created_by_role text,                                -- 입력 주체 역할 key(스냅샷)
   created_by      uuid DEFAULT auth.uid(),             -- 작성자(감사용 보조; 공용계정 운영)
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -157,7 +162,7 @@ seat_station_status (
   station       text NOT NULL,                         -- 'kaymak' | 'coffee' | 확장
   received      boolean NOT NULL DEFAULT false,        -- 자리잡음(올림)을 그 스테이션이 받음
   completed     boolean NOT NULL DEFAULT false,        -- 그 스테이션 완료(독립)
-  change_note   text,                                  -- 변동사항 예: "포장으로 변경"
+  change_note   text,                                  -- ※사실상 폐기(2026-08-02) — 앱 미사용. 전달사항은 seat_orders.notes 로 통일(§14 결정로그)
   completed_at  timestamptz,                           -- 완료 시각(후속 소요시간 분석)
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
@@ -233,9 +238,32 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 
 ## 9. 화면 명세
 
-공통: 상단에 오늘 날짜 + 역할 탭. 주문은 행 리스트, queue_no 1,2,3… 자동.
+> ★2026-08-02 전면 갱신. **화면은 4역할 → 3화면**이다: 주문 화면(자리안내·주문서관리 공용) · 카이막 · 커피.
+> 아래 9.0 이 현행이고, 9.1~9.3 은 구 서술(원본 슬라이드 기준)로 **역사 참고용**으로만 남긴다.
 
-### 9.1 자리안내 (`guide`) — 입력 핵심 (원본 슬라이드 열 구성 기준)
+공통: 상단 앱바 = **날짜(달력 — 지난 날짜 조회)** + 역할 탭 + 전체화면 + 설정. 주문은 행 리스트, queue_no 자동.
+
+### 9.0 주문 화면 (`guide`·`manager` 공용 = `SeatOrderScreen`) — 현행
+
+- **두 역할이 완전히 같은 화면·같은 권한**(2026-08-01 통합). 역할별 게이팅(`gateMode`)은 **제거**됐다.
+  차이는 오직 §11.2 의 **역할별 기능 설정**(기기 로컬)뿐.
+- 표 열(그룹 2줄 카드 그리드): 테이블링 / 주문번호 / (자리후 전달·상태) / (자리순서·야외포장) /
+  (올림·전달사항) / 확인(확인필요·확인완료) / **메모** / 삭제.
+  - 열 **숨김**(기기별)·**폭 조절**(★워크스페이스 공유, §11) 대상. 헤더는 sticky.
+  - **자리순서 옆 리셋(↺)** — '처음 자리후 전달을 눌렀던 상태'로 복귀(재확인 모달). 전달은 유지하고
+    그 이후 진행분(자리앉음·올림·제조옵션·올림취소이력)만 되돌린다.
+- **관문은 자리후 전달 하나**(R8). 전달 전에는 자리순서·야외포장·올림·전달사항 **4셀을 확실히 비활성**
+  (grayscale + 클릭 차단). 포장/야외 시작(`order_origin≠dine_in`)은 관문 없음.
+- **주문번호가 없으면 전달 체크 불가**. 주문번호를 지우면 **전달 체크도 함께 해제**된다(표·키패드 양쪽).
+- **재확인 모달**(실수 방지):
+  - 올림된 주문의 **주문번호 수정/삭제** → "이미 올림이 전달된 주문입니다…". 승인하면 그 행에서는 계속 편집.
+  - **줄 삭제** → 전 줄 재확인. 올림된 줄은 "이 줄은 이미 올림이 진행된 줄입니다…"로 문구 강화.
+  - **올리기 전달 취소** → 모달 재확인 후 R10(한 스텝 취소).
+- 표 아래 툴바: `+새 주문` · `+주문번호만`(queue_no NULL) · **기능 설정**(+ 물음표 툴팁).
+- **세로형**: 삭제 열은 평소 접힘 → 행을 **오른쪽→왼쪽 스와이프**하면 나타난다.
+- 카메라: 설정 `cameraEnabled` 켤 때만.
+
+### 9.1 (구) 자리안내 (`guide`) — 원본 슬라이드 열 구성 기준 · 역사 참고
 - 행: **테이블링**(=queue_no, 자동 1,2,3…) / order_no(텍스트) / 상태선택(확인필요·주문중·차후주문, 기본 '-') / **자리후 전달 체크박스**(실내만 표시, `seat_delivered` 반영·R8. 상태와 제조옵션 사이)
   / 제조옵션 드랍다운('-'·야외·포장·야외병행 단일선택, 폭 축소) / 자리순서 살아있음·필요없음(포장/야외 또는 순서취소 시 앰버 '필요없음'; 야외병행은 유지)
 - **시작 갈래(`order_origin`·R9)는 UI에 아예 노출하지 않음** — 내부 게이팅 로직·DB에만 유지.
@@ -255,30 +283,41 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 - 하단: 카이막·커피 현황 거울(각 '올라감 / 제조완료함', 읽기).
 - 카메라 없음.
 
-### 9.2 제조매니저 (`manager`)
+### 9.2 (구) 제조매니저 (`manager`) — 역사 참고 (현행은 §9.0 으로 통합)
 - 자리안내와 유사 입력부(전체폭 테이블) + **메뉴 나감**(이 역할만, R5).
 - 입력부 아래 가로 배치: 카메라 슬롯 + 자리후(대기중)/올림/완료된 리스트 요약.
 - ※ 원본 슬라이드의 매니저 페이지엔 카메라가 그려져 있지 않으나, 기획서 §9(매니저에도 카메라 슬롯)
   에 따라 **카메라 유지**(2026-06-25 결정). 매니저도 주방을 모니터하므로 둔다.
 
-### 9.3 카이막 / 커피 (`kaymak`/`coffee`) — 동일 컴포넌트·독립 (원본 슬라이드 레이아웃)
-- **3열 배치: [카메라 라이브 大 — 좌측] · [자리잡음(올림)+완료된 리스트 — 중앙] · [자리후(대기중) — 우측].**
-- 올림 카드 = 번호 + 변동사항("포장으로 변경" 등) + [완료] 버튼.
-- 내가 누른 완료만 "완료된 리스트"로(스테이션 독립, R6).
+### 9.3 카이막 / 커피 (`kaymak`/`coffee`) — 동일 컴포넌트·독립 (현행, 2026-08-02 갱신)
 
-## 10. 비즈니스 규칙 R1~R7
+- **세로 3구역**(각 타이틀 + 가로 스크롤 트랙, 오른쪽으로 쌓임). 높이 비율 **5:3:2**:
+  1. **올라감(제조하기)** — 큰 카드. 번호 + 전달사항(**읽기 전용**) + [완료] 버튼. 카드 **밖 아래**에 동그라미 `◀ ▶` 이동 버튼.
+  2. **자리후(대기)** — 곧 올라올 대기. 번호 + 전달사항(읽기 전용).
+  3. **완료** — 번호 + 되돌리기(`↺`, 번호 옆 아이콘).
+- **정렬 = 올린 시간순(`raised_at` asc)**. ★번호순이 아니다. 그 위에 수동 순서(◀▶)를 얹는다.
+  - 수동 순서는 **워크스페이스(매장) 공유** — `seat_workspace_prefs.prefs.stationOrder = { kaymak:[id…], coffee:[id…] }`.
+    새 카드는 시간순 위치로 뒤에 붙고, 완료/사라진 id 는 자동으로 빠진다.
+- **주문 필드는 이 화면에서 수정하지 않는다(읽기 전용)** — 전달사항 수정은 주문 화면(§9.0)에서. 스테이션이 쓰는 건 `seat_station_status`(완료)뿐.
+- **번호 표시에 중복 접미사(-a/-b)를 붙이지 않는다**(주문번호 그대로). 접미사는 주문 화면에서만.
+- **포장 배지**: 제조옵션이 '포장'이면 카드에 `✓ 포장으로 변경됨`(수기 영수증에서 포장을 체크로 적는 관행과 통일).
+  ★레이아웃 비침습(absolute 오버레이) — 배지가 떠도 번호 위치가 밀리면 안 된다.
+- 완료 = 축하 효과(색종이 입자) 재생 후 처리(카드별 독립, 연속 완료 가능). 내가 누른 완료만 완료 구역으로(R6).
+
+## 10. 비즈니스 규칙 R1~R10
 
 | # | 규칙 | 구현 위치 |
 | --- | --- | --- |
-| R1 | 제조옵션(야외/포장/야외병행) 하나라도 체크되면 자리후 아님 → 자리순서 '필요없음'(앰버) 표시, 수동토글 잠금(비활성 룩 없음). 올림 대상이나 [올리기 전달] 클릭 전까지 대기/올림 요약 리스트엔 미집계(§14 미해결) | OrderRow 파생상태 / seatRules |
-| R2 | 자리앉음/올리기 전달/제조옵션(R1) 중 하나라도 충족 시 오른쪽 제조 칸 활성화(그 전엔 비활성) | OrderRow·seatRules.isRaiseEnabled |
+| R1 | 제조옵션(야외/포장/야외병행) 하나라도 체크되면 자리후 아님 → 자리순서 '필요없음'(앰버) 표시, 수동토글 잠금(✕ + 취소선). ★제조옵션 선택 시 `raised=true` 자동 세팅(2026-07-31 결정, 구 '미집계' 미해결 항목 해소) | OrderRow.setOpt / seatRules |
+| ~~R2~~ | ~~자리앉음/올림/제조옵션 중 하나 충족 시 올림 활성~~ → **폐지(2026-08-02 유저 지시)**. 주방에서 자리 배정과 제조 올림은 순서가 고정돼 있지 않은데 이 선행조건이 절차를 꼬았다. **올림의 관문은 R8(자리후 전달) 하나뿐**이며 `isRaiseEnabled` 는 삭제됐다. ※자리앉음의 ✕(해당없음) 표시 규칙(R1·R4)은 유지 | (삭제됨) |
 | R3 | 상태선택 기본값 '-'(=`review_flag='none'`) | 스키마 DEFAULT |
 | R4 | "필요없음"=자리대기 취소(`seat_order_alive=false`) 또는 제조옵션(R1), "살아있음"=순서 유지. 파생: `seatNeeded = seat_order_alive && !제조옵션` | OrderRow 토글 |
 | R5 | "메뉴 나감"(`menu_out`)은 제조매니저만 | 역할 게이트(config) |
 | R6 | 카이막/커피 완료는 서로 독립 | `seat_station_status` 행 분리 |
 | R7 | 해당 행 변경을 모든 역할 화면에 즉시 실시간 반영 (전용 버튼 없음 — 구독이 자동 충족, 2026-07-31) | Realtime 구독(§8) |
-| R8 | **실내(dine_in) 주문**은 "자리후 전달"(`seat_delivered`)이 관문. 전달 전 게이팅 — **Manager**: 행 dim + 하위버튼(자리순서·올림) 숨김 / **Guide**: 전달 체크박스는 살리고 제조옵션부터 이후 컨트롤 dim/disable. 포장·야외 시작은 관문 없음(전달 체크박스 미표시, 즉시 활성) | OrderRow(`gateMode`)·Guide/Manager·commitOrder |
+| R8 | **실내(dine_in) 주문**은 "자리후 전달"(`seat_delivered`)이 **유일한** 관문. ★2026-08-02 갱신: 역할별 게이팅(`gateMode` — Manager 행 dim / Guide 부분 잠금)은 화면 통합으로 **폐지**. 대신 두 역할 공통으로 **전달 전에는 자리순서·야외포장·올림·전달사항 4셀을 비활성**(grayscale+클릭차단). 포장·야외 시작은 관문 없음. 주문번호가 없으면 전달 불가, 주문번호를 지우면 전달도 해제 | OrderRow(`preDeliver`)·commitOrder |
 | R9 | **주문 시작 갈래 `order_origin`**: dine_in(실내→자리후 관문)/takeout(포장)/outdoor(야외, 자리후 우회). 제조옵션(opt_*)은 실내 주문의 *전달 후 변경기록*: 야외·포장=자리큐 제외 / **야외병행=자리순서 유지**(실내 자리 나면 입장). `seatNeeded=dineIn && seat_order_alive && !(opt_outdoor\|\|opt_takeout)` | OrderRow·seatRules(isDineIn·removesFromSeatQueue) |
+| R10 | **올리기 전달 취소 = 한 스텝만 되돌린다**(재확인 모달 후). 올림이 이뤄졌던 경로 그대로: **제조옵션 경로**(야외/포장/야외병행)면 그 옵션 해제 + `seat_order_alive=true`(자리큐 복귀), 자리앉음 조작 재개 / **직접체크 경로**면 `raised` 만 해제하고 `seated` 는 유지. 취소 흔적·방식은 `raise_canceled`(text)에 남아 세부보기에 '올림취소됨(방식)'으로 표시되고, 다시 올림 시 NULL 로 리셋 | OrderRow.uncheckRaise·seatRules.raiseDetailText |
 
 ## 11. 라이브 카메라 모듈
 
@@ -299,9 +338,36 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 - **확장 규칙**: 설정 항목은 `config/seatSettings.js`의 `SEAT_SETTINGS` 배열에 **항목만 추가**한다.
   `SettingsPanel`은 그 배열만 보고 그리는 범용 렌더러 — 새 항목 때문에 UI 코드를 고치지 않는다
   (새 `type` 도입 시에만 렌더 분기 추가). 저장값에 없는 키는 로드 시 기본값으로 채워진다(하위호환).
-- 현재 항목: `cameraEnabled`(토글, 기본 off) — 카메라 연동 보기/끄기.
+- 현재 `SEAT_SETTINGS` 항목: `cameraEnabled`(토글, 기본 off) / `hiddenColumns`(열 숨김).
+- **★배열 밖 항목**(하드코딩 렌더 — 액션이거나 저장 위치가 달라 배열 규칙에 안 맞는 것들):
+  화면 테마(시스템/라이트/다크, 공유 헬퍼 `@thinkmap/core` — 모선·타 위성과 같은 저장키) ·
+  현황 열기 · **통계 열기**(§13) · 열 너비 초기화 · **오늘자 초기화**.
+  - **오늘자 초기화** = 그 날 주문 전체 soft delete(한 타임스탬프로 묶음) + **10초간 하단 '초기화 취소'**
+    (그 묶음만 정확히 복구 — 초기화 후 새로 만든 주문은 건드리지 않는다). ★지난 날짜 열람 중에는 **숨긴다**(과거 기록 보호).
+- **열 폭은 예외적으로 워크스페이스 공유** — `seat_workspace_prefs.prefs.columnWidths`(가로/세로 각각).
+  매장 내 어느 계정·기기든 같은 기준치. 저장 RPC `seat_save_workspace_prefs` 는 **shallow merge** 라
+  다른 prefs 키(`stationOrder` 등)를 덮어쓰지 않는다. ★단 각 키 자체는 통째 교체이므로,
+  `stationOrder` 처럼 하위 맵이 있는 키는 **전체 맵을 함께 써야** 한다.
 - **경계**: 설정은 표시(view)에만 관여. orders/station_status 데이터 로직·권한과 결합 금지.
 - **모듈 경계**: orders/station_status 데이터 로직과 결합 금지. 순수 "스트림 표시"만.
+
+### 11.2 역할별 기능 설정 (기기 × 역할, 2026-08-02 신설)
+
+- 진입 = 주문 화면(§9.0) 표 아래 툴바의 **"기능 설정"** 버튼 + 옆 물음표(hover/focus 툴팁:
+  "역할별에 따라 개별 조절되는 세부 설정하기"). 모달 제목에 역할명이 붙는다.
+- **저장 = `localStorage['seat.<name>.<roleKey>']`** — 자리안내와 주문서관리가 **각각** 독립.
+  (같은 기기라도 역할 탭을 바꾸면 다른 설정. 화면 통합 후 두 역할의 유일한 차이가 여기다.)
+- ★§11.1 의 "SEAT_SETTINGS 배열에 항목만 추가" **확장 규칙이 적용되지 않는다** — 저장 단위가
+  기기 전역이 아니라 기기×역할이라 별도 렌더러로 하드코딩한다. 새 항목은 `useRoleFlag` + JSX 추가.
+- 항목(4):
+  | 항목 | 성격 | 기본값 |
+  | --- | --- | --- |
+  | 번호 맞춰 정렬하기 | **1회 액션**(비영속) | — |
+  | 새 주문 시작번호 | 세션 한정(비영속, 새로고침·역할전환 시 초기화) | 자동채번 |
+  | 번호 화면키패드 사용하기 | 영속 | 주문서관리 **켬** / 자리안내 끔 |
+  | 올리기 전달 세부 보기 | 영속 | 전 역할 **켬** |
+- ★**세부 보기는 표시 전용**이다. 꺼도 올림 취소(R10)와 그 재확인 모달은 그대로 동작한다
+  (한때 꺼면 취소 자체가 불가능했던 버그 — 2026-08-02 수정).
 
 ## 12. 진입 & 컴포넌트 구조
 
@@ -313,19 +379,31 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 src/components/Seat/
   SeatSystemPage.jsx        풀스크린 컨테이너 + 상단 역할 탭 → 선택 역할 화면 렌더 + boardId 해석
   config/seatRoles.js       ROLES[] · STATIONS[] 데이터(하드코딩 금지)
-  config/seatSettings.js    SEAT_SETTINGS[] · 기본값 · localStorage load/save (§11.1)
+  config/seatSettings.js    SEAT_SETTINGS[] · SEAT_COLUMNS · 열 폭 기본값 · load/save (§11.1)
+  config/demoData.js        프리뷰 데모 행(orderDefaults = 전 컬럼 기본값 — 새 컬럼 추가 시 여기도 append)
   screens/
-    GuideScreen.jsx         자리안내 입력 핵심(R1~R4)
-    ManagerScreen.jsx       제조매니저(R5 menu_out, 완료 리스트, 카메라)
-    StationScreen.jsx       station prop으로 카이막/커피 재사용(R6)
+    SeatOrderScreen.jsx     ★자리안내·주문서관리 공용 주문 화면(§9.0) + 역할별 기능설정 모달(§11.2)
+    StationScreen.jsx       station prop으로 카이막/커피 재사용(R6) — §9.3
+    ※ GuideScreen/ManagerScreen 은 2026-08-01 통합으로 삭제됨
   components/
-    OrderRow.jsx            행 단위 입력/표시 + R1·R2 파생상태
+    OrderRow.jsx            행 단위 입력/표시 + 파생상태 + 재확인 모달(주문번호·삭제·올림취소)
+    SeatTableHead.jsx       표 헤더(sticky) + 열 폭 리사이즈 핸들
+    SeatNumpad.jsx          번호 화면키패드(테이블링/주문번호)
+    SeatModal.jsx           공용 모달(스크림·Esc)
+    SettingsPanel.jsx       설정 다이얼로그(SEAT_SETTINGS 범용 렌더러 + 배열 밖 항목들)
+    StatusOverview.jsx      통합 현황(역할 공용)
+    SeatStats.jsx           통계 화면(§13) — 날짜 선택·과거 조회
     LiveCameraFeed.jsx      격리된 카메라 슬롯(placeholder)
-    SettingsPanel.jsx       설정 다이얼로그(SEAT_SETTINGS 범용 렌더러)
   hooks/
-    useSeatOrders.js        fetch + Realtime + CRUD
+    useSeatOrders.js        fetch + Realtime + CRUD + resetToday/undoResetToday
     useStationStatus.js     fetch + Realtime + CRUD
     useSeatSettings.js      기기별 설정 상태 + localStorage 지속
+    useColumnWidths.js      열 폭(워크스페이스 서버 + localStorage 폴백)
+    useStationOrder.js      스테이션 카드 수동 순서(워크스페이스 공유, prefs.stationOrder)
+    useDemoSeat.js          프리뷰 전용 로컬 메모리 CRUD
+  utils/
+    seatRules.js            R1·R4·R9·R10 파생 순수함수(isDineIn·isWaitingOrder·raiseDetailText 등)
+    seatStats.js            통계 집계 순수함수(computeSeatStats·formatDuration)
 ```
 
 ### 12.1 디자인 — ★Google Material Design 3 (seat 위성 한정 예외)
@@ -350,13 +428,28 @@ src/components/Seat/
     카메라를 끈 상태(§11.1 기본값)에선 세로에서도 작업 영역이 충분해야 한다.
   - **자리안내**는 기존대로 넓은 화면 우선.
 
-## 13. 단계별 로드맵
+## 13. 통계 (2026-08-02 신설 — 구 Phase 3)
+
+- 진입 = 설정 → **"통계 열기"**. 구현 = `components/SeatStats.jsx` + `utils/seatStats.js`(순수 집계).
+- **날짜 선택**: 보고 있는 날짜가 기본, 달력으로 **지난 날짜도 조회**(최대값 = 오늘).
+  오늘(=화면이 이미 들고 있는 날)이면 메모리 데이터를 그대로 쓰고, 다른 날짜면 그 날짜로 직접 조회한다(중복 조회 없음).
+- **기본 플로우 = 테이블링(`created_at`) → 주문(`order_no_at`) → 자리후 전달(`delivered_at`) → 올림(`raised_at`) → 완료(`completed_at`)**.
+  각 구간은 **양끝 시각이 모두 있는 주문만** 집계(부분 데이터 허용 — 통계 도입 이전 주문은 자연히 빠진다).
+  음수 구간(시계 역전·수동 수정)은 버린다.
+- 지표:
+  - **주문 흐름 퍼널** — 단계별 통과 건수.
+  - **구간 소요시간** — 구간별 + 전체 + 스테이션별(올림→완료, 카이막/커피 분리). **중앙값을 앞세우고** 평균·최대·건수를 함께.
+    ★평균은 방치 1건에 크게 흔들려 주방 체감과 어긋나므로 중앙값이 대표값이다.
+  - **제조옵션 변경** — 야외/포장/야외병행/변경없음 건수·비율.
+  - **운영 신호** — 확인필요(미확인 포함)·올림취소 이력·테이블링 번호 없는 주문·실내 비율·피크 시간대.
+- ★새 지표를 넣을 땐 `seatStats.js`(순수 함수)에만 로직을 두고 컴포넌트는 표시만 한다.
+
+## 13.1 단계별 로드맵
 
 - **Phase 0 (완료)**: 본 기획서 합의.
-- **Phase 1 (이번)**: 스키마 승인·적용 → 진입 배선(빈 화면) → 데이터 훅+Realtime →
-  GuideScreen → ManagerScreen·StationScreen → R1~R7 → 카메라 슬롯.
+- **Phase 1 (완료)**: 스키마 적용 → 진입 배선 → 데이터 훅+Realtime → 화면 3종 → R1~R10 → 카메라 슬롯.
 - **Phase 2**: 카메라 실연결(streamUrl 주입), 운영 설정 UI(역할·스테이션·카메라 URL).
-- **Phase 3**: 소요시간(자리후→올림→완료) 집계·리포트.
+- **~~Phase 3~~ (완료, §13)**: 소요시간 집계·리포트.
 - **Phase 4(비범위 후보)**: 영상 OCR 자동 번호인식 연동, POS/프린터.
 
 ## 14. 결정 로그 / 미해결
@@ -387,13 +480,30 @@ src/components/Seat/
   `workspace_id` + `can_in_workspace(workspace_id, 'editor')`. 4역할은 RLS가 아닌 앱 가드. 공용 파트너
   계정(`sarurufarm.partner`)·멤버는 워크스페이스 editor grant 보유(멤버십·로그인 계정 무관).
 
+**결정됨 (2026-08-02)**
+- **화면 4 → 3**: 자리안내·주문서관리를 `SeatOrderScreen` 하나로 통합(동일 기능·동일 위계). 역할 게이팅(`gateMode`) 폐지.
+  두 역할의 유일한 차이는 §11.2 역할별 기능 설정(기기×역할 localStorage).
+- **R2 폐지**: '자리앉음 → 올리기 전달' 선행조건 제거. 주방에서 자리 배정과 제조 올림은 순서가 고정돼 있지 않다.
+  올림의 관문은 **자리후 전달(R8) 하나**. `isRaiseEnabled` 삭제.
+- **R10 신설**: 올림 취소 = 재확인 모달 + **한 스텝만** 되돌림. 흔적·방식은 `raise_canceled`(text).
+- **전달사항 필드 통일**: 스테이션 카드도 `seat_orders.notes` 를 쓴다 → `seat_station_status.change_note` 는 **사실상 폐기**(컬럼은 존치).
+  트레이드오프: 카이막·커피가 서로 다른 메모를 남길 수 없고 last-write-wins 로 덮인다. 한 주문의 전달사항은 하나라는 판단으로 수용.
+  스테이션은 **읽기 전용**(수정은 주문 화면에서) — 실수 수정 경로를 한 곳으로 모았다.
+- **메모 열 신설**(`memo`): 표 오른쪽 행 단위 자유 메모. 두 역할 공용, 스테이션 미노출. notes(전달사항)와 역할 분리.
+- **스테이션 정렬 = 올린 시간순**(번호순 아님) + 수동 ◀▶ 순서는 **워크스페이스 공유**(`prefs.stationOrder`).
+  ※`seat_workspace_prefs` Realtime 등록 필요(migrate-seat-prefs-realtime.sql). 미등록이어도 저장·공유는 되고 반영만 새로고침 시점.
+- **파괴적 조작에 재확인 모달**: 올림된 주문의 주문번호 수정/삭제 · 줄 삭제(전 줄) · 올림 취소.
+  '오늘자 초기화'는 10초 되돌리기 창(soft delete 묶음 복구) + 지난 날짜 열람 중 숨김.
+- **날짜 달력**: 헤더 날짜로 지난 날짜 조회(그 날 데이터를 그대로 로드). 통계도 날짜 선택 지원(§13).
+- **화면 테마**(시스템/라이트/다크)를 설정에 노출 — 공유 헬퍼 `@thinkmap/core`(모선·타 위성과 동일 저장키).
+
 **미해결 (진행하며 합의)**
 - [x] 권한·로그인 = 워크스페이스 grant(editor)로 확정. 태블릿이 어느 계정으로 로그인하든 editor 면 동작.
 - [ ] 완료 처리 후 행 표시 — 완료 행을 리스트에서 숨길지/접을지/유지할지.
 - [x] 카메라 **표시 on/off** = 설정 패널 `cameraEnabled`(기기별 localStorage, 기본 off)로 확정
       (2026-07-31 유저 지시 "카메라는 당장 필요없으니 설정 칸을 만들어 거기서 켜고 끄자").
 - [ ] 카메라 **streamUrl** 저장 위치(env vs Supabase config 레코드) 최종 결정 — 하드웨어 입고 후.
-- [ ] **제조옵션만 체크·미올림 주문의 요약 리스트 배치** — `isWaitingOrder`(제조옵션 있으면 제외)와 `isRaisedOrder`(`raised=true`만) 사이 틈에 빠져 Manager/Station "대기중"·"올림" 및 자리안내 하단 거울 어디에도 안 잡힘. R1의 "올림으로 처리"를 자동화(제조옵션 시 `raised` 자동 세팅)할지, 리스트 판정을 `seatNeeded` 기준으로 통일할지 결정 필요. (2026-07-20 spec-auditor 발견)
+- [x] **제조옵션만 체크·미올림 주문의 리스트 누락** → 해소: 제조옵션 선택 시 `raised=true` **자동 세팅**으로 결정(2026-07-31). R1 갱신 반영.
 
 ## 15. 수정 전 체크리스트
 
@@ -404,3 +514,7 @@ src/components/Seat/
 - [ ] Realtime 채널에 cleanup(`removeChannel`)·`mountedRef` 보호가 있는가.
 - [ ] 마이그레이션이 재실행 안전(IF NOT EXISTS / DROP POLICY IF EXISTS)한가.
 - [ ] 마이그레이션을 합의 없이 프로덕션에 적용하지 않았는가(SQL 제시 → 승인 → 통합 세션 적용).
+- [ ] `seat_orders` 에 컬럼을 추가했으면 `config/demoData.js` 의 `orderDefaults` 에도 기본값을 넣었는가(프리뷰 정합).
+- [ ] 표에 열을 추가했으면 **4곳**을 동기화했는가 — `SEAT_COLUMNS`(숨김) · `grid-template-areas`(가로/세로) · `.seat-cell-<key>` grid-area · `is-hide-<key>` 규칙.
+- [ ] 파괴적 조작(삭제·초기화·올림취소)에 재확인 또는 되돌리기를 붙였는가.
+- [ ] 스테이션 화면에서 주문 필드를 직접 수정하고 있지 않은가(읽기 전용 — 수정은 주문 화면).
