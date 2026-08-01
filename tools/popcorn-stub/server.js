@@ -10,6 +10,11 @@
 //   - game 채널: 회원 + score>=5000 요구
 //   - 스탬프: 회수 확정 건만 카운트(10=아이스크림, 0017 승계 개념)
 // 테스트용 확장: POST /_reset (전체 초기화) · POST /_time {now} (가짜 시계, 만료 시나리오)
+// ★계약 변경(crm 2026-08-01, 시그니처·상태값 불변 — 실 Edge 구현 시 적용):
+//   1) game 채널 인증 = 사용자 JWT + game Edge 서명 assertion(점수 검증 주체=game Edge, crm SQL score 체크=백스톱).
+//      ※crm=thinkmap DB·game=multi-store로 다른 프로젝트(교차 조회 불가) — SPEC §4 재정정.
+//   2) member_by_phone = 서버-투-서버 전용(브라우저에 member_id 직접 반환 금지 — 게임 클라는 game Edge 경유).
+//   스텁은 로컬 개발용이라 인증 미시뮬(계약 형태만 고정).
 // =============================================================================
 import http from 'node:http'
 
@@ -55,7 +60,11 @@ function tokenValid(t) {
   return AL[sum % AL.length] === t[11]
 }
 
-function mask(name) { return name.length >= 2 ? name[0] + '*' + name.slice(2) : name }
+// 마스킹 = 서버 정본(crm.mask_name)과 동형: 첫글자 + (중간 전부 *) + 끝글자. 예) 홍길동→홍*동, 가나다라→가**라.
+function mask(name) {
+  if (name.length < 3) return name.length === 2 ? name[0] + '*' : name
+  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1]
+}
 function stampOf(id) { return db.stamps.get(id) || 0 }
 function stampView(id) {
   const c = stampOf(id)

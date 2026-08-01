@@ -51,6 +51,10 @@ async function main() {
   check('S5', '게임 내 가입 → member 생성', j5.status === 200 && j5.body.created === true && !!j5.body.member_id, j5)
   const p5c = await call('member_by_phone', { phone: '01099998888' })
   check('S5', '가입 후 크로스체크 성립', p5c.body.found === true && p5c.body.member_id === j5.body.member_id, p5c)
+  // 마스킹 = 서버 정본(crm.mask_name) 동형: 4자 "가나다라"→"가**라"
+  await call('_seed_member', { id: 'm-4char', name: '가나다라', phone: '01055556666' })
+  const p5d = await call('member_by_phone', { phone: '01055556666' })
+  check('S5', '마스킹 서버정본 동형(가나다라→가**라)', p5d.body.display_name === '가**라', p5d)
 
   // ── S6. 5,000점 쿠폰 발행(조건·1일1회) ───────────────────────────────────
   const g6low = await call('ticket_issue', { member_id: 'm-hong', channel: 'game', meta: { score: 4999 } })
