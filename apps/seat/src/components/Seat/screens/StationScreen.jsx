@@ -17,12 +17,15 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
 
   const setStation = (orderId, patch) => onPatchStation?.(orderId, stationKey, patch)
 
-  // 완료 = 축하 애니메이션을 끝까지 보여준 뒤(카드가 곧장 사라지지 않게) 완료 처리. (유저 지시: 여운 남기기)
-  const [celebrating, setCelebrating] = useState(null)
+  // 완료 = 축하 애니메이션을 끝까지 보여준 뒤 완료 처리(여운). 카드별 Set 이라 A 축하 중에도 B 를 바로 누를 수 있다.
+  const [celebrating, setCelebrating] = useState(() => new Set())
   const complete = (orderId) => {
-    if (celebrating) return
-    setCelebrating(orderId)
-    setTimeout(() => { setStation(orderId, { completed: true }); setCelebrating(null) }, 700)
+    if (celebrating.has(orderId)) return
+    setCelebrating((prev) => new Set(prev).add(orderId))
+    setTimeout(() => {
+      setStation(orderId, { completed: true })
+      setCelebrating((prev) => { const n = new Set(prev); n.delete(orderId); return n })
+    }, 700)
   }
 
   return (
@@ -52,9 +55,9 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
                 />
                 <button
                   type="button"
-                  className={`seat-complete-btn${celebrating === o.id ? ' is-celebrating' : ''}`}
+                  className={`seat-complete-btn${celebrating.has(o.id) ? ' is-celebrating' : ''}`}
                   onClick={() => complete(o.id)}
-                  disabled={celebrating === o.id}
+                  disabled={celebrating.has(o.id)}
                 >
                   <span className="seat-complete-check" aria-hidden="true">✓</span> 완료
                 </button>

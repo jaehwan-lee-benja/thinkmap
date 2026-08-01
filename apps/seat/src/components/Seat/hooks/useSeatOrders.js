@@ -74,7 +74,8 @@ export function useSeatOrders(businessDate) {
       .single()
     if (error) { console.error('useSeatOrders.create', error); return null }
     if (mountedRef.current) {
-      setOrders((prev) => [...prev, data].sort((a, b) => (a.queue_no || 0) - (b.queue_no || 0)))
+      // NULL(=‘+주문번호만’)은 맨 뒤 — refetch(nullsFirst:false)와 같은 순서로(위로 튀었다 내려오는 현상 제거).
+      setOrders((prev) => [...prev, data].sort((a, b) => (a.queue_no ?? Infinity) - (b.queue_no ?? Infinity)))
     }
     return data
   }, [businessDate])
