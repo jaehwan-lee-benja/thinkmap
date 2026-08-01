@@ -22,6 +22,8 @@ const orderDefaults = {
   confirm_done: false,
   notes: '',
   memo: '',
+  order_no_at: null,
+  delivered_at: null,
 }
 
 export const withOrderDefaults = (o) => ({ ...orderDefaults, ...o })
