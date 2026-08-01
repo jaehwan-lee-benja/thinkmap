@@ -60,9 +60,14 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                 <span className="mk-stamp-title">🍦 아이스크림까지</span>
                 <span className="mk-stamp-count">{filled}/{goal}</span>
               </div>
-              <div className="mk-stamp-dots" aria-hidden="true">
+              {/* ★S9 종이 도장판 — 찍힌 칸=마스코트 도장(미세 회전으로 손도장 느낌), 마지막 칸=쿵 모션 */}
+              <div className="mk-stampcard" aria-hidden="true">
                 {Array.from({ length: goal }).map((_, i) => (
-                  <span key={i} className={`mk-stamp-dot ${i < filled ? 'is-on' : ''}`} />
+                  <span key={i} className={`mk-stamp-cell ${i < filled ? 'is-on' : ''} ${i === filled - 1 && member._justClaimed ? 'is-new' : ''}`}>
+                    {i < filled && (
+                      <img className="mk-stamp-ink" src={`${import.meta.env.BASE_URL}img/cow-mark-white.png`} alt="" style={{ transform: `rotate(${((i * 37) % 17) - 8}deg)` }} />
+                    )}
+                  </span>
                 ))}
               </div>
               {rewardsAvail > 0 ? (

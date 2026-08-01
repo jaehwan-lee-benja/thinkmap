@@ -308,6 +308,28 @@
 .mk-stamp-dots { display: flex; gap: 6px; flex-wrap: wrap; }
 .mk-stamp-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--md-surface-container-highest); border: 1px solid var(--md-outline-variant); }
 .mk-stamp-dot.is-on { background: var(--md-alive); border-color: var(--md-alive); }
+
+/* ★S9 종이 도장판(10칸 5×2) — 빈 칸=옅은 원형 윤곽(점선), 찍힌 칸=마스코트 도장(미세 회전). */
+.mk-stampcard {
+  display: -webkit-flex; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  padding: 10px; border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-highest);
+}
+.mk-stamp-cell {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2px dashed var(--md-outline-variant);
+  display: -webkit-flex; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.mk-stamp-cell.is-on { border-style: solid; border-color: var(--md-primary); background: var(--md-primary-container); }
+.mk-stamp-ink { width: 34px; height: auto; opacity: 0.92; }
+/* 신규 적립 칸 = 쿵 찍히는 모션(구형 호환: transform+opacity 만) */
+.mk-stamp-cell.is-new .mk-stamp-ink { animation: mk-stomp 500ms cubic-bezier(.2,1.6,.5,1) both; }
+@keyframes mk-stomp {
+  0% { transform: scale(2.2); opacity: 0; }
+  60% { transform: scale(0.92); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.92; }
+}
+@media (prefers-reduced-motion: reduce) { .mk-stamp-cell.is-new .mk-stamp-ink { animation: none; } }
 .mk-stamp-msg { font-size: 14px; color: var(--md-on-surface-variant); }
 /* 리워드 수령 가능 — 강조 + [수령] 버튼 */
 .mk-reward-ready { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
