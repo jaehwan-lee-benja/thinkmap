@@ -76,6 +76,34 @@ async function main() {
   const s8b = await call('ticket_lookup', { token: g6.body.token })
   check('S8', '재회수 시도 후에도 스탬프=2(상한 유지)', r8.body.ok === false && s8b.body.stamp.current_stamps === 2, { r8: r8.body, stamp: s8b.body.stamp })
 
+  // ── S10. 영수증 템플릿 → ESC/POS 생성기(프리뷰=실인쇄 공유 소스) ─────────
+  const { DEFAULT_TEMPLATE, validateTemplate, buildEscpos, previewSequence } =
+    await import('../../apps/membership/src/receipt/receiptTemplate.js')
+  const data10 = { name: '홍*동', date: '2026-08-01 14:30', token: i1.body.token, stamp: '2/10' }
+  const bytes = buildEscpos(DEFAULT_TEMPLATE, data10)
+  check('S10', 'ESC/POS 페이로드 생성(init+CODE128 GS k 73 포함)',
+    bytes[0] === 0x1b && bytes[1] === 0x40 && Array.from(bytes).some((b, i) => b === 0x1d && bytes[i + 1] === 0x6b && bytes[i + 2] === 73),
+    { len: bytes.length })
+  const seq10 = previewSequence(DEFAULT_TEMPLATE, data10)
+  check('S10', '프리뷰 시퀀스에 바코드·QR 블록 존재(생성기 공유)',
+    seq10.some((s) => s.kind === 'barcode' && s.token === data10.token) && seq10.some((s) => s.kind === 'qr'), seq10.map((s) => s.kind))
+  // 템플릿 변경(문구 수정+블록 이동) → 재생성 정상
+  const tpl10 = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))
+  tpl10.width = 58
+  tpl10.blocks[1].text = '사르르 팝콘 교환권'
+  const moved = tpl10.blocks.splice(7, 1)[0]; tpl10.blocks.splice(3, 0, moved) // QR 위로 이동
+  const bytes2 = buildEscpos(tpl10, data10)
+  // 길이 아닌 내용 비교(문구가 우연히 같은 바이트수일 수 있음 — 루프1 FAIL 교훈)
+  const differs = bytes2.length !== bytes.length || Array.from(bytes2).some((b, i) => b !== bytes[i])
+  check('S10', '템플릿 변경(58mm·문구·순서) 후 재생성 반영', bytes2.length > 0 && differs, { a: bytes.length, b: bytes2.length })
+  // ★필수 블록(토큰 바코드) off → 저장 거부
+  const bad10 = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))
+  bad10.blocks.find((b) => b.type === 'barcode').on = false
+  const v10 = validateTemplate(bad10)
+  let threw = false
+  try { buildEscpos(bad10, data10) } catch (e) { threw = true }
+  check('S10', '★토큰 바코드 누락 시 저장/생성 거부', v10.ok === false && threw, v10)
+
   // ── 결과 ─────────────────────────────────────────────────────────────────
   const fails = results.filter((r) => !r.pass)
   for (const r of results) console.log((r.pass ? 'PASS' : 'FAIL') + '  [' + r.sid + '] ' + r.name + (r.pass ? '' : '  ← ' + r.detail))
