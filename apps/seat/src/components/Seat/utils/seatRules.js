@@ -20,9 +20,11 @@ export const isSeatWaiting = (o) => !hasManufactureOption(o)
 export const isRaiseEnabled = (o) => !!(o?.seated || o?.raised) || removesFromSeatQueue(o) || !isDineIn(o)
 
 // 스테이션/매니저 화면 목록 분류 (순수)
-// 자리후 '대기중': 실내 시작 + 아직 안 올라감 + 자리큐 유지(야외/포장로 안 빠짐, 야외병행은 유지) + 순서 살아있음 + 취소 아님.
+// 자리후 '대기중' = 실내 + ★전달됨(seat_delivered) + 아직 안 올라감(!raised) + 자리큐 유지(야외/포장 아님) + 취소 아님.
+//   ★seat_order_alive(자리앉음→'필요없음' 표시)는 여기서 보지 않는다 — 자리앉아도 올림 전까지 자리후 카드는 남는다
+//   (자리앉음은 자리순서 셀의 상태 표시일 뿐, 자리후 대기 여부와 별개. 유저 지시 2026-08-01).
 export const isWaitingOrder = (o) =>
-  isDineIn(o) && !o?.raised && !removesFromSeatQueue(o) && o?.seat_order_alive !== false && o?.seat_status !== 'canceled'
+  isDineIn(o) && !!o?.seat_delivered && !o?.raised && !removesFromSeatQueue(o) && o?.seat_status !== 'canceled'
 // 올림(자리잡음)된 주문.
 export const isRaisedOrder = (o) => !!o?.raised
 // 주문 표시 번호 — 주문번호 우선, 없으면 자리대기번호.
