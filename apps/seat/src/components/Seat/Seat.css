@@ -501,11 +501,12 @@
 /* ── 게이팅(주문서관리 전용): "자리후 전달" 전 행 = dim + 비활성 ─────────────
    전달 전(!seat_delivered)엔 하위단계 버튼(자리순서·올림·메뉴나감)은 JSX에서 숨기고,
    남은 셀은 흐릿(연한 글씨)+조작 잠금으로 "전달 전 정보만" 표시. 전달되면 정상 활성. */
-/* Manager 모드: 전달 전 실내 주문 = 행 전체 dim + 비활성(하위 버튼은 JSX에서 숨김) */
-.seat-row--gated { opacity: .5; }
-.seat-row--gated .seat-input,
-.seat-row--gated .seat-select,
-.seat-row--gated .seat-toggle { pointer-events: none; }
+/* Manager 모드: 전달 전 실내 주문 = 하위단계는 dim+잠금, 단 ★테이블링·주문번호는 입력 허용
+   (기본 정보라 전달 전에도 주문서관리가 채워넣을 수 있어야 함 — 유저 지시 2026-08-01). */
+.seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) { opacity: .5; }
+.seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-input,
+.seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-select,
+.seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-toggle { pointer-events: none; }
 /* Guide 모드: 전달 전 실내 주문 = 자리후 전달까지는 활성, 제조옵션부터 이후 컨트롤만 dim/비활성.
    (전달 체크박스를 살려둬야 전달 가능 → seat-cell-deliver 이전 컬럼은 그대로) */
 .seat-row--guide-locked .seat-cell-opts,
