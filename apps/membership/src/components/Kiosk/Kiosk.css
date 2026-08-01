@@ -2,8 +2,11 @@
    --md-* 는 .mk-app 스코프. 어르신 이용 많음 → 번호·버튼·글자 대형. state layer·elevation·라운드. */
 @import './brand.css';
 
-/* ── 디자인 토큰 (Material 3, mk 스코프) — 기본=다크 ─────────────────────────── */
-.mk-app {
+/* ── 디자인 토큰 (Material 3) — 기본=다크.
+   ★:root 선언(구형 WebView 대응): postcss-custom-properties 가 이 값을 읽어 var() 사용처마다
+   정적 폴백을 함께 출력한다(CSS 변수 미지원 Chrome<49 에서도 색이 나옴). 라이트 오버라이드는
+   `:root[data-theme=light] .mk-app` 스코프라 최신 브라우저에선 그대로 우선한다. */
+:root {
   --md-surface: #16181C;
   --md-surface-container-low: #1B1E22;
   --md-surface-container: #202327;
@@ -36,8 +39,11 @@
 
   --md-ease: cubic-bezier(.2, 0, 0, 1);
   --md-dur: 160ms;
+}
 
-  position: fixed; inset: 0; z-index: 1000;
+.mk-app {
+  /* inset 롱핸드(구형 미지원 대비) */
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000;
   display: flex; flex-direction: column;
   background: var(--md-surface); color: var(--md-on-surface);
   font-size: 16px;
@@ -314,18 +320,13 @@
 .mk-history-wrap { width: 100%; }
 .mk-history-title { font-size: 14px; font-weight: 700; color: var(--md-on-surface-variant); margin-bottom: 8px; text-align: left; }
 
-/* 전체화면 토글 버튼 — 우하단 코너, 반투명(키오스크 세팅용). */
-.mk-fs-btn {
-  position: fixed; right: 12px; bottom: 12px; z-index: 1100;
-  width: 44px; height: 44px; border-radius: 50%;
-  border: 1px solid var(--md-outline-variant); background: var(--md-surface-container-high);
-  color: var(--md-on-surface-variant); font-size: 20px; cursor: pointer; opacity: 0.55;
-  display: flex; align-items: center; justify-content: center;
-}
-.mk-fs-btn:hover { opacity: 1; }
-/* 전체화면(standalone/fullscreen)로 실행 중이면 버튼 숨김 — 이미 전체화면. */
-@media (display-mode: fullscreen), (display-mode: standalone) {
-  .mk-fs-btn { display: none; }
+/* (전체화면 버튼 제거 2026-08-01 — Fully Kiosk 몰입모드가 전체화면 담당) */
+
+/* 무조작 자동복귀 경고 배너(하단) — 카운트다운 */
+.mk-idle-warn {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 1300;
+  padding: 14px 20px; text-align: center; font-size: 18px; font-weight: 700;
+  background: var(--md-primary); color: var(--md-on-primary);
 }
 
 /* ── 본문 ──────────────────────────────────────────────────────────────────── */

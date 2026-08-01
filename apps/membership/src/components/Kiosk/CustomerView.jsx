@@ -2,10 +2,11 @@
 //   ① 로컬: 고객이 번호패드로 본인 번호 입력·검색 → 본인 인사말/팝콘(태블릿 단독 동작).
 //   ② 원격: 직원 기기가 Realtime 으로 "현재 회원" 푸시 → 같은 상태 표시(어르신 대응).
 // 프라이버시: 셀프검색=본인 정확번호 정확일치만, 원격=그 1명 최소 PII. 리스트/검색결과 타인 미노출.
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import NumberPad from './NumberPad'
 import MemberCard from './MemberCard'
 import CustomerSignupScreen from './CustomerSignupScreen'
+import { IDLE_RESET_EVENT } from './IdleReset'
 import { useMemberLookup } from './useMemberLookup'
 import { useMembershipChannel } from './useMembershipChannel'
 import { CONTRACT_PENDING } from '../../api/membership'
@@ -22,6 +23,13 @@ export default function CustomerView({ store }) {
   })
 
   const resetAll = () => { setDigits(''); clear() }
+
+  // 무조작 자동 복귀(IdleReset 이벤트) → 첫 화면(조회결과·가입폼·입력 전부 리셋).
+  useEffect(() => {
+    const onIdle = () => { setShowSignup(false); setDigits(''); clear() }
+    window.addEventListener(IDLE_RESET_EVENT, onIdle)
+    return () => window.removeEventListener(IDLE_RESET_EVENT, onIdle)
+  }, [clear])
 
   if (showSignup) {
     return <CustomerSignupScreen onDone={() => { setShowSignup(false); resetAll() }} />
