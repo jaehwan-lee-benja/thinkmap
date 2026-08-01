@@ -18,9 +18,11 @@ export default function ManagerScreen({ orders = [], onPatch, onCommit, onCreate
         )}
       </div>
 
-      {/* 새 주문 = 표 아래·왼쪽(자리안내와 동일 위치, 유저 지시 2026-08-01). */}
+      {/* 새 주문 = 표 아래·왼쪽(자리안내와 동일 위치, 유저 지시 2026-08-01).
+          '+ 주문번호만' = 테이블링(queue_no) 비우고 주문번호만 먼저 기록(자리 배정 후 테이블링 입력). */}
       <div className="seat-toolbar seat-toolbar-below">
         <button className="seat-btn seat-btn-primary" onClick={() => onCreate?.()}>+ 새 주문</button>
+        <button className="seat-btn" onClick={() => onCreate?.({ queue_no: null })}>+ 주문번호만</button>
       </div>
 
       {/* 카메라는 계속 지켜보는 것이라 화면에 그대로 둔다(설정에서 끄면 아예 렌더 안 됨). */}

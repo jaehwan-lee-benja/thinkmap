@@ -24,7 +24,7 @@ export function useSeatOrders(businessDate) {
         .select('*')
         .eq('business_date', businessDate)
         .is('deleted_at', null)
-        .order('queue_no', { ascending: true })
+        .order('queue_no', { ascending: true, nullsFirst: false }) // '+주문번호만'(queue_no NULL)은 맨 뒤
       if (error) throw error
       if (!mountedRef.current) return
       // 저장 대기 중인(=타이핑 방금 끝난) 행은 로컬 낙관값 유지 → 뒷글자 유실 방지.

@@ -14,9 +14,11 @@ export function useDemoSeat(active) {
 
   const createOrder = useCallback((draft = {}) => {
     setOrders((prev) => {
-      const queue_no = prev.length ? Math.max(...prev.map((o) => o.queue_no || 0)) + 1 : 1
+      // '+주문번호만' = queue_no null(비움, 실 DB 는 NULL 허용 + 트리거가 자동부여 안 함). 그 외 자동 순번.
+      const auto = prev.length ? Math.max(...prev.map((o) => (o.queue_no > 0 ? o.queue_no : 0))) + 1 : 1
+      const queue_no = draft.queue_no === null ? null : (draft.queue_no ?? auto)
       const id = `demo-${queue_no}-${seq.current++}`
-      return [...prev, withOrderDefaults({ id, queue_no, ...draft })]
+      return [...prev, withOrderDefaults({ id, ...draft, queue_no })]
     })
   }, [])
 

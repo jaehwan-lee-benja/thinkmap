@@ -38,6 +38,14 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false) // 통합 현황 — 모든 역할 공용(앱바)
 
+  // 전체화면 토글(브라우저 주소창까지 숨김 — 카이막 등 태블릿 키오스크용).
+  const toggleFullscreen = () => {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen?.()
+      else document.documentElement.requestFullscreen?.()
+    } catch { /* 미지원/차단 무시 */ }
+  }
+
   // TODO(권한·스키마 확정 후): 실시간 데이터 훅 연결. (SEAT-SPEC §8)
   //   const businessDate = todayISO()
   //   const { orders, patchOrder, createOrder } = useSeatOrders(businessDate)
@@ -99,6 +107,14 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
             >{r.label}</button>
           ))}
         </nav>
+        {/* 전체화면 토글 — 우측 그룹 시작(현황·설정 왼쪽). */}
+        <button
+          type="button"
+          className="seat-fullscreen-btn"
+          aria-label="전체화면"
+          title="전체화면"
+          onClick={toggleFullscreen}
+        >⛶</button>
         {/* 현황 = 설정 왼쪽. 모든 역할에서 같은 통합 현황을 연다. */}
         <button
           type="button"
