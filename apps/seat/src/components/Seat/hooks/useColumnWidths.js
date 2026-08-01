@@ -58,7 +58,7 @@ export function useColumnWidths(session) {
       .then(({ data, error }) => {
         if (cancelled || error || !data?.prefs?.columnWidths) return
         setWidths(sanitize(data.prefs.columnWidths))
-      })
+      }, () => {}) // fetch 자체가 reject(완전 오프라인 등)해도 조용히 무시 — localStorage 유지
     return () => { cancelled = true }
   }, [loggedIn])
 

@@ -132,7 +132,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
         {role.key === 'guide' ? (
           <GuideScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} />
         ) : role.key === 'manager' ? (
-          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} settings={settings} onResizeColumn={onResizeColumn} />
+          <ManagerScreen orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} settings={settings} onResizeColumn={onResizeColumn} />
         ) : role.station ? (
           <StationScreen role={role} orders={orders} stations={stations} onPatchStation={onPatchStation} settings={settings} />
         ) : null}
