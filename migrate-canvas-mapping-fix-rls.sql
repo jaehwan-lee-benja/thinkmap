@@ -1,4 +1,21 @@
 -- =============================================================================
+-- ⚠️ 재실행 순서 의존 — 함수 회수 하드닝 적용 **후**에는 재실행 금지 (2026-08-02 감사)
+-- -----------------------------------------------------------------------------
+-- 이 파일은 seed_default_workflow_for_master / seed_frame_schema_for_master /
+-- seed_engine_schema_for_master / create_canvas_pair 를 `drop function … ` 후 재생성한다.
+-- ★`create or replace`와 달리 **drop+create 는 ACL을 보존하지 않는다** — 새 OID 객체가
+--   기본 ACL(`=X/owner` = PUBLIC EXECUTE)로 태어난다. 이 파일엔 revoke 문이 없다.
+-- ⇒ `migrate-harden-function-exposure.sql`(seed_* 3종 회수, 승인 대기)이 적용된 뒤
+--   이 파일을 재실행하면 **그 회수가 조용히 원복된다**. 오늘은 라이브가 이미 열려 있어
+--   재실행해도 변화가 없지만(오늘 PASS), 하드닝 적용 시점부터 LOOSEN으로 전환된다.
+-- ★재실행 규칙: 하드닝 적용 후 이 파일이 필요하면, 같은 파일 안에
+--   `revoke execute on function … from public, anon;` 를 함께 넣고 돌려라(부여 축 짝 규율).
+--   ※`from anon` 단독은 PUBLIC 경유로 **no-op**이다.
+-- ★부수(회수 목록 갭): 하드닝 파일은 seed_* 3종만 회수하고 **create_canvas_pair 는 빠져 있다**.
+-- ★부수(실체 위험): seed_* 3종 본문은 `auth.uid() is null` 만 검사하고 **p_master_id 가
+--   호출자 소유인지 검증하지 않는다** ⇒ secdef + authenticated 실행 조합에서 임의 master_id 로
+--   canvas_schemas/canvas_workflows 크로스테넌트 쓰기가 가능(하드닝 필요성의 실증).
+-- =============================================================================
 -- 마케팅 캔버스 매핑 — RLS 보강 (시드/페어 생성 함수의 권한 처리)
 -- =============================================================================
 -- 문제: create_canvas_pair RPC 가 canvas_workflows / canvas_schemas / pages 에
