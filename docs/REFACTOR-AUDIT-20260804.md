@@ -43,14 +43,26 @@
 
 | 항목 | 레지스트리 | 실물 | 판정 |
 |---|---|---|---|
-| **URL** | 9행 중 **6행이 빈값**(payroll·members·canvas·dashboard·seat·inventory) | 7위성 전부 **HTTP 200** | 🔴 **런처가 이 값을 쓰면 링크가 안 나간다** |
+| **URL** | 9행 중 **6행이 빈값**(payroll·members·canvas·dashboard·seat·inventory) | 7위성 전부 **HTTP 200** | 🟠 **백오피스 관리화면에서 링크가 안 나간다**(아래 ★정정) |
 | `inventory` status | `dev` | 라이브 200 | 드리프트 |
 | `dashboard` kind | `satellite` | `apps/dashboard` **없음**(모선 page_type) | 분류 오류 |
 | `canvas` domain | `engine` | 디렉토리·URL 은 `canvas` | 이름 불일치 |
 
 - **측정법**: `select … from site_nodes` / `ls apps/` / 위성 7개 HTTP 실측
-- **확신도**: 확정
-- **조치 성격**: DDL 아님, **데이터 정정(UPDATE 6~9행)** ⇒ 위험 낮음. 단 승인 게이트.
+- **조치 성격**: DDL 아님, **데이터 정정(UPDATE 5행)** ⇒ 위험 낮음. 단 승인 게이트.
+  작성된 SQL = **`migrate-fix-site-nodes-registry.sql`**(★미적용). `GET DIAGNOSTICS` 로 영향행수 ≠1 이면 `RAISE EXCEPTION`(부분적용 방지).
+
+### 🔻★**정정 — 내 심각도 표기가 과장이었다** (`s2-nodes` 가 잡음)
+나는 이걸 *"🔴 런처가 이 값을 쓰면 링크가 안 나간다"* 로 적었다. **틀렸다.**
+```
+프로덕션 사이드바 런처 = src/config/satellites.jsx  ← URL 이 «하드코딩» (site_nodes 안 읽음)
+site_nodes 를 읽는 곳   = siteNodesSeed.js · BackofficePage.jsx · useSiteNodes.js  ← 전부 백오피스
+```
+⇒ **영향 범위는 「백오피스 사이트 구조도 관리화면」**이지 직원이 매일 쓰는 사이드바가 아니다. **심각도 🔴 → 🟠 하향.**
+▸ url 빈값의 실제 효과는 확정됐다(`BackofficePage.jsx:126-127,151-154` — `<a>` 대신 텍스트, 타일은 `href=undefined`+`preventDefault`).
+▸ ★**내가 「읽는 쪽」을 확인하지 않고 「값이 비었다」에서 영향을 추론했다.** 오늘 12번의 술어 실패와 같은 형태 —
+  ***데이터의 결함은 그 데이터를 「누가 읽는가」를 확인해야 심각도가 정해진다.***
+▸ 부수: `satellites.jsx` 에 **payroll·membership 이 없다**(payroll 은 page-scoped 라 Sidebar 별도 블록, membership 은 §6-a 미등록 건).
 
 ---
 
@@ -188,11 +200,83 @@ multi-store(rstazttwlghsorpzsugy) site_url = https://…github.io/warroom-chat/ 
 - 🟠**중간**: `.mk-*`(membership 소유) · `.seat-*`(SEAT-SPEC 관할) · `.mobile-*`(MOBILE_OPTIMIZATION_PLAN 존재) · `.worklog-comment-*`(`create-worklog-comments-table.sql` 실재 = 계획 있음)
 - ★**삭제하면 안 되는 것**: 서드파티 27 + **`.sr-only`**(접근성 유틸 — *"지우지 말고 쓰는 쪽이 맞다"*)
 
-**미측정(정직 표기)**: 태그·속성·`:is()` 셀렉터 · 앱 간 클래스 누수 · `.mk-*`/`.seat-*` 의 장래 계획 여부(소유 도메인 SPEC 미정독)
+**미측정(정직 표기)**: 태그·속성·`:is()` 셀렉터 · 앱 간 클래스 누수
+
+### 4-d-2. 🔻★**SPEC 대조 결과 — 내 「보류」 프레이밍이 «양방향으로» 틀렸다** (`s2-css`)
+
+나는 위험도를 갈라 *"SQL·SPEC 이 있으니 계획 실재 ⇒ 보류"* 로 분류했다. **세 군데서 전부 틀렸다.**
+
+| 내 분류 | 실제 | 기전 |
+|---|---|---|
+| `.worklog-comment-*` 3건 **보류**("SQL 있음=계획 있음") | ★**10개가 라이브**(`WorklogComments.jsx:122` 등 실사용). 진짜 죽은 건 **`.worklog-comment-list` 1개**(단수형 = 오타성 네이밍 드리프트, 라이브는 복수형 `worklog-comments`) | ***SQL 이 있는 이유는 「계획」이 아니라 「이미 만들어 돌고 있어서」였다.*** 살아있는 걸 죽었다고 분류할 뻔했다 |
+| `.mk-signup-*` **보류**(SPEC 에 2단 가입폼 문서화) | **삭제안전** — SPEC 문구(`:65,116`)는 `73a560b`(07-25) 기록인데 실제 폼은 **하루 뒤** `8a223ca`(07-26 "UX 대개편")로 단일컬럼 `.mk-form` 으로 갈아엎힘 | ★**SPEC 시제 오독** — 그건 「계획」이 아니라 **갱신 안 된 낡은 서술**(§6-b 드리프트) |
+| `.fold-*` 🔴**"TOGGLE-BLOCK-SPEC 관할"** | **삭제안전** — `TOGGLE-BLOCK-SPEC.md` 에 **"fold" 언급 0건**. 현행은 `FoldableTable.js` 가 **다른 이름**(`table-fold-bar`·`col-folded`)으로 재구현 | ★**귀속 오류** — 내가 관할을 잘못 지목했다 |
+
+⇒ ***"문서에 있으니 계획이다"는 술어가 세 번 다 틀렸다.*** 문서는 **시제를 안 적는다** — 계획인지 과거 서술인지 구별하려면 **git 시계열 대조**가 필요하다.
+
+**★`.block-dragging` — 추정 → 확정(삭제안전)**: 라이브러리(`tiptap-extension-global-drag-handle`)는 `node_modules` 에 있으나
+**repo 어디서도 import 0건**(node_modules 제외 grep). `classList.add('block-dragging')` 도 0건. CSS 주석이 자백 —
+*"이전에 시도한 pointer-events 접근은 폐기"*. ⇒ **주입 가능성 기각.**
+
+**최종 수치**: **삭제안전 확정 50건**(🔴10 + mk 17 + seat-raised 4 + seat-grid 3 + mobile 5 + worklog-comment-list 1)
+· **판정 정정 14건**(죽은 줄 알았는데 **템플릿 합성으로 살아있음**: `mk-role-customer`·`mk-role-ticket`·`seat-col-resizer(+2)` · worklog-comment 10종)
 
 ### 4-c. 죽은 export (과설계 조사에서 파생)
 `ROSTER_COUNTED_STATUSES` · `resolveTheme`/`applyTheme` · `TODO_LIST_COLUMNS` — core `index.js` 가 수출하나
 `src`/`apps` 소비 **0건**(내부 호출만). **미참조 «파일»이 아니라 «수출»** ⇒ 별 갈래로 기장.
+
+## 4-e. ★**DB 축 — 「배포됐는데 프로덕션 데이터가 0」인 기능 8건** (통합세션 직접 실측)
+
+코드 조사(워커)는 *"이 코드가 참조되는가"* 를 본다. **이건 다른 질문이다 — *"이 기능이 실제로 쓰이는가"*.**
+`COUNT(*)` 로 실측(★`pg_stat_user_tables` 는 **못 쓴다** — `reltuples = -1` 은 "행 0"이 아니라 **통계 미수집**이다. 이 함정에 한 번 걸렸다가 `COUNT(*)` 로 교정했다).
+
+| 테이블 | 행 | 생성 후 경과 | 해석 |
+|---|---|---|---|
+| `shares` | **0** | **202일** | 공유 기능이 202일간 **한 번도 안 쓰임**. `pages`·`projects` 정책이 이걸 참조해 **정책 복잡도를 계속 지불** 중 |
+| `blocks` | **0** | 218일 | (`block_history` 는 3,091행) — §4-b 의 고아 스키마 건과 연결 |
+| `payroll_sheets` | **0** | 64일 | ★**급여 위성이 라이브인데 시트가 0** |
+| `goals` | **0** | 52일 | 목표 기능. 단 `pages` 에 `page_type='goal'` **2행 실재** ⇒ 페이지는 있고 목표 데이터는 없음 |
+| `member_private` · `member_records` | **0** | 51일 | members 위성 라이브인데 인사 상세는 0 |
+| `inventory_days` · `inventory_entries` | **0** | 40일 | ★단 `inventory_products` 는 **25행** ⇒ **품목은 등록했는데 실사(日)는 0회** |
+| `workspace_groups` | **0** | 40일 | access-tiers Phase A 구조물. 조직 계층 미사용 |
+
+★**이걸 "죽었다"로 읽지 마라 — 셋이 섞여 있다**:
+1. **미도입**(만들었는데 운영이 아직 안 씀) — inventory·goals·members 가 유력. 40~52일.
+2. **방치**(도입했다가 안 씀) — `shares` 가 유력(**202일**은 "아직"이라 하기 어렵다).
+3. **설계상 0이 정상** — `workspace_groups` 는 단일 워크스페이스면 비는 게 맞다.
+⇒ ***이 구분은 코드로 못 한다. 유저만 답할 수 있다.*** ⇒ **판정 보류, 질문으로 올린다.**
+
+★**리팩토링 관점의 값**: `shares` 는 **0행인데 `pages`·`projects`의 SELECT/UPDATE 정책에 `EXISTS(shares …)` 서브쿼리로 상시 참여**한다.
+즉 **안 쓰는 기능의 비용을 모든 페이지 조회가 지불**하고 있다. 제거 대상이라기보다 **"쓸 건지 결정할 대상"**이다.
+
+## 4-f. 🔴**배포 층 — 「작동 안 하는 스크립트」가 아직 살아 있다** (`s2-deploy` + 통합세션 추가 실측)
+
+상세 설계 = **`docs/DEPLOY-UNIFY-PROPOSAL.md`**. 여기엔 **위험만** 요약한다.
+
+**3열 실태**(문서화된 것 / 실제 쓰는 것 / 작동 안 하는 것):
+| | 상태 |
+|---|---|
+| 모선 CI(`deploy.yml`) | 문서=실제 일치, **작동함**. `keep_files: true`(41~45행)가 **유일 방벽** |
+| 위성 7개 `"deploy": "gh-pages -d dist -e <이름> --add"` | ★**작동 안 함**(gh-pages CLI 가 HTTP 400) — **아무도 안 쓰는데 파일엔 남아 있다** |
+| 실제 배포 | `HANDOFF §1` 의 **수동 worktree 델타 push**(위성마다 사람이 5단계 반복). 작동하나 **오케스트레이션 없음** |
+
+### 🔴 통합세션 추가 발견 — **루트 스크립트가 더 위험하다**
+```
+루트 package.json:  "deploy": "gh-pages -d dist"     ← ★--add 가 없다
+```
+`gh-pages` 는 **기본이 「대상 브랜치 정리 후 배포」**다. ⇒ 루트에서 `npm run deploy` 를 치면
+***`f289be2` 사고(위성 5개 wipe)를 한 줄로 재현한다.*** CI 에는 `keep_files: true` 방벽이 있지만
+**이 수동 스크립트에는 없다.**
+▸ 위성 7개의 고장난 스크립트는 *"안 도는 것"* 이라 상대적으로 무해하지만, **루트 것은 «돌면 파괴»** 라 성질이 다르다.
+▸ ⇒ **가장 싸고 큰 조치 = 루트 `deploy` 스크립트에 가드를 넣거나 제거하는 것.** 코드 한 줄, 사고 반경 전체.
+
+### 사고 재발 조건 4가지(`s2-deploy` 실측, 그대로 남아 있음)
+⑴위성 배포 100% 수동(경로 오타) ⑵**고장난 스크립트가 파일에 잔존**(되살릴 위험) ⑶배포 후 검증이 **습관 의존**(강제 게이트 아님) ⑷CI·수동이 같은 브랜치 공유 — `keep_files` 한 줄이 유일 방벽
+
+### ★워커 권고가 성숙하다 — 「완전 자동화」를 권하지 않았다
+`f289be2` 자체가 ***"자동화가 손배포 영역을 침범해서"*** 난 사고라는 점을 짚고,
+**1차 목표를 «검증은 전수 무인, push 는 위성 지정 + 사람 트리거」인 반자동**으로 제안했다.
+⇒ 나도 동의한다. **이 층에서 완전 자동화는 사고 반경을 키운다.**
 
 ## 5. 과설계 — **확정 후보 0건** (`rf-dead` 산출)
 
@@ -273,6 +357,43 @@ multi-store(rstazttwlghsorpzsugy) site_url = https://…github.io/warroom-chat/ 
 - ★**병렬 토큰 3계열**: core `--color-*` / seat `--md-*`(문서화 예외) / **membership `--md-*` + 별도 `brand.css --brand-*`(DESIGN.md 값을 손으로 재입력 = 단일소스 아님)**
 - **다크모드 인프라는 7/7 동일**(무-플래시 스크립트 복붙). 단 membership 은 **DESIGN.md 신설 다크 토큰 미반영**(해당 hex 0건) — 어제 신설이라 방치 판정은 이르고 **design 통지 여부 확인 필요**
 - 공유 **Button 컴포넌트 없음** — `.btn` 류가 위성마다 각자(src 91 · seat 12 · canvas 7 …). 모달과 달리 **애초에 공유화 시도가 없던 영역**
+
+## 9-b. 🔴**안전망 실측 — 우선순위가 바뀐다** (`s2-test` + 통합세션 독립 검증)
+
+상세 = `docs/REFACTOR-SAFETY-NET.md`.
+
+| 항목 | 판정 | 실행 증거 |
+|---|---|---|
+| 단위 테스트 | **있음(실효)** | `npm run test:run` → **170 passed** / 38 skipped · **794ms** (내가 직접 돌림) |
+| **CI 의 test·lint 스텝** | 🔴**0건** | `deploy.yml` = install → **build만** → deploy |
+| ESLint | 🔴**없음** | `eslint.config.js` 는 있는데 **패키지 미설치**(`node_modules/.bin/eslint` 부재) = **죽은 설정 파일** |
+| TypeScript | **없음** | `.ts/.tsx` 11개 전부 `supabase/functions/`. `src`·`apps`·`core` 는 100% JS |
+| 컴포넌트 테스트 | **구조적으로 불가** | vitest `environment:'node'` · jsdom/@testing-library **미설치** |
+| 위성 그물 | **7/7 전부 0** | `apps/*/package.json` 에 test 스크립트 **없음** |
+
+★**1~4순위 리팩토링 대상(배포·AuthGate·Modal·vite.config)이 전부 테스트 0건이다.**
+그리고 `useAuth.js` 도 0건 — ***오늘 로그인 튕김 조사가 전부 수동 실측이었던 이유가 이것이다.***
+
+### ⇒ **우선순위 재배치 — 「0순위」를 앞에 넣는다**
+> **0순위: CI 에 `npm run test:run` 스텝 추가.**
+> 근거 = **테스트 170개가 이미 있고 794ms 에 통과하는데, push 마다 아무도 안 돌린다.**
+> ***이미 만들어 둔 그물을 안 쓰고 있는 상태*** — 새 코드 0줄, 비용 최저, 효과 즉시.
+
+그 다음에야 1~4순위 통일이 안전해진다. **그물 없이 합치면 회귀를 못 잡는다.**
+- ✅ **지금 안전하게 리팩터 가능**: `src/utils/` 8개 + payroll 계산(실효 테스트 있음)
+- ❌ **지금은 수동 검증 의존**: 배포 · AuthGate · Modal · vite.config **4개 전부**
+
+🔻**측정 함정(12번째)**: CI 에 test 스텝이 있는지 `grep -i test` 로 봤더니 **1건**이 잡혔는데,
+그건 `runs-on: ubuntu-la**test**` 였다. ⇒ **실제 0건.** *부분 문자열 매칭이 «있음」을 만들어냈다.*
+
+## 9-c. 통일 설계 산출 (`s2-unify` · `docs/CORE-UNIFY-PROPOSAL.md`)
+
+- **`<AuthGate>`**: 표준 6위성 흡수 시 **75줄 제거**(canvas 14·crmboard 16·inventory 8·members 14·payroll 14·seat 9)
+- ★**membership 은 의도적으로 제외했다** — 인가 실패 시 **`signOut()`** 을 부르는데, 표준 게이트("거부 화면만, 세션 유지")와 **결과 상태가 다르다.**
+  ⇒ ***브리프의 "의미가 다른 것을 같은 이름으로 묶지 마라"가 실물로 적용된 사례.*** 별도 `useRoleAuthz` 로 분리.
+- **`createSatelliteConfig()`**: 표준 5곳 10줄→2줄, membership 46→~20줄(고유분 보존). **포트 레지스트리 + 로드시 중복검사 throw** 로 5178 충돌을 **구조적으로 불가능하게**.
+- ★**포트 재배정은 «무해한 리팩터가 아니다»** — 사람이 아는 숫자가 바뀐다 ⇒ **별도 승인 항목**으로 분리했다. 좋은 판단.
+- **미측정 명시**: `pv-*`/`auth-*` CSS 위성별 미세 drift · 포트 CI 정적검증 · 모선 승인대기 게이트의 위성 확장 필요성
 
 ## 10. ★통일 우선순위 (최종)
 
