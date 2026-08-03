@@ -80,7 +80,8 @@
    기기·브라우저 다크 설정과 무관하게 항상 라이트. 매장 조명 환경 + 정본 네이비 마스코트 대비 확보.
    .mk-app 스코프에 토큰을 직접 얹어 :root 기본(다크) 상속을 이긴다.
    ※직원 노트북(staff/scan/editor)은 손대지 않는다 — 기존 다크 유지(별도 기기·검증 완료분). */
-.mk-app.mk-role-customer {
+.mk-app.mk-role-customer,
+.mk-app.mk-role-ticket {   /* 손님 폰 티켓 화면도 고객 대면 → 라이트 고정 */
   --md-surface: #FBF8FD;
   --md-surface-container-low: #F5F1F7;
   --md-surface-container: #EFEBF1;
@@ -707,4 +708,33 @@
 
   /* 가입 화면: 단일 컬럼 폼(이미 세로 친화) — 폭만 화면에 맞춤. */
   .mk-role-customer .mk-form { max-width: min(460px, 92vw); }
+}
+
+/* ── 손님 폰 티켓 화면(?role=ticket) — 스캔 판독 우선 ─────────────────────── */
+.mk-ticketview {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: clamp(14px, 3vh, 26px); padding: 20px 16px; text-align: center;
+}
+.mk-tv-title { font-family: var(--mk-font-title); font-weight: 700; font-size: clamp(20px, 5.5vw, 28px); color: var(--md-on-surface); }
+.mk-tv-title b { color: var(--md-primary); }
+.mk-tv-name { margin-top: 6px; font-size: clamp(15px, 4vw, 19px); color: var(--md-on-surface-variant); }
+/* ★바코드 판: 항상 흰 배경 + 검정 바(테마·브랜드색 무관 — 판독 실패 방지) */
+.mk-tv-barcode {
+  background: #fff; padding: 16px 12px; border-radius: var(--md-radius-md);
+  box-shadow: var(--md-elev-2); display: flex; flex-direction: column; align-items: center; gap: 10px;
+  max-width: 100%; overflow-x: auto;
+}
+.mk-tv-barcode canvas { display: block; image-rendering: pixelated; }
+.mk-tv-token {
+  font-family: monospace; font-size: clamp(18px, 5vw, 24px); letter-spacing: 3px;
+  font-weight: 700; color: #111;
+}
+.mk-tv-guide { font-size: clamp(15px, 4vw, 18px); line-height: 1.6; color: var(--md-on-surface); }
+.mk-tv-exp { font-size: 14px; color: var(--md-on-surface-variant); }
+
+/* 키오스크 결과 화면의 QR(손님이 폰으로 찍는 것) */
+.mk-tqr { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 4px; }
+.mk-tqr-img {
+  width: clamp(120px, 16vh, 190px); height: auto; background: #fff;
+  padding: 8px; border-radius: var(--md-radius-sm);
 }

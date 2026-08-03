@@ -4,12 +4,21 @@ import '@thinkmap/core/styles/variables.css'  // 테마 토큰(단일 소스)
 import './components/Kiosk/brand.css'         // ★정본 웹폰트(G마켓산스)·팔레트 — 앱 전역 로드(로그인/로딩 포함 통일)
 import './index.css'
 import MembershipApp from './MembershipApp.jsx'
+import MembershipKiosk from './components/Kiosk/MembershipKiosk.jsx'
 
 import { initTheme } from '@thinkmap/core'
 initTheme()
 
+// ★손님 폰 티켓 화면(?role=ticket)은 **인증 앞에서 갈라진다** — 엔트리에서 분기한다.
+//   왜: 이 화면을 보는 사람은 **고객**이라 매장 계정이 없다. 로그인 게이트 뒤에 두면 영원히 못 연다
+//       (헤드리스 검증에서 실제로 이 벽에 막혔다 — 현장에 나갔으면 "QR 찍으면 로그인 화면"이 될 뻔했다).
+//   안전한 이유: 이 화면은 **서버를 부르지 않는다**(데이터는 URL 프래그먼트에 자족적으로 들어 있고
+//       조회·쓰기가 0). 인증을 요구할 대상 자체가 없고, 회수는 여전히 직원 게이트에서만 일어난다.
+//   ※컴포넌트 안에서 조건부 return 하면 훅 순서가 깨지므로(useAuth 앞) 여기서 가른다.
+const isTicket = new URLSearchParams(window.location.search).get('role') === 'ticket'
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <MembershipApp />
+    {isTicket ? <MembershipKiosk session={null} /> : <MembershipApp />}
   </StrictMode>,
 )

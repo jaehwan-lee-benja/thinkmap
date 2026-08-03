@@ -17,10 +17,27 @@ export default function CustomerView({ store }) {
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear, setMemberDirect } = useMemberLookup()
 
   // 원격 푸시(직원 → 고객). 로컬과 같은 currentMember 로 세팅.
-  useMembershipChannel(store, {
+  const { pushTicket } = useMembershipChannel(store, {
     onMember: (payload) => { setShowSignup(false); setMemberDirect(payload) },
     onClear: () => clear(),
   })
+
+  // ★인쇄 브리지(2026-08-03): 키오스크엔 쓸 수 있는 프린터가 없다(Play 프로텍트로 RawBT 라이선스 불가,
+  //   KICC 내장 경로 종결) → 발권하면 **카운터 폰(?role=printer)** 으로 인쇄를 넘긴다.
+  //   키오스크에 외장 프린터를 다는 구성이 되면 `?print=local` 로 로컬 인쇄를 켤 수 있다(경로 보존).
+  const localPrint = new URLSearchParams(window.location.search).get('print') === 'local'
+  const claimAndPrint = async () => {
+    const r = await claim()
+    if (r && r.token) {
+      pushTicket({
+        token: r.token,
+        name: member?.display_name || null,
+        date: r.event_date || null,
+        stamp: member?.stamp ? `${member.stamp.current_stamps ?? 0}/${member.stamp.threshold ?? 10}` : null,
+      })
+    }
+    return r
+  }
 
   const resetAll = () => { setDigits(''); clear() }
 
@@ -56,9 +73,10 @@ export default function CustomerView({ store }) {
       <div className="mk-screen mk-customer-view mk-result-view">
         <MemberCard
           variant="hero"
-          printable   /* ★키오스크 단말 = 프린터 보유 → 발권 시 RawBT 자동 인쇄(직원 노트북은 미전달) */
+          printable={localPrint}   /* 기본 false — 인쇄는 카운터 폰이 맡는다(위 주석). 외장 프린터 달면 ?print=local */
+          showQr                   /* ★손님 폰으로 옮겨갈 QR(유저 채택) — 고객 화면에서만 */
           member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
-          onClaim={claim} onRedeem={redeem} onReset={resetAll} resetLabel="처음으로"
+          onClaim={claimAndPrint} onRedeem={redeem} onReset={resetAll} resetLabel="처음으로"
         />
       </div>
     )
