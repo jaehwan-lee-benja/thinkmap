@@ -35,7 +35,13 @@ export default function CustomerSignupScreen({ onDone }) {
     if (!canSubmit) return
     setStatus('submitting'); setErrMsg('')
     try {
-      await signupMember({ phone: digits, name: name.trim(), email, consent: true, source: 'kiosk' })
+      // ★2026-08-04: 반환값을 버리면 안 된다. intake RPC 는 실패도 **HTTP 200 + {ok:false,error}** 로 준다
+      //   → 종전엔 "invalid phone" 이어도 축하 화면이 떠서 **손님이 가입된 줄 알고 떠났다**(거짓 성공).
+      const r = await signupMember({ phone: digits, name: name.trim(), email, consent: true, source: 'kiosk' })
+      if (r && r.ok === false) {
+        const why = r.error === 'invalid phone' ? '전화번호를 다시 확인해 주세요.' : (r.error || '가입 처리 실패')
+        setStatus('error'); setErrMsg(why); return
+      }
       setStatus('done')
     } catch (e) {
       setStatus('error'); setErrMsg(e?.message || '가입 실패')

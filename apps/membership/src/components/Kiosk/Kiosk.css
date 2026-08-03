@@ -152,8 +152,29 @@
 /* ★명시도 상향(.mk-app 스코프) — 뒤에 정의된 .mk-screen{align-items:flex-start} 를 이겨 확실히 중앙정렬.
    (같은 단일클래스면 소스 순서상 .mk-screen 가 이겨 좌측으로 밀렸던 버그 수정 — QA 실측.) */
 .mk-app .mk-customer-view { align-items: center; justify-content: center; height: 100%; padding: 0; }
+/* ★V-1 교정(2026-08-04) — 조회결과 화면이 **위아래로 잘리고 스크롤도 안 됐다**.
+   원인: `.mk-customer-view{height:100%; align-items:center}` + 카드 `height:100%` 조합이라
+   내용이 뷰포트보다 크면 **flex 중앙정렬 오버플로**로 위아래가 동시에 밖으로 나가고,
+   부모가 오버플로를 인지하지 못해 **스크롤조차 생기지 않았다**(480x800 실측: "처음으로" 291px 아래·도달 불가,
+   768x1024 실기기: 인사말·배지가 화면 위로 잘림).
+   → 결과화면은 **높이를 고정하지 않고 위에서부터 쌓는다**. 넘치면 정상적으로 스크롤된다. */
+.mk-app .mk-customer-view.mk-result-view {
+  /* ★축 주의: 이 컨테이너는 **row** 방향이라 세로 정렬은 `align-items` 다.
+     `justify-content`(가로)만 바꿨더니 세로 중앙정렬이 그대로 남아 **상단이 계속 잘렸다**(실측). */
+  height: auto; min-height: 100%; align-items: flex-start; justify-content: center;
+}
+/* ★카드가 뷰포트 높이에 묶이고(`height:100%`) `.mk-member-card`의 `overflow:hidden` 까지 겹쳐
+   내용(1228px)이 **카드 안에서 잘리고 부모는 그걸 모르는** 상태였다(480x800 실측: card h=800·sh=1228).
+   이 화면의 캐스케이드는 여러 세대의 오버라이드가 얽혀 있어, **결과화면에 한해** 명시적으로 끊는다.
+   (!important 는 남용이 아니라 이 한 화면의 갇힘을 확실히 끝내기 위한 것 — 범위가 좁고 의도가 분명하다.) */
+.mk-app .mk-result-view .mk-member-card-hero {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
 /* ★조회 = 좌우 2분할 + 뷰포트높이 정렬(무스크롤). 태블릿 가로 기준. */
-.mk-role-customer .mk-main { overflow: hidden; }
+.mk-role-customer .mk-main { overflow-x: hidden; overflow-y: auto; }  /* V-1: 넘치면 스크롤(종전 hidden 이라 갇혔다) */
 .mk-lookup-split {
   display: flex; align-items: center; justify-content: center; gap: 56px;
   width: 100%; height: 100%; max-width: 980px; margin: 0 auto; padding: 16px 24px;
@@ -384,7 +405,10 @@
 .mk-scan { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 28px; max-width: 640px; margin: 0 auto; width: 100%; }
 .mk-scan-title { margin: 0; font-size: 24px; font-family: var(--mk-font-title); }
 .mk-scan-input {
-  width: 100%; min-height: 64px; padding: 12px 18px; font-size: 24px; font-family: monospace; letter-spacing: 2px;
+  /* ★V-3: 폰 폭에서 placeholder 가 "…토큰 입력"까지만 보여 **"후 엔터"가 잘렸다**(유일한 실행 경로 안내).
+     고정 24px+letter-spacing 2px 대신 폭에 따라 줄어들게. */
+  width: 100%; min-height: 64px; padding: 12px 18px;
+  font-size: clamp(17px, 4.6vw, 24px); font-family: monospace; letter-spacing: clamp(0px, 0.4vw, 2px);
   border: 2px solid var(--md-outline); border-radius: var(--md-radius-md);
   background: var(--md-surface-container-low); color: var(--md-on-surface); text-align: center;
 }

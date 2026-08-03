@@ -10,8 +10,14 @@
 //   아니면 미리보기(계약 대기)로 막는다 — 배포 완료 후 env 플래그만 켜면 라이브(코드 변경 0).
 import { supabase } from '@thinkmap/core'
 
-// 라이브 스위치: 하드게이트(테이블/시크릿/Edge 배포) 완료 후 유저/통합세션이 env 로 '1' 세팅.
-export const LIVE = import.meta.env.VITE_MEMBERSHIP_LIVE === '1'
+// 라이브 스위치.
+// ★2026-08-04 기본값 반전: 종전 `=== '1'` 은 **플래그를 안 주면 앱이 죽는** 구조였다.
+//   `.env`·CI 어디에도 이 키가 없어서(실측) **이 체크아웃으로 재빌드해 배포하면 조회·발권·회수·가입이
+//   전부 "연결 대기"로 죽는다** — 코드 변경 0으로 나는 조용한 회귀다(실제로 내 로컬 빌드가 그랬다).
+//   계약(Edge·RPC)은 이미 전부 프로덕션 ACTIVE 라 "꺼짐"이 기본일 이유가 사라졌다.
+//   ⇒ **기본 = 라이브**, 끄고 싶을 때만 명시적으로 `VITE_MEMBERSHIP_LIVE=0`(미리보기/데모용).
+//   실패 모드를 "잊으면 죽음" → "잊으면 정상"으로 뒤집는다.
+export const LIVE = import.meta.env.VITE_MEMBERSHIP_LIVE !== '0'
 export const CONTRACT_PENDING = !LIVE
 
 const PENDING_MSG = 'CRM 데이터 연결 대기 — Edge 배포 후 활성화(MEMBERSHIP-KIOSK-SPEC §8)'
@@ -19,7 +25,27 @@ const PENDING_MSG = 'CRM 데이터 연결 대기 — Edge 배포 후 활성화(M
 async function callProxy(fn, body) {
   if (!LIVE) throw new Error(PENDING_MSG)
   const { data, error } = await supabase.functions.invoke(fn, { body })
-  if (error) throw new Error(error.message || `${fn} 호출 실패`)
+  if (error) {
+    // ★2026-08-04: supabase-js 는 비2xx 를 FunctionsHttpError 로 던지는데 그 message 가
+    //   **고정 문자열**("Edge Function returned a non-2xx status code")이라 서버가 보낸 `{error:'not_found'}`
+    //   같은 사유가 통째로 유실됐다. 그래서 화면의 사유 매핑(not_found·bad_token·rate_limited…)이
+    //   전부 죽은 분기였고, 카운터엔 영문 raw 문구만 떴다. → context(Response)에서 본문을 살려낸다.
+    let code = null, status = null
+    try {
+      const res = error.context
+      if (res) {
+        status = res.status ?? null
+        if (typeof res.json === 'function') {
+          const j = await res.json()
+          code = (j && (j.error || j.reason)) || null
+        }
+      }
+    } catch (e) { /* 본문이 JSON 이 아니면 그냥 원문 메시지로 */ }
+    const err = new Error(code || error.message || `${fn} 호출 실패`)
+    err.code = code
+    err.status = status
+    throw err
+  }
   return data
 }
 
