@@ -622,3 +622,51 @@
   .mk-col { max-width: 400px; width: 100%; }
   .mk-signup-left, .mk-signup-right { max-width: 400px; width: 100%; flex: 1 1 100%; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ★세로(portrait) 최적화 — CS-273N(KICC POS, Android 5.1.1) 세로 배치 전용.
+   고객 뷰(.mk-role-customer)에만 적용 → 직원 노트북(staff/scan/editor·가로)은 무영향.
+   판정 기준 = orientation:portrait(px 폭 가정 제거 — 넓은 세로 화면도 스택되게).
+   높이 기준 정렬(무스크롤) + 번호패드=주인공. 세로 vh 스케일로 화면에 맞춤.
+   ※ orientation 미디어피처·clamp/vh 는 코드베이스 기존 사용 범위 내(Chrome 40 UA 폴백=정적값).
+   소스 뒤쪽에 둬 max-width 폴백과 겹칠 때 이 규칙이 이긴다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (orientation: portrait) {
+  /* 조회 첫 화면: 세로 스택. 상단 브랜딩·안내(압축) → 하단 번호패드(주인공, 엄지영역). */
+  .mk-role-customer .mk-main { overflow-y: auto; overflow-x: hidden; }
+  .mk-role-customer .mk-lookup-split {
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(10px, 2.2vh, 28px);
+    width: 100%; height: 100%; max-width: none; margin: 0 auto;
+    padding: clamp(10px, 3vh, 40px) 18px;
+  }
+  .mk-role-customer .mk-lookup-left {
+    flex: 0 0 auto; align-items: center; text-align: center;
+    max-width: 560px; width: 100%; gap: clamp(6px, 1.4vh, 16px);
+  }
+  .mk-role-customer .mk-brand-logo { width: clamp(96px, 26vw, 180px); margin-bottom: 0; }
+  .mk-role-customer .mk-lookup-ment { text-align: center; font-size: clamp(23px, 5vw, 38px); }
+  .mk-role-customer .mk-signup-invite,
+  .mk-role-customer .mk-signup-mini { align-items: center; text-align: center; }
+  .mk-role-customer .mk-invite-copy { font-size: clamp(15px, 2vh, 18px); }
+  .mk-role-customer .mk-lookup-right { flex: 0 0 auto; width: 100%; align-items: center; }
+  /* 번호패드 = 세로 화면 폭을 넉넉히 채우고, 키 높이는 vh 로 스케일(짧은 화면서도 무스크롤). */
+  .mk-role-customer .mk-pad-xl { width: min(520px, 90vw); gap: clamp(8px, 1.4vh, 20px); }
+  .mk-role-customer .mk-pad-xl .mk-pad-display { min-height: clamp(58px, 8.5vh, 96px); font-size: clamp(32px, 6vw, 44px); }
+  .mk-role-customer .mk-pad-xl .mk-pad-grid { gap: clamp(9px, 1.4vh, 18px); }
+  .mk-role-customer .mk-pad-xl .mk-key { min-height: clamp(54px, 9vh, 108px); font-size: clamp(30px, 6vw, 46px); }
+  .mk-role-customer .mk-pad-xl .mk-pad-submit { min-height: clamp(52px, 7vh, 88px); font-size: clamp(22px, 4vw, 30px); }
+
+  /* 조회 결과: 세로 2단 → 세로 스택(인사말 위 · 이벤트/내역 아래). 큰 글씨 유지. */
+  .mk-role-customer .mk-result-view .mk-member-card-hero {
+    flex-direction: column; align-items: center; max-height: none;
+    height: auto; max-width: 620px; gap: 20px; padding: clamp(16px, 3vh, 28px);
+  }
+  .mk-role-customer .mk-member-card-hero .mk-member-hero,
+  .mk-role-customer .mk-member-card-hero .mk-member-body { flex: 0 0 auto; width: 100%; }
+  .mk-role-customer .mk-member-card-hero .mk-greeting { font-size: clamp(28px, 6vw, 44px); }
+  .mk-role-customer .mk-member-card-hero .mk-history { max-height: 30vh; }
+
+  /* 가입 화면: 단일 컬럼 폼(이미 세로 친화) — 폭만 화면에 맞춤. */
+  .mk-role-customer .mk-form { max-width: min(460px, 92vw); }
+}
