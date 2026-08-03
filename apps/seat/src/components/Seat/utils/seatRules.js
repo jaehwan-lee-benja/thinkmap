@@ -70,6 +70,23 @@ export const orderLabel = (o) => o?.order_no || (o?.queue_no != null ? String(o.
 
 // 같은 테이블링 번호(queue_no>0)를 여러 주문이 쓰면(중복) 리스트에서 1-a,1-b 로 구분.
 // 반환 = { orderId: 'a'|'b'|... } — 중복 그룹에 속한 주문만 포함(단일 사용은 접미사 없음).
+// 같은 테이블링 번호 줄을 서로 붙여서 보여준다 — ★표시 전용(DB·생성순·정렬 규칙 무변경).
+//   한 테이블링 번호에 주문번호(영수증)가 여러 장 걸리는 실제 케이스(유저 2026-08-03) 때문에,
+//   나중에 추가한 같은 번호 줄이 표 맨 아래로 떨어져 짝을 눈으로 못 찾던 문제를 없앤다.
+//   그룹의 자리 = 그 번호가 처음 나온 위치. 번호 없는 줄('+주문번호만')은 있던 자리 그대로.
+export function groupByQueue(orders = []) {
+  const out = []
+  const done = new Set()
+  for (const o of orders) {
+    const k = o?.queue_no > 0 ? o.queue_no : null
+    if (k == null) { out.push(o); continue }
+    if (done.has(k)) continue
+    done.add(k)
+    for (const x of orders) if (x?.queue_no === k) out.push(x)
+  }
+  return out
+}
+
 export function queueSuffixes(orders = []) {
   const groups = new Map()
   for (const o of orders) {

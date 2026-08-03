@@ -3,9 +3,10 @@
 // gateMode: 'guide'(전달버튼 살리고 제조옵션부터 잠금) | 'manager'(행 dim + 하위버튼 숨김) | undefined.
 import { useState, useRef } from 'react'
 import { REVIEW_FLAGS } from '../config/seatRoles'
+import SeatTextField from './SeatTextField'
 import { isDineIn, removesFromSeatQueue, raiseDetailText, DELIVER_MODES, isTakeoutMaybe, deliverModeLabel, raiseIgnored } from '../utils/seatRules'
 
-export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, dupSuffix, numpadOn, onOpenNumpad, raiseDetailOn }) {
+export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, onAddSibling, dupSuffix, numpadOn, onOpenNumpad, raiseDetailOn }) {
   const patch = (p) => onPatch?.(order.id, p)
   // 올리기 전달을 풀 때 실수 방지 재확인(인라인). 세부 텍스트는 raiseDetailOn 일 때만 노출.
   const [confirmUncheck, setConfirmUncheck] = useState(false) // false | 'raise' | 'both'
@@ -38,6 +39,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   //   포장/야외 시작(!dineIn)은 전달 관문 자체가 없으므로 잠그지 않는다.
   const preDeliver = dineIn && !order.seat_delivered
   const raiseVoid = raiseIgnored(order) // 포장도고려(포장영수증) = 올림 무시 → 체크박스 ✕ 무효(R11)
+  const canceled = order.seat_status === 'canceled' // 자리대기 취소된 줄(기록으로 남김, 복구 가능)
 
   // 자리순서: 실내 + 순서 살아있음 + 자리큐 유지(야외/포장로 안 빠짐). 야외병행은 유지.
   const seatNeeded = dineIn && order.seat_order_alive && !removesQueue
@@ -152,7 +154,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   } : null
 
   // ★순서: no-queue(파랑) 먼저 → flagged(확인필요) 뒤 = 겹치면 확인필요가 우선(뒤 규칙이 이김).
-  const rowCls = `seat-row${noQueue ? ' seat-row--no-queue' : ''}${managerGated ? ' seat-row--gated' : ''}${guideLocked ? ' seat-row--guide-locked' : ''}${needsAttention ? ' seat-row--flagged' : ''}${swiped ? ' is-swiped' : ''}`
+  const rowCls = `seat-row${noQueue ? ' seat-row--no-queue' : ''}${managerGated ? ' seat-row--gated' : ''}${guideLocked ? ' seat-row--guide-locked' : ''}${needsAttention ? ' seat-row--flagged' : ''}${canceled ? ' seat-row--canceled' : ''}${swiped ? ' is-swiped' : ''}`
 
   return (
     <div className={rowCls} role="row" {...rowDropProps} {...swipeProps}>
@@ -163,39 +165,75 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
         {dragHandleProps && (
           <span className="seat-drag-handle" title="순서 이동" aria-label="순서 이동" {...dragHandleProps}>⠿</span>
         )}
-        <input
-          className="seat-input seat-input-no"
-          value={order.queue_no > 0 ? order.queue_no : ''}
-          placeholder="-"
-          inputMode="numeric"
-          readOnly={numpadOn}
-          onClick={numpadOn ? () => onOpenNumpad?.(order.id, 'queue_no') : undefined}
-          onChange={numpadOn ? undefined : (e) => {
-            const v = e.target.value.replace(/[^0-9]/g, '')
-            patch({ queue_no: v === '' ? null : Number(v) })
-          }}
-        />
+        {numpadOn ? (
+          <input
+            className="seat-input seat-input-no"
+            value={order.queue_no > 0 ? order.queue_no : ''}
+            placeholder="-"
+            inputMode="numeric"
+            readOnly
+            onClick={() => onOpenNumpad?.(order.id, 'queue_no')}
+          />
+        ) : (
+          <SeatTextField
+            className="seat-input seat-input-no"
+            value={order.queue_no > 0 ? String(order.queue_no) : ''}
+            placeholder="-"
+            inputMode="numeric"
+            sanitize={(v) => v.replace(/[^0-9]/g, '')}
+            onCommit={(v) => patch({ queue_no: v === '' ? null : Number(v) })}
+          />
+        )}
         {/* 같은 번호가 여러 개면 리스트에서 -a,-b 로 구분(중복 허용). */}
         {dupSuffix ? <span className="seat-no-suffix">-{dupSuffix}</span> : null}
+        {/* ★한 테이블링 번호에 주문번호(영수증)가 여러 장 걸리는 경우 — 같은 번호로 줄을 하나 더 만든다.
+            새 줄은 groupByQueue 로 이 줄 바로 아래에 붙어 보인다(유저 지시 2026-08-03). */}
+        {onAddSibling && order.queue_no > 0 && (
+          <button
+            type="button"
+            className="seat-no-btn seat-no-add"
+            aria-label="이 번호로 주문 추가"
+            title="이 테이블링 번호로 주문(영수증) 한 줄 더"
+            onClick={() => onAddSibling(order)}
+          >+</button>
+        )}
+        {/* 자리대기 취소 — 대기하다 그냥 가시는 손님(유저 지시 2026-08-03). 삭제와 달리 표에 기록으로 남고
+            다시 누르면 되살아난다. 취소된 줄은 스테이션 '자리후(대기)'에서 빠진다. */}
+        <button
+          type="button"
+          className={`seat-no-btn seat-no-cancel${canceled ? ' is-on' : ''}`}
+          aria-label={canceled ? '자리대기 취소 되돌리기' : '자리대기 취소'}
+          title={canceled ? '취소 되돌리기' : '자리대기 취소(손님이 대기 포기)'}
+          onClick={() => patch(canceled
+            ? { seat_status: order.raised ? 'raised' : 'pending', seat_order_alive: true }
+            : { seat_status: 'canceled', seat_order_alive: false })}
+        >{canceled ? '복구' : '취소'}</button>
       </div>
 
       <div className="seat-cell seat-cell-order">
-        <input
-          ref={orderNoRef}
-          className="seat-input"
-          value={order.order_no || ''}
-          placeholder="-"
-          readOnly={numpadOn || orderNoGuarded}
-          onClick={orderNoGuarded ? () => setConfirmOrderNo(true)
-            : numpadOn ? () => onOpenNumpad?.(order.id, 'order_no') : undefined}
-          onChange={numpadOn ? undefined : (e) => patch({
-            order_no: e.target.value,
-            // 통계용: 주문번호가 처음 채워지는 순간만 시각 기록(이후 수정해도 최초 시각 유지).
-            ...(!order.order_no && e.target.value && !order.order_no_at ? { order_no_at: new Date().toISOString() } : {}),
-            // ★주문번호를 비우면 전달 체크도 함께 풀린다(비활성만 되고 체크가 남던 문제 — 유저 지시 2026-08-02).
-            ...(!e.target.value && order.seat_delivered ? { seat_delivered: false, delivered_at: null, deliver_mode: null } : {}),
-          })}
-        />
+        {numpadOn || orderNoGuarded ? (
+          <input
+            ref={orderNoRef}
+            className="seat-input"
+            value={order.order_no || ''}
+            placeholder="-"
+            readOnly
+            onClick={orderNoGuarded ? () => setConfirmOrderNo(true) : () => onOpenNumpad?.(order.id, 'order_no')}
+          />
+        ) : (
+          <SeatTextField
+            className="seat-input"
+            value={order.order_no || ''}
+            placeholder="-"
+            onCommit={(v) => patch({
+              order_no: v,
+              // 통계용: 주문번호가 처음 채워지는 순간만 시각 기록(이후 수정해도 최초 시각 유지).
+              ...(!order.order_no && v && !order.order_no_at ? { order_no_at: new Date().toISOString() } : {}),
+              // ★주문번호를 비우면 전달 체크도 함께 풀린다(비활성만 되고 체크가 남던 문제 — 유저 지시 2026-08-02).
+              ...(!v && order.seat_delivered ? { seat_delivered: false, delivered_at: null, deliver_mode: null } : {}),
+            })}
+          />
+        )}
       </div>
 
       {/* 시작 갈래(order_origin)는 표에 열로 노출하지 않음(내부 게이팅 로직·DB에만 유지, 유저 지시).
@@ -322,11 +360,11 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
 
       {/* 특이사항 = 올림 열의 아래줄 — 전달 전이면 올림(위)과 함께 잠근다(유저 지시 2026-08-02, 열 전체 비활성). */}
       <div className={`seat-cell seat-cell-notes${preDeliver ? ' is-locked' : ''}`}>
-        <input
+        <SeatTextField
           className="seat-input"
           value={order.notes || ''}
           placeholder="전달사항"
-          onChange={(e) => patch({ notes: e.target.value })}
+          onCommit={(v) => patch({ notes: v })}
         />
       </div>
 
@@ -360,12 +398,13 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
 
       {/* 메모 = 자유 메모판(자리안내·주문서관리 둘 다 읽기·수정. 행 단위, 두 줄 높이 전체). */}
       <div className="seat-cell seat-cell-memo">
-        <textarea
+        <SeatTextField
+          as="textarea"
           className="seat-input seat-memo"
           value={order.memo || ''}
           placeholder="-"
           rows={2}
-          onChange={(e) => patch({ memo: e.target.value })}
+          onCommit={(v) => patch({ memo: v })}
         />
       </div>
 
