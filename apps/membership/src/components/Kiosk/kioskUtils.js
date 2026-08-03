@@ -22,12 +22,12 @@ export function formatClaimPrefix(claimedAt) {
 }
 
 // URL 파라미터 → 역할('customer' 기본 | 'staff' | 'editor'=영수증 편집 | 'scan'=카운터 회수
-//   | 'printer'=카운터 폰 인쇄 브리지)과 매장 룸 id.
+//   | 'printer'=카운터 폰 인쇄 브리지 | 'ticket'=손님 폰 티켓 화면)과 매장 룸 id.
 export function readRoleAndStore() {
   const p = new URLSearchParams(window.location.search)
   const r = p.get('role')
   const role = r === 'staff' ? 'staff' : r === 'editor' ? 'editor'
-    : r === 'scan' ? 'scan' : r === 'printer' ? 'printer' : 'customer'
+    : r === 'scan' ? 'scan' : r === 'printer' ? 'printer' : r === 'ticket' ? 'ticket' : 'customer'
   const store = p.get('store') || import.meta.env.VITE_MEMBERSHIP_STORE || 'default'
   return { role, store }
 }

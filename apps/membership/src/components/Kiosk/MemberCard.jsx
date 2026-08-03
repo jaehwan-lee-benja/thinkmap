@@ -1,14 +1,16 @@
 // 공용 회원 카드 — 브랜드 히어로(인사말)+본문(이벤트·참여내역·스탬프). 고객뷰·직원뷰 공용.
 import { useEffect, useRef, useState } from 'react'
+import QRCode from 'qrcode'
 import { formatClaimPrefix, todayStr } from './kioskUtils'
 import { printReceipt } from '../../receipt/print'
+import { buildTicketUrl } from './ticketLink'
 
 const EVENT_LABEL = '팝콘 이벤트'   // 이벤트명(태그 강조). 이벤트가 늘면 엔티티로 확장.
 const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크림(시안, 데이터모델=crm 조율).
 
 // ★printable = **프린터가 달린 기기에서만 true**(키오스크 단말). 직원 노트북(StaffView)은 false 라
 //   rawbt: 스킴이 호출되지 않는다 — 프린터 없는 기기에서 스킴을 던지면 오류 페이지로 튈 수 있다.
-export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false }) {
+export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false, showQr = false }) {
   // ★훅은 조기 return 보다 위에 — member 가 null 이어도 호출 순서가 바뀌면 안 된다(Rules of Hooks).
   const printedRef = useRef(null)          // 이미 인쇄를 시도한 토큰(중복 인쇄 방지)
   const [printMsg, setPrintMsg] = useState('')
@@ -31,6 +33,24 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
       ? (retry ? '인쇄를 다시 요청했습니다.' : '영수증을 인쇄 중입니다.')
       : '인쇄를 시작하지 못했습니다. 아래 번호를 카운터에 보여주세요.')
   }
+
+  // ★화면 QR — 발권 토큰이 생기면 손님 폰용 링크를 QR 이미지(data URL)로 만든다.
+  //   showQr 인 화면(고객 태블릿)에서만. 실패해도 토큰·인쇄 경로는 그대로라 조용히 넘어간다.
+  const [qrUrl, setQrUrl] = useState('')
+  useEffect(() => {
+    if (!showQr || !printToken) { setQrUrl(''); return }
+    let dead = false
+    const url = buildTicketUrl({
+      token: printToken,
+      name: member?.display_name || null,
+      date: (ticketForPrint && ticketForPrint.event_date) || null,
+    })
+    if (!url) return
+    QRCode.toDataURL(url, { margin: 1, width: 320, errorCorrectionLevel: 'M' })
+      .then((d) => { if (!dead) setQrUrl(d) })
+      .catch(() => { if (!dead) setQrUrl('') })
+    return () => { dead = true }
+  }, [showQr, printToken, member, ticketForPrint])
 
   // 발권된 토큰이 새로 생기면 1회 자동 인쇄(같은 토큰 재렌더로 재인쇄되지 않게 ref 로 잠근다).
   useEffect(() => {
@@ -88,6 +108,14 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
               <div className="mk-ticket-title">참여권 발권 완료 — 카운터에서 보여주세요</div>
               <div className="mk-ticket-token">{issuedTicket.token}</div>
               <div className="mk-ticket-hint">유효기간: 오늘({issuedTicket.event_date || today})</div>
+              {/* ★화면 QR(유저 채택) — 손님이 폰으로 찍으면 자기 폰에 바코드가 뜬다.
+                  종이가 없어도(프린터 미배치·용지 소진) 카운터 스캔이 가능한 무비용 보조 경로. */}
+              {qrUrl && (
+                <div className="mk-tqr">
+                  <img className="mk-tqr-img" src={qrUrl} alt="참여권 QR" />
+                  <div className="mk-ticket-hint">폰으로 찍으면 바코드가 폰에 뜹니다</div>
+                </div>
+              )}
               {/* ★인쇄는 편의, 토큰이 정본 — 안 나와도 위 번호로 카운터 진행 가능. */}
               {printable && (
                 <>

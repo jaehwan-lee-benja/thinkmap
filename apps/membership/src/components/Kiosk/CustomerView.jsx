@@ -74,6 +74,7 @@ export default function CustomerView({ store }) {
         <MemberCard
           variant="hero"
           printable={localPrint}   /* 기본 false — 인쇄는 카운터 폰이 맡는다(위 주석). 외장 프린터 달면 ?print=local */
+          showQr                   /* ★손님 폰으로 옮겨갈 QR(유저 채택) — 고객 화면에서만 */
           member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
           onClaim={claimAndPrint} onRedeem={redeem} onReset={resetAll} resetLabel="처음으로"
         />
