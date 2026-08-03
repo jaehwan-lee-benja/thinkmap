@@ -6,7 +6,7 @@ import SeatTableHead from '../components/SeatTableHead'
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import SeatNumpad from '../components/SeatNumpad'
 import SeatModal from '../components/SeatModal'
-import { queueSuffixes } from '../utils/seatRules'
+import { queueSuffixes, groupByQueue } from '../utils/seatRules'
 
 // 역할별 로컬 토글 상태 훅(기기·역할 단위 저장) — 번호 화면키패드·올리기세부보기 공통.
 //   저장값이 없으면 defaultOn(역할별 기본값)을 쓴다. 한 번이라도 끄면 그 선택이 남는다.
@@ -26,9 +26,13 @@ export default function SeatOrderScreen({
   role, orders = [], onPatch, onCommit, onCreate,
   onReorder, onSortByNumber, onResizeColumn, onDelete, settings = {},
 }) {
-  const [dragIdx, setDragIdx] = useState(null)
+  const [dragId, setDragId] = useState(null)
   const canReorder = !!onReorder // 순서 이동 핸들은 재배열 콜백이 있을 때만
   const suffixMap = queueSuffixes(orders) // 중복 테이블링 번호 → 1-a,1-b
+  // ★표시 순서 = 같은 테이블링 번호끼리 붙여서(groupByQueue). 원본 배열(orders)은 그대로 두고
+  //   드래그 재배열 인덱스는 항상 원본 기준으로 환산한다(표시 순서와 저장 순서를 섞지 않는다).
+  const rows = groupByQueue(orders)
+  const origIdx = (id) => orders.findIndex((x) => x.id === id)
 
   // ★역할별 기능 설정(기기·역할 단위) — role 전환 시 리마운트되어 각자 로드.
   //   번호 화면키패드: 켜면 테이블링/주문번호 입력이 태블릿 키보드 대신 화면 키패드로.
@@ -63,7 +67,7 @@ export default function SeatOrderScreen({
         {orders.length === 0 ? (
           <div className="seat-empty">주문이 없습니다. “+ 새 주문”으로 추가하세요.</div>
         ) : (
-          orders.map((o, i) => (
+          rows.map((o) => (
             <OrderRow
               key={o.id}
               order={o}
@@ -74,14 +78,20 @@ export default function SeatOrderScreen({
               onOpenNumpad={(id, field) => setEditing({ orderId: id, field })}
               dragHandleProps={canReorder ? {
                 draggable: true,
-                onDragStart: (e) => { setDragIdx(i); e.dataTransfer.effectAllowed = 'move' },
-                onDragEnd: () => setDragIdx(null),
+                onDragStart: (e) => { setDragId(o.id); e.dataTransfer.effectAllowed = 'move' },
+                onDragEnd: () => setDragId(null),
               } : null}
               rowDropProps={canReorder ? {
                 onDragOver: (e) => e.preventDefault(),
-                onDrop: (e) => { e.preventDefault(); if (dragIdx != null && dragIdx !== i) onReorder(dragIdx, i); setDragIdx(null) },
+                onDrop: (e) => {
+                  e.preventDefault()
+                  if (dragId && dragId !== o.id) onReorder(origIdx(dragId), origIdx(o.id))
+                  setDragId(null)
+                },
               } : null}
               onDelete={onDelete}
+              // 같은 테이블링 번호로 줄 하나 더(영수증이 여러 장인 손님) — 새 줄은 이 줄 바로 아래에 붙어 보인다.
+              onAddSibling={onCreate ? (src) => onCreate({ queue_no: src.queue_no }) : undefined}
               dupSuffix={suffixMap[o.id]}
             />
           ))
@@ -139,7 +149,7 @@ export default function SeatOrderScreen({
             <span className="seat-check"><input type="checkbox" checked={raiseDetailOn} onChange={(e) => setRaiseDetailOn(e.target.checked)} /></span>
             <span className="seat-func-text">
               <span className="seat-func-label">올리기 전달 세부 보기</span>
-              <span className="seat-func-hint">올림 경로(야외/포장/야외병행/직접체크)와 올림취소 이력을 표시합니다. 끄더라도 올림 취소는 그대로 됩니다.</span>
+              <span className="seat-func-hint">올림 경로(야외/야외병행/포장으로변경/직접체크)와 올림취소 이력을 표시합니다. 끄더라도 올림 취소는 그대로 됩니다.</span>
             </span>
           </label>
         </div>

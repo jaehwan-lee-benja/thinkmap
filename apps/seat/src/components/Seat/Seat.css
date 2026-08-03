@@ -288,6 +288,57 @@
 .seat-toolbar-below { margin: 12px 0 0; display: flex; align-items: center; gap: 8px; }
 /* 자리후 전달 체크박스: 라벨 줄바꿈 방지 */
 .seat-deliver-check { white-space: nowrap; }
+
+/* 테이블링 셀의 작은 버튼 2종 — '+'(같은 번호로 줄 추가) · '취소'(자리대기 취소). 번호 입력 오른쪽에 붙는다. */
+.seat-no-btn {
+  flex: none;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--md-dur) var(--md-ease), color var(--md-dur) var(--md-ease);
+}
+.seat-no-btn:hover { background: var(--md-surface-variant); }
+.seat-no-add { min-width: 30px; font-size: 16px; }
+.seat-no-cancel.is-on { border-color: transparent; background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+
+/* 자리대기 취소된 줄 — 지운 게 아니라 '대기를 접었다'는 기록. 흐리게 + 번호에 취소선. */
+.seat-row--canceled { opacity: .55; }
+.seat-row--canceled .seat-input-no { text-decoration: line-through; }
+
+/* 포장도고려 전달(R11) — 전달 체크박스 아랫줄. 평소엔 조용한 아웃라인, 선택되면 채워진다.
+   ※체크박스가 아니라 버튼인 이유: 켜짐/꺼짐이 아니라 '매장·포장' 갈래를 고르는 자리라서. */
+.seat-maybe-btn {
+  margin-top: 4px;
+  min-height: 36px;
+  padding: 0 10px;
+  max-width: 100%;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background var(--md-dur) var(--md-ease), color var(--md-dur) var(--md-ease);
+}
+.seat-maybe-btn.is-on {
+  border-color: transparent;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  font-weight: 600;
+}
+.seat-maybe-btn:disabled { opacity: .4; cursor: default; }
 .seat-btn {
   min-height: 48px;
   padding: 0 24px;
@@ -1265,6 +1316,8 @@
 .seat-confirm-title { font-size: 18px; font-weight: 700; }
 .seat-confirm-desc { font-size: 15px; color: var(--md-on-surface-variant); }
 .seat-confirm-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+/* 선택지가 3개 이상인 모달(포장도고려 전달 등) — 가로로 밀지 않고 세로로 쌓아 터치 타겟을 넓게. */
+.seat-confirm-acts--stack { flex-direction: column; align-items: stretch; }
 
 /* 오늘자 초기화 되돌리기 바 — 하단 중앙, 10초간. */
 .seat-undo-bar {

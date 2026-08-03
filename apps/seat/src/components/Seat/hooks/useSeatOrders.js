@@ -145,10 +145,11 @@ export function useSeatOrders(businessDate, onError) {
   // 명시 전달 버튼(A안): 'seat'=자리후 확정. seat_delivered=true → 주문서관리 게이팅 해제.
   // ('all'=전체에게 전달은 2026-07-31 제거 — updated_at 만 만지는 no-op 이었고, 필드 수정은
   //  이미 Realtime 으로 즉시 전파된다. 명시 전달은 상태를 바꾸는 관문에만 둔다.)
-  const commitOrder = useCallback(async (id, scope) => {
+  //   extra = 전달과 함께 확정되는 필드(예: deliver_mode='maybe_store' — 포장도고려 전달, R11).
+  const commitOrder = useCallback(async (id, scope, extra = {}) => {
     if (scope !== 'seat') return
     // delivered_at = 통계용 전달 시각(주문→전달 / 전달→올림 구간).
-    return patchOrder(id, { seat_status: 'pending', seat_delivered: true, delivered_at: new Date().toISOString() })
+    return patchOrder(id, { seat_status: 'pending', seat_delivered: true, delivered_at: new Date().toISOString(), ...extra })
   }, [patchOrder])
 
   return { orders, loading, refetch, createOrder, patchOrder, commitOrder, deleteOrder, resetToday, undoResetToday }

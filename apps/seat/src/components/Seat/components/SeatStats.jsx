@@ -7,7 +7,7 @@ import { computeSeatStats, formatDuration } from '../utils/seatStats'
 const pad2 = (n) => String(n).padStart(2, '0')
 const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 
-const OPT_LABEL = { none: '변경 없음', outdoor: '야외', takeout: '포장', parallel: '야외병행' }
+const OPT_LABEL = { none: '변경 없음', outdoor: '야외', takeout: '포장으로변경', parallel: '야외병행' }
 
 export default function SeatStats({ businessDate, maxDate, orders = [], stations = [], live = true }) {
   const [date, setDate] = useState(businessDate || toISO(new Date()))
@@ -98,7 +98,7 @@ export default function SeatStats({ businessDate, maxDate, orders = [], stations
           <table className="seat-stats-table">
             <thead><tr><th>옵션</th><th>건수</th><th>비율</th></tr></thead>
             <tbody>
-              {['outdoor', 'takeout', 'parallel', 'none'].map((k) => (
+              {['outdoor', 'parallel', 'takeout', 'none'].map((k) => (
                 <tr key={k}>
                   <td>{OPT_LABEL[k]}</td>
                   <td>{s.opt[k]}</td>
@@ -118,6 +118,7 @@ export default function SeatStats({ businessDate, maxDate, orders = [], stations
               <tr><td>올림취소 이력</td><td>{s.flags.raiseCanceled}건</td></tr>
               <tr><td>테이블링 번호 없이 만든 주문</td><td>{s.flags.noQueue}건</td></tr>
               <tr><td>실내 시작 주문</td><td>{s.flags.dineIn}건 / 전체 {s.total}건</td></tr>
+              <tr><td>포장도고려 전달</td><td>매장영수증 {s.flags.maybeStore}건 / 포장영수증 {s.flags.maybeReceipt}건</td></tr>
               <tr><td>가장 바쁜 시간대</td><td>{s.peakHour != null ? `${s.peakHour}시 (${s.hours[s.peakHour]}건)` : '—'}</td></tr>
             </tbody>
           </table>
