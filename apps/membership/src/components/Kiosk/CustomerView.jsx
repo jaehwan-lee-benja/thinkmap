@@ -41,8 +41,8 @@ export default function CustomerView({ store }) {
       <div className="mk-screen mk-customer-view mk-loading-screen">
         {/* 로고 위치 고정 + 눈만 깜박(2프레임 교차: 열림↔눈감음, 다크배경=화이트 세트) + 컬러 3점 바운스 */}
         <div className="mk-loading-logo mk-blink">
-          <img className="mk-blink-open" src={`${import.meta.env.BASE_URL}img/cow-mark-white.png`} alt="사르르목장" />
-          <img className="mk-blink-closed" src={`${import.meta.env.BASE_URL}img/cow-mark-white-blink.png`} alt="" aria-hidden="true" />
+          <img className="mk-blink-open" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="사르르목장" />
+          <img className="mk-blink-closed" src={`${import.meta.env.BASE_URL}img/cow-mark-navy-blink.png`} alt="" aria-hidden="true" />
         </div>
         <div className="mk-loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
         <div className="mk-loading-text">조회 중</div>
@@ -56,6 +56,7 @@ export default function CustomerView({ store }) {
       <div className="mk-screen mk-customer-view mk-result-view">
         <MemberCard
           variant="hero"
+          printable   /* ★키오스크 단말 = 프린터 보유 → 발권 시 RawBT 자동 인쇄(직원 노트북은 미전달) */
           member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
           onClaim={claim} onRedeem={redeem} onReset={resetAll} resetLabel="처음으로"
         />
@@ -69,7 +70,7 @@ export default function CustomerView({ store }) {
       <div className="mk-lookup-split">
         {/* 좌: 사르르 로고 + 멘트 + 가입 안내 (첫 화면=로고만, 앰블럼 미배선 — 유저결정 2026-07-28) */}
         <div className="mk-lookup-left">
-          <img className="mk-brand-logo" src={`${import.meta.env.BASE_URL}img/cow-mark-white.png`} alt="사르르목장" />
+          <img className="mk-brand-logo" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="사르르목장" />
           <div className="mk-lookup-ment">사르르목장 멤버십<br />이벤트에 참여해보세요!</div>
           {status === 'notfound' ? (
             <div className="mk-card mk-card-none mk-signup-mini">
