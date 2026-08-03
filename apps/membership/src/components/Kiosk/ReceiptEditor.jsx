@@ -5,9 +5,8 @@ import { useState, useMemo } from 'react'
 import {
   DEFAULT_TEMPLATE, validateTemplate, previewSequence, buildEscpos, escposToBase64, BLOCK_LABEL,
 } from '../../receipt/receiptTemplate'
+import { openRawbt, LS_KEY } from '../../receipt/print'   // ★저장키·인쇄 호출 = print.js 단일 소스
 import { todayStr } from './kioskUtils'
-
-const LS_KEY = 'mk-receipt-template'
 const SAMPLE = { name: '홍*동', date: '2026-08-01 14:30', token: 'SR7K2M9QX4T2', stamp: '3/10' }
 
 function loadTpl() {
@@ -62,6 +61,20 @@ export default function ReceiptEditor() {
       const bytes = buildEscpos(tpl, SAMPLE)
       setSavedMsg('저장됨 · ESC/POS ' + bytes.length + ' bytes (base64 ' + escposToBase64(bytes).length + '자)')
     } catch (e) { setSavedMsg('저장 거부: 생성기 오류 — ' + e.message) }
+  }
+
+  // ★테스트 인쇄 — 저장본이 아니라 **지금 편집 중인 템플릿**으로 쏜다(저장 전에도 실물 확인 가능).
+  //   결과는 단정하지 않는다(rawbt 스킴은 성공/실패를 안 알려준다 — print.js 주석).
+  const testPrint = () => {
+    const v = validateTemplate(tpl)
+    if (!v.ok) { setSavedMsg('인쇄 거부: ' + v.errors.join(', ')); return }
+    try {
+      const b64 = escposToBase64(buildEscpos(tpl, { ...SAMPLE, date: todayStr() + ' 14:30' }))
+      const r = openRawbt(b64)
+      setSavedMsg(r
+        ? '테스트 인쇄 요청됨 — 종이가 안 나오면 RawBT 설치/프린터 선택을 확인하세요.'
+        : '인쇄를 시작하지 못했습니다(스킴 차단).')
+    } catch (e) { setSavedMsg('인쇄 거부: 생성기 오류 — ' + e.message) }
   }
 
   return (
@@ -130,6 +143,8 @@ export default function ReceiptEditor() {
 
         <div className="mk-ed-actions">
           <button className="mk-signup-cta" onClick={save}>저장</button>
+          {/* ★현장 프린터 검증용 — 회원·티켓 없이 지금 화면의 템플릿 그대로 실인쇄를 쏜다. */}
+          <button className="mk-reset" onClick={testPrint}>테스트 인쇄</button>
           <button className="mk-reset" onClick={() => { setTpl(JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))); setSavedMsg('기본값 복원') }}>기본값</button>
           <button className="mk-reset" onClick={() => { navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(tpl, null, 2)); setSavedMsg('JSON 복사됨') }}>JSON 복사</button>
         </div>

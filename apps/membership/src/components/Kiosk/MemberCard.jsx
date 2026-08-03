@@ -1,10 +1,45 @@
 // 공용 회원 카드 — 브랜드 히어로(인사말)+본문(이벤트·참여내역·스탬프). 고객뷰·직원뷰 공용.
+import { useEffect, useRef, useState } from 'react'
 import { formatClaimPrefix, todayStr } from './kioskUtils'
+import { printReceipt } from '../../receipt/print'
 
 const EVENT_LABEL = '팝콘 이벤트'   // 이벤트명(태그 강조). 이벤트가 늘면 엔티티로 확장.
 const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크림(시안, 데이터모델=crm 조율).
 
-export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card' }) {
+// ★printable = **프린터가 달린 기기에서만 true**(키오스크 단말). 직원 노트북(StaffView)은 false 라
+//   rawbt: 스킴이 호출되지 않는다 — 프린터 없는 기기에서 스킴을 던지면 오류 페이지로 튈 수 있다.
+export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false }) {
+  // ★훅은 조기 return 보다 위에 — member 가 null 이어도 호출 순서가 바뀌면 안 된다(Rules of Hooks).
+  const printedRef = useRef(null)          // 이미 인쇄를 시도한 토큰(중복 인쇄 방지)
+  const [printMsg, setPrintMsg] = useState('')
+
+  const ticketForPrint = member
+    ? (member._ticket || (member._todayTickets || []).find((t) => t.channel === 'kiosk' && t.state === 'issued') || null)
+    : null
+  const printToken = ticketForPrint ? ticketForPrint.token : null
+
+  const doPrint = (tok, retry) => {
+    if (!tok || !member) return
+    const r = printReceipt({
+      name: member.display_name || '',
+      date: todayStr(),
+      token: tok,
+      stamp: member.stamp ? `${member.stamp.current_stamps ?? 0}/${member.stamp.threshold ?? STAMP_GOAL}` : '',
+    })
+    // ★"인쇄됨"이라 단정하지 않는다 — 스킴 호출은 결과를 알려주지 않는다(print.js 주석).
+    setPrintMsg(r.ok
+      ? (retry ? '인쇄를 다시 요청했습니다.' : '영수증을 인쇄 중입니다.')
+      : '인쇄를 시작하지 못했습니다. 아래 번호를 카운터에 보여주세요.')
+  }
+
+  // 발권된 토큰이 새로 생기면 1회 자동 인쇄(같은 토큰 재렌더로 재인쇄되지 않게 ref 로 잠근다).
+  useEffect(() => {
+    if (!printable || !printToken) return
+    if (printedRef.current === printToken) return
+    printedRef.current = printToken
+    doPrint(printToken, false)
+  }, [printable, printToken])   // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!member) return null
 
   // ★티켓 모델(0018): today_event_claimed = "오늘 회수됨"(스탬프 확정). 발권됨(수령 대기)은 별도 상태.
@@ -53,6 +88,13 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
               <div className="mk-ticket-title">참여권 발권 완료 — 카운터에서 보여주세요</div>
               <div className="mk-ticket-token">{issuedTicket.token}</div>
               <div className="mk-ticket-hint">유효기간: 오늘({issuedTicket.event_date || today})</div>
+              {/* ★인쇄는 편의, 토큰이 정본 — 안 나와도 위 번호로 카운터 진행 가능. */}
+              {printable && (
+                <>
+                  {printMsg && <div className="mk-ticket-hint">{printMsg}</div>}
+                  <button className="mk-reset" onClick={() => doPrint(issuedTicket.token, true)}>영수증 다시 인쇄</button>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -76,7 +118,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                 {Array.from({ length: goal }).map((_, i) => (
                   <span key={i} className={`mk-stamp-cell ${i < filled ? 'is-on' : ''} ${i === filled - 1 && member._justClaimed ? 'is-new' : ''}`}>
                     {i < filled && (
-                      <img className="mk-stamp-ink" src={`${import.meta.env.BASE_URL}img/cow-mark-white.png`} alt="" style={{ transform: `rotate(${((i * 37) % 17) - 8}deg)` }} />
+                      <img className="mk-stamp-ink" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="" style={{ transform: `rotate(${((i * 37) % 17) - 8}deg)` }} />
                     )}
                   </span>
                 ))}

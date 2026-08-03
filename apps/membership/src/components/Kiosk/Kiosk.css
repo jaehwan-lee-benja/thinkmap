@@ -76,6 +76,31 @@
   color-scheme: light;
 }
 
+/* ★고객 키오스크 = 라이트모드 고정(유저 지시 2026-08-03).
+   기기·브라우저 다크 설정과 무관하게 항상 라이트. 매장 조명 환경 + 정본 네이비 마스코트 대비 확보.
+   .mk-app 스코프에 토큰을 직접 얹어 :root 기본(다크) 상속을 이긴다.
+   ※직원 노트북(staff/scan/editor)은 손대지 않는다 — 기존 다크 유지(별도 기기·검증 완료분). */
+.mk-app.mk-role-customer {
+  --md-surface: #FBF8FD;
+  --md-surface-container-low: #F5F1F7;
+  --md-surface-container: #EFEBF1;
+  --md-surface-container-high: #E9E5EC;
+  --md-surface-container-highest: #E3DFE6;
+  --md-on-surface: #1A1C1E;
+  --md-on-surface-variant: #43474E;
+  --md-outline: #73777F;
+  --md-outline-variant: #C3C7CF;
+  --md-primary: #2D4B82;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #D9E3F5;
+  --md-on-primary-container: #10233F;
+  --md-alive: #3CB44B;
+  --md-on-alive: #FFFFFF;
+  --md-error: #BA1A1A;
+  --md-on-error: #FFFFFF;
+  color-scheme: light;
+}
+
 /* 타이틀 = G마켓산스 Bold(확정). 인사말·화면 제목·CTA 타이틀. */
 .mk-greeting, .mk-signup-head h2, .mk-cta-title, .mk-ml-head h2, .pv-login h1 {
   font-family: var(--mk-font-title); font-weight: 700; letter-spacing: 0;
@@ -634,11 +659,15 @@
 @media (orientation: portrait) {
   /* 조회 첫 화면: 세로 스택. 상단 브랜딩·안내(압축) → 하단 번호패드(주인공, 엄지영역). */
   .mk-role-customer .mk-main { overflow-y: auto; overflow-x: hidden; }
+  /* ★실기기 교정(2026-08-03): "조회 버튼 아래가 잘린다".
+     원인 = `height:100%` 고정이라 내용이 가용높이를 넘으면 넘친 만큼 잘렸다(Fully Kiosk 풀스크린의
+     실가용 높이가 우리 가정보다 짧다). → **min-height 로 바꿔 넘치면 스크롤되게** 하고,
+     하단 여유 패딩을 둬 조회 버튼이 화면 끝에 붙지 않게 한다. 안 넘치면 여전히 무스크롤 1화면. */
   .mk-role-customer .mk-lookup-split {
     flex-direction: column; align-items: center; justify-content: center;
     gap: clamp(10px, 2.2vh, 28px);
-    width: 100%; height: 100%; max-width: none; margin: 0 auto;
-    padding: clamp(10px, 3vh, 40px) 18px;
+    width: 100%; min-height: 100%; height: auto; max-width: none; margin: 0 auto;
+    padding: clamp(10px, 3vh, 40px) 18px clamp(24px, 4vh, 48px);
   }
   .mk-role-customer .mk-lookup-left {
     flex: 0 0 auto; align-items: center; text-align: center;
@@ -655,6 +684,8 @@
   .mk-role-customer .mk-pad-xl .mk-pad-display { min-height: clamp(58px, 8.5vh, 96px); font-size: clamp(32px, 6vw, 44px); }
   .mk-role-customer .mk-pad-xl .mk-pad-grid { gap: clamp(9px, 1.4vh, 18px); }
   .mk-role-customer .mk-pad-xl .mk-key { min-height: clamp(54px, 9vh, 108px); font-size: clamp(30px, 6vw, 46px); }
+  /* ★실기기 교정: "전체지움" 글씨가 너무 커서 두 줄로 감겼다 → 축소 + 줄바꿈 금지(보조키는 숫자보다 작게). */
+  .mk-role-customer .mk-pad-xl .mk-key-aux { font-size: clamp(14px, 3vw, 20px); white-space: nowrap; }
   .mk-role-customer .mk-pad-xl .mk-pad-submit { min-height: clamp(52px, 7vh, 88px); font-size: clamp(22px, 4vw, 30px); }
 
   /* 조회 결과: 세로 2단 → 세로 스택(인사말 위 · 이벤트/내역 아래). 큰 글씨 유지. */
