@@ -32,6 +32,7 @@ export default function ScanView() {
   const [result, setResult] = useState(null)   // {token, state, channel, display_name, stamp, event_date}
   const [phase, setPhase] = useState('idle')   // idle | looking | found | error | redeemed
   const [errMsg, setErrMsg] = useState('')
+  const [printMsg, setPrintMsg] = useState('')   // 인쇄 결과는 phase 와 무관하게 표시(M9)
   const [busy, setBusy] = useState(false)
   const inputRef = useRef(null)
   // ★스캔 버퍼 = 입력의 **단일 정본**. 화면 input 의 value 는 이 버퍼의 표시일 뿐이고,
@@ -52,7 +53,11 @@ export default function ScanView() {
 
   const doLookup = useCallback(async (tok) => {
     const v = String(tok || '').trim().toUpperCase()
-    if (v.length < 12) return
+    // ★무피드백 금지(2026-08-04): 짧은 입력을 조용히 삼키면 유실 계열 실패가 전부 침묵한다.
+    if (v.length < 12) {
+      if (v.length > 0) { setErrMsg(`토큰이 짧습니다(${v.length}/12) — 다시 스캔해 주세요.`); setPhase('error'); setResult(null) }
+      return
+    }
     setPhase('looking'); setErrMsg(''); setResult(null)
     try {
       const r = await lookupTicket(v)
@@ -64,8 +69,10 @@ export default function ScanView() {
       setErrMsg(m.indexOf('not_found') >= 0 ? '등록되지 않은 티켓' : m.indexOf('bad_token') >= 0 ? '잘못된 토큰 형식' : m || '조회 실패')
       setPhase('error')
     }
-    setBuf('')
-  }, [setBuf])
+    // ★여기서 버퍼를 지우지 않는다(2026-08-04 교정). Enter 핸들러가 이미 비웠고,
+    //   await 뒤에 또 지우면 **조회 대기 중 들어온 다음 스캔이 통째로 삭제**된다
+    //   (줄 서 있을 때 재현: A 조회 중 B 스캔 → B 유실 → 화면엔 A 결과가 남아 직원이 오인).
+  }, [])
 
   const doRedeem = useCallback(async () => {
     if (!result?.token || busy) return
@@ -162,9 +169,10 @@ export default function ScanView() {
                 token: result.token,
                 stamp: stamp ? `${stamp.current_stamps}/${stamp.threshold}` : '',
               })
-              setErrMsg(r.ok ? '' : '인쇄를 시작하지 못했습니다 — RawBT·프린터 연결 확인')
+              setPrintMsg(r.ok ? '인쇄를 요청했습니다 — 종이가 나오는지 확인하세요.' : '인쇄를 시작하지 못했습니다 — RawBT·프린터 연결 확인')
             }}
           >영수증 인쇄</button>
+          {printMsg && <div className="mk-scan-stamp">{printMsg}</div>}
           <button className="mk-reset" onClick={() => { setResult(null); setPhase('idle'); setErrMsg(''); setBuf('') }}>다음 스캔</button>
         </div>
       )}

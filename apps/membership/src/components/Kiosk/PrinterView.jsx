@@ -35,9 +35,9 @@ export default function PrinterView({ store }) {
   const doPrint = useCallback((job, manual) => {
     const r = printReceipt({ name: job.name || '', date: job.date || todayStr(), token: job.token, stamp: job.stamp || '' })
     setMsg(r.ok
-      ? (manual ? '다시 인쇄를 요청했습니다.' : `인쇄 요청: ${job.token}`)
+      ? (manual ? '다시 인쇄를 요청했습니다 — 종이를 확인하세요.' : `인쇄 요청: ${job.token} — 종이를 확인하세요.`)
       : '인쇄를 시작하지 못했습니다 — RawBT 설치·프린터 연결을 확인하세요.')
-    setJobs((prev) => prev.map((j) => (j.token === job.token ? { ...j, status: r.ok ? 'printed' : 'failed', printedAt: new Date().toISOString() } : j)))
+    setJobs((prev) => prev.map((j) => (j.token === job.token ? { ...j, status: r.ok ? 'requested' : 'failed', printedAt: new Date().toISOString() } : j)))
     return r.ok
   }, [])
 
@@ -90,6 +90,9 @@ export default function PrinterView({ store }) {
         </span>
       </label>
 
+      {/* ★룸 불일치는 현장에서 가장 나기 쉬운 설정 실수인데 종전엔 단서가 0이었다(영원히 "대기 중…").
+          → 구독 중인 매장 룸을 항상 노출해 키오스크 쪽과 눈으로 대조할 수 있게 한다. */}
+      <div className="mk-note">매장 룸: <b>{store || '(없음)'}</b> — 키오스크와 같은 값이어야 합니다.</div>
       {msg && <div className="mk-note">{msg}</div>}
 
       {jobs.length === 0 ? (
@@ -102,7 +105,7 @@ export default function PrinterView({ store }) {
               <li key={j.token} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <span>
                   <b>{j.token}</b>{j.name ? ` · ${j.name}` : ''}
-                  {j.status === 'failed' ? ' · 실패' : j.status === 'printed' ? ' · 인쇄됨' : ' · 대기'}
+                  {j.status === 'failed' ? ' · 실패' : j.status === 'requested' ? ' · 요청함' : ' · 대기'}
                 </span>
                 <button className="mk-reset" onClick={() => doPrint(j, true)}>인쇄</button>
               </li>

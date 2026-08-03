@@ -32,8 +32,21 @@ export function openRawbt(b64) {
   return openScheme('rawbt:base64,' + b64)
 }
 
-// rawbt: 스킴 호출. location.href 가 막히는 WebView 를 위해 iframe 폴백을 함께 쓴다.
+// rawbt: 스킴 호출.
+// ★2026-08-04 교정 — 종전 구조의 두 결함:
+//   ⑴ `document.createElement`/`appendChild` 는 실질적으로 throw 하지 않으므로 catch 안의
+//      `location.href` 폴백이 **도달 불가능한 죽은 코드**였다. 즉 실제로 쓰이는 경로는 iframe 뿐.
+//   ⑵ Chrome(Android)은 **사용자 제스처 없는 iframe 발 외부 스킴을 차단**한다 → 자동 인쇄가
+//      조용히 실패할 수 있는데도 항상 true 를 돌려줘 화면이 "인쇄됨"이라 **거짓 보고**했다.
+// ⇒ 제스처가 살아 있으면(버튼 클릭 등) **location.href 를 우선** 쓰고(차단되지 않는 정공법),
+//   제스처가 없으면 iframe 으로 시도한다. 그리고 **성공을 주장하지 않는다** — 반환값은
+//   "요청을 보냈다"는 뜻이고, 화면 문구도 "요청함/종이 확인"으로 낮춘다(호출부 참조).
 function openScheme(url) {
+  var gestured = false
+  try { gestured = !!(navigator.userActivation && navigator.userActivation.isActive) } catch (e) {}
+  if (gestured) {
+    try { window.location.href = url; return true } catch (e) { /* 아래 iframe 으로 폴백 */ }
+  }
   try {
     var f = document.createElement('iframe')
     f.style.display = 'none'

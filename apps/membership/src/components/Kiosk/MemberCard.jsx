@@ -30,7 +30,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
     })
     // ★"인쇄됨"이라 단정하지 않는다 — 스킴 호출은 결과를 알려주지 않는다(print.js 주석).
     setPrintMsg(r.ok
-      ? (retry ? '인쇄를 다시 요청했습니다.' : '영수증을 인쇄 중입니다.')
+      ? (retry ? '인쇄를 다시 요청했습니다 — 종이를 확인하세요.' : '인쇄를 요청했습니다 — 종이를 확인하세요.')
       : '인쇄를 시작하지 못했습니다. 아래 번호를 카운터에 보여주세요.')
   }
 
@@ -40,11 +40,17 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   useEffect(() => {
     if (!showQr || !printToken) { setQrUrl(''); return }
     let dead = false
-    const url = buildTicketUrl({
-      token: printToken,
-      name: member?.display_name || null,
-      date: (ticketForPrint && ticketForPrint.event_date) || null,
-    })
+    // ★동기 throw 방어(2026-08-04): buildTicketUrl 은 TextEncoder/btoa 를 쓴다. 여기서 던지면
+    //   effect 예외가 올라가 **고객 화면 서브트리가 통째로 언마운트**된다(에러 바운더리 없음).
+    //   하필 발권 성공 직후에만 터지는 경로라 방어한다 — QR 은 보조 경로이므로 실패해도 조용히 생략.
+    let url = null
+    try {
+      url = buildTicketUrl({
+        token: printToken,
+        name: member?.display_name || null,
+        date: (ticketForPrint && ticketForPrint.event_date) || null,
+      })
+    } catch (e) { url = null }
     if (!url) return
     QRCode.toDataURL(url, { margin: 1, width: 320, errorCorrectionLevel: 'M' })
       .then((d) => { if (!dead) setQrUrl(d) })

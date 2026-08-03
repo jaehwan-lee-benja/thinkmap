@@ -719,16 +719,20 @@
 .mk-tv-title b { color: var(--md-primary); }
 .mk-tv-name { margin-top: 6px; font-size: clamp(15px, 4vw, 19px); color: var(--md-on-surface-variant); }
 /* ★바코드 판: 항상 흰 배경 + 검정 바(테마·브랜드색 무관 — 판독 실패 방지) */
+/* ★카드는 **가용 폭까지 늘린다**(2026-08-04): 콘텐츠 폭에 갇히면 바코드가 항상 최소 모듈폭으로만
+   그려진다(캔버스 폭이 카드 폭에서 파생되는데 카드 폭이 캔버스에서 파생 = 순환). 늘려 두면
+   폭이 되는 기기에서 모듈폭 2배로 커져 판독 여유가 생긴다. overflow-x 는 최후 안전망일 뿐이다. */
 .mk-tv-barcode {
   background: #fff; padding: 16px 12px; border-radius: var(--md-radius-md);
   box-shadow: var(--md-elev-2); display: flex; flex-direction: column; align-items: center; gap: 10px;
-  max-width: 100%; overflow-x: auto;
+  width: 100%; max-width: 560px; box-sizing: border-box; overflow-x: auto;
 }
 .mk-tv-barcode canvas { display: block; image-rendering: pixelated; }
 .mk-tv-token {
   font-family: monospace; font-size: clamp(18px, 5vw, 24px); letter-spacing: 3px;
   font-weight: 700; color: #111;
 }
+.mk-tv-bcerr { color: #B3261E; font-size: 15px; font-weight: 700; padding: 18px 8px; text-align: center; }
 .mk-tv-guide { font-size: clamp(15px, 4vw, 18px); line-height: 1.6; color: var(--md-on-surface); }
 .mk-tv-exp { font-size: 14px; color: var(--md-on-surface-variant); }
 
