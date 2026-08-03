@@ -6,6 +6,7 @@ import CustomerView from './CustomerView'
 import StaffView from './StaffView'
 import ReceiptEditor from './ReceiptEditor'
 import ScanView from './ScanView'
+import PrinterView from './PrinterView'
 import IdleReset from './IdleReset'
 import { readRoleAndStore } from './kioskUtils'
 import './Kiosk.css'
@@ -23,6 +24,7 @@ export default function MembershipKiosk({ session }) {
         {role === 'staff' && <StaffView store={store} />}
         {role === 'editor' && <ReceiptEditor />}
         {role === 'scan' && <ScanView />}
+        {role === 'printer' && <PrinterView store={store} />}
         {role === 'customer' && <CustomerView store={store} />}
       </main>
     </div>

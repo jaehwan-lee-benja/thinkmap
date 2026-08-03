@@ -4,6 +4,8 @@
 //   이미 회수/만료/없음 = 큰 경고(색으로 즉시 판별). 수기 토큰 입력 겸용(인쇄 물리경로 확정 전 검증 경로).
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { lookupTicket, redeemTicket, CONTRACT_PENDING } from '../../api/membership'
+import { printReceipt } from '../../receipt/print'
+import { todayStr } from './kioskUtils'
 
 const CHANNEL_LABEL = { kiosk: '키오스크', game: '게임 쿠폰' }
 const STATE_LABEL = { issued: '유효 — 제공 가능', redeemed: '이미 회수됨', expired: '만료됨', voided: '폐기됨' }
@@ -150,6 +152,19 @@ export default function ScanView() {
               {busy ? '처리 중…' : '팝콘 제공 완료'}
             </button>
           )}
+          {/* ★영수증 인쇄 — 이 기기(프린터 붙은 폰)에서 바로 출력. 실시간 브리지가 꺼져 있어도
+              토큰만 있으면 언제든 인쇄 가능한 **복구 경로**(게이트 없음). */}
+          <button
+            className="mk-reset"
+            onClick={() => {
+              const r = printReceipt({
+                name: result.display_name || '', date: result.event_date || todayStr(),
+                token: result.token,
+                stamp: stamp ? `${stamp.current_stamps}/${stamp.threshold}` : '',
+              })
+              setErrMsg(r.ok ? '' : '인쇄를 시작하지 못했습니다 — RawBT·프린터 연결 확인')
+            }}
+          >영수증 인쇄</button>
           <button className="mk-reset" onClick={() => { setResult(null); setPhase('idle'); setErrMsg(''); setBuf('') }}>다음 스캔</button>
         </div>
       )}
