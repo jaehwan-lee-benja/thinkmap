@@ -14,22 +14,33 @@ export default function MembershipApp() {
   const [denied, setDenied] = useState(false)
 
   // 로그인 성공 → 역할 확인. 미인가면 signOut(→ session null → 로그인 화면 + 거부 안내).
+  // ★2026-08-04 교정 2건(현장 치명):
+  //   ① **네트워크 순단을 «권한 없음»으로 오판해 매장 태블릿이 스스로 로그아웃**했다.
+  //      postgrest 는 fetch 실패도 resolve 하므로 `data!==true` 하나로 거부를 단정하면 안 된다.
+  //      ⇒ **명시적으로 false 가 온 경우에만** 거부. 오류·미확정이면 **세션을 유지**한다(매장이 죽지 않게).
+  //   ② deps 가 `[session]` 이라 **토큰 갱신·절전 복귀 때마다 authz 가 checking 으로 되돌아가**
+  //      키오스크가 통째로 언마운트됐다(입력 폼·인쇄 대기목록 초기화). ⇒ 사용자 id 기준으로만 재검사.
+  const userId = session?.user?.id || null
   useEffect(() => {
-    if (!session) { setAuthz('idle'); return }
+    if (!userId) { setAuthz('idle'); return }
     let alive = true
-    setAuthz('checking')
-    // allSettled: is_store RPC 가 어떤 이유로 실패해도 is_master 판정은 살린다(오탐 방지).
+    setAuthz((prev) => (prev === 'ok' ? 'ok' : 'checking'))
     Promise.allSettled([supabase.rpc('is_master'), supabase.rpc('is_store')])
       .then(([m, s]) => {
         if (!alive) return
-        const isMaster = m.status === 'fulfilled' && m.value?.data === true
-        const isStore = s.status === 'fulfilled' && s.value?.data === true
-        if (isMaster || isStore) { setAuthz('ok') }
-        else { setDenied(true); setAuthz('idle'); supabase.auth.signOut() }
+        const mOk = m.status === 'fulfilled' && !m.value?.error
+        const sOk = s.status === 'fulfilled' && !s.value?.error
+        const isMaster = mOk && m.value?.data === true
+        const isStore = sOk && s.value?.data === true
+        if (isMaster || isStore) { setAuthz('ok'); return }
+        // ★둘 중 하나라도 «응답을 못 받았으면» 거부가 아니다 — 통신 문제일 수 있다.
+        if (!mOk || !sOk) { setAuthz((prev) => (prev === 'ok' ? 'ok' : 'idle')); return }
+        // 둘 다 정상 응답 + 둘 다 false = 진짜 미인가
+        setDenied(true); setAuthz('idle'); supabase.auth.signOut()
       })
-      .catch(() => { if (alive) { setDenied(true); setAuthz('idle'); supabase.auth.signOut() } })
+      .catch(() => { if (alive) setAuthz((prev) => (prev === 'ok' ? 'ok' : 'idle')) })  // 예외=통신 문제로 본다
     return () => { alive = false }
-  }, [session])
+  }, [userId])
 
   const login = () => { setDenied(false); handleGoogleLogin() }
 
