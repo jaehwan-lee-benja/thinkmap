@@ -9,31 +9,68 @@
 //   만료도 서버 판정이라 위조·재사용 이득이 없다. 담기는 PII 는 **마스킹명**뿐이다.
 //
 // ★바코드는 **실 CODE128**(game 검증본 이식)이다 — 기존 FakeBarcode 는 프리뷰용이라 스캔되지 않는다.
-import { useEffect, useRef, useState } from 'react'
-import { render as renderCode128 } from '../../receipt/code128'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { render as renderCode128, widths } from '../../receipt/code128'
 import { decodeTicketPayload } from './ticketLink'
 
 export default function TicketView() {
   const canvasRef = useRef(null)
   const [t, setT] = useState(null)
   const [err, setErr] = useState('')
+  const [barcodeErr, setBarcodeErr] = useState('')   // 바코드만 실패 — 토큰은 계속 보여준다(M5)
 
+  // ★hashchange 를 듣는다(2026-08-04 교정): 티켓 페이지가 열린 채 **새 QR을 찍으면**
+  //   origin·path·search 가 같고 fragment 만 달라 **리로드가 일어나지 않는다**(same-document navigation).
+  //   브라우저가 기존 탭을 재사용하면 옛 토큰이 그대로 남아 만료·회수된 티켓을 스캔하게 된다.
   useEffect(() => {
-    const data = decodeTicketPayload(window.location.hash)
-    if (!data || !data.token) { setErr('티켓 정보를 읽을 수 없습니다. 키오스크에서 QR을 다시 스캔해 주세요.'); return }
-    setT(data)
+    const load = () => {
+      const data = decodeTicketPayload(window.location.hash)
+      if (!data || !data.token) { setErr('티켓 정보를 읽을 수 없습니다. 키오스크에서 QR을 다시 스캔해 주세요.'); return }
+      setErr(''); setBarcodeErr(''); setT(data)
+    }
+    load()
+    window.addEventListener('hashchange', load)
+    return () => window.removeEventListener('hashchange', load)
   }, [])
 
   // 바코드 렌더 — 화면 폭에 맞춰 **정수 모듈폭**으로만(소수 배율=바 경계 번짐=판독 실패).
-  useEffect(() => {
-    if (!t?.token || !canvasRef.current) return
+  // ★폭 산출은 **실제 컨테이너를 재서** 한다(2026-08-04 교정).
+  //   종전엔 `floor(avail/200)` 상수라 module 이 항상 2로 고정돼 캔버스가 374px 로 굳었고,
+  //   360~412px 폰에서 **바코드가 카드를 넘쳐 잘렸다**(측정: 360/375/390/412 전부 초과, 430만 맞음).
+  //   = 흔한 폰 대부분에서 스캔 불가. innerWidth 로 추정하면 카드 자체 padding 을 또 빠뜨리므로,
+  //   추정하지 말고 **부모의 실제 내부 폭**을 잰다(패딩 변경에도 자가 교정).
+  const drawBarcode = useCallback(() => {
+    const cv = canvasRef.current
+    if (!t?.token || !cv) return
     try {
-      const avail = Math.min((window.innerWidth || 360) - 32, 520)
-      // widths 총합 + 좌우 quiet zone(10모듈씩)을 기준으로 정수 모듈폭 산출
-      const mod = Math.max(2, Math.floor(avail / 200))
-      renderCode128(canvasRef.current, t.token, { module: mod, height: 120, quiet: 10 })
-    } catch (e) { setErr('바코드를 그릴 수 없습니다: ' + (e?.message || '')) }
+      const host = cv.parentElement
+      const cs = host ? getComputedStyle(host) : null
+      const avail = host
+        ? host.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0)
+        : (window.innerWidth || 360) - 56
+      const QUIET = 10
+      const w = widths(t.token)
+      let total = 0
+      for (let i = 0; i < w.length; i++) total += w[i]
+      const mod = Math.max(1, Math.floor(avail / (total + QUIET * 2)))
+      renderCode128(cv, t.token, { module: mod, height: 120, quiet: QUIET })
+      setErr('')
+    } catch (e) {
+      // ★실패해도 **토큰은 화면에 남긴다**(아래 렌더 참조) — 토큰이 정본이고 수기 입력으로 회수 가능하다.
+      setBarcodeErr('바코드를 그릴 수 없습니다. 아래 번호를 카운터에 보여주세요.')
+    }
   }, [t])
+
+  useEffect(() => {
+    drawBarcode()
+    // 회전·창 크기 변경 시 다시 맞춘다(세로↔가로에서 잘리지 않게).
+    window.addEventListener('resize', drawBarcode)
+    window.addEventListener('orientationchange', drawBarcode)
+    return () => {
+      window.removeEventListener('resize', drawBarcode)
+      window.removeEventListener('orientationchange', drawBarcode)
+    }
+  }, [drawBarcode])
 
   // 화면 밝기·자동잠금 — 스캔되는 동안 화면이 꺼지지 않게(지원 기기만).
   useEffect(() => {
@@ -56,7 +93,9 @@ export default function TicketView() {
 
       <div className="mk-tv-barcode">
         {/* 흑백 고정 — 판독 우선(브랜드색 금지) */}
-        <canvas ref={canvasRef} />
+        {barcodeErr
+          ? <div className="mk-tv-bcerr">{barcodeErr}</div>
+          : <canvas ref={canvasRef} />}
         <div className="mk-tv-token">{t.token}</div>
       </div>
 

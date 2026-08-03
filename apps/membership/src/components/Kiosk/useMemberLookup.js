@@ -1,6 +1,6 @@
 // 회원 조회·적립·이력 공용 훅 — 직원 검색(로컬)·고객 셀프검색(로컬)·직원 푸시(원격) 모두 이걸 쓴다.
 // currentMember 를 로컬 조회 결과 또는 원격 브로드캐스트 payload 로 둘 다 세팅 가능(이중 경로, 유저결정 A).
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { lookupMember, getEventHistory, getStampStatus, redeemReward, issueTicketFor, todayTickets } from '../../api/membership'
 
 const EVENT_TYPE = 'popcorn'
@@ -8,6 +8,7 @@ const EVENT_TYPE = 'popcorn'
 export function useMemberLookup() {
   const [status, setStatus] = useState('idle') // idle | loading | found | notfound | error
   const [member, setMember] = useState(null)
+  const currentIdRef = useRef(null)   // ★현재 화면의 회원 — 늦게 온 응답을 버리는 기준
   const [history, setHistory] = useState([])
   const [claiming, setClaiming] = useState(false)
   const [redeeming, setRedeeming] = useState(false)
@@ -16,6 +17,9 @@ export function useMemberLookup() {
   const loadHistory = useCallback(async (memberId) => {
     try {
       const h = await getEventHistory(memberId, EVENT_TYPE)
+      // ★대상 가드(2026-08-04): 응답이 늦게 오면 **이미 다른 회원**을 보고 있을 수 있다.
+      //   가드가 없어 앞 손님의 참여내역·스탬프·티켓이 뒤 손님 카드에 붙었다(타인 PII 노출).
+      if (currentIdRef.current && currentIdRef.current !== memberId) return
       setHistory(Array.isArray(h?.events) ? h.events : [])
     } catch { setHistory([]) }
   }, [])
@@ -33,7 +37,7 @@ export function useMemberLookup() {
   const loadToday = useCallback(async (memberId) => {
     try {
       const t = await todayTickets(memberId)
-      setMember((prev) => (prev ? { ...prev, _todayTickets: Array.isArray(t?.tickets) ? t.tickets : [] } : prev))
+      setMember((prev) => (prev && prev.member_id === memberId ? { ...prev, _todayTickets: Array.isArray(t?.tickets) ? t.tickets : [] } : prev))
     } catch { /* noop — 가교/미배선 시 표시 생략 */ }
   }, [])
 
@@ -46,7 +50,7 @@ export function useMemberLookup() {
     setStatus('loading'); setErrMsg(''); setHistory([])
     try {
       const r = await lookupMember(phone)
-      if (r?.found) { setMember(r); setStatus('found'); loadHistory(r.member_id); loadToday(r.member_id); return r }
+      if (r?.found) { currentIdRef.current = r.member_id; setHistory([]); setMember(r); setStatus('found'); loadHistory(r.member_id); loadToday(r.member_id); return r }
       setMember(null); setStatus('notfound'); return null
     } catch (e) {
       setStatus('error'); setErrMsg(e?.message || '조회 실패'); return null
@@ -56,7 +60,11 @@ export function useMemberLookup() {
   // 원격 푸시(직원→고객 브로드캐스트 payload)로 직접 세팅.
   const setMemberDirect = useCallback((payload) => {
     if (!payload?.member_id) return
-    setMember(payload); setStatus('found'); setErrMsg(''); loadHistory(payload.member_id); loadToday(payload.member_id)
+    // ★같은 회원이면 **교체가 아니라 병합**: 직원이 다시 푸시했다고 손님 화면의 발권 토큰·QR 이 사라지면 안 된다.
+    const same = currentIdRef.current === payload.member_id
+    currentIdRef.current = payload.member_id
+    if (!same) setHistory([])
+    setMember((prev) => (same && prev ? { ...prev, ...payload } : payload)); setStatus('found'); setErrMsg(''); loadHistory(payload.member_id); loadToday(payload.member_id)
   }, [loadHistory, loadToday])
 
   // ★티켓 모델(0018 라이브): 참여 버튼 = 즉시적립이 아니라 "발권" — 스탬프는 카운터 회수 시 적립.

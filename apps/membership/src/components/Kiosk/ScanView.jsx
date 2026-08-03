@@ -32,6 +32,7 @@ export default function ScanView() {
   const [result, setResult] = useState(null)   // {token, state, channel, display_name, stamp, event_date}
   const [phase, setPhase] = useState('idle')   // idle | looking | found | error | redeemed
   const [errMsg, setErrMsg] = useState('')
+  const [printMsg, setPrintMsg] = useState('')   // 인쇄 결과는 phase 와 무관하게 표시(M9)
   const [busy, setBusy] = useState(false)
   const inputRef = useRef(null)
   // ★스캔 버퍼 = 입력의 **단일 정본**. 화면 input 의 value 는 이 버퍼의 표시일 뿐이고,
@@ -52,7 +53,11 @@ export default function ScanView() {
 
   const doLookup = useCallback(async (tok) => {
     const v = String(tok || '').trim().toUpperCase()
-    if (v.length < 12) return
+    // ★무피드백 금지(2026-08-04): 짧은 입력을 조용히 삼키면 유실 계열 실패가 전부 침묵한다.
+    if (v.length < 12) {
+      if (v.length > 0) { setErrMsg(`토큰이 짧습니다(${v.length}/12) — 다시 스캔해 주세요.`); setPhase('error'); setResult(null) }
+      return
+    }
     setPhase('looking'); setErrMsg(''); setResult(null)
     try {
       const r = await lookupTicket(v)
@@ -64,15 +69,21 @@ export default function ScanView() {
       setErrMsg(m.indexOf('not_found') >= 0 ? '등록되지 않은 티켓' : m.indexOf('bad_token') >= 0 ? '잘못된 토큰 형식' : m || '조회 실패')
       setPhase('error')
     }
-    setBuf('')
-  }, [setBuf])
+    // ★여기서 버퍼를 지우지 않는다(2026-08-04 교정). Enter 핸들러가 이미 비웠고,
+    //   await 뒤에 또 지우면 **조회 대기 중 들어온 다음 스캔이 통째로 삭제**된다
+    //   (줄 서 있을 때 재현: A 조회 중 B 스캔 → B 유실 → 화면엔 A 결과가 남아 직원이 오인).
+  }, [])
 
   const doRedeem = useCallback(async () => {
     if (!result?.token || busy) return
+    // ★대상 고정(2026-08-04): 회수 중에 다음 티켓이 스캔되면 응답이 **엉뚱한 티켓 카드에 얹혔다**.
+    //   진입 시점 토큰을 캡처해, 화면이 그 티켓일 때만 반영한다.
+    const tok = result.token
+    const sameTicket = (prev) => !!prev && prev.token === tok
     setBusy(true); setErrMsg('')
     try {
-      const r = await redeemTicket(result.token)
-      if (r?.ok) { setResult((prev) => ({ ...prev, state: 'redeemed', stamp: r.stamp || prev.stamp, _justRedeemed: true })); setPhase('redeemed') }
+      const r = await redeemTicket(tok)
+      if (r?.ok) { setResult((prev) => (sameTicket(prev) ? { ...prev, state: 'redeemed', stamp: r.stamp || prev.stamp, _justRedeemed: true } : prev)); setPhase((ph) => (sameTicket(result) ? 'redeemed' : ph)) }
       else {
         setErrMsg(STATE_LABEL[r?.reason === 'already_redeemed' ? 'redeemed' : r?.reason] || r?.reason || '회수 실패')
         if (r?.reason === 'already_redeemed') setResult((prev) => ({ ...prev, state: 'redeemed' }))
@@ -135,10 +146,15 @@ export default function ScanView() {
         <div className="mk-scan-card mk-scan-bad"><div className="mk-scan-state">✗ {errMsg}</div></div>
       )}
 
+      {/* ★실패를 초록 «유효»로 보여주면 안 된다(2026-08-04): 401·429·순단으로 회수가 실패했는데
+            화면이 그대로 "✓ 유효 — 제공 가능"이면 **팝콘이 무료로 나가고 스탬프는 안 쌓인다**.
+            phase==='error' 를 최우선으로 판정한다. */}
       {result && (
-        <div className={`mk-scan-card ${result.state === 'issued' ? 'mk-scan-ok' : phase === 'redeemed' ? 'mk-scan-done' : 'mk-scan-bad'}`}>
+        <div className={`mk-scan-card ${phase === 'error' ? 'mk-scan-bad' : result.state === 'issued' ? 'mk-scan-ok' : phase === 'redeemed' ? 'mk-scan-done' : 'mk-scan-bad'}`}>
           <div className="mk-scan-state">
-            {phase === 'redeemed' ? '✓ 회수 완료 — 팝콘 제공' : (result.state === 'issued' ? '✓ ' : '✗ ') + (STATE_LABEL[result.state] || result.state)}
+            {phase === 'error' ? `✗ 회수 실패 — ${errMsg || '다시 시도하세요'}`
+              : phase === 'redeemed' ? '✓ 회수 완료 — 팝콘 제공'
+              : (result.state === 'issued' ? '✓ ' : '✗ ') + (STATE_LABEL[result.state] || result.state)}
           </div>
           <div className="mk-scan-meta">
             <span>{result.display_name || '-'}</span>
@@ -147,7 +163,7 @@ export default function ScanView() {
           </div>
           {stamp && <div className="mk-scan-stamp">스탬프 {stamp.current_stamps}/{stamp.threshold}{stamp.rewards_available > 0 ? ` · 🍦 수령가능 ${stamp.rewards_available}` : ''}</div>}
           {errMsg && phase === 'error' && <div className="mk-scan-warn">{errMsg}</div>}
-          {result.state === 'issued' && phase === 'found' && (
+          {result.state === 'issued' && phase !== 'redeemed' && (
             <button className="mk-scan-redeem" onClick={doRedeem} disabled={busy}>
               {busy ? '처리 중…' : '팝콘 제공 완료'}
             </button>
@@ -162,9 +178,10 @@ export default function ScanView() {
                 token: result.token,
                 stamp: stamp ? `${stamp.current_stamps}/${stamp.threshold}` : '',
               })
-              setErrMsg(r.ok ? '' : '인쇄를 시작하지 못했습니다 — RawBT·프린터 연결 확인')
+              setPrintMsg(r.ok ? '인쇄를 요청했습니다 — 종이가 나오는지 확인하세요.' : '인쇄를 시작하지 못했습니다 — RawBT·프린터 연결 확인')
             }}
           >영수증 인쇄</button>
+          {printMsg && <div className="mk-scan-stamp">{printMsg}</div>}
           <button className="mk-reset" onClick={() => { setResult(null); setPhase('idle'); setErrMsg(''); setBuf('') }}>다음 스캔</button>
         </div>
       )}

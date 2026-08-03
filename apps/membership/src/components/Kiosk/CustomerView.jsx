@@ -76,7 +76,10 @@ export default function CustomerView({ store }) {
           printable={localPrint}   /* 기본 false — 인쇄는 카운터 폰이 맡는다(위 주석). 외장 프린터 달면 ?print=local */
           showQr                   /* ★손님 폰으로 옮겨갈 QR(유저 채택) — 고객 화면에서만 */
           member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
-          onClaim={claimAndPrint} onRedeem={redeem} onReset={resetAll} resetLabel="처음으로"
+          onClaim={claimAndPrint} onReset={resetAll} resetLabel="처음으로"
+          /* ★onRedeem 을 넘기지 않는다(2026-08-04): 리워드 «수령» 은 되돌리는 API 가 없는 확정 행위인데
+             고객 태블릿에 버튼이 그대로 노출돼 손님이 스스로 아이스크림을 소진할 수 있었다.
+             리워드 확정은 **직원 화면 전용**이다. */
         />
       </div>
     )
