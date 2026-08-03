@@ -1,0 +1,307 @@
+-- ══════════════════════════════════════════════════════════════════════════
+-- [DRAFT · 미적용] 함수축 하드닝 — PUBLIC/anon 노출면 정리 + 크로스테넌트 시드 차단
+-- ══════════════════════════════════════════════════════════════════════════
+-- 상태: ★DRAFT. guardian 검수 → 유저 승인 전까지 적용 금지. **유저 큐에 아직 안 올림.**
+-- 발단: crm 검수(2026-08-02) — "함수 74건 PUBLIC EXECUTE"를 위험 교집합으로 좁힌 보고.
+--   thinkmap 독립 재현으로 수치 일치: 우리 함수 **43** → anon 실행가능 → secdef **19** → VOLATILE **8**.
+--
+-- ★이 파일은 `migrate-revoke-anon-exposure.sql`(1순위, 지금 열려 있는 구멍)과 **별건**이다.
+--   섞으면 하나가 다른 하나를 가린다(crm 규율). 1순위 적용·검증 후에 올린다.
+--
+-- ══════════════════════════════════════════════════════════════════════════
+-- 0. ★판정 — crm 가설의 anon 부분은 **반증**됐다(가드 히트 ≠ 결함)
+-- ══════════════════════════════════════════════════════════════════════════
+-- crm 후보 4건(`create_canvas_pair`·`seed_*` 3종)을 **본문으로 판정**했다(crm은 본문 미열람·판정 위임).
+--
+--   · 4건 **전부** 선두에 `IF auth.uid() IS NULL THEN RAISE EXCEPTION 'unauthenticated'`
+--     ⇒ **익명은 이미 차단된다.** "익명이 임의 master_id 로 소유자 권한 쓰기" 가설은 **성립하지 않는다.**
+--   · 4건 **전부** `SET search_path TO 'public'` 이미 고정(crm 표와 일치).
+--   · `create_canvas_pair` 는 `p_user_id` 를 검증한다(`auth.uid()<>p_user_id AND NOT is_linked_account(...)` → RAISE).
+--
+-- ★그러나 **남는 실결함이 있다 — 축4(롤)를 그대로 적용하면 보인다.**
+--   `seed_*` 3종은 **`p_master_id` 소유 여부를 검사하지 않는다.** 익명은 막히지만
+--   **임의의 로그인 사용자가 남의 master 로 기본행을 시드**할 수 있다.
+--   그리고 `create_canvas_pair` 도 `p_user_id` 만 보고 **`p_master_id` 는 안 본다** → 같은 구멍이 그 경로로도 열린다.
+--   ▸ 피해 한계(과장 금지): 삽입 내용이 **고정 상수**(공격자 제어 불가) + `ON CONFLICT DO NOTHING`
+--     ⇒ 덮어쓰기·내용 주입 불가. 실질 = "남의 master 에 표준 기본행이 미리 생김" 수준 = **저위험**.
+--   ▸ 그래서 이 파일은 **긴급이 아니다.** 다만 게임 재출발로 authenticated 인구가 늘면 성질이 바뀐다.
+
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- STEP 1 — seed_* 3종 전면 회수 (★코드 수정 없이 크로스테넌트 시드가 닫힌다)
+-- ══════════════════════════════════════════════════════════════════════════
+-- ★실측 근거(회귀 0):
+--   · 프론트 호출부 **0건** — `create_canvas_pair` 만 호출된다
+--     (`apps/canvas/src/hooks/useCanvasMutations.js:22`, dist 제외 전수 grep).
+--   · `seed_*` 는 `create_canvas_pair` **내부에서 PERFORM** 될 뿐이고, 그 함수가 SECURITY DEFINER 라
+--     실행 시 current_user = 소유자(postgres) ⇒ **호출자 EXECUTE 권한과 무관**하다.
+--   ⇒ 세 롤 전부 회수해도 canvas 앱은 그대로 동작한다. 직접 호출 경로만 사라진다.
+-- ★문안에 PUBLIC 포함(축6) — 빠뜨리면 no-op 이 된다(1순위 파일에서 실제로 겪음).
+REVOKE EXECUTE ON FUNCTION public.seed_default_workflow_for_master(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.seed_engine_schema_for_master(uuid)    FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.seed_frame_schema_for_master(uuid)     FROM PUBLIC, anon, authenticated;
+
+-- 검증(★"실행했다"가 아니라 재측정으로 판정 — 축6 규율). ★**술어는 쌍**: 음성 false ∧ **의도된 호출자 true**:
+--   select proname,
+--          has_function_privilege('anon',          p.oid,'EXECUTE') as anon_x,
+--          has_function_privilege('authenticated', p.oid,'EXECUTE') as auth_x,
+--          has_function_privilege('service_role',  p.oid,'EXECUTE') as svc_x,   -- ★기대 true
+--          p.proacl::text
+--     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--    where n.nspname='public' and p.proname like 'seed\_%\_for\_master';
+--   기대: anon_x=false · auth_x=false · **svc_x=true** · acl 에 `=X/` 없음.
+--   ★svc_x 를 넣는 이유(game 실증, crm 통지 2026-08-02): 3축 회수문이 **`service_role` 까지 닫은 사례**가 있다
+--     — 그 객체의 svc 권한이 **PUBLIC 경유뿐**이었기 때문. *"닫혔다"만 보면 Edge 경로가 조용히 죽는다.*
+--   ▸ 적용 **전** 실측(2026-08-02, read-only): 3종 전부 `{=X/postgres, postgres, anon, authenticated, **service_role**=X/postgres}`
+--     ⇒ acl 에 svc 항목 존재(PUBLIC 경유 아님) ⇒ 회수문이 svc 를 안 건드린다. 3종 다 `prosecdef=true` 확인.
+--   ▸ ★★그러나 그 svc 항목은 **authored 가 아니라 defacl 상속분**이다(2026-08-02 정정, crm ③).
+--     정의 마이그(`migrate-add-canvas-mapping` · `migrate-canvas-mapping-fix-rls`)에 **`GRANT` 0줄** 확인.
+--     **카탈로그는 authored 와 inherited 를 구별하지 못한다** ⇒ "acl 에 있다"는 구조적 안전의 근거가 못 된다.
+--
+--   ★★그럼 여기에도 `grant … to service_role` 을 넣어야 하나? — **아니다.** game ⒜′ 적용:
+--     ***`grant` 는 선언된 호출자에만. 내부 전용 함수엔 `grant` 행 자체가 없다.***
+--     `seed_*` 3종의 유일한 호출 경로 = `create_canvas_pair` **내부 PERFORM**(SECURITY DEFINER,
+--     실행 시 current_user=소유자) ⇒ **선언된 호출자가 아예 없다**(Edge 전수 grep 도 0건).
+--     ⇒ ★목표 상태 = **grant 행 0** — anon·authenticated·PUBLIC 회수로 그 방향이 맞고,
+--       svc 를 되레 명시 부여하면 **규율을 지킬수록 잉여 부여가 쌓이는** 바로 그 형태가 된다.
+--     ⇒ `svc_x` 는 **유지 기대 술어가 아니라 탐지기**로 쓴다(false 로 떨어지면 = defacl 이 바뀌었다는 신호).
+--     ※대조: 1순위 파일은 선언 호출자(`authenticated`)가 **실재하는 2건만** authored 로 승격했다(그 파일 ④).
+--       같은 규율의 양면 — **있으면 명시, 없으면 아예 없음.** 판단 기준은 acl 이 아니라 **호출자 실측**이다.
+-- 스모크: canvas 앱에서 **새 페어 생성**(create_canvas_pair) 1회 → 성공해야 한다(시드 내부 호출 경로 확인).
+
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- STEP 2 — create_canvas_pair: p_master_id 소유 검증  ★설계만(적용 보류)
+-- ══════════════════════════════════════════════════════════════════════════
+-- STEP 1 을 해도 이 경로는 남는다(앱이 쓰는 함수라 회수 불가 → **본문 수정이 정답**).
+-- ★로직 변경이므로 guardian 선행 검수 + canvas 스모크 필수. 여기서는 문안만 제시한다.
+--
+-- 넣을 검증(위치 = p_user_id 검증 직후, seed 호출 **전**):
+--   IF NOT EXISTS (
+--     SELECT 1 FROM app_users u
+--      WHERE u.id = p_master_id                       -- ※실제 마스터 식별 컬럼 확인 후 확정할 것
+--   ) THEN RAISE EXCEPTION 'invalid master %', p_master_id; END IF;
+--
+-- ★미결정 2가지(적용 전에 확정해야 한다):
+--   ⓐ "p_master_id 의 정당한 소유자"를 무엇으로 판정할 것인가 —
+--      `current_workspace()` 기준인지, `app_users`/linked_accounts 기준인지 도메인 확인 필요.
+--   ⓑ 기존 데이터에 **이미 어긋난 조합이 있는지** 선조사(있으면 조인 검증이 기존 사용자를 깬다).
+--      select count(*) from canvas_pairs cp where not exists (…같은 조건…);   -- 기대 0
+
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- STEP 3 — ★★철회됨(2026-08-02). 단 **사유의 범위 주의** — 아래 ★범위 정정을 반드시 함께 읽을 것.
+-- ══════════════════════════════════════════════════════════════════════════
+-- ★★범위 정정(2026-08-02, crm 4-arm 대조 실측 → thinkmap 기전 교차확인). **철회는 유지, 사유는 교체.**
+--   (구) 사유: *"함수축엔 ADP 계층이 없다 / ADP 는 함수축에서 원리적으로 불가능하다"*  ← ★**틀렸다.**
+--   (신) 사유: ★**`IN SCHEMA` (per-schema) 형은 함수축에서 원리적 no-op.
+--              **전역형**(`FOR ROLE postgres` — `IN SCHEMA` 없음)은 **실제로 작동한다.**
+--              그러나 폭발반경이 도메인을 넘고 `service_role` EXECUTE 까지 끊는다
+--              ⇒ **함대(fleet) 결정 사항이며, thinkmap 로컬 채택 금지.**
+--   ⇒ ★이 문구를 안 고치면 다음 사람이 **있는 도구를 없다고 알고** 지나간다.
+--     (crm 자기진단: 이번 실패 형태는 *"안 닫혔는데 닫힌 줄 안다"* 가 아니라 ***"있는 도구를 없다고 적는다"***.)
+--
+-- ▸ ★기전(왜 두 형이 다른가 — PG `get_user_default_acl()` 의 2층 구조):
+--     **전역행**(`defaclnamespace = 0`) 은 `acldefault()` 를 ***대체(replace)*** 한다  ⇒ `=X`(PUBLIC) 가 **실제로 사라진다.**
+--     **per-schema 행**은 그 위에 ***가산(merge)*** 만 한다               ⇒ PUBLIC 이 복원되고 anon 도 다시 붙는다.
+--   ⇒ 내가 관측한 "PUBLIC 복원" 진단은 **맞다. 다만 그건 per-schema 층의 성질**이었다.
+--     내 arm 2개(함수/테이블)와 crm 의 3단 실험이 **전부 per-schema 형** — 대조군을 붙였는데
+--     ★**둘 다 같은 층 안에서만 대조**해서 층 자체가 사각이 됐다.
+--
+-- ▸ ★crm 4-arm 실측(thinkmap `sqisntxippjzcekyhqyo`·PG 17.6, 전량 `begin/rollback`·영속객체 0):
+--     ① 대조(ADP 없음)         · 신설스키마 → proacl NULL          · anon **true**
+--     ② per-schema(`public`)    · public     → `{=X/postgres,…}`     · anon **true**   ← no-op
+--     ③ ★전역(`FOR ROLE postgres`) · 신설스키마 → `{postgres=X}`      · anon **false** / auth false / ★service_role **false**
+--     ③′ 위와 동일 트랜잭션      · **`public`** → `{postgres,anon,auth,service_role}` · anon **true**   ← ★전역 단독으론 `public` 안 닫힘
+--     ④ 전역 + per-schema 둘 다  · public     → `{postgres,service_role}` · anon **false**
+--   ⇒ ★내 `public` 함수 74건에 직접 걸리는 사실 = **전역형 단독으로도 `public` 은 안 닫힌다**
+--     (`public` 엔 postgres grantor 의 per-schema **부여** 행이 있어 anon 이 가산 복원).
+--     닫으려면 **전역 + per-schema 둘 다**(arm ④). 그리고 ★**어느 한쪽만 걸어도 실행은 성공한다**
+--     ⇒ 축5b·6 과 **같은 false-confirm 이 이 도구 안에 한 겹 더** 있다.
+--
+-- ▸ ★그래도 전역형은 **도입하지 않는다**(철회 유지 근거):
+--     ⓐ `FOR ROLE postgres` 는 **postgres 가 이후 만드는 모든 스키마**에 걸린다 = 도메인 경계를 넘는 **함대 결정**.
+--     ⓑ arm ③ 신규함수엔 **`service_role` EXECUTE 도 없다** ⇒ 명시 grant 없는 **기존 마이그가 전부 깨진다**(Edge 경로 포함).
+--     ⇒ **파괴적 변경**. 로컬(도메인) 판단으로 채택할 사안이 아니다. 필요하면 지휘 tier 에 올린다.
+--   ※thinkmap 실측(2026-08-02, read-only): 현재 `pg_default_acl` **전역행 0건** — 위 ③은 probe 가 만든 것이고 DB 엔 없다.
+--
+-- ▸ 아래는 (구) per-schema 형 실측 — **여전히 유효**하다(그 층에선 참):
+-- thinksalon 반증 → crm 독립 재현 → **thinkmap 자체 재현으로 확정**(rollback 트랜잭션, 영속객체 0):
+--
+--   [함수축]  alter default privileges … revoke execute on functions from public, anon;
+--     · defacl(postgres 항목)  = `{postgres=X, authenticated=X, service_role=X}`  ← anon 은 **실제로 지워졌다**
+--     · 그 뒤 만든 함수 proacl = `{★=X/postgres, postgres=X, authenticated=X, service_role=X}`
+--     · **anon EXECUTE 재측정 = true**   ← 안 닫힘
+--   [테이블축] alter default privileges … revoke all on tables from public, anon;   (같은 DB·같은 방법)
+--     · 그 뒤 만든 테이블 relacl = `{postgres, authenticated, service_role}`
+--     · **anon SELECT = false · authenticated SELECT = true**   ← 의도대로 작동
+--
+-- ★기전: PG 는 `pg_default_acl` 에 **`acldefault()` 대비 델타만** 저장하고, 객체 생성 시
+--   **`aclmerge(acldefault, 저장분)` = 가산 합집합**을 적용한다.
+--   **함수의 `acldefault` 에는 `=X/owner`(PUBLIC) 가 들어 있다** ⇒ PUBLIC 은 무조건 복원되고,
+--   **ADP 로는 그 제거를 표현할 방법 자체가 없다.** 테이블의 `acldefault` 엔 PUBLIC 이 없어 먹힌다.
+--   ▸ 정밀도(내 실측이 더 정확한 지점): crm 은 *"ADP 후 defacl 행 생성 0건"* 이라 봤지만
+--     thinkmap 처럼 **이미 행이 있으면 anon 회수는 델타에 실제로 저장된다.** 그런데도 no-op 이다 —
+--     원인은 "저장이 안 돼서"가 아니라 **PUBLIC 이 복원돼 anon 을 다시 열어주기 때문**이다.
+--
+-- ⇒ ★**이 줄을 남겨두면 안 된다.** 작동하지 않는 예방책을 박아두면 다음 사람에게
+--   *"함수축은 구조로 막혀 있다"* 는 **오신**을 심는다 — 그게 이번 라운드 내내 잡아온 **축6 사고의 재생산**이다.
+--   (*"no-op 이어도 닫히는 쪽 실패니 통일하자"* 는 논리가 여기서 깨진다: **양쪽 다 안 닫히는데
+--     닫힌 것처럼 보이는 문장**이었다.)
+-- ⇒ ~~★축7(grantor)도 범위를 좁힌다: 축7 은 ADP 를 전제한 축이므로 **테이블축 한정**~~
+--   → ★**원복(2026-08-02)**. 위 범위 정정대로 **ADP 는 함수축에도 존재**(전역형) ⇒ **축7 = 테이블·함수 양축**.
+--   불변식 문안(`postgres` grantor 한정 · 플랫폼 롤 명시 제외)은 **그대로 유효하되 근거가 바뀐다** — 아래 축7 절 참조.
+--
+-- ══════════════════════════════════════════════════════════════════════════
+-- STEP 3′ — 함수축의 **실제** 방어선 3종 (ADP 가 빠진 자리)
+-- ══════════════════════════════════════════════════════════════════════════
+--   ⒜ **DDL 규율(1차)** — `create function` 마다 **같은 파일에**
+--      `REVOKE EXECUTE ON FUNCTION … FROM PUBLIC, anon;` 를 쓴다.
+--      뷰의 `WITH (security_invoker = true)` 와 같은 성격의 **고정 부품**으로 취급한다.
+--   ⒝ **감시선(2차)** — `has_function_privilege` 정기 스캔. **ADP 가 사라진 지금 이게 실제 방어선**이다.
+--      (1회성 확인이 아니라 정기 실행 — 축5.)
+--   ⒝′ **★결과 acl 조회(2026-08-02 신설, crm 통지)** — ⒝ 가 *노출*(anon/auth true)을 본다면
+--      ⒝′ 는 ***"선언되지 않은 부여"*** 를 본다. 둘은 **다른 술어**이고 ⒝ 로 ⒝′ 를 대체할 수 없다.
+--      ▸ 근거 = 부여의 생성 경로 ⓒ: ***부여 미명시 → 출생 기본값(defacl)이 조용히 부여***.
+--        ⓐ정책만 조여지고 grant 미추종 / ⓑ대칭 블록 기계 적용 / **ⓒ출생 기본값** 중 **우리 9/9 가 ⓒ**다.
+--      ▸ ★**ⓒ 는 파일에 행이 없어 ⒜(소스 규율)로 원리적으로 못 잡는다** — 검사할 줄 자체가 없다.
+--        ⇒ *"소스에 GRANT 가 없다"* 를 *"권한이 없다"* 로 읽으면 **정확히 반대**다.
+--      ▸ ★규모 실측(2026-08-02): repo authored `GRANT` = 비-docs **3파일 × 2줄**(중 2줄은 오늘 추가분)
+--        vs 카탈로그 `public` = 함수 **88/88** svc EXECUTE · 릴레이션 **60/60** svc SELECT ·
+--        함수 **75/88** authenticated · 릴레이션 **60/60** authenticated ⇒ **부여면의 사실상 100% 가 ⓒ**.
+--      ▸ ★과잉경보 금지 — 롤별 실질이 다르다: `service_role` blanket 은 키가 **서버 전용**이라 실위험 낮고,
+--        `authenticated` blanket 은 **RLS 가 유일한 변별자**다(기존 결론 *"변별자는 grant 가 아니라 RLS"* 와 동일 면).
+--      ▸ ★가드 범위는 정직하게 자른다: **148 객체 소급 정리는 가드가 아니라 프로젝트**다.
+--        가드가 하는 일 = ⑴갭 수치 상시 보고(부여 총량 vs authored 선언 수) ⑵**신규 객체에만** 호출자 선언 요구.
+--        소급분은 **미해결로 명시**한다(조용히 넘기면 "커버됐다"로 읽힌다).
+--   ⒞ **USAGE 축(구조)** — `REVOKE USAGE ON SCHEMA <s> FROM anon;`
+--      ADP 가 못 하는 일을 이게 한다: 스키마에 못 들어가면 함수 ACL 이 무엇이든 **도달 불가**.
+--      ★단 `public` 에는 쓸 수 없다 — 실측 `nspacl` = `{…, **=U/pg_database_owner**, anon=U, authenticated=U, …}`
+--        ⇒ **PUBLIC 에게도 USAGE 가 있고** 앱이 public RPC 를 authenticated 로 호출한다.
+--      ⇒ 결론: **`public` 은 ⒜⒝ 로 지키고, 앞으로 만드는 스키마는 ⒞ 를 기본값으로** 한다.
+--        대조군이 같은 DB 안에 있다 — `crm` 스키마 `nspacl` = **`{postgres=UC/postgres}`**
+--        (anon·authenticated USAGE **둘 다 false**). 그래서 crm 함수축은 원래 도달 불가였다.
+--
+-- ══════════════════════════════════════════════════════════════════════════
+-- (구) STEP 3 — 아래는 **적용하지 않는다**. 왜 틀렸는지 기록으로만 남긴다.
+-- ══════════════════════════════════════════════════════════════════════════
+-- 구조적 이유(crm): **테이블은 기본이 "grant 없음"(fail-safe)인데 함수는 기본이 PUBLIC EXECUTE(fail-open)**.
+--   그래서 축6 은 우연이 아니라 **구조적으로 함수축에 몰린다** — 실측이 정확히 그 모양이다:
+--   thinkmap 릴레이션 PUBLIC grant **0건** / 함수 PUBLIC EXECUTE **74건**.
+--
+-- ★★단 crm 처방(`revoke execute on functions from public`)은 **한 단계 부족하다 — 실측으로 확인**:
+--   신규 public 함수를 만들어 ACL 을 그대로 찍어봤다(rollback 트랜잭션):
+--     생성 직후 acl = `{=X/postgres, postgres=X/…, ★anon=X/…, authenticated=X/…, service_role=X/…}`
+--     → PUBLIC **과 별개로 anon 명시 grant 가 default ACL 에서 함께 붙는다.**
+--     → `revoke … from public` 만 한 뒤 재측정: anon EXECUTE = ★**true**(안 닫힘).
+--   ⇒ 문안은 **`from public, anon`** 이어야 한다.
+--   ⇒ ★이건 축6 자체의 반복이다(**단일 grantee 고정 = fail-open**). 처방에도 같은 양식이 들어갔다.
+--
+-- ★`authenticated` 는 회수하지 않는다(테이블 때와 같은 판단):
+--   새 RPC 는 대부분 앱이 authenticated 로 호출한다 → 회수하면 마이그마다 명시 GRANT 가 필요하고
+--   빠뜨리면 **신기능이 조용히 403**. fail-closed 지만 운영비용이 크다.
+--
+-- ★회수 대상도 **손으로 열거하지 않는다**(crm 규율). 도출식:
+--   회수 = `pg_default_acl` 부여 항목의 grantee **∪ `PUBLIC`**  −  **명시 예외**(`authenticated`·`service_role`).
+--   확인 쿼리(적용 직전 실행 — 목록이 아래 문안과 일치하는지 대조):
+--     select pg_get_userbyid(d.defaclrole) as grantor, d.defaclacl::text
+--       from pg_default_acl d join pg_namespace n on n.oid=d.defaclnamespace
+--      where n.nspname='public' and d.defaclobjtype='f';
+--
+-- ★★적용 금지(위 철회 사유 참조). 주석으로만 남긴다:
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon;
+--   ※기존 객체 **무영향**, 신규 생성분에만 적용 — 이었으면 좋았겠지만 **함수축에선 안 먹는다.**
+--   검증: 위 실측과 동일한 방법으로 **신규 함수 1개를 rollback 트랜잭션에서 만들어** acl 재측정.
+--         기대 = acl 에 `=X/` 없음 · anon EXECUTE **false** · authenticated EXECUTE **true**.
+--
+-- ══════════════════════════════════════════════════════════════════════════
+-- ★★축7 = grantor — **조치 가능 경계**(crm 2026-08-02, thinkmap 실측 확인)
+-- ══════════════════════════════════════════════════════════════════════════
+--   `public` 의 함수 default ACL 부여 항목은 **둘**이다: `postgres` · **`supabase_admin`**.
+--   `ALTER DEFAULT PRIVILEGES` 는 **실행 롤(또는 `FOR ROLE`)의 항목만** 재작성한다. 그리고 실측:
+--     `current_user=postgres` · `rolsuper=`**false** · `pg_has_role(postgres,'supabase_admin','MEMBER')=`**false**
+--   ⇒ ★**`supabase_admin` 부여 항목은 우리가 고칠 수 없다.** `FOR ROLE supabase_admin` 은 권한 부족으로 실패한다.
+--
+--   ▸ ★★그러나 **"고칠 수 없다"가 범위 밖의 사유가 아니다**(2026-08-02 정정, crm arm ④ 실측):
+--     arm ④ 에서 `supabase_admin` 행이 **`anon=X` 인데도** 신규함수의 anon EXECUTE = **false** 였다.
+--     ⇒ ★**`pg_default_acl` 행은 그 grantor 가 만든 객체에만 적용된다.**(PG `get_user_default_acl(ownerId,…)`)
+--     ⇒ 플랫폼 항목이 범위 밖인 이유는 ***못 고쳐서가 아니라 우리 객체에 안 걸려서***다.
+--     ⇒ ★**부채가 아니다.** (종전 문안 *"조치 불가이므로 제외"* 는 **"권한 생기면 갚을 빚"** 으로 읽힌다 —
+--        그렇게 읽히면 다음 사람이 없는 빚을 갚으려 들거나, 가드를 결함으로 오인해 되돌린다.)
+--   ▸ 실 노출은 **0에 가깝다**(부풀리지 않는다): 우리 마이그는 전부 `postgres` 로 실행되므로
+--     실제로 적용되는 건 postgres 항목이고, supabase_admin 항목은 **플랫폼이 만드는 객체**에만 걸린다.
+--
+--   ▸ ★위험한 건 노출이 아니라 **불변식 문안**이다:
+--     *"`pg_default_acl` 에 anon 부여 0건"* 으로 쓰면 그 가드는 **영원히 통과하지 못한다.**
+--     **통과 불가능한 가드는 반드시 꺼지거나 손 예외가 박히고, 그 손 예외가 하드닝을 원위치시킨다.**
+--     (가드를 죽이는 건 거짓음성이 아니라 거짓양성이다.)
+--
+--   ★★확정 불변식 문안(문구 유지 · **사유만 정정**):
+--     **"`postgres` grantor 항목에 한해 — anon/PUBLIC 부여 방향 0건, 회수 방향은 허용.
+--        플랫폼 롤(`supabase_*`) grantor 항목은 **우리 객체에 적용되지 않으므로**(부채 아님)
+--        **범위 밖**으로 명시 제외한다."**   ← 구 사유 *"조치 불가이므로"* 는 폐기(위 ▸ 참조).
+--     ⇒ 가드 술어에 `and pg_get_userbyid(d.defaclrole) not like 'supabase\_%'` 를 넣고,
+--        **제외 사유를 여기 적어 예외목록으로 남긴다**(침묵으로 빠뜨리면 다음 사람이 결함으로 오인해 되돌린다).
+--
+--   ▸ **축7의 성격** = 앞의 축들과 다르다:
+--       축1~4   = *못 본다*(false-negative)      → 가드를 넓혀 잡는다
+--       축5a·5b·6 = *조치했는데 안 닫혔다*(false-confirm) → 재측정으로 잡는다
+--       **축7    = 우리 객체에 적용되지 않는 영역**       → **불변식의 범위를 잘라서** 다룬다
+--         (구 표현 *"조치 자체가 불가능한 영역"* → 정정 2026-08-02: 조치가능성이 아니라 **적용범위**의 문제)
+--     ⇒ 불변식은 **관측 가능성뿐 아니라 적용 범위로도** 범위를 잘라야 한다.
+--   ▸ ★축7 적용축 = **테이블·함수 양축**(2026-08-02 원복). 함수축에도 ADP 가 존재(전역형)하므로
+--     "ADP 전제 축이라 테이블 한정"이라는 축소는 무효다.
+--
+--   ▸ ★★**축7-b = objtype**(2026-08-02 thinkmap read-only 실측으로 추가). 같은 열거 실패 양식이 한 겹 더:
+--     `pg_default_acl` 의 grantor=`postgres` 항목은 **`public` 만이 아니라 `public`·`storage` 두 스키마**,
+--     각각 **objtype 3종 전부**(`r` 테이블 · `f` 함수 · `S` 시퀀스)에 anon 부여가 있다:
+--       public  : r `anon=arwdDxtm` / f `anon=X` / S `anon=rwU`
+--       storage : r `anon=arwdDxtm` / f `anon=X` / S `anon=rwU`     ← ★종전 문안엔 아예 없었다
+--     ⇒ 축5 문안의 *"public 만"* 과 *"테이블만"* 은 **둘 다 정정 대상**. 가드는 스키마도 objtype 도
+--       **손 열거하지 말고** grantor 축으로만 좁힌다(`defaclrole = 'postgres'::regrole`).
+--     ※`storage` 는 플랫폼 스키마라 우선순위는 낮게 본다(우리 객체를 만들지 않음) — 다만 **문안에서 빠뜨리지 않는다**.
+--
+-- ⒞ 마이그 규율(문서 몫): 앞으로 `create function` 과 `revoke execute … from public, anon` 을
+--    **같은 파일에** 쓴다. 3단이 한 벌 = ⒜판정(재측정) + ⒝구조(default privileges) + ⒞규율(템플릿).
+-- ▸ 대조군이 같은 DB 안에 있다: **thinkmap `crm` 스키마 = 함수 6 · PUBLIC EXECUTE 0**(명시 grant 만).
+--   0016 규율(명시 GRANT + search_path 고정)이 축6 을 원천 차단하고 있음이 수치로 확인됐다.
+--
+-- ▸ ★스키마마다 답이 다르지만 **문안은 통일한다**(crm 규율, 채택):
+--   `public` = 부여 항목이 있어 **`anon` 회수가 필수** / `crm`·`game` 등 = `pg_default_acl` **항목 없음**이라
+--   오늘은 `from public` 만으로도 닫힌다. 그래도 **전부 `PUBLIC, anon` 으로 통일**한다 —
+--   항목 없는 스키마에선 no-op(무해)이고, *"스키마별로 문안을 판단"* 하는 순간 **그게 판단 항목이 되고
+--   판단 항목은 가드를 죽인다.**
+--
+-- ▸ ~~`crm` 스키마 대응 항목~~ → ★**철회(2026-08-02, crm 자진 철회 + thinkmap 실측 동의)**.
+--   ① ADP 자체가 함수축에서 no-op 이고 ② 애초에 불필요했다:
+--   `crm` 스키마 `nspacl` = **`{postgres=UC/postgres}`** ⇒ **anon·authenticated 둘 다 USAGE 없음**
+--   ⇒ 함수 ACL 이 무엇이든 **브라우저 롤에서 도달 불가**. 청결의 근거는 절차(0016)가 아니라
+--     **USAGE 축이라는 더 강한 구조**였다. (crm 자수: *"남의 도메인은 카탈로그로 확인하면서
+--     내 것은 마이그 서사로 판단했다 — 내 도메인일수록 실측을 건너뛴다"*.)
+
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- STEP 4 — search_path 미고정 secdef 함수 (위생)
+-- ══════════════════════════════════════════════════════════════════════════
+-- 실측: anon 실행가능 secdef 19건 중 **search_path 미설정 7건**
+--   get_user_id_by_email · purge_deleted_pages · set_shared_with_user_id
+--   · is_master · is_linked_account · is_linked_account_viewer · get_linked_accounts
+-- ※crm 은 앞 2건만 짚었는데 **5건 더 있다**(같은 실패 양식 — 예시 열거).
+-- ※`is_master` 는 `migrate-rls-harden-unconditional-select.sql` STEP 1-D 에서 이미 교정된다(중복 주의).
+-- ※치명이 아니라 위생: authenticated 는 public 에 CREATE 권한이 없어 섀도잉 악용이 불가(기존 실측).
+-- ⇒ 나머지 5건은 함수 재정의가 필요하므로 **본문을 그대로 옮겨 적는 실수(전사 오류)를 피해**
+--    `pg_get_functiondef()` 출력 기반으로 생성할 것. 별도 배치로 진행.
+
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- 롤백
+-- ══════════════════════════════════════════════════════════════════════════
+-- STEP 1: GRANT EXECUTE ON FUNCTION public.seed_default_workflow_for_master(uuid) TO authenticated;
+--   ★주의(game ⒜′): 이 롤백문은 **선언된 호출자가 없는 함수에 부여를 되돌리는 것**이다 =
+--     원상복구는 되지만 그 원상 자체가 **잉여 부여**(defacl 상속분)였다. 롤백이 필요해지면
+--     "왜 authenticated 가 이걸 호출해야 하는가"를 **먼저 답하고** 실행할 것 — 답이 없으면 롤백 대상은
+--     이 부여가 아니라 **STEP1 을 넣은 판단**이다.
+--         (anon·PUBLIC 은 되돌릴 이유가 없다 — 되돌리려면 그때 판단)
+-- STEP 3: 롤백 대상 없음 — **철회되어 적용하지 않는다**(위 STEP 3 범위 정정 참조).
+--   (참고용 역문: ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO PUBLIC, anon;)
+-- ══════════════════════════════════════════════════════════════════════════

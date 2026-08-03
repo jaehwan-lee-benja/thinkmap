@@ -180,7 +180,14 @@ CREATE INDEX IF NOT EXISTS idx_cm_status ON canvas_mappings(target_page_id, stat
 -- STEP 6. canvas_region_stats VIEW — 영역 진단
 -- =============================================================================
 
-CREATE OR REPLACE VIEW canvas_region_stats AS
+-- ★2026-08-02 축5(시간) 대응 — `security_invoker`를 **DDL 자체에 박는다**(재생성 내성).
+--   이 옵션이 없으면 뷰가 소유자 권한으로 돌아 기반 canvas_mappings 의 RLS 를 우회한다
+--   (실측: anon·타인 JWT authenticated 모두 6행 열람 / 기반 테이블은 0행).
+--   ★DROP + CREATE 경로로 재생성하면 public 스키마 default ACL(`anon=arwdDxtm`)이 다시 붙고
+--     이 옵션은 사라진다 → 하드닝이 조용히 원위치된다. 그래서 운영 조치(ALTER VIEW)와 **별개로**
+--     정본 DDL에 고정한다. 상세 = `migrate-revoke-anon-exposure.sql` ★축5 절.
+CREATE OR REPLACE VIEW canvas_region_stats
+WITH (security_invoker = true) AS
 SELECT
   target_pair_id,
   target_page_id,
