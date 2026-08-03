@@ -652,11 +652,11 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ★세로(portrait) 최적화 — CS-273N(KICC POS, Android 5.1.1) 세로 배치 전용.
+   ★세로(portrait) 최적화 — CS-273N(KICC POS) 세로 배치 전용. 실측: Android 8.1 / WebView 126 / 768x1024.
    고객 뷰(.mk-role-customer)에만 적용 → 직원 노트북(staff/scan/editor·가로)은 무영향.
    판정 기준 = orientation:portrait(px 폭 가정 제거 — 넓은 세로 화면도 스택되게).
    높이 기준 정렬(무스크롤) + 번호패드=주인공. 세로 vh 스케일로 화면에 맞춤.
-   ※ orientation 미디어피처·clamp/vh 는 코드베이스 기존 사용 범위 내(Chrome 40 UA 폴백=정적값).
+   ※ orientation·clamp/vh 는 WebView 126 에서 전부 정식 지원된다(구 "Chrome 40" 가정은 폐기 — SPEC §5.A).
    소스 뒤쪽에 둬 max-width 폴백과 겹칠 때 이 규칙이 이긴다.
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (orientation: portrait) {
