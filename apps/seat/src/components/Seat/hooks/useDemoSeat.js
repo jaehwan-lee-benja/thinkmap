@@ -23,9 +23,9 @@ export function useDemoSeat(active) {
   }, [])
 
   // 명시 전달(A안): 'seat' = 자리후 확정.
-  const commitOrder = useCallback((id, scope) => {
+  const commitOrder = useCallback((id, scope, extra = {}) => {
     if (scope !== 'seat') return
-    patchOrder(id, { seat_status: 'pending', seat_delivered: true })
+    patchOrder(id, { seat_status: 'pending', seat_delivered: true, delivered_at: new Date().toISOString(), ...extra })
   }, [patchOrder])
 
   const deleteOrder = useCallback((id) => {

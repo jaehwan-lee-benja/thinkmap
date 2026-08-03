@@ -139,7 +139,7 @@ export default function SeatOrderScreen({
             <span className="seat-check"><input type="checkbox" checked={raiseDetailOn} onChange={(e) => setRaiseDetailOn(e.target.checked)} /></span>
             <span className="seat-func-text">
               <span className="seat-func-label">올리기 전달 세부 보기</span>
-              <span className="seat-func-hint">올림 경로(야외/포장/야외병행/직접체크)와 올림취소 이력을 표시합니다. 끄더라도 올림 취소는 그대로 됩니다.</span>
+              <span className="seat-func-hint">올림 경로(야외/야외병행/포장으로변경/직접체크)와 올림취소 이력을 표시합니다. 끄더라도 올림 취소는 그대로 됩니다.</span>
             </span>
           </label>
         </div>

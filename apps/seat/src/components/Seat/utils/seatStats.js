@@ -79,6 +79,9 @@ export function computeSeatStats(orders = [], stations = []) {
     raiseCanceled: orders.filter((o) => o.raise_canceled).length,  // 올림취소 이력
     noQueue: orders.filter((o) => !(o.queue_no > 0)).length,       // 테이블링 번호 없이 만든 주문
     dineIn: orders.filter(isDineIn).length,
+    // 포장도고려 전달(R11) — 매장영수증(올림에 포장 라벨) / 포장영수증(올림 무시)
+    maybeStore: orders.filter((o) => o.deliver_mode === 'maybe_store').length,
+    maybeReceipt: orders.filter((o) => o.deliver_mode === 'maybe_receipt').length,
   }
 
   // ── 시간대 분포(생성 기준) — 피크 파악용 ───────────────────────

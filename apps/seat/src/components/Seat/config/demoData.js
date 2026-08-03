@@ -13,6 +13,7 @@ const orderDefaults = {
   seat_order_alive: true,
   order_origin: 'dine_in',
   seat_delivered: false,
+  deliver_mode: null, // R11: 전달 갈래(null=일반 / maybe_store / maybe_receipt)
   seated: false,
   raised: false,
   raised_at: null,
@@ -41,6 +42,10 @@ export const DEMO_ORDERS = [
   { id: 'd5', queue_no: 5, order_no: '105', seat_delivered: true, seated: true, raised: true, seat_status: 'raised' },
   // 6) 실내·올림·이미 카이막 완료 → 완료 리스트/되돌리기 확인
   { id: 'd6', queue_no: 6, order_no: '106', seat_delivered: true, seated: true, raised: true, seat_status: 'raised' },
+  // 7) 포장도고려(매장영수증)·올림 → 스테이션 카드에 '포장' 라벨 확인(R11)
+  { id: 'd7', queue_no: 7, order_no: '107', seat_delivered: true, deliver_mode: 'maybe_store', raised: true, seat_status: 'raised' },
+  // 8) 포장도고려(포장영수증) → 올림 체크박스 ✕ 무효 + 스테이션에 아예 안 보임(R11)
+  { id: 'd8', queue_no: 8, order_no: '108', seat_delivered: true, deliver_mode: 'maybe_receipt' },
 ].map(withOrderDefaults)
 
 export const DEMO_STATIONS = [

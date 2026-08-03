@@ -3,7 +3,7 @@
 //   올라감(큰 카드: 번호 大·변동입력·완료) → 자리후(1/2 카드: 번호·특이사항, 곧 올라올 대기) → 완료(칩·되돌리기).
 import { useState, useEffect } from 'react'
 import LiveCameraFeed from '../components/LiveCameraFeed'
-import { isWaitingOrder, isRaisedOrder, orderLabel } from '../utils/seatRules'
+import { isWaitingOrder, isRaisedOrder, orderLabel, showsTakeoutLabel } from '../utils/seatRules'
 
 // 색종이 가루 입자 — 고정 배열(랜덤 없이 결정적: 매 완료마다 같은 모양이라 깜빡임·재현 이슈 없음).
 //   x/y = 흩어지는 방향(px), r = 회전(deg), d = 시작 지연(ms).
@@ -86,7 +86,10 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
               <div className="seat-st-card">
                 {/* 포장으로 변경된 주문 = 스테이션에서 특별히 눈에 띄게(레이아웃 비침습 오버레이). */}
                 {/* 체크 표시 = 수기 영수증에서 포장을 체크로 적는 관행과 경험 통일(유저 지시 2026-08-02). */}
-                {o.opt_takeout ? <div className="seat-st-tag seat-st-tag--takeout">✓ 포장으로 변경됨</div> : null}
+                {/* 포장도고려(매장영수증)도 같은 라벨 — 주방 입장에선 '이 주문은 포장'이 새 정보인 건 같다(R11). */}
+                {showsTakeoutLabel(o)
+                  ? <div className="seat-st-tag seat-st-tag--takeout">{o.opt_takeout ? '✓ 포장으로 변경됨' : '✓ 포장'}</div>
+                  : null}
                 <div className="seat-st-no">{labelOf(o)}</div>
                 {/* 전달사항 = 읽기 전용 텍스트(자리후 대기 카드와 동일 구조). 수정은 표에서 — 유저 지시 2026-08-02. */}
                 <div className={`seat-st-note${o.notes ? '' : ' seat-st-note--empty'}`}>{o.notes || '-'}</div>

@@ -15,6 +15,24 @@ export const removesFromSeatQueue = (o) => !!(o?.opt_outdoor || o?.opt_takeout)
 // R1: 제조옵션이 하나라도 있으면 그 주문은 '자리후'가 아니다 → 자리후(자리순서) 컨트롤 비활성.
 export const isSeatWaiting = (o) => !hasManufactureOption(o)
 
+// ── R11: 자리후 전달의 갈래(deliver_mode) — '전달'과 같은 위계의 분기(유저 지시 2026-08-03) ────
+//   '포장도고려' = "자리가 나면 앉겠지만, 주문은 일단 포장으로 간다".
+//   제조옵션(전달 *후* 변경기록)이 아니라 전달 그 자체의 갈래라서 자리큐 규칙(R1)은 건드리지 않는다
+//   — 자리순서는 계속 살아있고, 달라지는 건 '주방이 이 사실을 알아야 하는가' 하나뿐이다.
+//     · maybe_store(영수증 매장)  → 주방엔 포장이 새 정보 → 올림은 평소대로, 카드에 '포장' 라벨.
+//     · maybe_receipt(영수증 포장) → 주방은 이미 포장으로 제조 중(자리후 우회) → 올림 자체가 무의미 → 무시.
+//   NULL/없음 = 일반 전달.
+export const DELIVER_MODES = [
+  { value: 'maybe_store',   label: '포장도고려(매장)', desc: '영수증 매장' },
+  { value: 'maybe_receipt', label: '포장도고려(포장)', desc: '영수증 포장' },
+]
+export const isTakeoutMaybe = (o) => !!o?.deliver_mode && DELIVER_MODES.some((m) => m.value === o.deliver_mode)
+export const deliverModeLabel = (o) => DELIVER_MODES.find((m) => m.value === o?.deliver_mode)?.label || ''
+// 올림 카드에 '포장' 라벨이 붙는가 — 제조옵션 포장으로변경 또는 포장도고려(매장).
+export const showsTakeoutLabel = (o) => !!o?.opt_takeout || o?.deliver_mode === 'maybe_store'
+// 올림이 무시되는 주문 — 포장도고려(포장영수증). 스테이션에 아예 나타나지 않는다(올라감·대기 양쪽).
+export const raiseIgnored = (o) => o?.deliver_mode === 'maybe_receipt'
+
 // R2(폐지, 2026-08-02 유저 지시): '자리앉음을 눌러야 올리기 전달이 활성' 선행조건을 없앴다.
 //   실제 주방에서 자리 배정과 제조 올림은 순서가 고정돼 있지 않은데, 게이팅이 절차를 꼬았다.
 //   현재 올림의 유일한 관문은 '자리후 전달'(OrderRow.preDeliver) 하나다.
@@ -24,13 +42,16 @@ export const isSeatWaiting = (o) => !hasManufactureOption(o)
 // 자리후 '대기중' = 실내 + ★전달됨(seat_delivered) + 아직 안 올라감(!raised) + 자리큐 유지(야외/포장 아님) + 취소 아님.
 //   ★seat_order_alive(자리앉음→'필요없음' 표시)는 여기서 보지 않는다 — 자리앉아도 올림 전까지 자리후 카드는 남는다
 //   (자리앉음은 자리순서 셀의 상태 표시일 뿐, 자리후 대기 여부와 별개. 유저 지시 2026-08-01).
+//   ★포장도고려(포장영수증)은 스테이션에서 통째로 빠진다(raiseIgnored) — 주방은 이미 포장으로 만들고 있어
+//     '곧 올라올 대기'가 아니다. 그 줄은 자리안내·주문서관리 표에만 자리순서로 남는다(R11).
 export const isWaitingOrder = (o) =>
-  isDineIn(o) && !!o?.seat_delivered && !o?.raised && !removesFromSeatQueue(o) && o?.seat_status !== 'canceled'
-// 올림(자리잡음)된 주문.
-export const isRaisedOrder = (o) => !!o?.raised
+  isDineIn(o) && !!o?.seat_delivered && !o?.raised && !removesFromSeatQueue(o)
+  && !raiseIgnored(o) && o?.seat_status !== 'canceled'
+// 올림(자리잡음)된 주문. ★포장도고려(포장영수증)은 raised 여부와 무관하게 올림에서 제외(R11).
+export const isRaisedOrder = (o) => !!o?.raised && !raiseIgnored(o)
 
 // 올림 경로 라벨.
-const RAISE_LABEL = { takeout: '포장', outdoor: '야외', parallel: '야외병행', direct: '직접체크' }
+const RAISE_LABEL = { takeout: '포장으로변경', outdoor: '야외', parallel: '야외병행', direct: '직접체크' }
 
 // 올리기 전달 '세부 설명' — 어떤 경로로 올림 전달이 이뤄졌는지(또는 취소됐는지) 텍스트.
 //   야외/포장/야외병행 = 제조옵션으로 올림 / 직접체크 = 제조옵션 없이 올리기 체크박스를 직접.
@@ -39,7 +60,7 @@ const RAISE_LABEL = { takeout: '포장', outdoor: '야외', parallel: '야외병
 export const raiseDetailText = (o) => {
   if (o?.raise_canceled) return `올림취소됨(${RAISE_LABEL[o.raise_canceled] || ''})`
   if (!o?.raised) return ''
-  if (o?.opt_takeout) return '포장'
+  if (o?.opt_takeout) return '포장으로변경'
   if (o?.opt_outdoor) return '야외'
   if (o?.opt_outdoor_parallel) return '야외병행'
   return '직접체크'

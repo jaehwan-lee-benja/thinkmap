@@ -3,17 +3,18 @@
 // gateMode: 'guide'(전달버튼 살리고 제조옵션부터 잠금) | 'manager'(행 dim + 하위버튼 숨김) | undefined.
 import { useState, useRef } from 'react'
 import { REVIEW_FLAGS } from '../config/seatRoles'
-import { isDineIn, removesFromSeatQueue, raiseDetailText } from '../utils/seatRules'
+import { isDineIn, removesFromSeatQueue, raiseDetailText, DELIVER_MODES, isTakeoutMaybe, deliverModeLabel, raiseIgnored } from '../utils/seatRules'
 
 export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, dupSuffix, numpadOn, onOpenNumpad, raiseDetailOn }) {
   const patch = (p) => onPatch?.(order.id, p)
   // 올리기 전달을 풀 때 실수 방지 재확인(인라인). 세부 텍스트는 raiseDetailOn 일 때만 노출.
-  const [confirmUncheck, setConfirmUncheck] = useState(false)
+  const [confirmUncheck, setConfirmUncheck] = useState(false) // false | 'raise' | 'both'
   const [confirmSeatReset, setConfirmSeatReset] = useState(false) // 자리순서 리셋 재확인 모달
   // ★올림이 이미 전달된 주문은 주문번호 수정/삭제·줄 삭제 전에 재확인(유저 지시 2026-08-02).
   //   주방이 그 번호로 만들고 있는 중이라, 조용히 바뀌면 오배송이 난다.
   const [confirmOrderNo, setConfirmOrderNo] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [maybeOpen, setMaybeOpen] = useState(false) // 포장도고려 전달 갈래 선택 모달
   const [orderNoApproved, setOrderNoApproved] = useState(false) // 한 번 승인하면 그 행에서는 계속 편집 가능
   const orderNoRef = useRef(null)
   const orderNoGuarded = !!order.raised && !orderNoApproved
@@ -36,6 +37,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   // ★통합 화면(gateMode 없음)에서도 자리후 전달 전이면 자리순서·올림 영역을 확실히 비활성(유저 지시 2026-08-02).
   //   포장/야외 시작(!dineIn)은 전달 관문 자체가 없으므로 잠그지 않는다.
   const preDeliver = dineIn && !order.seat_delivered
+  const raiseVoid = raiseIgnored(order) // 포장도고려(포장영수증) = 올림 무시 → 체크박스 ✕ 무효(R11)
 
   // 자리순서: 실내 + 순서 살아있음 + 자리큐 유지(야외/포장로 안 빠짐). 야외병행은 유지.
   const seatNeeded = dineIn && order.seat_order_alive && !removesQueue
@@ -49,6 +51,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   //   야외·포장  → 자리앉음 취소(seated=false, 자리큐 제외) + 올리기 전달 체크(raised=true).
   //   야외병행   → 자리앉음은 빈 체크 유지(seated=false, 자리큐는 유지) + 올리기 전달 체크(raised=true).
   //   (셋 다 seated=false·raised=true. 차이는 자리앉음 조작 가능 여부 — 야외/포장은 잠김(✕), 야외병행은 활성.)
+  //   ★포장도고려(포장영수증)은 올림이 무시되는 줄이라 자동 올림을 걸지 않는다 — 자리큐 제외만 적용(R11).
   const setOpt = (v) => {
     const isOpt = v !== 'none'
     patch({
@@ -57,12 +60,26 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
       opt_outdoor_parallel: v === 'parallel',
       ...(isOpt ? {
         seated: false,
-        raised: true,
-        raised_at: order.raised ? order.raised_at : new Date().toISOString(),
-        seat_status: 'raised',
+        ...(raiseVoid ? {} : {
+          raised: true,
+          raised_at: order.raised ? order.raised_at : new Date().toISOString(),
+          seat_status: 'raised',
+        }),
         raise_canceled: null, // 제조옵션으로 다시 올림 → 취소이력 해제
       } : {}),
     })
+  }
+
+  // 자리후 전달 갈래(R11) — '전달'과 같은 위계. 아직 전달 전이면 이 선택이 곧 전달이다(전달+갈래 한 번에).
+  //   영수증 포장(maybe_receipt) 로 바꾸면 올림이 무시되므로 남아있던 올림 표시도 함께 내린다
+  //   (취소가 아니라 갈래 전환이라 raise_canceled 이력은 남기지 않는다).
+  const setDeliverMode = (v) => {
+    const extra = v === 'maybe_receipt' && order.raised
+      ? { raised: false, raised_at: null, seat_status: 'pending' }
+      : {}
+    if (order.seat_delivered) patch({ deliver_mode: v, ...extra })
+    else onCommit?.(order.id, 'seat', { deliver_mode: v, ...extra })
+    setMaybeOpen(false)
   }
 
   // 자리순서 리셋 = ★'처음 전달을 눌렀던 상태'로 복귀. 전달(seat_delivered)은 유지하고
@@ -80,17 +97,32 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   //   · 제조옵션(야외/포장/야외병행)으로 올렸으면 → 그 옵션만 취소 + 자리앉음 다시 활성화(자리큐 복귀). seated 값은 유지.
   //   · 직접체크(제조옵션 없이)로 올렸으면 → 올림만 해제, 자리앉음(seated)은 그대로 둔다.
   //   두 경우 모두 raise_canceled=true → 세부설명에 '올림취소됨' 표시.
-  const uncheckRaise = () => {
+  //   ★'한번에' 로 걸었던 것을 풀면(mode==='both') 자리앉음까지 함께 되돌린다 — 건 것과 같은 단위로 푼다.
+  const uncheckRaise = (mode = confirmUncheck) => {
     // 취소 당시 방식을 raise_canceled(text)에 남긴다 → '올림취소됨(야외)' 히스토리 + 다시 올림 활성(isRaiseEnabled).
     const method = order.opt_takeout ? 'takeout' : order.opt_outdoor ? 'outdoor' : order.opt_outdoor_parallel ? 'parallel' : 'direct'
     const base = { raised: false, raised_at: null, seat_status: 'pending', raise_canceled: method }
+    const both = mode === 'both' ? { seated: false, seat_order_alive: true } : {}
     if (method !== 'direct') {
-      patch({ ...base, opt_outdoor: false, opt_takeout: false, opt_outdoor_parallel: false, seat_order_alive: true })
+      patch({ ...base, ...both, opt_outdoor: false, opt_takeout: false, opt_outdoor_parallel: false, seat_order_alive: true })
     } else {
-      patch(base) // 직접체크 → raised만 해제, 자리앉음(seated)은 유지
+      patch({ ...base, ...both }) // 직접체크 → raised만 해제, 자리앉음(seated)은 유지('한번에' 취소면 함께 해제)
     }
     setConfirmUncheck(false)
   }
+
+  // ★'한번에' = 자리앉음 + 올리기 전달을 한 번에(유저 지시 2026-08-03: "실질적으론 한번에 누르게 된다").
+  //   나눠 누르는 두 체크박스는 그대로 두고 세 번째로 추가 — 개별/개별/함께 3종.
+  //   켬 = 자리 배정 완료(자리순서 '필요없음') + 올림. 끔 = 재확인 후 둘 다 되돌림(uncheckRaise('both')).
+  const bothOn = !!order.seated && !!order.raised && !raiseVoid
+  const setBoth = () => patch({
+    seated: true,
+    seat_order_alive: false,
+    raised: true,
+    raised_at: order.raised ? order.raised_at : new Date().toISOString(),
+    seat_status: 'raised',
+    raise_canceled: null,
+  })
 
   // 확인 신호(주문서관리 → 자리안내): 확인필요 켜짐 + 아직 확인완료 안 됨 = 하이라이트(자리안내 화면에서만).
   // 확인완료를 누르면 하이라이트만 꺼지고 확인필요 체크는 남는다(기록). 다시 확인필요를 껐다 켜면 재신호.
@@ -161,7 +193,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             // 통계용: 주문번호가 처음 채워지는 순간만 시각 기록(이후 수정해도 최초 시각 유지).
             ...(!order.order_no && e.target.value && !order.order_no_at ? { order_no_at: new Date().toISOString() } : {}),
             // ★주문번호를 비우면 전달 체크도 함께 풀린다(비활성만 되고 체크가 남던 문제 — 유저 지시 2026-08-02).
-            ...(!e.target.value && order.seat_delivered ? { seat_delivered: false, delivered_at: null } : {}),
+            ...(!e.target.value && order.seat_delivered ? { seat_delivered: false, delivered_at: null, deliver_mode: null } : {}),
           })}
         />
       </div>
@@ -184,17 +216,25 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
       {/* 자리후 전달 = 체크박스(전달 여부 시각확인 + 토글). 실내(dine_in) 주문만 표시(포장/야외는 관문 없음).
           체크→commitOrder('seat')(seat_status pending + seat_delivered=true) / 해제→seat_delivered=false. */}
       {/* 주문번호가 없으면 전달 비활성(주문번호 먼저 입력해야 스테이션에 올릴 수 있음, 유저 지시 2026-08-01). */}
+      {/* ★두 번째 줄 = '포장도고려 전달'(R11) — 전달과 같은 위계의 갈래. 자리는 계속 기다리되 주문은 포장으로.
+          영수증 매장 = 올림에 '포장' 라벨 / 영수증 포장 = 올림 무시(주방은 이미 만들고 있음). */}
       <div className="seat-cell seat-cell-deliver">
-        {dineIn && (
+        {dineIn && (<>
           <label className={`seat-check seat-deliver-check${order.order_no ? '' : ' seat-check--void'}`}>
             <input
               type="checkbox"
               checked={!!order.seat_delivered}
               disabled={!order.order_no}
-              onChange={(e) => (e.target.checked ? onCommit?.(order.id, 'seat') : patch({ seat_delivered: false, delivered_at: null }))}
+              onChange={(e) => (e.target.checked ? onCommit?.(order.id, 'seat') : patch({ seat_delivered: false, delivered_at: null, deliver_mode: null }))}
             /> <span className="seat-check-text">전달</span>
           </label>
-        )}
+          <button
+            type="button"
+            className={`seat-maybe-btn${isTakeoutMaybe(order) ? ' is-on' : ''}`}
+            disabled={!order.order_no}
+            onClick={() => setMaybeOpen(true)}
+          >{isTakeoutMaybe(order) ? deliverModeLabel(order) : '포장도고려'}</button>
+        </>)}
       </div>
 
       {/* ★열 순서: 자리순서 → 제조옵션 (2026-07-31 유저 지시로 교체).
@@ -229,8 +269,8 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
         >
           <option value="none">-</option>
           <option value="outdoor">야외</option>
-          <option value="takeout">포장</option>
           <option value="parallel">야외병행</option>
+          <option value="takeout">포장으로변경</option>
         </select>
       </div>
 
@@ -250,17 +290,27 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
               onChange={(e) => patch({ seated: e.target.checked, seat_order_alive: !e.target.checked })}
             /> <span className="seat-check-text">자리앉음</span>
           </label>
-          {/* 올리기 전달 = 스테이션(카이막/커피) 올림. 체크→올림 / 풀기→재확인 후 한 스텝 취소(uncheckRaise). */}
-          <label className="seat-check">
+          {/* 올리기 전달 = 스테이션(카이막/커피) 올림. 체크→올림 / 풀기→재확인 후 한 스텝 취소(uncheckRaise).
+              ★포장도고려(포장영수증)은 올림이 무시되는 줄 → 자리앉음 잠금과 같은 관용으로 ✕+취소선 무효 표시(R11). */}
+          <label className={`seat-check${raiseVoid ? ' seat-check--void' : ''}`}>
             <input
               type="checkbox"
-              checked={!!order.raised}
-              disabled={preDeliver}
+              checked={!!order.raised && !raiseVoid}
+              disabled={preDeliver || raiseVoid}
               onChange={(e) => {
                 if (e.target.checked) patch({ raised: true, raised_at: new Date().toISOString(), seat_status: 'raised', raise_canceled: null })
-                else setConfirmUncheck(true) // 바로 풀지 않고 재확인 버튼을 띄운다
+                else setConfirmUncheck('raise') // 바로 풀지 않고 재확인 버튼을 띄운다
               }}
-            /> 올리기 전달
+            /> <span className="seat-check-text">올리기 전달</span>
+          </label>
+          {/* 한번에 = 위 두 개를 동시에. 자리앉음이 잠긴 줄(야외/포장)·올림 무효 줄에서는 함께 잠근다. */}
+          <label className={`seat-check seat-check-both${seatToggleLocked || raiseVoid ? ' seat-check--void' : ''}`}>
+            <input
+              type="checkbox"
+              checked={bothOn}
+              disabled={preDeliver || seatToggleLocked || raiseVoid}
+              onChange={(e) => (e.target.checked ? setBoth() : setConfirmUncheck('both'))}
+            /> <span className="seat-check-text">한번에</span>
           </label>
           {/* 세부보기(raiseDetailOn)는 '어떤 경로로 올림됐는지' 텍스트 표시만 제어.
               ★풀기 재확인은 설정과 무관하게 항상 동작하며, 모달로 뜬다(자리순서 리셋과 동일 — 유저 지시 2026-08-02). */}
@@ -340,6 +390,34 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
         </div>
       )}
 
+      {/* 포장도고려 전달(R11) — 영수증 갈래를 고르는 순간이 곧 전달이다. 이미 골랐으면 '일반 전달로' 되돌리기. */}
+      {maybeOpen && (
+        <div className="seat-confirm-scrim" onClick={() => setMaybeOpen(false)}>
+          <div className="seat-confirm" role="dialog" aria-modal="true" aria-label="포장도고려 전달" onClick={(e) => e.stopPropagation()}>
+            <div className="seat-confirm-title">포장도고려 전달</div>
+            <div className="seat-confirm-desc">
+              자리가 나면 앉지만, 주문은 일단 포장으로 나갑니다. 영수증은 어느 쪽인가요?
+              <br />· <b>매장</b> — 주방이 모르는 정보라 올림 카드에 ‘포장’ 라벨이 붙습니다.
+              <br />· <b>포장</b> — 주방은 이미 포장으로 만들고 있어 올림하지 않습니다(표에만 남습니다).
+            </div>
+            <div className="seat-confirm-acts seat-confirm-acts--stack">
+              {DELIVER_MODES.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  className={`seat-btn${order.deliver_mode === m.value ? ' seat-btn-primary' : ''}`}
+                  onClick={() => setDeliverMode(m.value)}
+                >{m.desc}</button>
+              ))}
+              {isTakeoutMaybe(order) && (
+                <button type="button" className="seat-btn" onClick={() => { patch({ deliver_mode: null }); setMaybeOpen(false) }}>일반 전달로</button>
+              )}
+              <button type="button" className="seat-btn" onClick={() => setMaybeOpen(false)}>취소</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 줄 삭제 재확인 — ★모든 줄에 항상(유저 지시 2026-08-02). 올림된 주문이면 문구를 더 강하게. */}
       {confirmDelete && (
         <div className="seat-confirm-scrim" onClick={() => setConfirmDelete(false)}>
@@ -362,19 +440,25 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
         </div>
       )}
 
-      {/* 올리기 전달 취소 재확인 모달 — 한 스텝 되돌림(올림 경로 그대로). */}
+      {/* 올리기 전달 취소 재확인 모달 — 한 스텝 되돌림(올림 경로 그대로). 'both' 면 자리앉음까지 함께. */}
       {confirmUncheck && (
         <div className="seat-confirm-scrim" onClick={() => setConfirmUncheck(false)}>
           <div className="seat-confirm" role="dialog" aria-modal="true" aria-label="올리기 전달 취소" onClick={(e) => e.stopPropagation()}>
-            <div className="seat-confirm-title">올리기 전달을 취소하시겠습니까?</div>
+            <div className="seat-confirm-title">
+              {confirmUncheck === 'both' ? '자리앉음과 올림을 함께 취소하시겠습니까?' : '올리기 전달을 취소하시겠습니까?'}
+            </div>
             <div className="seat-confirm-desc">
-              {order.opt_takeout || order.opt_outdoor || order.opt_outdoor_parallel
-                ? '올림이 해제되고, 선택했던 야외·포장 옵션도 함께 취소됩니다(자리앉음 다시 가능).'
-                : '올림만 해제됩니다. 자리앉음은 그대로 유지됩니다.'}
+              {confirmUncheck === 'both'
+                ? '자리앉음이 풀려 자리순서가 다시 살아나고, 올림도 해제됩니다.'
+                : order.opt_takeout || order.opt_outdoor || order.opt_outdoor_parallel
+                  ? '올림이 해제되고, 선택했던 야외·포장 옵션도 함께 취소됩니다(자리앉음 다시 가능).'
+                  : '올림만 해제됩니다. 자리앉음은 그대로 유지됩니다.'}
             </div>
             <div className="seat-confirm-acts">
               <button type="button" className="seat-btn" onClick={() => setConfirmUncheck(false)}>유지</button>
-              <button type="button" className="seat-btn seat-btn-danger" onClick={uncheckRaise}>올림취소</button>
+              <button type="button" className="seat-btn seat-btn-danger" onClick={() => uncheckRaise(confirmUncheck)}>
+                {confirmUncheck === 'both' ? '함께 취소' : '올림취소'}
+              </button>
             </div>
           </div>
         </div>
