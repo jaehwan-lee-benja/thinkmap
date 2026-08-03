@@ -73,7 +73,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
           안녕하세요,<br /><b>{member.display_name || '회원'}</b> 회원님!
         </div>
         {variant === 'hero' && (
-          <img className="mk-hero-pose" src={`${import.meta.env.BASE_URL}img/cow-pose-welcome.png`} alt="" aria-hidden="true" />
+          <img className="mk-hero-pose" src={`${import.meta.env.BASE_URL}img/cow-pose-welcome-navy.png`} alt="" aria-hidden="true" />
         )}
       </div>
 
