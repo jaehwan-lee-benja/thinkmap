@@ -20,16 +20,33 @@ import { useScanner } from './useScanner'
 import { useTicketScan } from './useTicketScan'
 import ScanResultPanel from './ScanResultPanel'
 import { useMembershipChannel } from './useMembershipChannel'
-import { CONTRACT_PENDING } from '../../api/membership'
+import { CONTRACT_PENDING, PREVIEW } from '../../api/membership'
 
 export default function StaffView({ store }) {
   const [digits, setDigits] = useState('')
   const [showList, setShowList] = useState(false)
   const [printMsg, setPrintMsg] = useState('')
+  // 가상 스캔(프리뷰 전용) 안내 — 방금 무엇을 쐈고 다음엔 무엇이 나오는지.
+  const [vscan, setVscan] = useState(null)
   // 스캔 = 조회와 **별개 상태**로 둔다(하나로 합치면 스캔 결과가 회원 조회 카드를 덮어써 혼선).
   const scanState = useTicketScan()
   // ★리스트 화면에서도 스캔이 먹힌다 — 직원이 어디에 있든 바코드를 쏘면 처리된다.
-  useScanner((tok) => { setShowList(false); scanState.doLookup(tok) })
+  //
+  // ★버스트 **첫 글자**는 되돌려서 지운다(2026-08-06, 가상 스캔 버튼으로 실증).
+  //   번호패드의 «간격 40ms 미만이면 스캐너» 가드는 2번째 글자부터만 듣는다 — 첫 글자는
+  //   직전 입력과의 간격이 길어 **사람 타이핑과 실시간으로 구분할 방법이 원리적으로 없다.**
+  //   (종전 검증이 통과한 건 데모 토큰이 하필 영문으로 시작했기 때문이다. 숫자로 시작하는
+  //    토큰을 쏘자 «010-1234-» 가 «010-1234-9» 로 오염되는 게 재현됐다.)
+  //   ⇒ 스캔이 **확정된 뒤**(Enter·길이 충족) 새어든 한 글자를 되돌린다.
+  //   ⚠︎남는 모호함: 번호칸이 이미 11자리(정원)면 패드가 애초에 안 받았는데도 끝자리가 우연히
+  //     같으면 한 자리를 지운다. 이 경우는 **화면에 즉시 보이고 다시 누르면 되는** 오류라,
+  //     조용히 잘못된 번호로 조회되는 쪽보다 낫다고 판단했다.
+  useScanner((tok) => {
+    setShowList(false)
+    const c = String(tok || '')[0]
+    if (c >= '0' && c <= '9') setDigits((d) => (d.endsWith(c) ? d.slice(0, -1) : d))
+    scanState.doLookup(tok)
+  })
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear } = useMemberLookup()
   // 미러링 옵트인 여부 — 기본 false.
   const mirror = new URLSearchParams(window.location.search).get('mirror') === '1'
@@ -56,6 +73,21 @@ export default function StaffView({ store }) {
       <div className="mk-col mk-staff-ops">
         {/* 전용 입력창이 없으니 «지금 스캔이 먹는다»를 화면이 말해줘야 한다. */}
         <div className="mk-scan-ready">🔎 바코드 스캔 대기 중 — 어디서든 스캔하세요</div>
+        {/* ★가상 스캔 — 프리뷰에서만. `import.meta.env.DEV &&` 를 앞에 둬야 prod 빌드에서 통째로 접힌다
+            (PREVIEW 만 쓰면 다른 모듈의 const 라 번들러가 못 접는다). 동적 import 라 코드도 안 실린다. */}
+        {import.meta.env.DEV && PREVIEW && (
+          <div className="mk-vscan">
+            <button
+              type="button"
+              className="mk-ml-open"
+              onClick={async () => {
+                const m = await import('./virtualScan')
+                setVscan(m.fireVirtualScan(member?._ticket?.token || null))
+              }}
+            >🔘 가상 스캔(스캐너 대용)</button>
+            {vscan && <div className="mk-note">쏜 값: <b>{vscan.token}</b> — {vscan.label} · 다음: {vscan.next}</div>}
+          </div>
+        )}
         {scanState.phase !== 'idle' && (
           <div className="mk-staff-scan">
             <div className="mk-scan-title">스캔 결과</div>

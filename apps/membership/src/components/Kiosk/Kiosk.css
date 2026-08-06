@@ -963,3 +963,7 @@
   font-size: 12px; letter-spacing: .01em; white-space: nowrap; overflow: hidden;
 }
 .mk-app.mk-preview { top: 26px; }
+
+/* 가상 스캔(프리뷰 전용) — 스캐너 없이 스캔 배선을 돌려보는 버튼. */
+.mk-vscan { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mk-vscan .mk-note { margin-bottom: 0; }
