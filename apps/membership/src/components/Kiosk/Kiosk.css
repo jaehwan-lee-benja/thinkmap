@@ -766,3 +766,49 @@
   width: clamp(120px, 16vh, 190px); height: auto; background: #fff;
   padding: 8px; border-radius: var(--md-radius-sm);
 }
+
+/* ── 발권 후 2택(종이/폰) — 모달 오버레이 (2026-08-06 유저 지시) ───────────── */
+/* «버튼임을 명확히 알 수 있는 디자인» = 큰 면적·뚜렷한 테두리·그림자·즉시 눌림 피드백.
+   오늘 패드 반응성 지적과 같은 감각 기준을 적용한다(누름은 그 프레임에 보인다). */
+.mk-pick-overlay {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1250;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(16, 35, 63, .55);
+}
+.mk-pick {
+  background: var(--md-surface); border-radius: var(--md-radius-xl);
+  box-shadow: var(--md-elev-3); padding: clamp(18px, 3.5vh, 32px);
+  width: min(680px, 94vw); display: flex; flex-direction: column;
+  align-items: center; gap: clamp(14px, 2.5vh, 24px);
+}
+.mk-pick-q {
+  font-family: var(--mk-font-title); font-weight: 700;
+  font-size: clamp(20px, 4.4vw, 30px); color: var(--md-on-surface); text-align: center;
+}
+.mk-pick-row { display: flex; gap: clamp(12px, 2.5vw, 22px); width: 100%; }
+.mk-pick-btn {
+  flex: 1 1 0; min-height: clamp(140px, 22vh, 210px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; cursor: pointer;
+  border: 3px solid var(--md-primary); border-radius: var(--md-radius-lg);
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+  box-shadow: var(--md-elev-2); touch-action: manipulation;
+}
+.mk-pick-ico { font-size: clamp(34px, 7vw, 52px); line-height: 1; }
+.mk-pick-label {
+  font-family: var(--mk-font-title); font-weight: 700;
+  font-size: clamp(17px, 3.4vw, 24px); line-height: 1.35; text-align: center;
+}
+.mk-pick-btn:active {           /* transition 없이 즉시 — 지연이 곧 «더딤» 체감 */
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) { .mk-pick-btn:active { transform: none; } }
+
+.mk-pick-done { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.mk-pick-done-msg {
+  font-family: var(--mk-font-title); font-weight: 700;
+  font-size: clamp(18px, 3.6vw, 26px); color: var(--md-primary);
+}
+.mk-pick-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.mk-tqr-big { width: clamp(180px, 34vh, 300px); }

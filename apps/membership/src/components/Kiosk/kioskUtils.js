@@ -1,10 +1,16 @@
 // 키오스크 공용 유틸 — 날짜·역할·룸·전화포맷.
 
 // 010-1234-5678 형태로 그룹핑(최대 11자리).
+// ★그룹 경계에 닿으면 **하이픈을 미리 띄운다**(2026-08-06 유저 지시: 「010뒤에 - 하이픈도 하나
+//   떠있게 — 그래야 눌를때 자연스러운 경험」). `010` → `010-`, `010-1234` → `010-1234-`.
+//   ⚠︎하이픈은 **표시 전용**이다 — 저장·검증·제출은 계속 숫자만(digits)이라 지우기 시 하이픈
+//   건너뛰기 같은 특수 처리가 필요 없다(자릿수가 줄면 하이픈도 자연히 사라진다).
 export function formatPhone(digits) {
   const d = String(digits).slice(0, 11)
-  if (d.length <= 3) return d
-  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`
+  if (d.length < 3) return d
+  if (d.length === 3) return `${d}-`
+  if (d.length < 7) return `${d.slice(0, 3)}-${d.slice(3)}`
+  if (d.length === 7) return `${d.slice(0, 3)}-${d.slice(3)}-`
   return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`
 }
 
