@@ -941,3 +941,14 @@
   padding: 14px; margin-bottom: 14px; border-radius: var(--md-radius-lg);
   background: var(--md-surface-container); border: 2px solid var(--md-primary);
 }
+
+/* ── 프리뷰 모드 배너(?preview=1, dev 전용) ──────────────────────────────────
+   ★앱을 «덮지 않는다»: .mk-app 은 fixed inset:0 이라 배너를 겹치면 화면을 가린다.
+   → 배너 높이만큼 앱 상단을 내려 **겹침 0**으로 둔다(클릭·레이아웃 방해 없음). */
+.mk-preview-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 26px; z-index: 1001;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: #7A5C00; color: #FFF7DE;
+  font-size: 12px; letter-spacing: .01em; white-space: nowrap; overflow: hidden;
+}
+.mk-app.mk-preview { top: 26px; }

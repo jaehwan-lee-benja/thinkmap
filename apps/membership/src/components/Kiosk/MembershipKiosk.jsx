@@ -15,6 +15,7 @@ import ScanView from './ScanView'
 import PrinterView from './PrinterView'
 import TicketView from './TicketView'
 import { readRoleAndStore } from './kioskUtils'
+import { PREVIEW } from '../../api/membership'
 import './Kiosk.css'
 
 // ★전체화면 버튼 제거(2026-08-01): 운영=Fully Kiosk Browser(스티키 몰입모드가 전체화면 담당)
@@ -23,7 +24,7 @@ export default function MembershipKiosk({ session }) {
   const { role, store } = readRoleAndStore()
 
   return (
-    <div className={`mk-app mk-role-${role}`}>
+    <div className={`mk-app mk-role-${role}${PREVIEW ? ' mk-preview' : ''}`}>
       {/* ★무조작 복귀는 CustomerView 안으로 이관(2026-08-06) — «지금이 홈인가»를 아는 쪽이 무장을 결정한다. */}
       <main className="mk-main">
         {role === 'staff' && <StaffView store={store} />}

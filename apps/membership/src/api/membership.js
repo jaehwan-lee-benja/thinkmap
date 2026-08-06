@@ -22,7 +22,20 @@ export const CONTRACT_PENDING = !LIVE
 
 const PENDING_MSG = 'CRM 데이터 연결 대기 — Edge 배포 후 활성화(MEMBERSHIP-KIOSK-SPEC §8)'
 
+// ★프리뷰 모드(`?preview=1`) — seat 의 패턴 이식(apps/seat/src/SeatApp.jsx).
+//   supabase.co 엣지 차단(«Sorry, you have been blocked»)으로 로그인이 막혀도 전 화면을 걸어보게 한다.
+//   ⚠︎**dev 서버 전용**: `import.meta.env.DEV` 가 프로덕션 빌드에서 리터럴 false 로 접혀
+//   아래 분기 전체(동적 import 포함)가 번들에서 사라진다 — «URL만 붙이면 프로덕션도 우회» 가 원리적으로 불가능하다.
+export const PREVIEW = import.meta.env.DEV
+  && typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).has('preview')
+
 async function callProxy(fn, body) {
+  // ★여기서 갈라야 «발권·원장 API 를 안 부른다」가 구조로 보장된다 — 모든 Edge 호출이 이 함수를 지난다.
+  if (import.meta.env.DEV && PREVIEW) {
+    const m = await import('./previewData')
+    return m.previewResponse(fn, body)
+  }
   if (!LIVE) throw new Error(PENDING_MSG)
   const { data, error } = await supabase.functions.invoke(fn, { body })
   if (error) {

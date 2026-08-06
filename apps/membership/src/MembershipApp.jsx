@@ -7,6 +7,11 @@
 import { useEffect, useState } from 'react'
 import { useAuth, supabase } from '@thinkmap/core'
 import MembershipKiosk from './components/Kiosk/MembershipKiosk'
+import { PREVIEW } from './api/membership'
+
+// 프리뷰용 가짜 세션 — 아래 진입 게이트가 세션 «존재»만 보므로 최소 형태면 충분하다.
+//   토큰은 문자열일 뿐 아무 데도 쓰이지 않는다(프리뷰에선 네트워크 호출 자체가 없다).
+const PREVIEW_SESSION = { user: { id: 'preview', email: 'preview@local' } }
 
 export default function MembershipApp() {
   const { session, authLoading, handleGoogleLogin } = useAuth()
@@ -43,6 +48,18 @@ export default function MembershipApp() {
   }, [userId])
 
   const login = () => { setDenied(false); handleGoogleLogin() }
+
+  // ★프리뷰(`?preview=1`) — 로그인·인가 게이트 우회. **dev 서버에서만**(PREVIEW 정의부 참조).
+  //   훅(useAuth·useEffect)은 위에서 이미 호출됐다 — 조기 return 이 훅 순서를 깨지 않는다(seat 과 같은 배치).
+  //   데모 데이터는 api/previewData.js, 인쇄는 no-op(receipt/print.js).
+  if (PREVIEW) {
+    return (<>
+      <div className="mk-preview-bar">
+        미리보기 — 실제 데이터·발권 없음 · 끝자리 <b>0</b>=미회원 · <b>9</b>=아이스크림 수령가능 · 그 외=스탬프 3/10
+      </div>
+      <MembershipKiosk session={PREVIEW_SESSION} />
+    </>)
+  }
 
   if (authLoading) return <div className="pv-center">로딩 중…</div>
 

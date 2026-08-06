@@ -42,6 +42,10 @@ export function openRawbt(b64) {
 //   제스처가 없으면 iframe 으로 시도한다. 그리고 **성공을 주장하지 않는다** — 반환값은
 //   "요청을 보냈다"는 뜻이고, 화면 문구도 "요청함/종이 확인"으로 낮춘다(호출부 참조).
 function openScheme(url) {
+  // ★프리뷰(dev `?preview=1`)에선 스킴을 **쏘지 않는다** — 맥북엔 RawBT 가 없어서
+  //   rawbt: 이동이 오류 페이지로 튀면 여정을 걸어보는 것 자체가 끊긴다.
+  //   여기가 스킴 발사의 **유일한 지점**이라 이 한 줄로 전 경로가 함께 막힌다(어댑터 경계).
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('preview')) return true
   var gestured = false
   try { gestured = !!(navigator.userActivation && navigator.userActivation.isActive) } catch (e) {}
   if (gestured) {
