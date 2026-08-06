@@ -172,6 +172,7 @@
    부모가 오버플로를 인지하지 못해 **스크롤조차 생기지 않았다**(480x800 실측: "처음으로" 291px 아래·도달 불가,
    768x1024 실기기: 인사말·배지가 화면 위로 잘림).
    → 결과화면은 **높이를 고정하지 않고 위에서부터 쌓는다**. 넘치면 정상적으로 스크롤된다. */
+.mk-role-customer .mk-main:has(.mk-result-view) { overflow: hidden; }   /* 결과화면=전체 스크롤 0 */
 .mk-app .mk-customer-view.mk-result-view {
   /* ★축 주의: 이 컨테이너는 **row** 방향이라 세로 정렬은 `align-items` 다.
      `justify-content`(가로)만 바꿨더니 세로 중앙정렬이 그대로 남아 **상단이 계속 잘렸다**(실측). */
@@ -624,10 +625,16 @@
 .mk-claimed { color: var(--md-alive); font-weight: 700; }
 
 .mk-claim-btn {
-  min-height: 52px; padding: 10px 24px; font-size: 19px; cursor: pointer; font-weight: 700;
-  border: none; border-radius: var(--md-radius-xl);
-  background: var(--md-primary); color: var(--md-on-primary); box-shadow: var(--md-elev-1);
+  min-height: 52px; padding: 12px 24px; cursor: pointer; font-weight: 700;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 3px solid var(--md-primary); border-radius: var(--md-radius-lg);   /* ★버튼 문법 통일 */
+  background: var(--md-primary); color: var(--md-on-primary); box-shadow: var(--md-elev-2);
+  touch-action: manipulation;
 }
+.mk-claim-main { font-size: clamp(17px, 3vw, 22px); }
+.mk-claim-sub { font-size: clamp(13px, 2.2vw, 16px); font-weight: 600; opacity: .9; }
+.mk-claim-btn:active:not(:disabled) { transform: scale(0.98); }   /* 지연 없이 즉시 */
+@media (prefers-reduced-motion: reduce) { .mk-claim-btn:active:not(:disabled) { transform: none; } }
 .mk-claim-btn:disabled { opacity: 0.5; box-shadow: none; }
 .mk-signup-cta {
   min-height: 52px; padding: 10px 24px; font-size: 18px; cursor: pointer; font-weight: 600;
@@ -735,12 +742,39 @@
   .mk-role-customer .mk-pad-xl .mk-pad-submit { min-height: clamp(52px, 7vh, 88px); font-size: clamp(22px, 4vw, 30px); }
 
   /* 조회 결과: 세로 2단 → 세로 스택(인사말 위 · 이벤트/내역 아래). 큰 글씨 유지. */
+  /* ★조회 결과 = **2단 그리드**(2026-08-06 유저: 「스크롤이 안 생기게 2단으로, 스크롤이 생기더라도
+     참여 리스트 내부에서」). 전체 페이지 스크롤 0 이 합격 술어다.
+     단 구성 근거(시선 흐름): **왼쪽 = «나»**(인사말·마스코트·스탬프 진행 — 손님이 자기를 확인하는 영역),
+     **오른쪽 = «지금 할 일»**(참여 버튼/발권 결과 + 참여내역). 왼쪽에서 «내가 맞네»를 확인하고
+     오른쪽으로 시선이 넘어가 행동한다. 어르신 기준으로 «할 일»이 한 덩어리에 모여 있는 게 낫다. */
   .mk-role-customer .mk-result-view .mk-member-card-hero {
-    flex-direction: column; align-items: center; max-height: none;
-    height: auto; max-width: 620px; gap: 20px; padding: clamp(16px, 3vh, 28px);
+    display: grid; grid-template-columns: 1fr 1fr; align-items: stretch;   /* ★양 단 같은 높이 — start 면 왼쪽이 위만 차고 아래가 비어 균형이 깨진다(실측) */
+    height: 100%; max-height: 100%; max-width: none;
+    gap: clamp(12px, 2.4vw, 24px); padding: clamp(12px, 2.4vh, 24px);
+    overflow: hidden;                      /* 전체 스크롤 금지 — 넘치면 내부에서 처리 */
   }
   .mk-role-customer .mk-member-card-hero .mk-member-hero,
-  .mk-role-customer .mk-member-card-hero .mk-member-body { flex: 0 0 auto; width: 100%; }
+  .mk-role-customer .mk-member-card-hero .mk-member-body {
+    width: 100%; min-width: 0; min-height: 0; height: 100%; max-height: 100%;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  /* 왼쪽(«나») = 세로 중앙에 모아 카드가 비어 보이지 않게 */
+  .mk-role-customer .mk-member-card-hero .mk-member-hero { justify-content: center; }
+  /* 참여내역만 자체 스크롤 — 남는 높이를 전부 먹고 그 안에서 넘친다 */
+  .mk-role-customer .mk-member-card-hero .mk-history-wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .mk-role-customer .mk-member-card-hero .mk-history { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
+  /* 2단이라 폭이 절반 — 큰 글씨를 단 폭에 맞춘다 */
+  .mk-role-customer .mk-member-card-hero .mk-greeting { font-size: clamp(22px, 4.2vw, 34px); }
+  .mk-role-customer .mk-member-card-hero .mk-hero-pose { width: clamp(80px, 12vh, 130px); margin-top: clamp(6px, 1.4vh, 14px); }
+  /* ★발권 후에도 전체 스크롤 0 유지: 티켓 카드(토큰+QR)가 오른쪽 단을 넘치게 하던 것을 잡는다.
+     QR 은 여기선 «있다는 표시»면 충분하다 — 크게 보는 건 2택 모달 쪽이다(뎁스0). */
+  .mk-role-customer .mk-member-card-hero .mk-tqr-img { width: clamp(84px, 13vh, 124px); }
+  .mk-role-customer .mk-member-card-hero .mk-ticket { padding: 10px 12px; gap: 6px; }
+  .mk-role-customer .mk-member-card-hero .mk-ticket-token { font-size: clamp(20px, 3.6vw, 26px); letter-spacing: 2px; }
+  .mk-role-customer .mk-member-card-hero .mk-stampcard { padding: 8px; gap: clamp(5px, 1vw, 9px); }
+  .mk-role-customer .mk-member-card-hero .mk-stamp-cell { width: clamp(34px, 5.6vw, 46px); height: clamp(34px, 5.6vw, 46px); }
+  /* 최후 안전망: 그래도 넘치면 오른쪽 단 안에서 스크롤(페이지는 절대 안 움직인다) */
+  .mk-role-customer .mk-member-card-hero .mk-member-body { overflow-y: auto; }
   .mk-role-customer .mk-member-card-hero .mk-greeting { font-size: clamp(28px, 6vw, 44px); }
   .mk-role-customer .mk-member-card-hero .mk-history { max-height: 30vh; }
   /* 도장판 5×2 — 세로에선 폭이 남으니 칸을 키워 가독성 확보(어르신). 5열 고정은 base 에서. */

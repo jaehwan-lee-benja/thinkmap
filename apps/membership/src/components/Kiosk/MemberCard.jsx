@@ -217,8 +217,13 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
           ) : (
             <>
               <div className="mk-event-todo">오늘은 아직 참여 전이에요.</div>
+              {/* ★버튼 문법 통일(2026-08-06): 테두리·그림자·즉시 눌림 + 보조문구로 «무엇이 일어나는지» 명시.
+                  2택 모달의 종이 버튼·가입 버튼과 같은 축이라 키오스크 전체에서 «버튼처럼 생긴 것=눌리는 것». */}
               <button className="mk-claim-btn" onClick={handleClaim} disabled={claiming || !onClaim}>
-                {claiming ? '발권 중…' : <>사르르 <span className="mk-evt-tag">{EVENT_LABEL}</span> 참여</>}
+                <span className="mk-claim-main">
+                  {claiming ? '발권 중…' : <>사르르 <span className="mk-evt-tag">{EVENT_LABEL}</span> 참여</>}
+                </span>
+                {!claiming && <span className="mk-claim-sub">눌러서 참여권 받기</span>}
               </button>
             </>
           )}
