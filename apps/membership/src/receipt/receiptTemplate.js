@@ -85,7 +85,7 @@ function canRaster() {
 //   컷 명령(GS V)은 **스트림 맨 끝 4바이트**다. URL 이 어디서든 잘리면 **컷부터 사라진다**
 //   — 현장에서 «다시 인쇄 시 컷 안 됨»으로 나타난 것과 정확히 일치하는 실패 모드다.
 //   빈 행 제거는 판독 품질을 전혀 건드리지 않으면서 전송량을 크게 줄인다.
-function canvasToRaster(ctx, w, h, trim) {
+function canvasToRaster(ctx, w, h, trim, mode) {
   const img = ctx.getImageData(0, 0, w, h).data
   if (trim) {
     let top = 0, bot = h - 1
@@ -101,11 +101,11 @@ function canvasToRaster(ctx, w, h, trim) {
     if (top > 0 || bot < h - 1) {
       const nh = Math.max(1, bot - top + 1)
       const sub = ctx.getImageData(0, top, w, nh)
-      return canvasToRaster({ getImageData: () => sub }, w, nh, false)
+      return canvasToRaster({ getImageData: () => sub }, w, nh, false, mode)
     }
   }
   const bytesPerRow = Math.ceil(w / 8)
-  const out = [GS, 0x76, 0x30, 0,
+  const out = [GS, 0x76, 0x30, (mode | 0) & 0x03,
     bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff,
     h & 0xff, (h >> 8) & 0xff]
   for (let y = 0; y < h; y++) {
@@ -147,19 +147,26 @@ function rasterText(lines, widthDots) {
 
   const out = []
   for (const pt of parts) {
-    const cw = Math.max(8, pt.tw)
-    const lh = Math.round(pt.size * 1.34)
+    // ★큰 글씨는 **절반 해상도로 그려 프린터가 2배로 확대**해 찍는다(GS v 0 의 m=3).
+    //   현장 실물에서 «큰 글씨 두 줄만 자모가 찢겨» 나왔다 = 최대 블록부터 전송이 끊긴 형상.
+    //   인쇄 크기는 그대로면서 바이트는 **1/4**로 준다 — 절단 위험을 근본적으로 낮춘다.
+    const dbl = !!pt.big
+    const drawSize = dbl ? Math.max(12, Math.round(pt.size / 2)) : pt.size
+    const scale = dbl ? 2 : 1
+    const inkW = Math.max(8, Math.ceil(pt.tw / scale))
+    const lh = Math.round(drawSize * 1.34)
     const canvas = document.createElement('canvas')
-    canvas.width = cw; canvas.height = lh
+    canvas.width = inkW; canvas.height = lh
     const ctx = canvas.getContext('2d')
-    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, cw, lh)
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, inkW, lh)
     ctx.fillStyle = '#000000'; ctx.textBaseline = 'top'
-    ctx.font = `${pt.bold ? 'bold ' : ''}${pt.size}px ${RASTER_FONT}`
-    ctx.fillText(pt.text, 0, Math.round((lh - pt.size) / 2))
-    // 배치: 가운데 정렬이면 (용지폭 - 잉크폭)/2 지점에서 찍기 시작
-    const x = pt.align === 'center' ? Math.max(0, Math.round((widthDots - cw) / 2)) : 0
+    ctx.font = `${pt.bold ? 'bold ' : ''}${drawSize}px ${RASTER_FONT}`
+    ctx.fillText(pt.text, 0, Math.round((lh - drawSize) / 2))
+    // 배치: 확대 후의 실제 폭(inkW*scale) 기준으로 가운데를 잡는다
+    const printedW = inkW * scale
+    const x = pt.align === 'center' ? Math.max(0, Math.round((widthDots - printedW) / 2)) : 0
     out.push(ESC, 0x24, x & 0xff, (x >> 8) & 0xff)      // ESC $ = 절대 위치
-    out.push(...canvasToRaster(ctx, cw, lh, true))
+    out.push(...canvasToRaster(ctx, inkW, lh, true, dbl ? 3 : 0))   // m=3 → 가로·세로 2배
     out.push(0x0a)
   }
   return out
