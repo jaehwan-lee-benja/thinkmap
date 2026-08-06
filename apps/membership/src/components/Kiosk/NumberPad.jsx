@@ -42,9 +42,18 @@ export default function NumberPad({
   const pressFromClick = (k) => { if (Date.now() - pointerAtRef.current < 700) return; press(k) }
 
   // 물리 키보드 입력 — 번호패드와 같은 state 공유. 이름 등 텍스트 입력 포커스 시엔 양보.
+  // ★스캐너 버스트 무시(2026-08-06 직원 허브 통합에서 발견): 바코드를 쏘면 그 숫자가
+  //   **조회 번호칸에도 섞여 들어갔다**(허브 실측: 스캔 1회에 조회창이 «2»로 오염).
+  //   스캐너는 문자 간격이 사람보다 압도적으로 짧다 ⇒ **연속 입력 간격이 너무 짧으면 사람이 아니다**로 보고 버린다.
+  //   (useScanner 와 같은 «타이밍으로 가른다» 원리 — 그쪽이 이 입력을 이미 토큰으로 처리한다.)
+  const lastKeyAtRef = useRef(0)
   useEffect(() => {
     const onKey = (e) => {
       if (disabled) return
+      const now = Date.now()
+      const gap = now - lastKeyAtRef.current
+      lastKeyAtRef.current = now
+      if (gap < 40) return   // 스캐너 버스트 — 번호패드는 손대지 않는다
       const el = document.activeElement
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
       if (e.key >= '0' && e.key <= '9') {
