@@ -41,3 +41,16 @@
 .mk-pad-xl .mk-key { min-height: 108px; font-size: 46px; }
 .mk-pad-xl .mk-key-aux { font-size: 26px; }
 .mk-pad-xl .mk-pad-submit { min-height: 88px; font-size: 30px; }
+
+/* ★누름 피드백(2026-08-06): 반응이 «더디다»는 체감의 절반은 **눌린 표시가 없어서**다.
+   pointerdown 으로 입력은 즉시 반영되므로, 시각 피드백도 즉시 나가게 한다.
+   transition 을 걸지 않는다 — 지연 없이 그 프레임에 바뀌어야 «즉각»으로 느껴진다. */
+.mk-key:active:not(:disabled) {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  transform: scale(0.96);
+}
+.mk-pad-submit:active:not(:disabled) { transform: scale(0.98); }
+@media (prefers-reduced-motion: reduce) {
+  .mk-key:active:not(:disabled), .mk-pad-submit:active:not(:disabled) { transform: none; }
+}
