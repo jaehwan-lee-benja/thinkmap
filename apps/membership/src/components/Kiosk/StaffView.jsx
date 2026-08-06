@@ -32,21 +32,9 @@ export default function StaffView({ store }) {
   const scanState = useTicketScan()
   // ★리스트 화면에서도 스캔이 먹힌다 — 직원이 어디에 있든 바코드를 쏘면 처리된다.
   //
-  // ★버스트 **첫 글자**는 되돌려서 지운다(2026-08-06, 가상 스캔 버튼으로 실증).
-  //   번호패드의 «간격 40ms 미만이면 스캐너» 가드는 2번째 글자부터만 듣는다 — 첫 글자는
-  //   직전 입력과의 간격이 길어 **사람 타이핑과 실시간으로 구분할 방법이 원리적으로 없다.**
-  //   (종전 검증이 통과한 건 데모 토큰이 하필 영문으로 시작했기 때문이다. 숫자로 시작하는
-  //    토큰을 쏘자 «010-1234-» 가 «010-1234-9» 로 오염되는 게 재현됐다.)
-  //   ⇒ 스캔이 **확정된 뒤**(Enter·길이 충족) 새어든 한 글자를 되돌린다.
-  //   ⚠︎남는 모호함: 번호칸이 이미 11자리(정원)면 패드가 애초에 안 받았는데도 끝자리가 우연히
-  //     같으면 한 자리를 지운다. 이 경우는 **화면에 즉시 보이고 다시 누르면 되는** 오류라,
-  //     조용히 잘못된 번호로 조회되는 쪽보다 낫다고 판단했다.
-  useScanner((tok) => {
-    setShowList(false)
-    const c = String(tok || '')[0]
-    if (c >= '0' && c <= '9') setDigits((d) => (d.endsWith(c) ? d.slice(0, -1) : d))
-    scanState.doLookup(tok)
-  })
+  //   ★번호칸 오염 방지는 NumberPad 의 «지연 확정»이 맡는다(그 파일 주석에 3차 수정 경위).
+  //     여기서 되돌리는 방식은 **멀쩡한 자리를 지우는** 부작용이 있어 폐기했다.
+  useScanner((tok) => { setShowList(false); scanState.doLookup(tok) })
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear } = useMemberLookup()
   // 미러링 옵트인 여부 — 기본 false.
   const mirror = new URLSearchParams(window.location.search).get('mirror') === '1'

@@ -10,12 +10,14 @@
 import { useEffect, useRef } from 'react'
 import { charFromKey } from './scanInput'
 
-const GAP_MS = 300      // 이보다 길게 끊기면 «사람»으로 보고 버린다
+// ★«버스트 간격» — 스캐너는 문자 간격이 촘촘하고 사람 타이핑은 그렇지 않다.
+//   번호패드도 **같은 상수**를 쓴다(NumberPad.js) — 두 곳이 다른 값을 쓰면 한쪽이 먹은 걸 다른 쪽이 못 알아본다.
+export const BURST_GAP_MS = 80
 const MIN_LEN = 12      // 우리 토큰 길이(0018 규격)
+const MAX_BUF = 48
 
 export function useScanner(onScan, enabled = true) {
-  const bufRef = useRef('')
-  const lastRef = useRef(0)
+  const bufRef = useRef([])          // [{ ch, at }] — 문자와 그 시각
   const cbRef = useRef(onScan)
   cbRef.current = onScan
 
@@ -23,18 +25,27 @@ export function useScanner(onScan, enabled = true) {
     if (!enabled) return undefined
     const onKey = (e) => {
       const now = Date.now()
-      if (now - lastRef.current > GAP_MS) bufRef.current = ''
-      lastRef.current = now
       const code = e.code || ''
       if (code === 'Enter' || code === 'NumpadEnter' || (!code && e.key === 'Enter')) {
-        const v = bufRef.current
-        bufRef.current = ''
+        const arr = bufRef.current
+        bufRef.current = []
+        // ★뒤에서부터 «간격이 촘촘하게 이어지는 구간»만 취한다(2026-08-06 교정).
+        //   종전엔 «300ms 넘게 끊기면 버퍼를 버린다» 하나였는데, 그러면
+        //   **직원이 번호를 타이핑한 직후(300ms 안)에 바코드를 쏘면 타이핑한 숫자가 토큰 앞에 붙어**
+        //   «등록되지 않은 티켓»이 떴다(실증). 현장에서는 «쿠폰이 가짜»로 읽혀 손님이 팝콘을 못 받는다.
+        //   ⇒ 앞을 자르는 기준을 «시간 경과»가 아니라 **«입력 리듬의 단절»** 로 바꾼다.
+        let i = arr.length - 1
+        while (i > 0 && arr[i].at - arr[i - 1].at <= BURST_GAP_MS) i -= 1
+        const run = arr.slice(i).map((x) => x.ch).join('')
         // ★길이 미달이면 아무것도 하지 않는다 — 직원이 검색창에서 누른 Enter 를 가로채지 않는다.
-        if (v.length >= MIN_LEN) { e.preventDefault(); cbRef.current && cbRef.current(v) }
+        if (run.length >= MIN_LEN) { e.preventDefault(); cbRef.current && cbRef.current(run) }
         return
       }
       const ch = charFromKey(e)
-      if (ch) bufRef.current = (bufRef.current + ch).slice(0, 32)
+      if (ch) {
+        bufRef.current.push({ ch, at: now })
+        if (bufRef.current.length > MAX_BUF) bufRef.current.shift()
+      }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
