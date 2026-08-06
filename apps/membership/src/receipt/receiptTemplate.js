@@ -54,10 +54,82 @@ export function validateTemplate(tpl) {
 // ── ESC/POS 생성기 ───────────────────────────────────────────────────────────
 const ESC = 0x1b, GS = 0x1d
 function enc(str) {
-  // ★한글은 프린터 코드페이지(EUC-KR 등) 의존 — Phase2에서 실기기 코드페이지 확정.
-  //   생성기는 UTF-8 바이트로 넣고(placeholder), 실기기 확정 시 인코더만 교체(어댑터 포인트).
+  // ASCII 전용 폴백 경로에서만 쓴다(아래 래스터 주석 참조).
   if (typeof TextEncoder !== 'undefined') return Array.from(new TextEncoder().encode(str))
   return Array.from(Buffer.from(str, 'utf8'))
+}
+
+// ── ★한글 텍스트 = 래스터(GS v 0) — 2026-08-06 현장 실측 대응 ────────────────
+// 현장 사실: USB 유선(RawBT USB + ESC/POS general)은 **raw 패스스루**라 프린터 코드페이지에
+//   한글이 없으면 그대로 모지바케가 된다(헤더·안내문 전멸. 숫자·날짜·바코드는 정상).
+//   BT 경로에선 RawBT 가 비트맵으로 바꿔줘서 이 문제가 가려져 있었다.
+// ⇒ **텍스트 블록만** 캔버스에 한글 폰트로 그려 1비트 래스터로 내보낸다 = 코드페이지 의존 0.
+// ★바코드(GS k)·QR(GS ( k)은 **프린터 네이티브 그대로 둔다** — 스캐너 판독이 실측 검증된 경로라
+//   건드리지 않는다(판독 리스크 > 폰트 통일 이득).
+const RASTER_DOTS = { 58: 384, 80: 576 }   // 용지폭 → 인쇄 도트폭
+const RASTER_FONT = '"GmarketSansMedium","G마켓 산스",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif'
+
+function canRaster() {
+  return typeof document !== 'undefined' && typeof document.createElement === 'function'
+}
+
+// 캔버스 픽셀 → GS v 0 래스터 바이트(1비트, 임계값 이진화)
+function canvasToRaster(ctx, w, h) {
+  const img = ctx.getImageData(0, 0, w, h).data
+  const bytesPerRow = Math.ceil(w / 8)
+  const out = [GS, 0x76, 0x30, 0,
+    bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff,
+    h & 0xff, (h >> 8) & 0xff]
+  for (let y = 0; y < h; y++) {
+    for (let bx = 0; bx < bytesPerRow; bx++) {
+      let byte = 0
+      for (let bit = 0; bit < 8; bit++) {
+        const x = bx * 8 + bit
+        if (x >= w) continue
+        const i = (y * w + x) * 4
+        const lum = img[i] * 0.299 + img[i + 1] * 0.587 + img[i + 2] * 0.114
+        if (lum < 160) byte |= 0x80 >> bit      // 어두우면 점을 찍는다
+      }
+      out.push(byte)
+    }
+  }
+  return out
+}
+
+// 한 줄(또는 여러 줄) 텍스트를 용지폭 캔버스에 그려 래스터로.
+// 정렬은 **캔버스 안에서** 처리한다(ESC a 에 의존하지 않아 프린터 편차가 없다).
+function rasterText(lines, widthDots) {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  const BASE = 26
+  const metrics = lines.map((l) => {
+    const size = l.big ? BASE * 2 : BASE
+    return { ...l, size, lh: Math.round(size * 1.34) }
+  })
+  const height = Math.max(1, metrics.reduce((a, m) => a + m.lh, 0))
+  canvas.width = widthDots
+  canvas.height = height
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, widthDots, height)
+  ctx.fillStyle = '#000000'
+  ctx.textBaseline = 'top'
+  let y = 0
+  for (const m of metrics) {
+    // ★용지폭 초과 시 자동 축소(2026-08-06): 큰 글씨("팝콘 이벤트 참여권" 2배)가 384dot 을 넘어
+    //   **마지막 글자가 잘렸다**(래스터 디코드 육안 검증에서 발견 — 바이트 검사로는 안 잡힌다).
+    //   종이 밖으로 나가느니 줄여서 다 보이게 한다.
+    let size = m.size
+    ctx.font = `${m.bold ? 'bold ' : ''}${size}px ${RASTER_FONT}`
+    let tw = ctx.measureText(m.text).width
+    if (tw > widthDots) {
+      size = Math.max(12, Math.floor(size * (widthDots / tw)))
+      ctx.font = `${m.bold ? 'bold ' : ''}${size}px ${RASTER_FONT}`
+      tw = ctx.measureText(m.text).width
+    }
+    const x = m.align === 'center' ? Math.max(0, Math.round((widthDots - tw) / 2)) : 0
+    ctx.fillText(m.text, x, y + Math.round((m.lh - size) / 2))
+    y += m.lh
+  }
+  return canvasToRaster(ctx, widthDots, height)
 }
 
 export function buildEscpos(tpl, data) {
@@ -65,6 +137,9 @@ export function buildEscpos(tpl, data) {
   if (!v.ok) throw new Error('invalid template: ' + v.errors.join(', '))
   const out = []
   const push = (...b) => out.push(...b)
+  // ★용지폭이 이제 실제 출력에 반영된다(종전엔 58/80 토글이 프리뷰만 바꾸고 바이트엔 미반영이었다).
+  const DOTS = RASTER_DOTS[tpl.width] || RASTER_DOTS[80]
+  const RASTER = canRaster()   // 브라우저=래스터(한글 안전) / node·구형=텍스트 폴백
   push(ESC, 0x40) // init
 
   for (const b of tpl.blocks) {
@@ -72,13 +147,21 @@ export function buildEscpos(tpl, data) {
     push(ESC, 0x61, b.align === 'center' ? 1 : 0) // 정렬
     switch (b.type) {
       case 'logo':
-        // 비트맵 로고는 Phase2(실기기 코드페이지·GS v 0 확정 후). 텍스트 대체.
-        push(ESC, 0x45, 1); push(...enc('사르르목장')); push(ESC, 0x45, 0, 0x0a)
+        if (RASTER) { push(ESC, 0x61, 0); push(...rasterText([{ text: '사르르목장', bold: true, big: true, align: b.align }], DOTS)); push(0x0a) }
+        else { push(ESC, 0x45, 1); push(...enc('사르르목장')); push(ESC, 0x45, 0, 0x0a) }
         break
       case 'text': {
+        const line = subst(b.text, data)
+        if (RASTER) {
+          // ★래스터 = 한글 안전. 정렬을 캔버스에서 처리하므로 ESC a 는 0(왼쪽)으로 되돌린다.
+          push(ESC, 0x61, 0)
+          push(...rasterText([{ text: line, bold: !!b.bold, big: !!b.big, align: b.align }], DOTS))
+          push(0x0a)
+          break
+        }
         if (b.bold) push(ESC, 0x45, 1)
         if (b.big) push(GS, 0x21, 0x11) // 2x2
-        push(...enc(subst(b.text, data)), 0x0a)
+        push(...enc(line), 0x0a)
         if (b.big) push(GS, 0x21, 0x00)
         if (b.bold) push(ESC, 0x45, 0)
         break
@@ -109,9 +192,12 @@ export function buildEscpos(tpl, data) {
         push(0x0a)
         break
       }
-      case 'stamp':
-        push(...enc('스탬프 ' + (data.stamp || '') + '  (10개 = 아이스크림)'), 0x0a)
+      case 'stamp': {
+        const st = '스탬프 ' + (data.stamp || '')
+        if (RASTER) { push(ESC, 0x61, 0); push(...rasterText([{ text: st, bold: false, big: false, align: b.align }], DOTS)); push(0x0a) }
+        else push(...enc(st), 0x0a)
         break
+      }
       case 'feed':
         for (let i = 0; i < (b.lines | 0 || 1); i++) push(0x0a)
         break

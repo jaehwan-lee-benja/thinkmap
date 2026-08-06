@@ -3,7 +3,7 @@
 // 물리 키보드 지원: 마운트 중 window keydown 으로 0~9·Backspace·Enter·Esc 를 같은 state 로 처리
 //   (조회·가입 두 화면이 각자 NumberPad 를 쓰므로 한 번에 하나만 마운트 → 전역 리스너 안전).
 //   텍스트 입력(이름 등)에 포커스가 있으면 그쪽이 처리하도록 양보한다.
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { formatPhone } from './kioskUtils'
 import './NumberPad.css'
 
@@ -29,6 +29,13 @@ export default function NumberPad({
     if (digits.length >= maxLength) return
     onChange(digits + k)
   }
+
+  // ★터치 반응성(2026-08-06 현장 체감 «더딤»): onClick 은 **손을 뗄 때** 발화한다.
+  //   → 누르는 순간(pointerdown) 반영하고, 뒤따라오는 click 은 중복 가드로 무시한다.
+  //   (click 을 아예 없애지 않는 이유: 키보드 Enter/Space 접근성과 pointer 미지원 폴백을 남긴다.)
+  const pointerAtRef = useRef(0)
+  const pressFromPointer = (k) => { pointerAtRef.current = Date.now(); press(k) }
+  const pressFromClick = (k) => { if (Date.now() - pointerAtRef.current < 700) return; press(k) }
 
   // 물리 키보드 입력 — 번호패드와 같은 state 공유. 이름 등 텍스트 입력 포커스 시엔 양보.
   useEffect(() => {
@@ -64,7 +71,8 @@ export default function NumberPad({
             key={k}
             type="button"
             className={`mk-key ${k === 'clear' || k === 'back' ? 'mk-key-aux' : ''}`}
-            onClick={() => press(k)}
+            onPointerDown={(e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; pressFromPointer(k) }}
+            onClick={() => pressFromClick(k)}
             disabled={disabled}
           >
             {k === 'back' ? '⌫' : k === 'clear' ? '전체지움' : k}
