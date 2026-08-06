@@ -217,6 +217,20 @@ engine-metrics 선례: thinkmap Edge가 시크릿(`x-api-key`)을 서버에서 �
 - **site_nodes 등록**: `{name:'멤버십 키오스크', kind:'satellite', domain:'membership', url:'/thinkmap/membership/', required_role:'member'(직원)|'master', status:'dev'→'live'}`. 배선(siteNodesSeed + Sidebar 런처)은 모선 세션과 조율(hotspot).
 - crm Edge/테이블 신설·시크릿 발급 = **crm 도메인 배포**(지휘자 경유 계약·승인).
 
+### 6.1 ★프리뷰 모드 `?preview=1` (dev 전용, 2026-08-06 — seat 패턴 이식)
+
+- **왜**: supabase.co 가 차단(«Sorry, you have been blocked»)되면 **로그인 자체가 불가**해 화면을 아무것도 못 본다.
+  자리후에서 같은 상황을 겪고 만든 해법을 그대로 가져왔다(`apps/seat/src/SeatApp.jsx`).
+- **주소**: `http://localhost:5199/thinkmap/membership/?preview=1` (허브 = `&role=staff`).
+- **구조**: 로그인·인가 우회 = `MembershipApp`, 데이터 = `api/previewData.js`.
+  ★분기 지점은 **`callProxy` 한 곳** — 모든 Edge 호출이 지나므로 «발권·원장 API 미호출»이
+  규칙이 아니라 **구조로** 보장된다. 인쇄도 `openScheme`(스킴 발사의 유일 지점)에서 no-op.
+- **dev 전용 보장**: 조건이 `import.meta.env.DEV && …` 라 프로덕션 빌드에서 리터럴 `false` 로 접히고
+  분기 전체(동적 import 포함)가 사라진다 ⇒ **배포본에 `?preview=1` 우회 경로가 없다.**
+  실측(2026-08-06 빌드): 모던·legacy 청크 모두 `previewData`/데모 문자열 **0건**, 별도 청크 생성 **0**.
+  (CSS 규칙 `.mk-preview-bar` 3줄 ~180B 만 잔존 — 스타일이라 우회에 쓰일 수 없다.)
+- **데모 번호 규칙**: 끝자리 `0`=미회원 · `9`=아이스크림 수령가능 · 그 외=스탬프 3/10. 새로고침 시 초기화.
+
 ---
 
 ## 7. 미해결·조사 항목 (구현 전 결정)

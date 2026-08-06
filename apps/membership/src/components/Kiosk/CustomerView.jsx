@@ -90,6 +90,7 @@ export default function CustomerView({ store }) {
           variant="hero"
           printable={localPrint}   /* 기본 false — 인쇄는 카운터 폰이 맡는다(위 주석). 외장 프린터 달면 ?print=local */
           showQr                   /* ★손님 폰으로 옮겨갈 QR(유저 채택) — 고객 화면에서만 */
+          pickFlow                 /* ★«종이/폰» 2택 모달도 고객 화면에서만 — 직원 노트북을 덮으면 안 된다 */
           member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
           onClaim={claimAndPrint} onReset={resetAll} resetLabel="처음으로"
           /* ★onRedeem 을 넘기지 않는다(2026-08-04): 리워드 «수령» 은 되돌리는 API 가 없는 확정 행위인데

@@ -49,7 +49,11 @@ export default function ScanResultPanel({ scan, printMsg, setPrintMsg }) {
             }}
           >영수증 인쇄</button>
           {printMsg && <div className="mk-scan-stamp">{printMsg}</div>}
-          <button className="mk-reset" onClick={() => { setResult(null); setPhase('idle'); setErrMsg(''); setBuf('') }}>다음 스캔</button>
+          {/* ★2026-08-06 수정: 여기서 `setResult/setPhase/setErrMsg/setBuf` 를 직접 불렀는데
+              **이 컴포넌트 스코프에 없는 식별자**였다(허브 통합 때 ScanView 본문에서 옮겨오며 딸려온 코드).
+              누르는 순간 ReferenceError → 에러 바운더리가 없어 화면이 통째로 날아간다.
+              공유 상태의 리셋은 훅이 주는 `reset()` 이 정본이다. */}
+          <button className="mk-reset" onClick={() => { scan.reset(); setPrintMsg('') }}>다음 스캔</button>
         </div>
       )}
     </>

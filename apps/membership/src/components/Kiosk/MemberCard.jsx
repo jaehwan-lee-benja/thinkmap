@@ -10,7 +10,7 @@ const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크�
 
 // ★printable = **프린터가 달린 기기에서만 true**(키오스크 단말). 직원 노트북(StaffView)은 false 라
 //   rawbt: 스킴이 호출되지 않는다 — 프린터 없는 기기에서 스킴을 던지면 오류 페이지로 튈 수 있다.
-export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false, showQr = false }) {
+export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false, showQr = false, pickFlow = false }) {
   // ★훅은 조기 return 보다 위에 — member 가 null 이어도 호출 순서가 바뀌면 안 된다(Rules of Hooks).
   const printedRef = useRef(null)          // (예약) 중복 인쇄 방지용 — 자동 인쇄 제거로 현재 미사용
   const [printMsg, setPrintMsg] = useState('')
@@ -149,7 +149,11 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                   토큰은 어느 쪽을 골라도 위에 계속 보인다(정본은 토큰). */}
               {/* ★모달/오버레이(유저 확정 2026-08-06: 「모달처럼 나오게 — 페이지 전환 느낌이 아니라」).
                   뒤에 발권 완료 맥락(회원 카드)이 그대로 남아 보인다. 라우팅·화면 교체 없음. */}
-              {claimedToken === printToken && !choice && (
+              {/* ★pickFlow = «손님이 고르는 화면인가»(2026-08-06 수정). 종전엔 무조건 떠서
+                  **직원 노트북에서 발권해도 손님용 2택 모달이 떴고**, 오버레이가 직원 화면 전체를
+                  가려 회수·리스트를 못 눌렀다. 게다가 [종이로 인쇄]는 printable 게이트 밖이라
+                  **프린터 없는 직원 기기에서 rawbt 스킴을 쏠** 수 있었다(이 파일 상단 경고와 모순). */}
+              {pickFlow && claimedToken === printToken && !choice && (
                 <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="참여권 받는 방법 선택">
                  <div className="mk-pick">
                   <div className="mk-pick-q">참여권을 어떻게 받으시겠어요?</div>
