@@ -23,7 +23,9 @@
   font-size: 34px; font-weight: 500; cursor: pointer;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
 }
-.mk-key-aux { font-size: 20px; font-weight: 600; color: var(--md-on-surface-variant); background: var(--md-surface-container); }
+.mk-key-aux { color: var(--md-on-surface-variant); background: var(--md-surface-container); }
+/* ★보조키(전체지움·지움)는 **같은 규칙 하나**로 묶는다 — 값이 갈리면 «달라 보인다»가 재발한다. */
+.mk-key-aux, .mk-key-back { font-size: 20px; font-weight: 600; }
 
 .mk-pad-submit {
   min-height: 68px; border: none; border-radius: var(--md-radius-xl);
@@ -39,7 +41,7 @@
 .mk-pad-xl .mk-pad-placeholder { font-size: 30px; }
 .mk-pad-xl .mk-pad-grid { gap: 18px; }
 .mk-pad-xl .mk-key { min-height: 108px; font-size: 46px; }
-.mk-pad-xl .mk-key-aux { font-size: 26px; }
+.mk-pad-xl .mk-key-aux, .mk-pad-xl .mk-key-back { font-size: 26px; }
 .mk-pad-xl .mk-pad-submit { min-height: 88px; font-size: 30px; }
 
 /* ★누름 피드백(2026-08-06): 반응이 «더디다»는 체감의 절반은 **눌린 표시가 없어서**다.
@@ -60,7 +62,9 @@
    전체지움은 유지(유저가 «괜찮아보여»라 했다). */
 .mk-key-back {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  color: var(--md-on-surface); background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant); background: var(--md-surface-container);
 }
-.mk-key-back-ico { font-size: 1.5em; line-height: 1; }
-.mk-key-back-txt { font-size: .42em; font-weight: 700; letter-spacing: .02em; }
+/* ★아이콘·라벨의 «주종» 제거(유저: 「아이콘도 너무 크다, 더 균형있게」).
+   아이콘을 라벨보다 살짝 크게만 두고, 라벨은 전체지움과 **같은 크기**로 맞춘다. */
+.mk-key-back-ico { font-size: 1.25em; line-height: 1; }
+.mk-key-back-txt { font-size: 1em; font-weight: 600; letter-spacing: .02em; }
