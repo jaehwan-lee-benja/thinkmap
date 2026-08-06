@@ -74,12 +74,13 @@ export default function NumberPad({
           <button
             key={k}
             type="button"
-            className={`mk-key ${k === 'clear' || k === 'back' ? 'mk-key-aux' : ''}`}
+            className={`mk-key ${k === 'clear' ? 'mk-key-aux' : ''}${k === 'back' ? ' mk-key-back' : ''}`}
             onPointerDown={(e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; pressFromPointer(k) }}
             onClick={() => pressFromClick(k)}
             disabled={disabled}
+            aria-label={k === 'back' ? '한 자리 지움' : k === 'clear' ? '전체 지움' : k}
           >
-            {k === 'back' ? '⌫' : k === 'clear' ? '전체지움' : k}
+            {k === 'back' ? <><span className="mk-key-back-ico" aria-hidden="true">⌫</span><span className="mk-key-back-txt">지움</span></> : k === 'clear' ? '전체지움' : k}
           </button>
         ))}
       </div>

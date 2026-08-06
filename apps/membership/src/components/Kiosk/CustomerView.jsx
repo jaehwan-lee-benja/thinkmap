@@ -99,16 +99,10 @@ export default function CustomerView({ store }) {
         <div className="mk-lookup-left">
           <img className="mk-brand-logo" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="사르르목장" />
           <div className="mk-lookup-ment">사르르목장 멤버십<br />이벤트에 참여해보세요!</div>
-          {status === 'notfound' ? (
+          {status === 'notfound' && (
             <div className="mk-card mk-card-none mk-signup-mini">
               <p>아직 멤버십 회원이 아니세요.</p>
-              <button className="mk-signup-cta" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
               <button className="mk-reset" onClick={resetAll}>다시</button>
-            </div>
-          ) : (
-            <div className="mk-signup-invite">
-              <p className="mk-invite-copy">아직 멤버십 회원이 아니신가요?<br />멤버십에 가입하시면 사르르를 더욱 즐기실 수 있습니다.</p>
-              <button className="mk-signup-cta" onClick={() => setShowSignup(true)}>멤버십 가입하기 →</button>
             </div>
           )}
         </div>
@@ -123,6 +117,16 @@ export default function CustomerView({ store }) {
             size="xl"
             clearTo={PHONE_PREFILL}
           />
+          {/* ★가입 안내 = 조회 버튼 «아래»(유저 지시 2026-08-06): 주 과업은 조회, 가입은 그 다음이라는 위계.
+              어포던스 = 타원 텍스트링크 → **명백한 버튼**(테두리·그림자·즉시 눌림). 어르신 기준이라
+              «누르는 것»이 형태로 읽혀야 한다 — 2택 모달의 버튼 문법과 통일한다. */}
+          <div className="mk-signup-below">
+            <p className="mk-invite-copy">아직 멤버십 회원이 아니신가요?</p>
+            <button type="button" className="mk-signup-btn" onClick={() => setShowSignup(true)}>
+              <span className="mk-signup-btn-label">멤버십 가입하기</span>
+              <span className="mk-signup-btn-sub">눌러서 가입</span>
+            </button>
+          </div>
           {CONTRACT_PENDING && <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>}
           {status === 'error' && (
             <div className="mk-card mk-card-err"><p className="mk-err">{errMsg}</p>

@@ -54,3 +54,13 @@
 @media (prefers-reduced-motion: reduce) {
   .mk-key:active:not(:disabled), .mk-pad-submit:active:not(:disabled) { transform: none; }
 }
+
+/* ★한 자리 지움 시인성(2026-08-06 유저: 「화살표는 너무 작아 — 직관적이고 잘 보이게」).
+   ⌫ 글리프를 키우고 «지움» 라벨을 병기한다. 아이콘만으로는 어르신이 뜻을 못 읽는다.
+   전체지움은 유지(유저가 «괜찮아보여»라 했다). */
+.mk-key-back {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--md-on-surface); background: var(--md-surface-container-high);
+}
+.mk-key-back-ico { font-size: 1.5em; line-height: 1; }
+.mk-key-back-txt { font-size: .42em; font-weight: 700; letter-spacing: .02em; }
