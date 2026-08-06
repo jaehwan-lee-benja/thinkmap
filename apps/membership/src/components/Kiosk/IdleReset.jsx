@@ -17,11 +17,14 @@ function readIdleSec() {
 
 export const IDLE_RESET_EVENT = 'mk-idle-reset'
 
-export default function IdleReset({ enabled }) {
+// ★armed=false 면 **타이머를 아예 무장하지 않는다**(2026-08-06 결함: 첫 화면인데도 «몇 초 후
+//   첫 화면으로 갑니다»가 떴다 — 되돌릴 것이 없는 화면에서 카운트다운은 손님을 불안하게만 한다).
+//   «무엇이 홈인가»의 판단은 상태를 아는 쪽(CustomerView)이 한다 — 여기서 추측하지 않는다.
+export default function IdleReset({ enabled, armed = true }) {
   const [remain, setRemain] = useState(-1) // -1=경고 아님, 0~WARN_SEC=카운트다운
 
   useEffect(() => {
-    if (!enabled) return undefined
+    if (!enabled || !armed) { setRemain(-1); return undefined }
     const idleSec = readIdleSec()
     if (!idleSec) return undefined
 
@@ -52,7 +55,7 @@ export default function IdleReset({ enabled }) {
       clearInterval(t)
       for (let i = 0; i < evs.length; i++) window.removeEventListener(evs[i], bump, true)
     }
-  }, [enabled])
+  }, [enabled, armed])
 
   if (remain < 0) return null
   return (

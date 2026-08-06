@@ -846,7 +846,7 @@
   box-shadow: var(--md-elev-2); touch-action: manipulation;
 }
 .mk-signup-btn-label { font-family: var(--mk-font-title); font-weight: 700; font-size: clamp(18px, 3.4vw, 24px); }
-.mk-signup-btn-sub { font-size: clamp(12px, 2vw, 14px); opacity: .75; }
+.mk-signup-btn-sub { font-size: clamp(15px, 2.6vw, 19px); font-weight: 600; opacity: .85; }  /* ★확대(2026-08-06): 어르신 가독 */
 .mk-signup-btn:active {          /* transition 없이 즉시 — 지연이 곧 «더딤» 체감 */
   background: var(--md-primary-container); color: var(--md-on-primary-container); transform: scale(0.98);
 }

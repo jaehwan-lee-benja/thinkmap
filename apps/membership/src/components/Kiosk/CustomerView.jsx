@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import NumberPad from './NumberPad'
 import MemberCard from './MemberCard'
 import CustomerSignupScreen from './CustomerSignupScreen'
-import { IDLE_RESET_EVENT } from './IdleReset'
+import IdleReset, { IDLE_RESET_EVENT } from './IdleReset'
 import { useMemberLookup } from './useMemberLookup'
 import { useMembershipChannel } from './useMembershipChannel'
 import { CONTRACT_PENDING } from '../../api/membership'
@@ -47,6 +47,11 @@ export default function CustomerView({ store }) {
 
   const resetAll = () => { setDigits(PHONE_PREFILL); clear() }
 
+  // ★«홈»의 정의: 가입폼 아님 + 조회 전 + 입력이 프리필뿐.
+  //   ⚠︎프리필(`010`)은 **손님이 누른 게 아니다** — 그래서 «입력 있음»으로 치지 않는다.
+  //   홈에서는 되돌릴 상태가 없으므로 카운트다운을 띄우지 않는다(무장 자체를 안 한다).
+  const isHome = !showSignup && status === 'idle' && digits === PHONE_PREFILL
+
   // 무조작 자동 복귀(IdleReset 이벤트) → 첫 화면(조회결과·가입폼·입력 전부 리셋).
   useEffect(() => {
     const onIdle = () => { setShowSignup(false); setDigits(PHONE_PREFILL); clear() }
@@ -55,7 +60,10 @@ export default function CustomerView({ store }) {
   }, [clear])
 
   if (showSignup) {
-    return <CustomerSignupScreen onDone={() => { setShowSignup(false); resetAll() }} />
+    return (<>
+      <IdleReset enabled armed />
+      <CustomerSignupScreen onDone={() => { setShowSignup(false); resetAll() }} />
+    </>)
   }
 
   // ★조회 중(로딩): 로고(마스코트)는 정지, 주변 요소로 귀여운 효과(유저정정 2026-07-28) — 펄스 링 + 떠다니는 방울.
@@ -77,6 +85,7 @@ export default function CustomerView({ store }) {
   if (status === 'found' && member) {
     return (
       <div className="mk-screen mk-customer-view mk-result-view">
+        <IdleReset enabled armed />
         <MemberCard
           variant="hero"
           printable={localPrint}   /* 기본 false — 인쇄는 카운터 폰이 맡는다(위 주석). 외장 프린터 달면 ?print=local */
@@ -93,6 +102,7 @@ export default function CustomerView({ store }) {
 
   return (
     <div className="mk-screen mk-customer-view">
+      <IdleReset enabled armed={!isHome} />
       {/* ★좌우 2분할 + 뷰포트높이 정렬(무스크롤). 좌=멘트+안내, 우=전화번호 입력. */}
       <div className="mk-lookup-split">
         {/* 좌: 사르르 로고 + 멘트 + 가입 안내 (첫 화면=로고만, 앰블럼 미배선 — 유저결정 2026-07-28) */}
@@ -121,7 +131,12 @@ export default function CustomerView({ store }) {
               어포던스 = 타원 텍스트링크 → **명백한 버튼**(테두리·그림자·즉시 눌림). 어르신 기준이라
               «누르는 것»이 형태로 읽혀야 한다 — 2택 모달의 버튼 문법과 통일한다. */}
           <div className="mk-signup-below">
-            <p className="mk-invite-copy">아직 멤버십 회원이 아니신가요?</p>
+            <p className="mk-invite-copy">
+              아직 멤버십 회원이 아니신가요?
+              {/* ★유저 지정 문구 그대로(2026-08-06). 보이스 기준(§5.0) 정합 확인:
+                  «즐길 수 있습니다» = 혜택·수치 나열이 아니라 **경험 소구**라 미끼 금지 원칙에 걸리지 않는다. */}
+              <br />멤버십을 가입하면 사르르를 더욱 즐길 수 있습니다.
+            </p>
             <button type="button" className="mk-signup-btn" onClick={() => setShowSignup(true)}>
               <span className="mk-signup-btn-label">멤버십 가입하기</span>
               <span className="mk-signup-btn-sub">눌러서 가입</span>
