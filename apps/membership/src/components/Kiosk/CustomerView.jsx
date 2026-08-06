@@ -11,8 +11,14 @@ import { useMemberLookup } from './useMemberLookup'
 import { useMembershipChannel } from './useMembershipChannel'
 import { CONTRACT_PENDING } from '../../api/membership'
 
+// ★전화번호 프리필(2026-08-06 유저 지시 «010은 기본적으로 적혀있도록»).
+//   ⚠︎010 을 **고정(잠금)하지 않는다** — 011/016/017/018/019 도 유효 번호라(검증 정규식 `^01[016789]`)
+//   잠그면 그 손님들이 입력할 방법이 없어진다. ⇒ 프리필은 하되 **백스페이스로 지울 수 있게** 둔다.
+//   [전체지움]은 빈칸이 아니라 010 으로 되돌린다(그래야 프리필이 실효).
+const PHONE_PREFILL = '010'
+
 export default function CustomerView({ store }) {
-  const [digits, setDigits] = useState('')
+  const [digits, setDigits] = useState(PHONE_PREFILL)
   const [showSignup, setShowSignup] = useState(false)
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear, setMemberDirect } = useMemberLookup()
 
@@ -39,11 +45,11 @@ export default function CustomerView({ store }) {
     return r
   }
 
-  const resetAll = () => { setDigits(''); clear() }
+  const resetAll = () => { setDigits(PHONE_PREFILL); clear() }
 
   // 무조작 자동 복귀(IdleReset 이벤트) → 첫 화면(조회결과·가입폼·입력 전부 리셋).
   useEffect(() => {
-    const onIdle = () => { setShowSignup(false); setDigits(''); clear() }
+    const onIdle = () => { setShowSignup(false); setDigits(PHONE_PREFILL); clear() }
     window.addEventListener(IDLE_RESET_EVENT, onIdle)
     return () => window.removeEventListener(IDLE_RESET_EVENT, onIdle)
   }, [clear])
@@ -115,6 +121,7 @@ export default function CustomerView({ store }) {
             onSubmit={() => lookup(digits)}
             submitLabel="조회"
             size="xl"
+            clearTo={PHONE_PREFILL}
           />
           {CONTRACT_PENDING && <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>}
           {status === 'error' && (

@@ -13,7 +13,7 @@ const CONSENT_TEXT =
   '사르르목장 소식 전달 및 멤버십 회원 관리 목적으로 개인정보를 수집·이용하는 데 동의합니다.'
 
 export default function CustomerSignupScreen({ onDone }) {
-  const [digits, setDigits] = useState('')
+  const [digits, setDigits] = useState('010')   // ★조회 화면과 동일한 010 프리필(유저 지시 2026-08-06)
   const [padOpen, setPadOpen] = useState(false)
   const [name, setName] = useState('')
   const [emailLocal, setEmailLocal] = useState('')

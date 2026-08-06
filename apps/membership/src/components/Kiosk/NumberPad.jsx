@@ -19,13 +19,17 @@ export default function NumberPad({
   hideSubmit = false,       // 제출 버튼을 폼 쪽(우측)에 따로 둘 때 패드 내부 버튼 숨김(Enter 제출은 유지)
   size = 'md',              // 'md' | 'xl'(조회 화면 주인공, 어르신 대형)
   maxLength = 11,
+  // ★[전체지움]이 되돌아갈 값(2026-08-06 «010 기본 표시»). 기본 '' = 종전 동작.
+  //   프리필을 쓰는 화면은 '010' 을 준다 — 비우면 손님이 010 을 매번 다시 눌러야 해서
+  //   프리필의 이점이 사라진다.
+  clearTo = '',
 }) {
   const canSubmit = !disabled && !submitDisabled && digits.length >= 10
 
   const press = (k) => {
     if (disabled) return
     if (k === 'back') return onChange(digits.slice(0, -1))
-    if (k === 'clear') return onChange('')
+    if (k === 'clear') return onChange(clearTo)
     if (digits.length >= maxLength) return
     onChange(digits + k)
   }
@@ -51,14 +55,14 @@ export default function NumberPad({
         onChange(digits.slice(0, -1))
       } else if (e.key === 'Escape') {
         e.preventDefault()
-        onChange('')
+        onChange(clearTo)
       } else if (e.key === 'Enter') {
         if (!submitDisabled && digits.length >= 10) { e.preventDefault(); onSubmit?.() }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [digits, disabled, submitDisabled, maxLength, onChange, onSubmit])
+  }, [digits, disabled, submitDisabled, maxLength, onChange, onSubmit, clearTo])
 
   return (
     <div className={`mk-pad ${size === 'xl' ? 'mk-pad-xl' : ''}`}>
