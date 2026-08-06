@@ -102,6 +102,20 @@
   color-scheme: light;
 }
 
+/* ★폰트 통일 = **구조로 보장**(2026-08-06 «폰트 통일은 구조적으로 맞춰줘»).
+   근본 원인: `<button>`·`<input>`·`<select>` 는 **브라우저 기본 스타일 때문에 font-family 를 상속하지 않는다.**
+   그래서 `.mk-app` 에 브랜드 서체를 걸어도 **버튼만 시스템 폰트로 빠졌다**(전체지움·지움·조회가 서로 달라 보인 원인).
+   ⇒ 폼 컨트롤 전체를 **inherit** 로 되돌린다. 이러면 **새 버튼을 만들 때마다 폰트가 갈라질 수 없다** —
+   요소마다 font-family 를 적어 주는 «땜질»과 달리 구조가 보장한다.
+   ※서체 선택: 정본 §6 «웹 = G마켓산스 한 벌»(타이틀 Bold·본문 Medium) — 오동통은 인쇄물 전용이라 여기 쓰지 않는다.
+     그래서 --mk-font-title 도 body 와 같은 스택을 가리킨다(brand.css). 굵기로만 위계를 준다. */
+.mk-app button,
+.mk-app input,
+.mk-app select,
+.mk-app textarea {
+  font-family: inherit;
+}
+
 /* 타이틀 = G마켓산스 Bold(확정). 인사말·화면 제목·CTA 타이틀. */
 .mk-greeting, .mk-signup-head h2, .mk-cta-title, .mk-ml-head h2, .pv-login h1 {
   font-family: var(--mk-font-title); font-weight: 700; letter-spacing: 0;
@@ -713,7 +727,11 @@
   .mk-role-customer .mk-pad-xl .mk-pad-grid { gap: clamp(8px, 1.2vh, 18px); }
   .mk-role-customer .mk-pad-xl .mk-key { min-height: clamp(52px, 8.2vh, 108px); font-size: clamp(28px, 5.4vw, 46px); }
   /* ★실기기 교정: "전체지움" 글씨가 너무 커서 두 줄로 감겼다 → 축소 + 줄바꿈 금지(보조키는 숫자보다 작게). */
-  .mk-role-customer .mk-pad-xl .mk-key-aux { font-size: clamp(14px, 3vw, 20px); white-space: nowrap; }
+  /* ★보조키 2종을 **한 선택자로** 묶는다(2026-08-06): 종전엔 `.mk-key-aux` 만 있어서
+     새로 만든 «지움»(.mk-key-back)이 이 규칙에서 빠져 **숫자키 크기(41.5px)를 물려받았다**
+     — «전체지움과 지움이 달라 보인다»의 실제 원인. 규칙을 하나로 두면 다음에 보조키가 늘어도 안 갈라진다. */
+  .mk-role-customer .mk-pad-xl .mk-key-aux,
+  .mk-role-customer .mk-pad-xl .mk-key-back { font-size: clamp(14px, 3vw, 20px); white-space: nowrap; }
   .mk-role-customer .mk-pad-xl .mk-pad-submit { min-height: clamp(52px, 7vh, 88px); font-size: clamp(22px, 4vw, 30px); }
 
   /* 조회 결과: 세로 2단 → 세로 스택(인사말 위 · 이벤트/내역 아래). 큰 글씨 유지. */
@@ -846,7 +864,7 @@
   box-shadow: var(--md-elev-2); touch-action: manipulation;
 }
 .mk-signup-btn-label { font-family: var(--mk-font-title); font-weight: 700; font-size: clamp(18px, 3.4vw, 24px); }
-.mk-signup-btn-sub { font-size: clamp(12px, 2vw, 14px); opacity: .75; }
+.mk-signup-btn-sub { font-size: clamp(15px, 2.6vw, 19px); font-weight: 600; opacity: .85; }  /* ★확대(2026-08-06): 어르신 가독 */
 .mk-signup-btn:active {          /* transition 없이 즉시 — 지연이 곧 «더딤» 체감 */
   background: var(--md-primary-container); color: var(--md-on-primary-container); transform: scale(0.98);
 }

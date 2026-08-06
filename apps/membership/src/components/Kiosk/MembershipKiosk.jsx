@@ -14,7 +14,6 @@ import ReceiptEditor from './ReceiptEditor'
 import ScanView from './ScanView'
 import PrinterView from './PrinterView'
 import TicketView from './TicketView'
-import IdleReset from './IdleReset'
 import { readRoleAndStore } from './kioskUtils'
 import './Kiosk.css'
 
@@ -25,8 +24,7 @@ export default function MembershipKiosk({ session }) {
 
   return (
     <div className={`mk-app mk-role-${role}`}>
-      {/* 무조작 N초 → 첫 화면 복귀(고객 태블릿 개인정보 잔류 방지). 키 없이 role 별 적용. */}
-      <IdleReset enabled={role === 'customer'} />
+      {/* ★무조작 복귀는 CustomerView 안으로 이관(2026-08-06) — «지금이 홈인가»를 아는 쪽이 무장을 결정한다. */}
       <main className="mk-main">
         {role === 'staff' && <StaffView store={store} />}
         {role === 'editor' && <ReceiptEditor />}
