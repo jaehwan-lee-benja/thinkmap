@@ -153,7 +153,18 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                   <div className="mk-pick-row">
                     {/* 종이 = 버튼 */}
                     <button type="button" className="mk-pick-btn" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
-                      <span className="mk-pick-ico" aria-hidden="true">🖨</span>
+                      {/* ★이모지 프린터 → **선화 영수증 아이콘**(2026-08-06): 우리 마스코트·로고가 전부
+                          선화라 이모지만 질감이 튀었다. 톱니 절취선 + 텍스트 줄 = «영수증»이 형태로 읽힌다.
+                          currentColor 를 써서 눌림 상태(색 반전)에도 자동으로 따라간다. */}
+                      <svg className="mk-pick-ico-svg" viewBox="0 0 48 56" aria-hidden="true">
+                        <path
+                          d="M8 4h32v44l-4-3-4 3-4-3-4 3-4-3-4 3-4-3-4 3z"
+                          fill="none" stroke="currentColor" strokeWidth="2.6"
+                          strokeLinejoin="round" strokeLinecap="round"
+                        />
+                        <path d="M15 16h18M15 24h18M15 32h11" fill="none" stroke="currentColor"
+                          strokeWidth="2.6" strokeLinecap="round" />
+                      </svg>
                       <span className="mk-pick-label">종이로<br />인쇄하기</span>
                       <span className="mk-pick-sub">눌러서 인쇄</span>
                     </button>
