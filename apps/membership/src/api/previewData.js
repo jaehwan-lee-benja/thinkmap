@@ -28,6 +28,14 @@ const state = {
   byMember: {},     // member_id -> token(오늘)
 }
 
+// ★고정 데모 토큰 — 프리뷰 [가상 스캔] 버튼이 «유효/이미수령/무효» 세 결과를 보여줄 수 있게 심어 둔다.
+//   (발권으로 생기는 토큰은 항상 issued 라 그것만으론 실패 화면을 못 본다.)
+const DEMO_STAMP = { claims_total: 5, current_stamps: 5, threshold: 10, rewards_earned: 0, rewards_redeemed: 0, rewards_available: 0 }
+export const DEMO_TOKENS = { issued: 'PVDEMOISSUED', redeemed: 'PVDEMOREDEEM', unknown: 'PVDEMOBADTOK' }
+state.tickets[DEMO_TOKENS.issued] = { token: DEMO_TOKENS.issued, channel: 'kiosk', state: 'issued', event_date: today(), member_id: 'pv-demo', display_name: '김*은' }
+state.tickets[DEMO_TOKENS.redeemed] = { token: DEMO_TOKENS.redeemed, channel: 'game', state: 'redeemed', event_date: today(), member_id: 'pv-demo', display_name: '이*환' }
+// unknown 은 **일부러 등록하지 않는다** — not_found 경로가 진짜로 돌아야 의미가 있다.
+
 function maskName(phone) {
   const tail = phone.slice(-4)
   const NAMES = ['김*은', '이*환', '박*민', '정*아', '최*호']
@@ -106,7 +114,7 @@ function handle(fn, body = {}) {
     const tk = state.tickets[String(body.token || '').toUpperCase()]
     if (!tk) return { ok: false, error: 'not_found' }
     const m = memberById(tk.member_id)
-    return { ok: true, state: tk.state, channel: tk.channel, event_date: tk.event_date, display_name: tk.display_name, stamp: m ? m.stamp : null }
+    return { ok: true, state: tk.state, channel: tk.channel, event_date: tk.event_date, display_name: tk.display_name, stamp: m ? m.stamp : DEMO_STAMP }
   }
 
   if (fn === 'membership-ticket-redeem') {
@@ -122,7 +130,7 @@ function handle(fn, body = {}) {
       s.current_stamps = (s.current_stamps + 1) % s.threshold
       if (s.current_stamps === 0) { s.rewards_earned += 1; s.rewards_available += 1 }
     }
-    return { ok: true, display_name: tk.display_name, channel: tk.channel, stamp: m ? m.stamp : null }
+    return { ok: true, display_name: tk.display_name, channel: tk.channel, stamp: m ? m.stamp : DEMO_STAMP }
   }
 
   if (fn === 'membership-stamp') {
