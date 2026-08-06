@@ -3,7 +3,7 @@
 // 저장=템플릿 JSON(localStorage + 복사). ★프리뷰·실인쇄가 receiptTemplate 생성기 공유.
 import { useState, useMemo } from 'react'
 import {
-  DEFAULT_TEMPLATE, validateTemplate, previewSequence, buildEscpos, escposToBase64, BLOCK_LABEL,
+  DEFAULT_TEMPLATE, validateTemplate, previewSequence, buildEscpos, escposToBase64, BLOCK_LABEL, migrateTemplate,
 } from '../../receipt/receiptTemplate'
 import { openRawbt, LS_KEY } from '../../receipt/print'   // ★저장키·인쇄 호출 = print.js 단일 소스
 import { todayStr } from './kioskUtils'
@@ -12,7 +12,7 @@ const SAMPLE = { name: '홍*동', date: '2026-08-01 14:30', token: 'SR7K2M9QX4T2
 function loadTpl() {
   try {
     const raw = localStorage.getItem(LS_KEY)
-    if (raw) { const t = JSON.parse(raw); if (validateTemplate(t).ok) return t }
+    if (raw) { const t = JSON.parse(raw); if (validateTemplate(t).ok) return migrateTemplate(t) }
   } catch (e) { /* noop */ }
   return JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))
 }

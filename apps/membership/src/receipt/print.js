@@ -11,7 +11,7 @@
 // ★기기 전제(실측 2026-08-03): CS-273N = Android **8.1.0** / WebView **126**(현대 크로미움).
 //   종전 "5.1.1 / Chrome 40" 가정은 **틀렸다** — 이 제약을 이유로 기능을 깎지 마라(SPEC §5.A).
 //   아래 ES5 문법·iframe 폴백은 **이미 검증된 코드라 그대로 두는 것**이지, 제약이 남아서가 아니다.
-import { DEFAULT_TEMPLATE, validateTemplate, buildEscpos, escposToBase64 } from './receiptTemplate'
+import { DEFAULT_TEMPLATE, validateTemplate, buildEscpos, escposToBase64, migrateTemplate } from './receiptTemplate'
 
 export const LS_KEY = 'mk-receipt-template'
 
@@ -21,7 +21,7 @@ export function loadTemplate() {
     var raw = localStorage.getItem(LS_KEY)
     if (raw) {
       var t = JSON.parse(raw)
-      if (validateTemplate(t).ok) return t
+      if (validateTemplate(t).ok) return migrateTemplate(t)   // ★저장본 자동 상향(옛 카피·컷 부재)
     }
   } catch (e) { /* noop — 기본값으로 진행 */ }
   return JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))
