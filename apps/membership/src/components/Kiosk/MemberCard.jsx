@@ -147,15 +147,24 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                 <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="참여권 받는 방법 선택">
                  <div className="mk-pick">
                   <div className="mk-pick-q">참여권을 어떻게 받으시겠어요?</div>
+                  {/* ★비대칭 구조(2026-08-06 유저 정련): **폰 = 그 자체로 뎁스 끝**(QR·안내가 이미 보임,
+                      탭할 것 없음) / **종이 = 버튼**(눌러야 인쇄). 시각적 위계는 동급으로 유지한다.
+                      결과적으로 «콘텐츠 하나 + 버튼 하나»라 어느 쪽이 눌러야 하는 것인지 더 분명해진다. */}
                   <div className="mk-pick-row">
+                    {/* 종이 = 버튼 */}
                     <button type="button" className="mk-pick-btn" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
                       <span className="mk-pick-ico" aria-hidden="true">🖨</span>
                       <span className="mk-pick-label">종이로<br />인쇄하기</span>
+                      <span className="mk-pick-sub">눌러서 인쇄</span>
                     </button>
-                    <button type="button" className="mk-pick-btn" onClick={() => setChoice('phone')}>
-                      <span className="mk-pick-ico" aria-hidden="true">📱</span>
-                      <span className="mk-pick-label">폰으로<br />스캔하기</span>
-                    </button>
+                    {/* 폰 = 완결된 콘텐츠(뎁스 0) — 버튼이 아니라 패널이다 */}
+                    <div className="mk-pick-panel">
+                      <span className="mk-pick-label">폰으로 받기</span>
+                      {qrUrl
+                        ? <img className="mk-pick-qr" src={qrUrl} alt="참여권 QR" />
+                        : <span className="mk-pick-sub">QR을 준비하는 중…</span>}
+                      <span className="mk-pick-sub">폰 카메라로 찍으세요</span>
+                    </div>
                   </div>
                  </div>
                 </div>
