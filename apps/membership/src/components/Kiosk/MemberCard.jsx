@@ -135,13 +135,13 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
             /* 발권됨(수령 대기) — 카운터 회수 시 스탬프 확정. 토큰=수기 입력 검증 경로(인쇄는 현장 확정 대기). */
             <div className="mk-ticket">
               <div className="mk-ticket-title">
-                {/* ★문구 분리(2026-08-06 버그): 조회만 했는데 «참여권 발권 완료»가 떠서
-                    «내가 안 눌렀는데 발권됐나?»로 읽혔다. 실측 결과 **자동 발권은 없었고**
-                    (조회 시 ticket-issue 호출 0건) 문구가 방금 발권처럼 읽힌 것이 원인이다. */}
-                {claimedToken === printToken ? '참여권 발권 완료' : '오늘은 이미 참여하셨어요'}
+                {/* ★상태 어휘(2026-08-06 유저 정정): **발권 ≠ 참여**.
+                    티켓만 만들어진 단계는 «발권»이고, «참여»는 카운터 회수·스탬프 확정 후에만 쓴다.
+                    (내가 «이미 참여하셨어요»라고 썼던 건 발권을 참여로 올려 부른 오표기였다.) */}
+                {claimedToken === printToken ? '참여권 발권 완료' : '발권된 참여권이 있어요'}
               </div>
               <div className="mk-ticket-token">{issuedTicket.token}</div>
-              {claimedToken !== printToken && <div className="mk-ticket-hint">아래 번호를 카운터에서 보여주세요.</div>}
+              {claimedToken !== printToken && <div className="mk-ticket-hint">아직 수령 전이에요 — 카운터에서 보여주세요.</div>}
               <div className="mk-ticket-hint">유효기간: 오늘({issuedTicket.event_date || today})</div>
 
               {/* ★2택 경험(2026-08-06 유저 지시): 손님이 «종이 / 폰» 중 하나를 자기 손으로 고른다.
