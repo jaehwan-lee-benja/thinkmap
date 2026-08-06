@@ -44,15 +44,25 @@ export default function StaffView({ store }) {
 
   if (showList) return <MemberListScreen onBack={() => setShowList(false)} />
 
+  // ★가로 2단(유저 지시 2026-08-06: 「이건 가로로 넓은 화면이니. **스캔이 왼쪽, 지금 데이터가 오른쪽**으로」).
+  //   좌 = **조작**(스캔 대기·스캔 결과·회수 · 번호 입력 · 리스트 진입) / 우 = **데이터**(조회 결과).
+  //   ▸번호패드를 좌측에 둔 이유: 우측에 «패드+회원카드»를 쌓았더니 노트북 높이(900)에서
+  //     **본문이 세로로 밀려 회원카드를 찾아 스크롤해야** 했다(실측). 유저 표현의 «데이터»는
+  //     조회 «결과»를 가리키고 번호 입력은 조작이라, 이 배치가 말과 화면 둘 다에 맞는다.
+  //   ⚠︎좌측은 «표시 영역»이지 스캔 입력창이 아니다 — 스캔은 여전히 전역 리스너가 받는다(포커스 안 뺏음).
+  //   각 단은 **자기 안에서만 스크롤**한다 — 한쪽이 길어져도 반대쪽이 밀리지 않는다.
   return (
-    <>
-    <div className="mk-staff-bar">
-      {/* ★스캔 대기 표시 — 전용 입력창이 없으니 «지금 스캔이 먹는다»를 화면이 말해줘야 한다. */}
-      <span className="mk-scan-ready">🔎 바코드 스캔 대기 중 — 어디서든 스캔하세요</span>
-      <button className="mk-ml-open" onClick={() => setShowList(true)}>회원 리스트 확인하기</button>
-    </div>
     <div className="mk-screen mk-staff">
-      <div className="mk-col">
+      <div className="mk-col mk-staff-ops">
+        {/* 전용 입력창이 없으니 «지금 스캔이 먹는다»를 화면이 말해줘야 한다. */}
+        <div className="mk-scan-ready">🔎 바코드 스캔 대기 중 — 어디서든 스캔하세요</div>
+        {scanState.phase !== 'idle' && (
+          <div className="mk-staff-scan">
+            <div className="mk-scan-title">스캔 결과</div>
+            <ScanResultPanel scan={scanState} printMsg={printMsg} setPrintMsg={setPrintMsg} />
+            <button className="mk-reset" onClick={scanState.reset}>스캔 결과 닫기</button>
+          </div>
+        )}
         <NumberPad
           digits={digits}
           onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
@@ -61,17 +71,10 @@ export default function StaffView({ store }) {
           disabled={status === 'loading'}
         />
         {mirror && realtimeOn && <div className="mk-note">↗ 고객 화면에 표시됨(미러링 ON)</div>}
+        <button className="mk-ml-open" onClick={() => setShowList(true)}>회원 리스트 확인하기</button>
       </div>
 
-      <div className="mk-col mk-result">
-        {/* 스캔 결과 = 회수 흐름. 조회 결과와 **나란히** 두어 직원이 주소 이동 없이 둘 다 본다. */}
-        {scanState.phase !== 'idle' && (
-          <div className="mk-staff-scan">
-            <div className="mk-scan-title">스캔 결과</div>
-            <ScanResultPanel scan={scanState} printMsg={printMsg} setPrintMsg={setPrintMsg} />
-            <button className="mk-reset" onClick={scanState.reset}>스캔 결과 닫기</button>
-          </div>
-        )}
+      <div className="mk-col mk-result mk-staff-data">
         {CONTRACT_PENDING && status === 'idle' && (
           <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>
         )}
@@ -97,6 +100,5 @@ export default function StaffView({ store }) {
         )}
       </div>
     </div>
-    </>
   )
 }

@@ -158,11 +158,6 @@
 }
 
 /* ── 역할 뷰(2대 분리) ─────────────────────────────────────────────────────── */
-/* 직원 뷰 상단바(회원 리스트 진입). 고객 뷰는 상단바 없음(풀스크린 고객 경험). */
-.mk-staff-bar {
-  flex: 0 0 auto; display: flex; justify-content: flex-end;
-  padding: 10px 16px; background: var(--md-surface-container); box-shadow: var(--md-elev-1);
-}
 /* ★명시도 상향(.mk-app 스코프) — 뒤에 정의된 .mk-screen{align-items:flex-start} 를 이겨 확실히 중앙정렬.
    (같은 단일클래스면 소스 순서상 .mk-screen 가 이겨 좌측으로 밀렸던 버그 수정 — QA 실측.) */
 .mk-app .mk-customer-view { align-items: center; justify-content: center; height: 100%; padding: 0; }
@@ -935,11 +930,27 @@
 .mk-pick-ico-svg { width: clamp(38px, 7.5vw, 56px); height: auto; display: block; }
 
 /* 직원 허브 — 스캔 대기 표시·스캔 결과 영역 */
-.mk-scan-ready { font-size: 15px; color: var(--md-on-surface-variant); margin-right: auto; }
-.mk-staff-scan {
-  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 14px; margin-bottom: 14px; border-radius: var(--md-radius-lg);
-  background: var(--md-surface-container); border: 2px solid var(--md-primary);
+.mk-scan-ready { font-size: 15px; color: var(--md-on-surface-variant); }
+
+/* ★가로 2단(좌=조작 · 우=데이터) — 직원 노트북은 가로가 기본이라 이게 기본값이다.
+   ★각 단이 **자기 안에서만** 스크롤한다: 한쪽이 길어져도 반대쪽이 밀려나지 않는다
+   (우측에 패드+회원카드를 쌓았을 때 본문이 통째로 밀려 회원카드를 찾아 스크롤해야 했다 — 실측). */
+.mk-app .mk-main:has(.mk-staff) { overflow: hidden; }
+.mk-staff { align-items: stretch; min-height: 0; }
+.mk-staff .mk-col { max-width: none; min-height: 0; overflow-y: auto; }
+.mk-staff-ops { flex: 0 0 400px; gap: 12px; }
+/* ★폭을 카드에 맞춘다 — 넓게 잡았더니 카드가 그 안에서 중앙정렬돼 **두 단 사이에 빈 띠**가 생겼다(실측). */
+.mk-staff-data { flex: 0 1 440px; justify-content: flex-start; }
+.mk-staff-ops .mk-staff-scan { margin-bottom: 0; }
+
+/* 좁은 창(세로)에선 세로로 접힌다 — 종전 흐름대로 조작이 위, 데이터가 아래.
+   이때는 칼럼별 스크롤을 풀어 **본문 하나가 스크롤**하게 한다(짧은 칼럼 안에 스크롤이 갇히면 못 읽는다). */
+@media (max-width: 860px) {
+  /* ★기존 세로 접기 임계는 760px 인데 이 2단은 400+460 이라 768(세로 태블릿)에서 이미 낀다
+     → 직원 허브만 임계를 860 으로 올린다(실측: 768 에서 두 단이 눌려 붙었다). */
+  .mk-staff { flex-direction: column; align-items: center; }
+  .mk-app .mk-main:has(.mk-staff) { overflow: auto; }
+  .mk-staff .mk-col { overflow-y: visible; width: 100%; max-width: 460px; flex: 1 1 auto; }
 }
 
 /* ── 프리뷰 모드 배너(?preview=1, dev 전용) ──────────────────────────────────
