@@ -12,8 +12,10 @@ const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크�
 //   rawbt: 스킴이 호출되지 않는다 — 프린터 없는 기기에서 스킴을 던지면 오류 페이지로 튈 수 있다.
 export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false, showQr = false }) {
   // ★훅은 조기 return 보다 위에 — member 가 null 이어도 호출 순서가 바뀌면 안 된다(Rules of Hooks).
-  const printedRef = useRef(null)          // 이미 인쇄를 시도한 토큰(중복 인쇄 방지)
+  const printedRef = useRef(null)          // (예약) 중복 인쇄 방지용 — 자동 인쇄 제거로 현재 미사용
   const [printMsg, setPrintMsg] = useState('')
+  // ★발권 후 «2택» 상태(2026-08-06 유저 지시): null=아직 안 고름 | 'paper' | 'phone'
+  const [choice, setChoice] = useState(null)
 
   const ticketForPrint = member
     ? (member._ticket || (member._todayTickets || []).find((t) => t.channel === 'kiosk' && t.state === 'issued') || null)
@@ -58,13 +60,13 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
     return () => { dead = true }
   }, [showQr, printToken, member, ticketForPrint])
 
-  // 발권된 토큰이 새로 생기면 1회 자동 인쇄(같은 토큰 재렌더로 재인쇄되지 않게 ref 로 잠근다).
-  useEffect(() => {
-    if (!printable || !printToken) return
-    if (printedRef.current === printToken) return
-    printedRef.current = printToken
-    doPrint(printToken, false)
-  }, [printable, printToken])   // eslint-disable-line react-hooks/exhaustive-deps
+  // 새 티켓이 뜨면 선택을 초기화한다(앞 손님의 선택이 남으면 안 된다).
+  useEffect(() => { setChoice(null); setPrintMsg('') }, [printToken])
+
+  // ★자동 인쇄 **제거**(2026-08-06 유저 확정: 「자동으로 바로 인쇄될 필요는 없어」).
+  //   인쇄는 손님이 [종이로 인쇄하기]를 고를 때만 일어난다 — 폰을 고른 손님 몫의 종이가 버려지지 않는다.
+  //   ⇒ `printable`(=`?print=local`)의 의미도 «자동 인쇄 트리거»가 아니라
+  //     **«이 기기에 프린터가 직결돼 있다 = 종이 선택지를 보여준다»** 로 재정의된다.
 
   if (!member) return null
 
@@ -111,23 +113,55 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
           ) : issuedTicket ? (
             /* 발권됨(수령 대기) — 카운터 회수 시 스탬프 확정. 토큰=수기 입력 검증 경로(인쇄는 현장 확정 대기). */
             <div className="mk-ticket">
-              <div className="mk-ticket-title">참여권 발권 완료 — 카운터에서 보여주세요</div>
+              <div className="mk-ticket-title">참여권 발권 완료</div>
               <div className="mk-ticket-token">{issuedTicket.token}</div>
               <div className="mk-ticket-hint">유효기간: 오늘({issuedTicket.event_date || today})</div>
-              {/* ★화면 QR(유저 채택) — 손님이 폰으로 찍으면 자기 폰에 바코드가 뜬다.
-                  종이가 없어도(프린터 미배치·용지 소진) 카운터 스캔이 가능한 무비용 보조 경로. */}
-              {qrUrl && (
-                <div className="mk-tqr">
-                  <img className="mk-tqr-img" src={qrUrl} alt="참여권 QR" />
-                  <div className="mk-ticket-hint">폰으로 찍으면 바코드가 폰에 뜹니다</div>
+
+              {/* ★2택 경험(2026-08-06 유저 지시): 손님이 «종이 / 폰» 중 하나를 자기 손으로 고른다.
+                  종전엔 자동 인쇄 + QR 상시노출이라 «뭘 해야 하는지» 화면이 말해주지 않았다.
+                  토큰은 어느 쪽을 골라도 위에 계속 보인다(정본은 토큰). */}
+              {/* ★모달/오버레이(유저 확정 2026-08-06: 「모달처럼 나오게 — 페이지 전환 느낌이 아니라」).
+                  뒤에 발권 완료 맥락(회원 카드)이 그대로 남아 보인다. 라우팅·화면 교체 없음. */}
+              {!choice && (
+                <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="참여권 받는 방법 선택">
+                 <div className="mk-pick">
+                  <div className="mk-pick-q">참여권을 어떻게 받으시겠어요?</div>
+                  <div className="mk-pick-row">
+                    <button type="button" className="mk-pick-btn" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
+                      <span className="mk-pick-ico" aria-hidden="true">🖨</span>
+                      <span className="mk-pick-label">종이로<br />인쇄하기</span>
+                    </button>
+                    <button type="button" className="mk-pick-btn" onClick={() => setChoice('phone')}>
+                      <span className="mk-pick-ico" aria-hidden="true">📱</span>
+                      <span className="mk-pick-label">폰으로<br />스캔하기</span>
+                    </button>
+                  </div>
+                 </div>
                 </div>
               )}
-              {/* ★인쇄는 편의, 토큰이 정본 — 안 나와도 위 번호로 카운터 진행 가능. */}
-              {printable && (
-                <>
+
+              {choice === 'paper' && (
+                <div className="mk-pick-done">
+                  <div className="mk-pick-done-msg">종이를 가져가세요</div>
                   {printMsg && <div className="mk-ticket-hint">{printMsg}</div>}
-                  <button className="mk-reset" onClick={() => doPrint(issuedTicket.token, true)}>영수증 다시 인쇄</button>
-                </>
+                  <div className="mk-pick-acts">
+                    <button type="button" className="mk-reset" onClick={() => doPrint(issuedTicket.token, true)}>다시 인쇄</button>
+                    <button type="button" className="mk-reset" onClick={() => setChoice('phone')}>폰으로 받기</button>
+                  </div>
+                </div>
+              )}
+
+              {choice === 'phone' && (
+                <div className="mk-pick-done">
+                  {qrUrl
+                    ? <img className="mk-tqr-img mk-tqr-big" src={qrUrl} alt="참여권 QR" />
+                    : <div className="mk-ticket-hint">QR을 준비하는 중…</div>}
+                  <div className="mk-pick-done-msg">폰 카메라로 찍으세요</div>
+                  <div className="mk-ticket-hint">찍으면 폰에 바코드가 뜹니다 — 카운터에서 보여주세요</div>
+                  <div className="mk-pick-acts">
+                    <button type="button" className="mk-reset" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>종이로 받기</button>
+                  </div>
+                </div>
               )}
             </div>
           ) : (

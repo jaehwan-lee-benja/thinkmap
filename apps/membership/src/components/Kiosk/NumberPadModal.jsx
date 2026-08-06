@@ -8,6 +8,7 @@ export default function NumberPadModal({ open, digits, onChange, onClose }) {
       <div className="mk-modal" onClick={(e) => e.stopPropagation()}>
         <div className="mk-modal-title">전화번호 입력</div>
         <NumberPad
+        clearTo="010"   /* 가입 폼 전화칸도 조회 화면과 같은 010 규약 */
           digits={digits}
           onChange={onChange}
           onSubmit={onClose}

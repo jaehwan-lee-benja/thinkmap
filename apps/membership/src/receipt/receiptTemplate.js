@@ -74,8 +74,30 @@ function canRaster() {
 }
 
 // 캔버스 픽셀 → GS v 0 래스터 바이트(1비트, 임계값 이진화)
-function canvasToRaster(ctx, w, h) {
+// trim=true 면 **잉크가 없는 위·아래 행을 잘라낸다**.
+// ★이유(2026-08-06): 래스터 전환으로 페이로드가 20KB(=base64 27KB URL)까지 커졌는데,
+//   컷 명령(GS V)은 **스트림 맨 끝 4바이트**다. URL 이 어디서든 잘리면 **컷부터 사라진다**
+//   — 현장에서 «다시 인쇄 시 컷 안 됨»으로 나타난 것과 정확히 일치하는 실패 모드다.
+//   빈 행 제거는 판독 품질을 전혀 건드리지 않으면서 전송량을 크게 줄인다.
+function canvasToRaster(ctx, w, h, trim) {
   const img = ctx.getImageData(0, 0, w, h).data
+  if (trim) {
+    let top = 0, bot = h - 1
+    const rowHasInk = (y) => {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4
+        if (img[i] * 0.299 + img[i + 1] * 0.587 + img[i + 2] * 0.114 < 160) return true
+      }
+      return false
+    }
+    while (top < h && !rowHasInk(top)) top++
+    while (bot > top && !rowHasInk(bot)) bot--
+    if (top > 0 || bot < h - 1) {
+      const nh = Math.max(1, bot - top + 1)
+      const sub = ctx.getImageData(0, top, w, nh)
+      return canvasToRaster({ getImageData: () => sub }, w, nh, false)
+    }
+  }
   const bytesPerRow = Math.ceil(w / 8)
   const out = [GS, 0x76, 0x30, 0,
     bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff,
@@ -99,37 +121,42 @@ function canvasToRaster(ctx, w, h) {
 // 한 줄(또는 여러 줄) 텍스트를 용지폭 캔버스에 그려 래스터로.
 // 정렬은 **캔버스 안에서** 처리한다(ESC a 에 의존하지 않아 프린터 편차가 없다).
 function rasterText(lines, widthDots) {
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')
-  const BASE = 26
-  const metrics = lines.map((l) => {
-    const size = l.big ? BASE * 2 : BASE
-    return { ...l, size, lh: Math.round(size * 1.34) }
-  })
-  const height = Math.max(1, metrics.reduce((a, m) => a + m.lh, 0))
-  canvas.width = widthDots
-  canvas.height = height
-  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, widthDots, height)
-  ctx.fillStyle = '#000000'
-  ctx.textBaseline = 'top'
-  let y = 0
-  for (const m of metrics) {
-    // ★용지폭 초과 시 자동 축소(2026-08-06): 큰 글씨("팝콘 이벤트 참여권" 2배)가 384dot 을 넘어
-    //   **마지막 글자가 잘렸다**(래스터 디코드 육안 검증에서 발견 — 바이트 검사로는 안 잡힌다).
-    //   종이 밖으로 나가느니 줄여서 다 보이게 한다.
-    let size = m.size
-    ctx.font = `${m.bold ? 'bold ' : ''}${size}px ${RASTER_FONT}`
-    let tw = ctx.measureText(m.text).width
-    if (tw > widthDots) {
+  // ★가로 여백까지 잘라내고 **위치 명령(ESC $)으로 배치**한다(2026-08-06).
+  //   가운데 정렬 텍스트를 용지 전폭 캔버스로 보내면 좌우 빈 여백이 그대로 전송량이 된다.
+  //   잉크 폭만 보내고 나머지는 «어디에 찍을지»만 알려주면 된다 — 판독 품질은 동일, 바이트는 급감.
+  const measure = document.createElement('canvas').getContext('2d')
+  const parts = []
+  for (const l of lines) {
+    let size = l.big ? 52 : 26
+    const font = (px) => `${l.bold ? 'bold ' : ''}${px}px ${RASTER_FONT}`
+    measure.font = font(size)
+    let tw = measure.measureText(l.text).width
+    if (tw > widthDots) {                    // 폭 초과 시 자동 축소(잘림 방지)
       size = Math.max(12, Math.floor(size * (widthDots / tw)))
-      ctx.font = `${m.bold ? 'bold ' : ''}${size}px ${RASTER_FONT}`
-      tw = ctx.measureText(m.text).width
+      measure.font = font(size)
+      tw = measure.measureText(l.text).width
     }
-    const x = m.align === 'center' ? Math.max(0, Math.round((widthDots - tw) / 2)) : 0
-    ctx.fillText(m.text, x, y + Math.round((m.lh - size) / 2))
-    y += m.lh
+    parts.push({ ...l, size, tw: Math.min(widthDots, Math.ceil(tw) + 4) })
   }
-  return canvasToRaster(ctx, widthDots, height)
+
+  const out = []
+  for (const pt of parts) {
+    const cw = Math.max(8, pt.tw)
+    const lh = Math.round(pt.size * 1.34)
+    const canvas = document.createElement('canvas')
+    canvas.width = cw; canvas.height = lh
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, cw, lh)
+    ctx.fillStyle = '#000000'; ctx.textBaseline = 'top'
+    ctx.font = `${pt.bold ? 'bold ' : ''}${pt.size}px ${RASTER_FONT}`
+    ctx.fillText(pt.text, 0, Math.round((lh - pt.size) / 2))
+    // 배치: 가운데 정렬이면 (용지폭 - 잉크폭)/2 지점에서 찍기 시작
+    const x = pt.align === 'center' ? Math.max(0, Math.round((widthDots - cw) / 2)) : 0
+    out.push(ESC, 0x24, x & 0xff, (x >> 8) & 0xff)      // ESC $ = 절대 위치
+    out.push(...canvasToRaster(ctx, cw, lh, true))
+    out.push(0x0a)
+  }
+  return out
 }
 
 export function buildEscpos(tpl, data) {
@@ -140,6 +167,7 @@ export function buildEscpos(tpl, data) {
   // ★용지폭이 이제 실제 출력에 반영된다(종전엔 58/80 토글이 프리뷰만 바꾸고 바이트엔 미반영이었다).
   const DOTS = RASTER_DOTS[tpl.width] || RASTER_DOTS[80]
   const RASTER = canRaster()   // 브라우저=래스터(한글 안전) / node·구형=텍스트 폴백
+  let cutEmitted = false       // ★컷은 아래에서 «구조가 보장»한다(템플릿 선택사항 아님)
   push(ESC, 0x40) // init
 
   for (const b of tpl.blocks) {
@@ -203,9 +231,15 @@ export function buildEscpos(tpl, data) {
         break
       case 'cut':
         push(GS, 0x56, 66, 0) // partial cut
+        cutEmitted = true
         break
     }
   }
+  // ★컷 불변 조항(2026-08-06 현장 결함): 저장된 템플릿에 cut 블록이 없거나 off 여도
+  //   **종이는 반드시 잘린다**. validateTemplate 은 폭·바코드만 보므로 컷 없는 옛 저장본이
+  //   그대로 통과해 왔다. «있어야 하는 것은 구조가 보장한다».
+  //   중복 컷 가드: 템플릿이 이미 컷을 냈으면 추가하지 않는다.
+  if (!cutEmitted) push(0x0a, 0x0a, GS, 0x56, 66, 0)
   return Uint8Array.from(out)
 }
 

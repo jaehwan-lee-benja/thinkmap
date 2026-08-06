@@ -1,5 +1,10 @@
 // 직원 노트북 뷰 — 번호 조회(→ 고객 태블릿으로 실시간 푸시) + 회원 리스트(검색) + 팝콘 수령확정.
-// 조회 성공/적립 시 useMembershipChannel.pushMember 로 고객 태블릿에 "현재 회원" 브로드캐스트(유저결정 A).
+// ★키오스크 미러링 = **기본 해제**(유저 지시 2026-08-06: 「직원이 고객의 번호를 조회할 때 키오스크
+//   화면에 연동될 필요는 없어. 위치가 달라서, 안내할 때는 키오스크쪽과 멀거든」).
+//   ⇒ 삭제하지 않고 **URL 옵트인**(`?mirror=1`)으로 남긴다. 근거:
+//     ⑴매장 배치는 바뀔 수 있고(가까워지면 다시 쓸 기능), 되살리는 데 **재배포가 필요 없다**.
+//     ⑵UI 토글을 두면 직원 화면에 상시 노출돼 **실수로 켜질** 여지가 생긴다 — 기본 해제의 취지가 흐려진다.
+//     ⑶코드를 지우면 Realtime 배선(채널·payload 규약)까지 같이 썩는다.
 import { useState, useEffect } from 'react'
 import NumberPad from './NumberPad'
 import MemberCard from './MemberCard'
@@ -12,14 +17,16 @@ export default function StaffView({ store }) {
   const [digits, setDigits] = useState('')
   const [showList, setShowList] = useState(false)
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear } = useMemberLookup()
+  // 미러링 옵트인 여부 — 기본 false.
+  const mirror = new URLSearchParams(window.location.search).get('mirror') === '1'
   const { pushMember, pushClear, realtimeOn } = useMembershipChannel(store)
 
   // 조회된 회원/적립 상태가 바뀌면 고객 태블릿에 푸시(연동).
   useEffect(() => {
-    if (status === 'found' && member) pushMember(member)
-  }, [status, member, pushMember])
+    if (mirror && status === 'found' && member) pushMember(member)
+  }, [mirror, status, member, pushMember])
 
-  const resetAll = () => { setDigits(''); clear(); pushClear() }
+  const resetAll = () => { setDigits(''); clear(); if (mirror) pushClear() }
 
   if (showList) return <MemberListScreen onBack={() => setShowList(false)} />
 
@@ -37,9 +44,7 @@ export default function StaffView({ store }) {
           submitLabel="조회"
           disabled={status === 'loading'}
         />
-        {realtimeOn && status === 'found' && (
-          <div className="mk-note">↗ 고객 화면에 표시됨</div>
-        )}
+        {mirror && realtimeOn && <div className="mk-note">↗ 고객 화면에 표시됨(미러링 ON)</div>}
       </div>
 
       <div className="mk-col mk-result">
