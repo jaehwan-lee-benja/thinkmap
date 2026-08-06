@@ -134,8 +134,14 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
           ) : issuedTicket ? (
             /* 발권됨(수령 대기) — 카운터 회수 시 스탬프 확정. 토큰=수기 입력 검증 경로(인쇄는 현장 확정 대기). */
             <div className="mk-ticket">
-              <div className="mk-ticket-title">참여권 발권 완료</div>
+              <div className="mk-ticket-title">
+                {/* ★상태 어휘(2026-08-06 유저 정정): **발권 ≠ 참여**.
+                    티켓만 만들어진 단계는 «발권»이고, «참여»는 카운터 회수·스탬프 확정 후에만 쓴다.
+                    (내가 «이미 참여하셨어요»라고 썼던 건 발권을 참여로 올려 부른 오표기였다.) */}
+                {claimedToken === printToken ? '참여권 발권 완료' : '발권된 참여권이 있어요'}
+              </div>
               <div className="mk-ticket-token">{issuedTicket.token}</div>
+              {claimedToken !== printToken && <div className="mk-ticket-hint">아직 수령 전이에요 — 카운터에서 보여주세요.</div>}
               <div className="mk-ticket-hint">유효기간: 오늘({issuedTicket.event_date || today})</div>
 
               {/* ★2택 경험(2026-08-06 유저 지시): 손님이 «종이 / 폰» 중 하나를 자기 손으로 고른다.
@@ -231,7 +237,10 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
 
           {/* ★스탬프 진행(실값) — 아이스크림까지. crm stamp 있을 때만. */}
           {stamp && (
-            <div className="mk-stamp" aria-label={`아이스크림까지 ${remain}회`}>
+            <div className="mk-stamp mk-evt-card" aria-label={`아이스크림까지 ${remain}회`}>
+              {/* ★«아이스크림 이벤트»로 재프레임(2026-08-06): 스탬프 10개 축을 팝콘과 나란한
+                  «이벤트 2종»으로 읽히게 한다. 새 발권 API 가 아니라 기존 스탬프 데이터 표시다. */}
+              <div className="mk-evt-card-title">아이스크림 이벤트</div>
               <div className="mk-stamp-head">
                 <span className="mk-stamp-title">🍦 아이스크림까지</span>
                 <span className="mk-stamp-count">{filled}/{goal}</span>
@@ -261,6 +270,8 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
             </div>
           )}
 
+        </div>
+
           {history.length > 0 && (
             <div className="mk-history-wrap">
               <div className="mk-history-title">참여 내역</div>
@@ -273,7 +284,6 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
               </ul>
             </div>
           )}
-        </div>
 
         {errMsg && <div className="mk-err">{errMsg}</div>}
         {onReset && <button className="mk-reset" onClick={onReset}>{resetLabel}</button>}
