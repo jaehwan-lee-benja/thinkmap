@@ -933,3 +933,11 @@
 
 /* 선화 영수증 아이콘 — 이모지 대신(브랜드 선화 세계와 결 맞춤). 크기는 종전 이모지 자리와 동등. */
 .mk-pick-ico-svg { width: clamp(38px, 7.5vw, 56px); height: auto; display: block; }
+
+/* 직원 허브 — 스캔 대기 표시·스캔 결과 영역 */
+.mk-scan-ready { font-size: 15px; color: var(--md-on-surface-variant); margin-right: auto; }
+.mk-staff-scan {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 14px; margin-bottom: 14px; border-radius: var(--md-radius-lg);
+  background: var(--md-surface-container); border: 2px solid var(--md-primary);
+}
