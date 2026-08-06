@@ -788,6 +788,7 @@
 .mk-pick-row { display: flex; gap: clamp(12px, 2.5vw, 22px); width: 100%; }
 .mk-pick-btn {
   flex: 1 1 0; min-height: clamp(140px, 22vh, 210px);
+  box-sizing: border-box; padding: 10px;   /* ★패널과 동일 박스 — 폭이 8px 어긋나 위계가 미세하게 깨졌다(실측) */
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; cursor: pointer;
   border: 3px solid var(--md-primary); border-radius: var(--md-radius-lg);
@@ -812,3 +813,19 @@
 }
 .mk-pick-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .mk-tqr-big { width: clamp(180px, 34vh, 300px); }
+
+/* ★2택 모달 정련(2026-08-06): 폰=완결 콘텐츠(뎁스0) / 종이=버튼. **시각 위계는 동급**.
+   동급을 만드는 축 = 같은 flex 비중·같은 최소높이·같은 테두리 두께. 다른 점은 «누를 것이 있는가»뿐. */
+.mk-pick-panel {
+  flex: 1 1 0; min-height: clamp(140px, 22vh, 210px);
+  box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  border: 3px solid var(--md-outline-variant);   /* 버튼(primary)과 두께 동일·색만 중립 = 누를 것 아님을 색으로 구분 */
+  border-radius: var(--md-radius-lg);
+  background: #FFFFFF;                            /* QR 판독 우선 — 항상 흰 바탕 */
+  color: #1A1C1E; padding: 10px;
+}
+.mk-pick-qr { width: clamp(96px, 15vh, 150px); height: auto; display: block; }
+.mk-pick-sub { font-size: clamp(12px, 2.2vw, 15px); color: var(--md-on-surface-variant); }
+.mk-pick-panel .mk-pick-sub { color: #43474E; }
+.mk-pick-btn .mk-pick-sub { color: inherit; opacity: .75; }

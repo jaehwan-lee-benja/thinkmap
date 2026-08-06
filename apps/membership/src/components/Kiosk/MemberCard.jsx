@@ -16,11 +16,28 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   const [printMsg, setPrintMsg] = useState('')
   // ★발권 후 «2택» 상태(2026-08-06 유저 지시): null=아직 안 고름 | 'paper' | 'phone'
   const [choice, setChoice] = useState(null)
+  // ★모달 트리거 = «이벤트 참여하기» 클릭 유래일 때만(2026-08-06 정정).
+  //   종전엔 티켓만 있으면 떴다 → **조회만 했는데** 오늘 이미 발권된 손님에게 모달이 튀어나왔다.
+  //   (재방문·재조회 때마다 «어떻게 받으시겠어요?»가 뜨는 건 손님에게 뜬금없다.)
+  const pendingClaimRef = useRef(false)      // 클릭했고 아직 티켓이 안 온 상태
+  const [claimedToken, setClaimedToken] = useState(null)   // 이 클릭으로 받은 토큰
 
   const ticketForPrint = member
     ? (member._ticket || (member._todayTickets || []).find((t) => t.channel === 'kiosk' && t.state === 'issued') || null)
     : null
   const printToken = ticketForPrint ? ticketForPrint.token : null
+
+  // ★발권 순서 = «발권 먼저 → 그 다음 모달».
+  //   근거: 토큰이 정본이라 **티켓이 실제로 만들어진 뒤에 «어떻게 받을지»를 묻는 게 맞다.**
+  //   선택을 먼저 받으면 발권 실패 시 «고른 방법은 있는데 티켓이 없는» 상태가 생기고,
+  //   실패 처리도 모달 안에서 다시 해야 한다. 발권 실패 시에는 모달 없이 기존 오류 표시로 떨어진다.
+  const handleClaim = async () => {
+    if (!onClaim) return
+    pendingClaimRef.current = true
+    const r = await onClaim()
+    if (!r || !r.token) pendingClaimRef.current = false   // 실패 = 모달 없음
+    return r
+  }
 
   const doPrint = (tok, retry) => {
     if (!tok || !member) return
@@ -61,7 +78,11 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   }, [showQr, printToken, member, ticketForPrint])
 
   // 새 티켓이 뜨면 선택을 초기화한다(앞 손님의 선택이 남으면 안 된다).
-  useEffect(() => { setChoice(null); setPrintMsg('') }, [printToken])
+  useEffect(() => {
+    setChoice(null); setPrintMsg('')
+    if (printToken && pendingClaimRef.current) { pendingClaimRef.current = false; setClaimedToken(printToken) }
+    if (!printToken) setClaimedToken(null)
+  }, [printToken])
 
   // ★자동 인쇄 **제거**(2026-08-06 유저 확정: 「자동으로 바로 인쇄될 필요는 없어」).
   //   인쇄는 손님이 [종이로 인쇄하기]를 고를 때만 일어난다 — 폰을 고른 손님 몫의 종이가 버려지지 않는다.
@@ -122,21 +143,39 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                   토큰은 어느 쪽을 골라도 위에 계속 보인다(정본은 토큰). */}
               {/* ★모달/오버레이(유저 확정 2026-08-06: 「모달처럼 나오게 — 페이지 전환 느낌이 아니라」).
                   뒤에 발권 완료 맥락(회원 카드)이 그대로 남아 보인다. 라우팅·화면 교체 없음. */}
-              {!choice && (
+              {claimedToken === printToken && !choice && (
                 <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="참여권 받는 방법 선택">
                  <div className="mk-pick">
                   <div className="mk-pick-q">참여권을 어떻게 받으시겠어요?</div>
+                  {/* ★비대칭 구조(2026-08-06 유저 정련): **폰 = 그 자체로 뎁스 끝**(QR·안내가 이미 보임,
+                      탭할 것 없음) / **종이 = 버튼**(눌러야 인쇄). 시각적 위계는 동급으로 유지한다.
+                      결과적으로 «콘텐츠 하나 + 버튼 하나»라 어느 쪽이 눌러야 하는 것인지 더 분명해진다. */}
                   <div className="mk-pick-row">
+                    {/* 종이 = 버튼 */}
                     <button type="button" className="mk-pick-btn" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
                       <span className="mk-pick-ico" aria-hidden="true">🖨</span>
                       <span className="mk-pick-label">종이로<br />인쇄하기</span>
+                      <span className="mk-pick-sub">눌러서 인쇄</span>
                     </button>
-                    <button type="button" className="mk-pick-btn" onClick={() => setChoice('phone')}>
-                      <span className="mk-pick-ico" aria-hidden="true">📱</span>
-                      <span className="mk-pick-label">폰으로<br />스캔하기</span>
-                    </button>
+                    {/* 폰 = 완결된 콘텐츠(뎁스 0) — 버튼이 아니라 패널이다 */}
+                    <div className="mk-pick-panel">
+                      <span className="mk-pick-label">폰으로 받기</span>
+                      {qrUrl
+                        ? <img className="mk-pick-qr" src={qrUrl} alt="참여권 QR" />
+                        : <span className="mk-pick-sub">QR을 준비하는 중…</span>}
+                      <span className="mk-pick-sub">폰 카메라로 찍으세요</span>
+                    </div>
                   </div>
                  </div>
+                </div>
+              )}
+
+              {/* 조회로 드러난 «오늘 이미 발권된» 티켓 — 모달을 띄우지 않고 조용한 인라인 액션만.
+                  손님이 다시 조회했을 뿐인데 선택 모달이 튀어나오지 않게 한다. */}
+              {claimedToken !== printToken && !choice && (
+                <div className="mk-pick-acts">
+                  {printable && <button type="button" className="mk-reset" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>종이로 인쇄</button>}
+                  <button type="button" className="mk-reset" onClick={() => setChoice('phone')}>폰으로 받기</button>
                 </div>
               )}
 
@@ -167,7 +206,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
           ) : (
             <>
               <div className="mk-event-todo">오늘은 아직 참여 전이에요.</div>
-              <button className="mk-claim-btn" onClick={onClaim} disabled={claiming || !onClaim}>
+              <button className="mk-claim-btn" onClick={handleClaim} disabled={claiming || !onClaim}>
                 {claiming ? '발권 중…' : <>사르르 <span className="mk-evt-tag">{EVENT_LABEL}</span> 참여</>}
               </button>
             </>
