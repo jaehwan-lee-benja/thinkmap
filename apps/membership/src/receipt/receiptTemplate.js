@@ -13,7 +13,13 @@
 //   feed   {lines}                 — 여백(줄)
 //   cut    {}                      — 용지 컷
 
+// ★템플릿 버전(2026-08-06 신설): 저장본(localStorage)은 코드를 고쳐도 **옛 내용을 계속 쓴다**.
+//   버전이 낮으면 loadTemplate 이 올려준다(아래 migrateTemplate) — 현장 태블릿에 이미 저장된
+//   «옛 카피·컷 없는» 판이 조용히 살아남는 것을 막는다.
+export const TEMPLATE_VERSION = 2
+
 export const DEFAULT_TEMPLATE = {
+  version: TEMPLATE_VERSION,
   width: 80, // mm (58|80)
   blocks: [
     { type: 'logo', on: true, align: 'center' },
@@ -24,7 +30,7 @@ export const DEFAULT_TEMPLATE = {
     { type: 'token', on: true, align: 'center' },
     { type: 'feed', on: true, lines: 1 },
     { type: 'qr', on: true, align: 'center', url: 'https://jaehwan-lee-benja.github.io/saruru-game/?utm=receipt', size: 5 },
-    { type: 'text', on: true, align: 'center', text: '게임 5,000점 넘기면 팝콘 1개 더!', bold: false, big: false },
+    { type: 'text', on: true, align: 'center', text: '사르르목장에 숨은 게임을 경험해보세요!', bold: false, big: false },
     { type: 'feed', on: true, lines: 1 },
     { type: 'stamp', on: true, align: 'center' },
     { type: 'text', on: true, align: 'center', text: '유효기간: 발행 당일', bold: false, big: false },
@@ -274,4 +280,24 @@ export function previewSequence(tpl, data) {
 export const BLOCK_LABEL = {
   logo: '로고', text: '텍스트', barcode: '★토큰 바코드', token: '토큰 문자열',
   qr: '게임 QR', stamp: '스탬프 현황', feed: '여백', cut: '용지 컷',
+}
+
+// ── 저장본 마이그레이션 ──────────────────────────────────────────────────────
+// 코드 변경만으로는 기기에 저장된 템플릿이 안 바뀐다. 저장본을 읽는 지점에서 올려준다.
+//   v2: ⑴보상 미끼 카피 → 경험·안내 카피(브랜드 보이스) ⑵cut 블록 없으면 주입(현장 결함 대응).
+const COPY_MIGRATIONS = [
+  { from: /게임\s*5[,，]?000점\s*넘기면\s*팝콘\s*1개\s*더!?/, to: '사르르목장에 숨은 게임을 경험해보세요!' },
+]
+
+export function migrateTemplate(tpl) {
+  if (!tpl || !Array.isArray(tpl.blocks)) return tpl
+  if (tpl.version >= TEMPLATE_VERSION) return tpl
+  const t = JSON.parse(JSON.stringify(tpl))
+  for (const b of t.blocks) {
+    if (b.type !== 'text' || typeof b.text !== 'string') continue
+    for (const m of COPY_MIGRATIONS) if (m.from.test(b.text)) b.text = m.to
+  }
+  if (!t.blocks.some((b) => b.type === 'cut')) t.blocks.push({ type: 'cut', on: true, align: 'left' })
+  t.version = TEMPLATE_VERSION
+  return t
 }
