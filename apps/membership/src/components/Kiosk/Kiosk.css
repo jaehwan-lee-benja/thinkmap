@@ -846,7 +846,7 @@
 .mk-pick-qr { width: clamp(96px, 15vh, 150px); height: auto; display: block; }
 .mk-pick-sub { font-size: clamp(12px, 2.2vw, 15px); color: var(--md-on-surface-variant); }
 .mk-pick-panel .mk-pick-sub { color: #43474E; }
-.mk-pick-btn .mk-pick-sub { color: inherit; opacity: .75; }
+.mk-pick-btn .mk-pick-sub { color: inherit; opacity: .85; font-size: clamp(15px, 2.6vw, 19px); font-weight: 600; }  /* ★확대(2026-08-06): 가입 버튼 «눌러서 가입»과 같은 축 */
 
 /* ★가입 안내 = 조회 버튼 아래 + «명백한 버튼»(2026-08-06 유저: 「타원만으론 어르신들이 잘 모르실 수 있어」).
    키오스크 전체 버튼 문법 통일: primary 테두리 + 입체감 + 즉시 눌림 피드백(2택 모달 종이 버튼과 동일). */
@@ -869,3 +869,6 @@
   background: var(--md-primary-container); color: var(--md-on-primary-container); transform: scale(0.98);
 }
 @media (prefers-reduced-motion: reduce) { .mk-signup-btn:active { transform: none; } }
+
+/* 선화 영수증 아이콘 — 이모지 대신(브랜드 선화 세계와 결 맞춤). 크기는 종전 이모지 자리와 동등. */
+.mk-pick-ico-svg { width: clamp(38px, 7.5vw, 56px); height: auto; display: block; }
