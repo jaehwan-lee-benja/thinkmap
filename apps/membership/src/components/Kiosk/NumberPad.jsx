@@ -5,6 +5,7 @@
 //   텍스트 입력(이름 등)에 포커스가 있으면 그쪽이 처리하도록 양보한다.
 import { useEffect, useRef } from 'react'
 import { formatPhone } from './kioskUtils'
+import { BURST_GAP_MS } from './useScanner'
 import './NumberPad.css'
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back']
@@ -42,36 +43,66 @@ export default function NumberPad({
   const pressFromClick = (k) => { if (Date.now() - pointerAtRef.current < 700) return; press(k) }
 
   // 물리 키보드 입력 — 번호패드와 같은 state 공유. 이름 등 텍스트 입력 포커스 시엔 양보.
-  // ★스캐너 버스트 무시(2026-08-06 직원 허브 통합에서 발견): 바코드를 쏘면 그 숫자가
-  //   **조회 번호칸에도 섞여 들어갔다**(허브 실측: 스캔 1회에 조회창이 «2»로 오염).
-  //   스캐너는 문자 간격이 사람보다 압도적으로 짧다 ⇒ **연속 입력 간격이 너무 짧으면 사람이 아니다**로 보고 버린다.
-  //   (useScanner 와 같은 «타이밍으로 가른다» 원리 — 그쪽이 이 입력을 이미 토큰으로 처리한다.)
+  //
+  // ★스캐너 버스트가 번호칸을 오염시키는 문제(2026-08-06). 세 번 고쳐서 여기까지 왔다:
+  //   ⑴ «간격 40ms 미만이면 버린다» → **2번째 글자부터만** 듣는다. 버스트의 첫 글자는
+  //      직전 입력과 간격이 길어 사람 타이핑과 **실시간 구분이 원리적으로 불가능**하다.
+  //   ⑵ «스캔 확정 후 되돌린다» → 번호칸이 정원(11)이라 애초에 안 샜는데도 끝자리가 우연히
+  //      토큰의 숫자와 같으면 **멀쩡한 자리를 지웠다**(실측에서 010-1234-5678 → …-567).
+  //   ⑶ ⇒ **지연 확정**: 첫 글자를 바로 넣지 않고 BURST_GAP_MS 만큼 들고 있다가,
+  //      그 사이에 다음 입력이 촘촘하게 붙으면 «스캐너였다»로 보고 **취소**한다.
+  //      추측이 아니라 **관측 후 결정**이라 우연 일치가 생길 여지가 없다.
+  //   ▸비용: 물리 키보드 입력에 80ms 지연이 붙는다(직원 노트북 한정). **터치 입력은 이 경로를
+  //     안 탄다** — 키오스크의 «패드가 더디다» 개선(pointerdown 즉시 반영)은 그대로다.
   const lastKeyAtRef = useRef(0)
+  const pendingRef = useRef(null)     // { ch, timer } — 아직 확정 안 한 첫 글자
+  const digitsRef = useRef(digits)
+  digitsRef.current = digits
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
   useEffect(() => {
+    const cancelPending = () => {
+      if (pendingRef.current) { clearTimeout(pendingRef.current.timer); pendingRef.current = null }
+    }
+    const flushPending = () => {
+      if (!pendingRef.current) return
+      const { ch, timer } = pendingRef.current
+      clearTimeout(timer); pendingRef.current = null
+      if (digitsRef.current.length < maxLength) onChangeRef.current(digitsRef.current + ch)
+    }
     const onKey = (e) => {
       if (disabled) return
       const now = Date.now()
       const gap = now - lastKeyAtRef.current
       lastKeyAtRef.current = now
-      if (gap < 40) return   // 스캐너 버스트 — 번호패드는 손대지 않는다
+      if (gap < BURST_GAP_MS) { cancelPending(); return }   // 버스트 확인 — 보류분까지 취소
       const el = document.activeElement
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
       if (e.key >= '0' && e.key <= '9') {
         e.preventDefault()
-        if (digits.length < maxLength) onChange(digits + e.key)
+        flushPending()                                      // 앞 글자는 «사람»으로 확정됐다
+        if (digitsRef.current.length >= maxLength) return
+        const ch = e.key
+        const timer = setTimeout(() => {
+          pendingRef.current = null
+          if (digitsRef.current.length < maxLength) onChangeRef.current(digitsRef.current + ch)
+        }, BURST_GAP_MS)
+        pendingRef.current = { ch, timer }
       } else if (e.key === 'Backspace') {
         e.preventDefault()
-        onChange(digits.slice(0, -1))
+        if (pendingRef.current) { cancelPending(); return }  // 보류 중이던 글자를 지운다
+        onChangeRef.current(digitsRef.current.slice(0, -1))
       } else if (e.key === 'Escape') {
-        e.preventDefault()
-        onChange(clearTo)
+        e.preventDefault(); cancelPending(); onChangeRef.current(clearTo)
       } else if (e.key === 'Enter') {
-        if (!submitDisabled && digits.length >= 10) { e.preventDefault(); onSubmit?.() }
+        flushPending()
+        if (!submitDisabled && digitsRef.current.length >= 10) { e.preventDefault(); onSubmit?.() }
       }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [digits, disabled, submitDisabled, maxLength, onChange, onSubmit, clearTo])
+    return () => { window.removeEventListener('keydown', onKey); cancelPending() }
+  }, [disabled, submitDisabled, maxLength, onSubmit, clearTo])
 
   return (
     <div className={`mk-pad ${size === 'xl' ? 'mk-pad-xl' : ''}`}>
