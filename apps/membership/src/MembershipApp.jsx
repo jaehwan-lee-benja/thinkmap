@@ -13,6 +13,25 @@ import { PREVIEW } from './api/membership'
 //   토큰은 문자열일 뿐 아무 데도 쓰이지 않는다(프리뷰에선 네트워크 호출 자체가 없다).
 const PREVIEW_SESSION = { user: { id: 'preview', email: 'preview@local' } }
 
+// ★대기 표시(2026-08-08) — 번들은 왔는데 **세션 확인이 늦는** 구간도 하얀 화면과 똑같이 보인다
+//   (index.html 부팅 오버레이는 이미 걷힌 뒤다). 그래서 같은 문법으로 한 번 더 방어한다:
+//   점 세 개 + 15초 넘으면 «네트워크가 느립니다». 저속 회선에서 «고장인가»를 묻지 않게 하는 게 목적.
+const SLOW_MS = 15000
+function Waiting({ text }) {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), SLOW_MS)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <div className="pv-center pv-wait" role="status" aria-live="polite">
+      <div className="pv-wait-dots" aria-hidden="true"><i /><i /><i /></div>
+      <div>{text}</div>
+      {slow && <div className="pv-wait-slow">네트워크가 느립니다 — 잠시만요</div>}
+    </div>
+  )
+}
+
 export default function MembershipApp() {
   const { session, authLoading, handleGoogleLogin } = useAuth()
   const [authz, setAuthz] = useState('idle') // idle | checking | ok
@@ -61,12 +80,12 @@ export default function MembershipApp() {
     </>)
   }
 
-  if (authLoading) return <div className="pv-center">로딩 중…</div>
+  if (authLoading) return <Waiting text="불러오는 중…" />
 
   // 세션 있음 — 인가 확인 중이거나 거부 처리(signOut in flight) 동안은 진입 보류.
   if (session) {
     if (authz === 'ok') return <MembershipKiosk session={session} />
-    return <div className="pv-center">계정 확인 중…</div>
+    return <Waiting text="계정 확인 중…" />
   }
 
   // 세션 없음 — 로그인 화면(+ 미인가 거부 안내).

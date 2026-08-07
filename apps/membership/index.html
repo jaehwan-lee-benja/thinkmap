@@ -17,6 +17,74 @@
     <title>멤버십 키오스크 · ThinkMap</title>
   </head>
   <body>
+    <!-- ★하얀 화면 방어(2026-08-08, 매장 실사에서 저속 회선에 하얀 화면으로 멈춰 «고장/로딩» 구분 불가).
+         번들이 도착하기 전에도 보여야 하므로 **인라인**이다 — 외부 CSS·이미지·폰트를 한 개도 안 부른다.
+         (로고 PNG 를 쓰면 그 요청이 늦는 회선에서 정작 이 방어가 같이 늦는다.) -->
+    <style>
+      #mk-boot{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2000;display:flex;
+        flex-direction:column;align-items:center;justify-content:center;gap:14px;
+        background:#16181C;color:#E3E2E6;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+        text-align:center;padding:24px;-webkit-font-smoothing:antialiased}
+      html[data-theme="light"] #mk-boot{background:#FBF8FD;color:#1A1C1E}
+      #mk-boot .b-dots{display:flex;gap:8px}
+      #mk-boot .b-dots i{width:12px;height:12px;border-radius:50%;background:currentColor;opacity:.35;
+        animation:mkb 1.05s infinite ease-in-out}
+      #mk-boot .b-dots i:nth-child(2){animation-delay:.15s}
+      #mk-boot .b-dots i:nth-child(3){animation-delay:.3s}
+      @keyframes mkb{0%,80%,100%{opacity:.25}40%{opacity:1}}
+      @media (prefers-reduced-motion:reduce){#mk-boot .b-dots i{animation:none;opacity:.6}}
+      #mk-boot .b-msg{font-size:18px}
+      #mk-boot .b-slow,#mk-boot .b-fail{font-size:16px;line-height:1.5;max-width:22em}
+      /* 어르신·현장 기준 — 버튼은 «누르는 것»으로 형태가 읽혀야 한다(키오스크 버튼 문법과 같은 축). */
+      #mk-boot .b-fail button{margin-top:16px;padding:16px 34px;font:inherit;font-size:19px;font-weight:700;
+        min-width:200px;min-height:56px;border-radius:14px;border:2px solid currentColor;
+        background:transparent;color:inherit;cursor:pointer}
+    </style>
+    <div id="mk-boot" role="status" aria-live="polite">
+      <div class="b-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="b-msg">불러오는 중…</div>
+      <div class="b-slow" hidden>네트워크가 느립니다 — 잠시만요</div>
+      <div class="b-fail" hidden>
+        화면을 불러오지 못했습니다.<br />연결을 확인한 뒤 다시 시도해 주세요.
+        <br /><button type="button" id="mk-boot-retry">다시 시도</button>
+      </div>
+    </div>
+    <script>
+      /* ES5 로만 쓴다 — legacy(nomodule) 경로의 구형 WebView 도 이 스크립트는 그대로 실행한다.
+         여기서 문법 오류가 나면 «방어 자체가 하얀 화면»이 된다. */
+      (function () {
+        var el = document.getElementById('mk-boot')
+        if (!el) return
+        var q = function (c) { return el.querySelector(c) }
+        var done = false
+        var slowT = setTimeout(function () { var n = q('.b-slow'); if (n) n.hidden = false }, 15000)
+        /* 스크립트가 «오류 없이 영영 안 오는» 경우도 있다(정지된 프록시·중간 차단).
+           그래서 error 이벤트뿐 아니라 **시간 초과**로도 재시도 버튼을 연다. */
+        var failT = setTimeout(showFail, 30000)
+        function showFail() {
+          if (done) return
+          var f = q('.b-fail'), m = q('.b-msg'), d = q('.b-dots'), s = q('.b-slow')
+          if (f) f.hidden = false
+          if (m) m.style.display = 'none'
+          if (d) d.style.display = 'none'
+          if (s) s.hidden = true
+        }
+        /* 번들(script)·스타일(link) 로드 실패는 버블링하지 않는다 → **캡처**로 받는다. */
+        window.addEventListener('error', function (e) {
+          var t = e && e.target
+          if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) showFail()
+        }, true)
+        var r = document.getElementById('mk-boot-retry')
+        if (r) r.onclick = function () { window.location.reload() }
+        /* 앱이 첫 화면을 그리면 부른다(main.jsx). 여러 번 불려도 안전하게 만든다. */
+        window.__mkBootDone = function () {
+          if (done) return
+          done = true
+          clearTimeout(slowT); clearTimeout(failT)
+          if (el.parentNode) el.parentNode.removeChild(el)
+        }
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
