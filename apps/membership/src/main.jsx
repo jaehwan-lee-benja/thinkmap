@@ -22,3 +22,13 @@ createRoot(document.getElementById('root')).render(
     {isTicket ? <MembershipKiosk session={null} /> : <MembershipApp />}
   </StrictMode>,
 )
+
+// ★부팅 오버레이(index.html 인라인) 제거 — **첫 화면이 실제로 그려진 뒤에** 걷는다.
+//   render() 직후에 바로 지우면 커밋~페인트 사이에 하얀 프레임이 보인다(방어의 취지가 무너진다).
+//   rAF 두 번 = «커밋 반영된 프레임이 한 번 그려진 뒤». 함수는 멱등이라 두 번 불려도 안전하다.
+function dropBoot() { if (window.__mkBootDone) window.__mkBootDone() }
+if (typeof requestAnimationFrame === 'function') {
+  requestAnimationFrame(function () { requestAnimationFrame(dropBoot) })
+} else {
+  setTimeout(dropBoot, 60)
+}

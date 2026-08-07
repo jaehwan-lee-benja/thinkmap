@@ -27,3 +27,17 @@ body { background: var(--color-bg-primary); color: var(--color-text-primary); }
   color: var(--color-primary); text-decoration: none;
   display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px;
 }
+
+/* 대기 표시(세션 확인 지연) — index.html 부팅 오버레이와 같은 문법. */
+.pv-wait { gap: 14px; }
+.pv-wait-dots { display: flex; gap: 8px; }
+.pv-wait-dots i {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: currentColor; opacity: .35;
+  animation: pv-wait-blink 1.05s infinite ease-in-out;
+}
+.pv-wait-dots i:nth-child(2) { animation-delay: .15s; }
+.pv-wait-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes pv-wait-blink { 0%, 80%, 100% { opacity: .25 } 40% { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .pv-wait-dots i { animation: none; opacity: .6 } }
+.pv-wait-slow { color: var(--color-text-secondary); max-width: 22em; text-align: center; line-height: 1.5; }
