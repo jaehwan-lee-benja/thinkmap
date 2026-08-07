@@ -108,7 +108,8 @@ export default function TicketView() {
       <div className="mk-ticketview mk-tv-thanks">
         <img className="mk-tv-thanks-mark" src={`${import.meta.env.BASE_URL}img/cow-pose-welcome-navy.png`} alt="" aria-hidden="true" />
         <div className="mk-tv-thanks-title">이벤트에 참여해주셔서<br />감사합니다 🎉</div>
-        {(t.name || thanks.name) && <div className="mk-tv-name">{thanks.name || t.name} 회원님</div>}
+        {/* 이름은 **자기 QR 페이로드**에서만 온다 — 채널 payload 엔 이름이 없다(도청 대비). */}
+        {t.name && <div className="mk-tv-name">{t.name} 회원님</div>}
 
         {hasStamp && (
           <div className="mk-tv-thanks-stamp">

@@ -52,7 +52,7 @@ export function useTicketScan() {
       if (r?.ok) {
         setResult((prev) => (sameTicket(prev) ? { ...prev, state: 'redeemed', stamp: r.stamp || prev.stamp, _justRedeemed: true } : prev)); setPhase((ph) => (sameTicket(result) ? 'redeemed' : ph))
         const st = r.stamp || result?.stamp
-        pushRedeemed({ token: tok, name: r.display_name || result?.display_name || null, stamp: st ? `${st.current_stamps}/${st.threshold}` : null })
+        pushRedeemed({ token: tok, stamp: st ? `${st.current_stamps}/${st.threshold}` : null })
       }
       else {
         setErrMsg(STATE_LABEL[r?.reason === 'already_redeemed' ? 'redeemed' : r?.reason] || r?.reason || '회수 실패')
