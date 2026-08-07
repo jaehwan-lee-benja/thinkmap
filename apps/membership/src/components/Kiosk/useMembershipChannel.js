@@ -73,3 +73,51 @@ export function useMembershipChannel(store, { onMember, onClear, onTicket } = {}
 
   return { pushMember, pushClear, pushTicket, realtimeOn: REALTIME_ON }
 }
+
+// ── 손님 폰 «회수 확정» 알림 채널 ────────────────────────────────────────────
+// ★왜 **별도 공개 채널**인가: 위 채널은 `private:true` 라 **매장 계정 세션**이 있어야 구독된다.
+//   손님 폰(`?role=ticket`)에는 계정이 없다 — 기존 채널을 그대로 쓰는 건 원리적으로 불가능하다.
+//
+// ★그럼 공개 채널은 안전한가: **회수가 끝난 뒤에만** 쏘기 때문에 안전하다.
+//   payload 의 토큰은 그 시점에 **이미 소진**돼 재사용 가치가 0이고(회수는 1회성·직원 게이트),
+//   담기는 건 마스킹명·스탬프 표기뿐이라 새로 새는 PII 가 없다.
+//   ⇒ 엿듣는 쪽이 얻는 것이 «방금 어떤 티켓이 소진됐다» 뿐이다.
+//   (반대로 «발권 시점»을 공개로 쏘면 미소진 토큰이 새므로 **절대 그러면 안 된다.**)
+//
+// ★매장 룸으로 나누지 않는다: QR 페이로드에 store 가 없어서 폰이 룸을 모른다.
+//   payload 가 무해하므로 단일 룸으로 두고 **폰이 자기 토큰과 일치할 때만** 반응한다.
+const PUBLIC_ROOM = 'membership-ticket'
+const EVT_REDEEMED = 'redeemed'
+
+// 손님 폰: 자기 토큰의 회수 확정을 기다린다.
+export function useTicketRedeemedSignal(token, onRedeemed) {
+  const cbRef = useRef(onRedeemed)
+  cbRef.current = onRedeemed
+  useEffect(() => {
+    if (!REALTIME_ON || !token) return undefined
+    const ch = supabase.channel(PUBLIC_ROOM, { config: { broadcast: { self: false } } })
+    ch.on('broadcast', { event: EVT_REDEEMED }, ({ payload }) => {
+      if (payload && payload.token === token) cbRef.current?.(payload)
+    }).subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [token])
+}
+
+// 직원 기기: 회수 확정 직후 1회 알린다. 실패해도 회수 자체는 이미 끝났다(best-effort).
+export function useRedeemedBroadcast() {
+  const chRef = useRef(null)
+  useEffect(() => {
+    if (!REALTIME_ON) return undefined
+    const ch = supabase.channel(PUBLIC_ROOM, { config: { broadcast: { self: false } } })
+    ch.subscribe()
+    chRef.current = ch
+    return () => { supabase.removeChannel(ch); chRef.current = null }
+  }, [])
+  return useCallback((p) => {
+    if (!REALTIME_ON || !chRef.current || !p?.token) return
+    chRef.current.send({
+      type: 'broadcast', event: EVT_REDEEMED,
+      payload: { token: p.token, name: p.name ?? null, stamp: p.stamp ?? null },
+    })
+  }, [])
+}

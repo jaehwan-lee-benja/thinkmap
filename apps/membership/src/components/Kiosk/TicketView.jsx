@@ -12,12 +12,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { render as renderCode128, widths } from '../../receipt/code128'
 import { decodeTicketPayload } from './ticketLink'
+import { useTicketRedeemedSignal } from './useMembershipChannel'
 
 export default function TicketView() {
   const canvasRef = useRef(null)
   const [t, setT] = useState(null)
   const [err, setErr] = useState('')
   const [barcodeErr, setBarcodeErr] = useState('')   // 바코드만 실패 — 토큰은 계속 보여준다(M5)
+  // ★회수 확정 → «감사» 화면(유저 발주 2026-08-08: 「이벤트 참여해주셔서 감사합니다 … 바로 해주고」).
+  //   손님 폰은 계정이 없어 **서버를 부르지 않는다**는 이 화면의 원칙은 그대로다 —
+  //   서버에 «묻는» 게 아니라 직원 기기가 회수 직후 **보내주는 것을 받기만** 한다(단방향).
+  const [thanks, setThanks] = useState(null)
 
   // ★hashchange 를 듣는다(2026-08-04 교정): 티켓 페이지가 열린 채 **새 QR을 찍으면**
   //   origin·path·search 가 같고 fragment 만 달라 **리로드가 일어나지 않는다**(same-document navigation).
@@ -72,6 +77,14 @@ export default function TicketView() {
     }
   }, [drawBarcode])
 
+  useTicketRedeemedSignal(t?.token || null, (p) => setThanks(p || {}))
+
+  // dev 전용 미리보기 — `&thanks=1` 로 감사 화면을 눈으로 확인한다(프로덕션 빌드에선 사라진다).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    if (new URLSearchParams(window.location.search).get('thanks') === '1') setThanks({ stamp: '4/10' })
+  }, [])
+
   // 화면 밝기·자동잠금 — 스캔되는 동안 화면이 꺼지지 않게(지원 기기만).
   useEffect(() => {
     let lock = null, dead = false
@@ -83,6 +96,39 @@ export default function TicketView() {
 
   if (err) return <div className="mk-scan"><div className="mk-scan-card mk-scan-bad"><div className="mk-scan-state">✗ {err}</div></div></div>
   if (!t) return <div className="mk-placeholder">불러오는 중…</div>
+
+  // ★회수 확정 화면 — 바코드는 **치운다**(이미 소진돼 다시 보여줄 이유가 없고, 남겨두면
+  //   손님이 «또 되나?»로 읽는다). 카피는 보이스 기준 §5.0 — 감사·경험, 보상 미끼 없음.
+  if (thanks) {
+    const [cur, goal] = String(thanks.stamp || '').split('/')
+    const n = Number(cur), g = Number(goal)
+    const hasStamp = Number.isFinite(n) && Number.isFinite(g) && g > 0
+    const done = hasStamp && n === 0        // 방금 10개를 채워 한 바퀴 돌았다
+    return (
+      <div className="mk-ticketview mk-tv-thanks">
+        <img className="mk-tv-thanks-mark" src={`${import.meta.env.BASE_URL}img/cow-pose-welcome-navy.png`} alt="" aria-hidden="true" />
+        <div className="mk-tv-thanks-title">이벤트에 참여해주셔서<br />감사합니다 🎉</div>
+        {(t.name || thanks.name) && <div className="mk-tv-name">{thanks.name || t.name} 회원님</div>}
+
+        {hasStamp && (
+          <div className="mk-tv-thanks-stamp">
+            {done ? (
+              <>
+                <div className="mk-tv-thanks-goal">🍦 아이스크림 도장판을 다 채우셨어요!</div>
+                <div className="mk-tv-thanks-sub">카운터에서 받아가세요.</div>
+              </>
+            ) : (
+              <>
+                <div className="mk-tv-thanks-count">아이스크림까지 <b>{n}/{g}</b></div>
+                <div className="mk-tv-thanks-sub">{g - n}번 더 모으면 아이스크림 🍦</div>
+              </>
+            )}
+          </div>
+        )}
+        <div className="mk-tv-guide">사르르목장에서 또 만나요.</div>
+      </div>
+    )
+  }
 
   return (
     <div className="mk-ticketview">
