@@ -118,7 +118,7 @@ export default function SeatOrderScreen({
               // R12: 완료(아카이빙) ↔ 대기열 복귀. 삭제와 달리 되돌릴 수 있는 상태 전환이라 재확인 없이 즉시.
               // extra = 완료와 함께 확정되는 필드(올림 체크 등 — OrderRow 의 «완료↔올림» 모달이 넘긴다). 쓰기 1회로 묶는다.
               onArchive={(o, extra = {}) => onPatch?.(o.id, { archived_at: new Date().toISOString(), ...extra })}
-              onRestore={(o) => onPatch?.(o.id, { archived_at: null })}
+              onRestore={(o, extra = {}) => onPatch?.(o.id, { archived_at: null, ...extra })}
               dupSuffix={suffixMap[o.id]}
             />
           ))

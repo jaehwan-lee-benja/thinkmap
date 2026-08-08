@@ -392,6 +392,20 @@
 .seat-no-add { min-width: 30px; font-size: 16px; }
 .seat-no-cancel.is-on { border-color: transparent; background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
 
+/* 완료 탭 «취소» 라벨 — 정상 완료와 즉시 구분. 붉은 아웃라인 칩(면을 채우면 삭제처럼 읽혀 과하다). */
+.seat-cancel-tag {
+  display: inline-block;
+  align-self: center;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border: 1px solid var(--md-error);
+  border-radius: var(--md-radius-full);
+  color: var(--md-error);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
 /* 자리대기 취소된 줄 — 지운 게 아니라 '대기를 접었다'는 기록. 흐리게 + 번호에 취소선. */
 .seat-row--canceled { opacity: .55; }
 .seat-row--canceled .seat-input-no { text-decoration: line-through; }
@@ -1394,14 +1408,33 @@
   background: rgba(0, 0, 0, .45);
 }
 .seat-confirm {
+  position: relative; /* 우상단 X 닫기(.seat-confirm-x) 기준 */
   width: min(420px, 100%);
   display: flex; flex-direction: column; gap: 10px;
   padding: 20px; border-radius: var(--md-radius-md);
   background: var(--md-surface-container); color: var(--md-on-surface);
   box-shadow: var(--md-elev-3);
 }
-.seat-confirm-title { font-size: 18px; font-weight: 700; }
+.seat-confirm-title { font-size: 18px; font-weight: 700; padding-right: 36px; } /* 우상단 X 자리 확보 */
 .seat-confirm-desc { font-size: 15px; color: var(--md-on-surface-variant); }
+/* 모달 우상단 X 닫기 — «닫기»를 액션 버튼으로 두지 않는다(액션과 이탈은 위계가 다르다). */
+.seat-confirm-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--md-radius-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.seat-confirm-x:hover { background: var(--md-surface-variant); color: var(--md-on-surface); }
 .seat-confirm-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 /* 선택지가 3개 이상인 모달(포장도고려 전달 등) — 가로로 밀지 않고 세로로 쌓아 터치 타겟을 넓게. */
 .seat-confirm-acts--stack { flex-direction: column; align-items: stretch; }
