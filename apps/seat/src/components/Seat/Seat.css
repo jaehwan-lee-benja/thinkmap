@@ -92,6 +92,38 @@
   color-scheme: light;
 }
 
+/* ── 터치 반응성(아이패드) ────────────────────────────────────────────────────
+   유저 신고 2026-08-08 「새주문이 한번에 안눌리는 느낌이 있어」. 실측 4축 결과:
+     ⑴ hover 규칙 = `.seat-btn-primary:hover{box-shadow}` 1건뿐(레이아웃 변화 없음)
+     ⑵ ★touch-action 이 `auto` — index.html 의 viewport 가 `user-scalable=yes, maximum-scale=5`
+        라 **더블탭 줌이 살아 있고**, Safari 는 두 번째 탭을 기다리느라 click 을 늦게 쏜다. ← 제1 원인
+     ⑶ 겹침 0(버튼이 히트테스트 최상위) — 오늘 sticky/clip 수정과 무관
+     ⑷ 핸들러는 단일 탭으로 즉시 동작(행 8→9 확인)
+   ⇒ 인터랙티브 요소에 `touch-action: manipulation` 을 줘서 더블탭 줌 대기를 없앤다.
+      확대 자체는 뷰포트 설정대로 계속 가능하다(핀치 줌 유지) — 버튼 위 더블탭만 즉시 클릭이 된다.
+   ※드래그 핸들·열 리사이저는 `touch-action: none` 을 유지해야 하므로 여기서 제외(span 이라 선택자에 안 걸린다). */
+.seat-app button,
+.seat-app input,
+.seat-app select,
+.seat-app textarea,
+.seat-app label { touch-action: manipulation; }
+
+/* 터치 기기(hover 불가)에서는 hover 효과를 끈다 — 첫 탭이 hover 로 소비되거나 손을 뗀 뒤에도
+   눌린 듯 남아 «안 눌렸나?» 로 오인된다. 포인터가 있는 기기에서는 그대로 유지. */
+@media (hover: none) {
+  .seat-btn-primary:hover { box-shadow: var(--md-elev-1); }
+  .seat-btn:hover::after,
+  .seat-role-tab:hover::after,
+  .seat-settings-btn:hover::after,
+  .seat-toggle:hover::after { opacity: 0; }
+  .seat-row:not(.seat-row-head):hover { background: transparent; }
+  .seat-tab:hover { background: transparent; }
+  .seat-no-btn:hover { background: transparent; }
+  .seat-arch-btn:hover,
+  .seat-done-btn.is-restore:hover { background: transparent; }
+  .seat-confirm-x:hover { background: transparent; color: var(--md-on-surface-variant); }
+}
+
 /* ── State layer (M3 상호작용) — 인터랙티브 요소 공통 ───────────────────────── */
 .seat-role-tab,
 .seat-btn,
