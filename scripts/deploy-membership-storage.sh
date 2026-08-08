@@ -27,6 +27,32 @@ echo "dist   = $DIST"
 echo "bucket = $BUCKET"
 
 : "${SUPABASE_URL:?SUPABASE_URL 이 필요합니다}"
+
+# ★service_role 키가 없으면 **관리 API 로 조달한다**(2026-08-08).
+#   근거: `~/claude-project/docs/SECRETS-MAP.md` — `thinkmap/.env` 의 `SUPABASE_ACCESS_TOKEN` 은
+#   sqisnt 계정 관리 API 토큰이고, 지도에 「이걸로 각 프로젝트 service_role 을 **스크립트 안에서** 조달 가능」
+#   이라고 적혀 있다. ⇒ 「service_role 이 이 컴퓨터에 없다」는 판정은 **조달 경로를 빠뜨린 것**이다.
+#   ★값은 이 셸 변수 안에만 머문다 — 출력·로그·파일에 절대 쓰지 않는다.
+if [ -z "${SUPABASE_SERVICE_KEY:-}" ]; then
+  if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ] && [ -f "$HOME/claude-project/thinkmap/.env" ]; then
+    SUPABASE_ACCESS_TOKEN="$(grep -m1 '^SUPABASE_ACCESS_TOKEN=' "$HOME/claude-project/thinkmap/.env" | cut -d= -f2- | tr -d '"'"'"' ')"
+  fi
+  : "${SUPABASE_ACCESS_TOKEN:?SUPABASE_SERVICE_KEY 도 SUPABASE_ACCESS_TOKEN 도 없습니다(SECRETS-MAP.md 참조)}"
+  REF="$(printf '%s' "$SUPABASE_URL" | sed -E 's#https?://([^.]+)\..*#\1#')"
+  echo "── service_role 조달(관리 API · 값 미출력) ref=$REF"
+  SUPABASE_SERVICE_KEY="$(curl -sS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+      "https://api.supabase.com/v1/projects/$REF/api-keys" \
+    | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+if not isinstance(d,list): sys.exit("api-keys 응답이 배열이 아님")
+for k in d:
+    if k.get("name")=="service_role":
+        for f in ("api_key","apiKey","key","secret"):
+            if k.get(f): print(k[f]); sys.exit(0)
+sys.exit("service_role 항목을 찾지 못했습니다")')"
+  [ -n "${SUPABASE_SERVICE_KEY:-}" ] || { echo "✗ service_role 조달 실패"; exit 1; }
+  echo "   조달 완료(길이 ${#SUPABASE_SERVICE_KEY}자 — 값은 출력하지 않는다)"
+fi
 : "${SUPABASE_SERVICE_KEY:?SUPABASE_SERVICE_KEY 가 필요합니다}"
 [ -f "$DIST/index.html" ] || { echo "✗ $DIST/index.html 없음 — 먼저 APP_BASE=./ 로 빌드하세요"; exit 1; }
 
