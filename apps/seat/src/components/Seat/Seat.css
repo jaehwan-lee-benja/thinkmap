@@ -279,7 +279,11 @@
 .seat-settings-row-label { font-weight: 500; }
 .seat-settings-row-hint { color: var(--md-on-surface-variant); opacity: .8; }
 
-.seat-main { flex: 1 1 auto; overflow: auto; padding: 16px; }
+/* ★스크롤 컨테이너에는 패딩을 두지 않는다(2026-08-08 긴급 수정).
+   패딩이 있으면 sticky 자식이 «패딩만큼 아래»에 멈춰 상단에 빈 띠가 생긴다 —
+   유저 신고 「상단탭 고정 아래로 좀 내려와있어」의 원인. 같은 16px 여백은 화면(.seat-screen)이 갖는다. */
+.seat-main { flex: 1 1 auto; overflow: auto; padding: 0; }
+.seat-screen { padding: 16px; }
 
 /* 레이아웃 — mobile-first: 기본 1열, 넓은 화면 2열. */
 .seat-screen-grid { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
@@ -299,10 +303,22 @@
    ★2026-08-08 «구글 설문 편집(질문/응답/설정)» 문법으로 교체(유저 지시): 알약 버튼이 아니라 **탭 바** —
    텍스트를 나열하고 **활성 탭만 하단 굵은 언더바** + 진한 색, 비활성은 흐린 색.
    버튼형은 '누르는 것'으로 읽혀 지금 무엇을 보는 중인지가 약했다. 언더바는 현재 위치를 즉답한다. */
+/* ★탭바 높이는 «단일 출처» 로 둔다 — 표 헤더가 이만큼 내려 붙어야 두 sticky 가 겹치지 않는다.
+   변수 정의는 **공통 조상**(.seat-screen-order)에 있어야 한다: .seat-tabs 에 정의하면 형제인 헤더가 못 읽는다.
+   ※이전엔 소비처에만 `var(--seat-tabs-h, 56px)` 이 있고 정의가 없어 **항상 폴백 56** 으로 돌았다.
+     탭 높이·여백을 누가 바꾸면 아무 경고 없이 헤더가 겹치거나 뜨는 상태였다(tm통합 지적 2026-08-08).
+     이제 높이·여백 자체를 변수에서 파생시켜 실제로 한 곳만 고치면 되게 했다. */
+.seat-screen-order {
+  --seat-tab-h: 48px;   /* 탭 버튼 높이 */
+  --seat-tab-gap: 8px;  /* 탭바와 표 사이 여백 */
+  --seat-tabs-h: calc(var(--seat-tab-h) + var(--seat-tab-gap));
+}
 .seat-tabs {
   display: flex;
   gap: 0;
-  margin: 0 0 8px;
+  /* 좌우는 화면 패딩(16px)을 음수 마진으로 덮어 전폭 바로. 위쪽은 화면 패딩이 탭바 위로 스크롤돼 사라진다. */
+  margin: 0 -16px var(--seat-tab-gap);
+  padding: 0 16px;
   border-bottom: 1px solid var(--md-outline-variant);
   /* ★상단 고정(유저 지시 2026-08-08) — 표를 길게 스크롤해도 «지금 어느 리스트를 보는 중인지» 가 계속 보인다.
      스크롤 컨테이너는 .seat-main. 표 헤더(.seat-row-head)도 sticky 라 그 위에 얹히도록 z-index 를 더 높인다.
@@ -312,14 +328,14 @@
   top: 0;
   z-index: 4;
   background: var(--md-surface);
-  box-shadow: 0 8px 0 0 var(--md-surface);
+  box-shadow: 0 var(--seat-tab-gap) 0 0 var(--md-surface);
 }
 .seat-tab {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 48px;
+  min-height: var(--seat-tab-h);
   padding: 0 20px;
   border: 0;
   border-radius: 0;
@@ -495,8 +511,9 @@
    ★sticky: 표를 스크롤해도 헤더가 상단에 고정된다(유저 지시 2026-08-01). */
 .seat-row-head {
   position: sticky;
-  /* 탭바(sticky, 48px + 아래 여백 8px)가 위에 있으므로 그만큼 내려서 붙는다 — 두 sticky 가 겹치지 않게. */
-  top: var(--seat-tabs-h, 56px);
+  /* 탭바(sticky)가 위에 있으므로 그만큼 내려서 붙는다 — 두 sticky 가 겹치지 않게.
+     ★폴백을 일부러 뺐다: 변수 정의가 사라지면 조용히 어긋나느니 바로 눈에 띄게 깨지는 편이 낫다. */
+  top: var(--seat-tabs-h);
   z-index: 3;
   grid-template-areas: "tno tord hg1 hg2 hg3 confirm memo del";
   min-height: 44px;
