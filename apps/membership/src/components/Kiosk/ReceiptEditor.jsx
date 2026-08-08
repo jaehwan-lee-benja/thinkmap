@@ -86,6 +86,14 @@ export default function ReceiptEditor() {
             <button className={tpl.width === 58 ? 'is-active' : ''} onClick={() => upd((n) => { n.width = 58 })}>58mm</button>
             <button className={tpl.width === 80 ? 'is-active' : ''} onClick={() => upd((n) => { n.width = 80 })}>80mm</button>
           </div>
+          {/* ★컷 방언 — 프린터가 «급지 후 부분컷»(표준)을 모르면 여기서 바꿔 테스트한다.
+              우리가 컷을 «보내는지»는 이미 확정됐다(페이로드 맨 끝) — 남는 변수는 기종이 아는 방언이다. */}
+          <div className="mk-ed-width">
+            {[['feed', '급지+부분컷'], ['full', '풀컷'], ['partial', '부분컷']].map(([m, label]) => (
+              <button key={m} className={(tpl.cutMode || 'feed') === m ? 'is-active' : ''}
+                onClick={() => upd((n) => { n.cutMode = m })}>{label}</button>
+            ))}
+          </div>
         </div>
 
         <div className="mk-ed-blocks">

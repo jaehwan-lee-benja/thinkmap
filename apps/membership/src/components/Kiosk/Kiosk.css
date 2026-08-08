@@ -1150,3 +1150,34 @@
   content: ''; display: inline-block; width: .3em; height: .3em;
   border-radius: 50%; background: currentColor; vertical-align: middle;
 }
+
+/* ⑸ 2택 = «그 자리 토글 펼침»(오버레이·시트 아님). 티켓 블록 안에서 아래로 열린다. */
+.mk-pick-inline {
+  width: 100%; display: flex; flex-direction: column; align-items: center;
+  gap: clamp(10px, 2vh, 18px); margin-top: clamp(8px, 1.6vh, 14px);
+  padding: clamp(12px, 2.2vh, 20px) clamp(10px, 2vw, 18px);
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface); border: 2px solid var(--md-primary);
+  animation: mk-accordion .2s ease-out;
+  overflow: hidden;
+}
+@keyframes mk-accordion { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) { .mk-pick-inline { animation: none } }
+
+/* ⑶ 참여내역 빈 상태 — 칸은 남기고 안내만. */
+.mk-history-empty {
+  padding: 14px 12px; color: var(--md-on-surface-variant);
+  font-size: 15px; line-height: 1.5; text-align: center;
+}
+
+/* ★인라인 펼침 중에는 본문을 **한 칸으로 넓힌다.**
+   세로 결과화면의 좌측 칸은 320px 대라 2택을 그 안에 넣으면 «종이로/인쇄/하기»로 끊긴다(실측 2회).
+   좁은 칸에 맞춰 부품을 줄이는 대신 **칸을 넓혔다** — 그 순간의 주 과업이 «참여권 받기»이기 때문이다.
+   참여 내역은 잠시 접고, 선택이 끝나면 원래 2단으로 돌아온다. */
+@media (orientation: portrait) {
+  .mk-role-customer .mk-member-card-hero.mk-picking .mk-member-body {
+    grid-template-columns: 1fr;
+    grid-template-areas: "events" "foot";
+  }
+  .mk-role-customer .mk-member-card-hero.mk-picking .mk-history-wrap { display: none; }
+}

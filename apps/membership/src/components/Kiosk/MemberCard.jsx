@@ -37,7 +37,7 @@ function markPrinted(token) {
 
 // ★printable = **프린터가 달린 기기에서만 true**(키오스크 단말). 직원 노트북(StaffView)은 false 라
 //   rawbt: 스킴이 호출되지 않는다 — 프린터 없는 기기에서 스킴을 던지면 오류 페이지로 튈 수 있다.
-export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false, showQr = false, pickFlow = false }) {
+export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false, showQr = false, pickFlow = false, onDwell }) {
   // ★훅은 조기 return 보다 위에 — member 가 null 이어도 호출 순서가 바뀌면 안 된다(Rules of Hooks).
   const printedRef = useRef(null)          // (예약) 중복 인쇄 방지용 — 자동 인쇄 제거로 현재 미사용
   const [printMsg, setPrintMsg] = useState('')
@@ -109,6 +109,12 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
     return () => { dead = true }
   }, [showQr, printToken, member, ticketForPrint])
 
+  // ★«머무를 국면»을 상위에 알린다 — QR 이 떠 있으면 손님이 폰 카메라를 켤 시간이 필요하다.
+  //   유휴 복귀 시간을 정하는 건 화면 소유자(CustomerView)지만, «지금 QR 국면인가»는 여기만 안다.
+  const pickOpen = pickFlow && claimedToken === printToken && !choice && !!printToken
+  const dwelling = !!printToken && (choice === 'phone' || pickOpen)
+  useEffect(() => { if (onDwell) onDwell(dwelling) }, [dwelling, onDwell])
+
   // 새 티켓이 뜨면 선택을 초기화한다(앞 손님의 선택이 남으면 안 된다).
   useEffect(() => {
     setChoice(null); setPrintMsg('')
@@ -141,7 +147,10 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   const rewardsAvail = stamp?.rewards_available ?? 0
 
   return (
-    <div className={`mk-card mk-member-card ${variant === 'hero' ? 'mk-member-card-hero' : ''}`}>
+    /* ★`mk-picking` = 2택이 펼쳐진 동안. 이때는 본문을 **한 칸으로 넓혀** 준다(아래 CSS) —
+       세로 결과화면의 좌측 칸은 320px 대라 그 안에서는 «종이로/인쇄/하기»가 한 글자씩 끊긴다(실측).
+       참여 내역은 그 순간의 관심사가 아니므로 잠시 접는다 — 선택하면 돌아온다. */
+    <div className={`mk-card mk-member-card ${variant === 'hero' ? 'mk-member-card-hero' : ''}${pickOpen ? ' mk-picking' : ''}`}>
       <div className="mk-member-hero">
         <div className="mk-member-badge-row">
           <span className="mk-member-badge">멤버십 회원</span>
@@ -188,20 +197,17 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                   **직원 노트북에서 발권해도 손님용 2택 모달이 떴고**, 오버레이가 직원 화면 전체를
                   가려 회수·리스트를 못 눌렀다. 게다가 [종이로 인쇄]는 printable 게이트 밖이라
                   **프린터 없는 직원 기기에서 rawbt 스킴을 쏠** 수 있었다(이 파일 상단 경고와 모순). */}
+              {/* ★«그 자리 토글 펼침»(유저 지시 2026-08-08: 「참여하기를 누르면 그 위치에서 토글이
+                  내려가듯 하위 요소가 열리게. 지금처럼 모달방식이 아니라」).
+                  ⇒ 오버레이·시트를 걷고 **티켓 블록 안에서 아래로 펼친다**. 뒤 화면을 덮지 않으니
+                  손님이 «어디를 눌렀고 무엇이 열렸는지»를 위치로 안다. 2택 비대칭(폰=QR 즉시·종이=버튼)은 유지. */}
               {pickFlow && claimedToken === printToken && !choice && (
-                <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="참여권 받는 방법 선택">
-                 <div className="mk-pick">
+                <div className="mk-pick-inline" role="group" aria-label="참여권 받는 방법 선택">
                   <div className="mk-pick-q">참여권을 어떻게 받으시겠어요?</div>
-                  {/* ★비대칭 구조(2026-08-06 유저 정련): **폰 = 그 자체로 뎁스 끝**(QR·안내가 이미 보임,
-                      탭할 것 없음) / **종이 = 버튼**(눌러야 인쇄). 시각적 위계는 동급으로 유지한다.
-                      결과적으로 «콘텐츠 하나 + 버튼 하나»라 어느 쪽이 눌러야 하는 것인지 더 분명해진다. */}
                   <div className="mk-pick-row">
                     {/* 종이 = 버튼. ★이미 인쇄한 토큰이면 누를 수 없다(1회 정책) — 버튼 자리에 안내를 둔다. */}
                     <button type="button" className="mk-pick-btn" disabled={printedTok === issuedTicket.token}
                       onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
-                      {/* ★이모지 프린터 → **선화 영수증 아이콘**(2026-08-06): 우리 마스코트·로고가 전부
-                          선화라 이모지만 질감이 튀었다. 톱니 절취선 + 텍스트 줄 = «영수증»이 형태로 읽힌다.
-                          currentColor 를 써서 눌림 상태(색 반전)에도 자동으로 따라간다. */}
                       <svg className="mk-pick-ico-svg" viewBox="0 0 48 56" aria-hidden="true">
                         <path
                           d="M8 4h32v44l-4-3-4 3-4-3-4 3-4-3-4 3-4-3-4 3z"
@@ -223,7 +229,6 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                       <span className="mk-pick-sub">폰 카메라로 찍으세요</span>
                     </div>
                   </div>
-                 </div>
                 </div>
               )}
 
@@ -316,9 +321,13 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
 
         </div>
 
-          {history.length > 0 && (
-            <div className="mk-history-wrap">
-              <div className="mk-history-title">참여 내역</div>
+          {/* ★빈 상태도 «칸»을 지킨다(유저 지시 2026-08-08): 타이틀만 두고 아래에 안내.
+              2단 레이아웃에서 이 칸이 사라지면 배치가 흔들리기도 한다. */}
+          <div className="mk-history-wrap">
+            <div className="mk-history-title">참여 내역</div>
+            {history.length === 0 ? (
+              <div className="mk-history-empty">아직 참여한 이벤트가 없습니다.</div>
+            ) : (
               <ul className="mk-history">
                 {/* ★내용 좌 · 날짜 우(유저 지시 2026-08-08). 날짜는 자릿수를 채워 폭이 흔들리지 않게 하고
                     tabular-nums 로 열을 맞춘다 — 우측 정렬은 폭이 들쭉날쭉하면 «정렬»로 안 읽힌다. */}
@@ -329,8 +338,8 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
+            )}
+          </div>
 
         {errMsg && <div className="mk-err">{errMsg}</div>}
         {onReset && <button className="mk-reset" onClick={onReset}>{resetLabel}</button>}

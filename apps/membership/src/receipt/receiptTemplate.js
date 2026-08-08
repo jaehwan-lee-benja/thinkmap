@@ -172,6 +172,19 @@ function rasterText(lines, widthDots) {
   return out
 }
 
+// ★컷 명령 방언(2026-08-08 현장: 「종이 잘림이 안 되고 있어」).
+//   우리가 보내는 바이트는 계속 있었다(실측: 페이로드 **맨 끝** `1d 56 42 00` = GS V 66 0, 이후 0바이트).
+//   ⇒ 코드 축은 깨끗하고 남는 변수는 **프린터가 그 방언을 아는지**다. `GS V 66 n`(컷 위치까지 급지 후
+//   부분컷)은 현대 기종의 표준이지만 **구형·일부 기종은 `GS V 0/1`(급지 없는 풀/부분컷)만 안다.**
+//   그래서 방언을 **템플릿 값으로** 뺐다 — 현장에서 편집기에서 바꿔 테스트할 수 있고 재배포가 필요 없다.
+//   'feed'(기본) = GS V 66 0 · 'full' = GS V 0 · 'partial' = GS V 1
+function pushCut(push, tpl) {
+  const mode = (tpl && tpl.cutMode) || 'feed'
+  if (mode === 'full') return push(GS, 0x56, 0)
+  if (mode === 'partial') return push(GS, 0x56, 1)
+  return push(GS, 0x56, 66, 0)
+}
+
 export function buildEscpos(tpl, data) {
   const v = validateTemplate(tpl)
   if (!v.ok) throw new Error('invalid template: ' + v.errors.join(', '))
@@ -243,7 +256,7 @@ export function buildEscpos(tpl, data) {
         for (let i = 0; i < (b.lines | 0 || 1); i++) push(0x0a)
         break
       case 'cut':
-        push(GS, 0x56, 66, 0) // partial cut
+        pushCut(push, tpl)
         cutEmitted = true
         break
     }
@@ -252,7 +265,7 @@ export function buildEscpos(tpl, data) {
   //   **종이는 반드시 잘린다**. validateTemplate 은 폭·바코드만 보므로 컷 없는 옛 저장본이
   //   그대로 통과해 왔다. «있어야 하는 것은 구조가 보장한다».
   //   중복 컷 가드: 템플릿이 이미 컷을 냈으면 추가하지 않는다.
-  if (!cutEmitted) push(0x0a, 0x0a, GS, 0x56, 66, 0)
+  if (!cutEmitted) { push(0x0a, 0x0a); pushCut(push, tpl) }
   return Uint8Array.from(out)
 }
 

@@ -37,7 +37,10 @@ export default function IdleReset({ enabled, armed = true, sec = 120, warn = WAR
     const evs = ['pointerdown', 'touchstart', 'mousedown', 'keydown', 'input']
     for (let i = 0; i < evs.length; i++) window.addEventListener(evs[i], bump, true)
 
-    const t = setInterval(function () {
+    // ★첫 눈금을 **즉시** 찍는다(2026-08-08). setInterval 만 쓰면 1초 동안 막대가 없다 —
+    //   유저가 「인쇄하고 나서 아래에 10초가 안 뜨네」라고 본 화면엔 이 1초 공백도 겹쳐 있었다.
+    //   (근본 원인은 «경고창이 15초라 앞 45초가 비어 있던» 것이고, 이건 남은 1초짜리 틈이다.)
+    const tick = function () {
       const idle = Math.floor((Date.now() - last) / 1000)
       const left = idleSec - idle
       if (left <= 0) {
@@ -53,7 +56,9 @@ export default function IdleReset({ enabled, armed = true, sec = 120, warn = WAR
       } else {
         setRemain(-1)
       }
-    }, 1000)
+    }
+    tick()
+    const t = setInterval(tick, 1000)
 
     return function () {
       clearInterval(t)

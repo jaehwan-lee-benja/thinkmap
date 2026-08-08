@@ -24,6 +24,8 @@ export default function CustomerView({ store }) {
   // ★조회 전 재확인(유저 지시 2026-08-08: 「이 번호가 맞나요?」). ★이 모달 안에서는 **번호를 그대로 보여준다** —
   //   가림의 목적은 «입력 중 어깨너머 노출» 방어이고, 확인의 목적은 «오입력 잡기»라 반대여야 한다(유저가 명시).
   const [confirmNum, setConfirmNum] = useState(null)
+  // ★QR 국면 여부는 MemberCard 만 안다(그 안의 선택 상태) — 유휴 시간을 정하는 건 화면 소유자인 여기다.
+  const [dwell, setDwell] = useState(false)
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear, setMemberDirect } = useMemberLookup()
 
   // 원격 푸시(직원 → 고객). 로컬과 같은 currentMember 로 세팅.
@@ -119,16 +121,19 @@ export default function CustomerView({ store }) {
   if (status === 'found' && member) {
     return (
       <div className="mk-screen mk-customer-view mk-result-view">
-        {/* ★조회 결과 = **10초**(유저 지시). 남의 정보가 떠 있는 화면이라 짧아야 한다.
-            경고를 10초로 같이 줘서 **처음부터 카운트가 보이게** 한다(«잘 보이도록» 지시).
-            ⚠단 **발권 직후**(2택 시트·QR 국면)에는 60초로 늘린다 — 손님이 폰 카메라를 켜는 데
-            10초면 QR 이 사라진다. «짧게»의 취지는 방치 방지지, 진행 중인 손님을 끊는 게 아니다. */}
-        <IdleReset enabled armed sec={member?._ticket ? 60 : 10} warn={member?._ticket ? 15 : 10} />
+        {/* ★조회 결과 유휴 복귀 = **15초**(유저 지시 2026-08-08, 10초에서 상향).
+            ★`warn`을 `sec`과 같게 줘서 **화면이 뜨는 순간부터 카운트가 보인다** —
+              「인쇄하고 나서 아래에 10초가 안 뜨네」의 원인이 이것이었다: 종전엔 발권 후 60초·경고 15초라
+              **앞 45초 동안 막대가 없었다.** 시간을 늘린 게 카운트를 숨긴 셈이 됐다.
+            ⚠QR 이 떠 있는 국면(2택 펼침·폰 선택)만 **60초** — 손님이 폰 카메라를 켜는 데 15초면 짧다.
+              그 국면에도 막대는 «처음부터» 보인다(숨기지 않고 시간만 늘린다). */}
+        <IdleReset enabled armed sec={dwell ? 60 : 15} warn={dwell ? 60 : 15} />
         <MemberCard
           variant="hero"
           printable={localPrint}   /* 기본 false — 인쇄는 카운터 폰이 맡는다(위 주석). 외장 프린터 달면 ?print=local */
           showQr                   /* ★손님 폰으로 옮겨갈 QR(유저 채택) — 고객 화면에서만 */
-          pickFlow                 /* ★«종이/폰» 2택 모달도 고객 화면에서만 — 직원 노트북을 덮으면 안 된다 */
+          pickFlow                 /* ★«종이/폰» 2택도 고객 화면에서만 — 직원 노트북을 덮으면 안 된다 */
+          onDwell={setDwell}       /* QR 국면 = 유휴 복귀를 늦춘다 */
           member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
           onClaim={claimAndPrint} onReset={resetAll} resetLabel="처음으로"
           /* ★onRedeem 을 넘기지 않는다(2026-08-04): 리워드 «수령» 은 되돌리는 API 가 없는 확정 행위인데
