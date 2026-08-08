@@ -4,6 +4,7 @@
 //   두 벌로 갈라두면 한쪽만 낡아 그 방어가 조용히 사라진다.
 import { useState, useCallback } from 'react'
 import { lookupTicket, redeemTicket } from '../../api/membership'
+import { useRedeemedBroadcast } from './useMembershipChannel'
 
 export const STATE_LABEL = { issued: '유효 — 제공 가능', redeemed: '이미 회수됨', expired: '만료됨', voided: '폐기됨' }
 export const CHANNEL_LABEL = { kiosk: '키오스크', game: '게임 쿠폰' }
@@ -13,6 +14,8 @@ export function useTicketScan() {
   const [phase, setPhase] = useState('idle')   // idle | looking | found | error | redeemed
   const [errMsg, setErrMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  // 회수 확정 → 손님 폰 티켓 화면을 «감사» 로 바꾸는 신호(공개 채널·소진된 토큰만).
+  const pushRedeemed = useRedeemedBroadcast()
 
   const doLookup = useCallback(async (tok) => {
     const v = String(tok || '').trim().toUpperCase()
@@ -46,7 +49,11 @@ export function useTicketScan() {
     setBusy(true); setErrMsg('')
     try {
       const r = await redeemTicket(tok)
-      if (r?.ok) { setResult((prev) => (sameTicket(prev) ? { ...prev, state: 'redeemed', stamp: r.stamp || prev.stamp, _justRedeemed: true } : prev)); setPhase((ph) => (sameTicket(result) ? 'redeemed' : ph)) }
+      if (r?.ok) {
+        setResult((prev) => (sameTicket(prev) ? { ...prev, state: 'redeemed', stamp: r.stamp || prev.stamp, _justRedeemed: true } : prev)); setPhase((ph) => (sameTicket(result) ? 'redeemed' : ph))
+        const st = r.stamp || result?.stamp
+        pushRedeemed({ token: tok, stamp: st ? `${st.current_stamps}/${st.threshold}` : null })
+      }
       else {
         setErrMsg(STATE_LABEL[r?.reason === 'already_redeemed' ? 'redeemed' : r?.reason] || r?.reason || '회수 실패')
         if (r?.reason === 'already_redeemed') setResult((prev) => ({ ...prev, state: 'redeemed' }))
@@ -55,7 +62,7 @@ export function useTicketScan() {
       }
     } catch (e) { setErrMsg(e?.message || '회수 실패'); setPhase('error') }
     finally { setBusy(false) }
-  }, [result, busy])
+  }, [result, busy, pushRedeemed])
 
   const reset = useCallback(() => { setResult(null); setPhase('idle'); setErrMsg('') }, [])
 
