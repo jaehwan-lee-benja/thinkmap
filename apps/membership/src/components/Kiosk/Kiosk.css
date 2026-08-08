@@ -1223,3 +1223,40 @@ body:has(.mk-preview-bar) .mk-build { top: 32px; }
 }
 /* ★한글은 어절 단위로 끊는다 — 안 그러면 «감사함 / 니다» 처럼 낱말이 잘린다(실측 스크린샷). */
 .mk-event-done { word-break: keep-all; line-height: 1.45; }
+
+/* ★① 카운트다운 막대가 버튼을 가리지 않게 — 막대가 **떠 있는 동안만** 본문 아래에 그만큼 자리를 비운다.
+   (종전엔 fixed 막대가 버튼 위를 덮었다. «클릭은 된다»로 넘길 게 아니라 겹침 자체를 없앤다.) */
+.mk-idle-warn { min-height: 56px; box-sizing: border-box; padding: 8px 16px; gap: 12px; }
+/* ★막대를 **한 줄**로 낮춘다(56px). 앱을 그만큼 줄여도 화면이 안 넘치게 하려면 막대가 얇아야 한다 —
+   96px 로 두면 첫 페이지(가입 버튼까지 977px 필요)가 앉을 자리가 없다(실측). 숫자는 계속 크게 둔다. */
+.mk-idle-warn .mk-idle-num { font-size: clamp(26px, 4vw, 36px); }
+.mk-idle-warn .mk-idle-txt { font-size: clamp(13px, 1.9vw, 16px); }
+/* ★두 문장을 붙이지 않는다 — br 을 숨겼더니 «돌아갑니다계속 보시려면» 으로 붙었다(실측 스크린샷). */
+.mk-idle-home { min-height: 40px; padding: 8px 16px; font-size: clamp(14px, 2vw, 16px); }
+/* ★앱 자체를 막대 위까지로 줄인다 — `.mk-main` 에 padding 을 주는 방식은 **안 통했다**(실측 49px 겹침):
+   패딩은 «흘러넘친 콘텐츠»를 밀어 올리지 못한다(스크롤도 안 생겨 그대로 침범한다).
+   `.mk-app` 이 fixed inset:0 이므로 **bottom 을 올리면** 그 아래 화면 전체가 겹칠 수 없다 —
+   프리뷰 배너에서 top 을 내린 것과 같은 수법이고, 화면·역할과 무관하게 한 번에 성립한다. */
+body:has(.mk-idle-warn) .mk-app { bottom: 56px; }
+
+/* ★② 완료 멘트를 흐린 2택 «위에» 겹친다 — 배경은 «끝난 것», 문구는 그 위 안내판. */
+.mk-done-wrap { position: relative; width: 100%; }
+.mk-done-overlay {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(92%, 420px); margin: 0; padding: 14px 16px;
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface); box-shadow: var(--md-elev-2);
+  text-align: center; word-break: keep-all; line-height: 1.45;
+}
+
+/* ★막대가 떠 있는 동안엔 첫 화면을 조금 다잡는다 — 앱이 56px 줄어드는데 vh 기반 크기는 그만큼
+   줄지 않아 **가입 버튼 아래가 잘렸다**(실측 29px). «앱만 줄이면 된다»가 아니었다:
+   줄어든 만큼 내용도 앉을 수 있어야 한다. 값은 이 상황에서만 적용되므로 평소 여백은 그대로다. */
+body:has(.mk-idle-warn) .mk-role-customer .mk-lookup-split { gap: 8px; }
+body:has(.mk-idle-warn) .mk-role-customer .mk-signup-below { margin-top: 4px; gap: 6px; }
+body:has(.mk-idle-warn) .mk-role-customer .mk-lookup-left { gap: 6px; }
+body:has(.mk-idle-warn) .mk-role-customer .mk-brand-logo { max-height: 84px; }
+body:has(.mk-idle-warn) .mk-role-customer .mk-lookup-ment { font-size: clamp(17px, 2.4vh, 22px); }
+/* ★막대가 떠 있으면 카드 안 [처음으로]는 숨긴다 — 막대가 **같은 버튼을 이미 제공**하고,
+   앱이 줄어든 만큼 이 버튼이 아래로 잘려 «깨진 것»처럼 보였다(실측). 중복을 지우면 잘림도 사라진다. */
+body:has(.mk-idle-warn) .mk-member-card-hero > .mk-member-body > .mk-reset { display: none; }

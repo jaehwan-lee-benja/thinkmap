@@ -165,8 +165,10 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
           {claimedToday ? (
             /* ★스캔(사용) 완료 회원(유저 2026-08-08): 완료 안내를 앞에 두고, 인쇄·QR 은 **흐릿하게
                비활성으로 배경에 남긴다** — «없어진 것»이 아니라 «끝난 것»으로 읽히게 한다. */
-            <>
-              <div className="mk-event-done">오늘은 이미 이벤트 참여가 완료되었네요!<br />참여 감사합니다 🙏</div>
+            <div className="mk-done-wrap">
+              {/* ★문구를 흐린 이미지 **위에** 겹친다(유저 2026-08-08: 「멘트를 비활성화 이미지 위에
+                  오버랩해서 안내문구처럼」). 흐린 2택이 배경, 문구가 안내판이다 —
+                  «무엇이 끝났는지»를 그 자리에서 말해준다. */}
               <div className="mk-pick-inline is-done" aria-hidden="true">
                 <div className="mk-pick-row">
                   <div className="mk-pick-btn" role="presentation">
@@ -183,7 +185,10 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                   </div>
                 </div>
               </div>
-            </>
+              <div className="mk-event-done mk-done-overlay">
+                오늘은 이미 이벤트 참여가 완료되었네요!<br />참여 감사합니다 🙏
+              </div>
+            </div>
           ) : issuedTicket ? (
             /* 발권됨(수령 대기) — 카운터 회수 시 스탬프 확정. 토큰=수기 입력 검증 경로(인쇄는 현장 확정 대기). */
             <div className="mk-ticket">
