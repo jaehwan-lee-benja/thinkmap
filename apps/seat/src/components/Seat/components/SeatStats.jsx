@@ -119,6 +119,7 @@ export default function SeatStats({ businessDate, maxDate, orders = [], stations
               <tr><td>테이블링 번호 없이 만든 주문</td><td>{s.flags.noQueue}건</td></tr>
               <tr><td>실내 시작 주문</td><td>{s.flags.dineIn}건 / 전체 {s.total}건</td></tr>
               <tr><td>포장도고려 전달</td><td>매장영수증 {s.flags.maybeStore}건 / 포장영수증 {s.flags.maybeReceipt}건</td></tr>
+              <tr><td>안내 완료(아카이브)</td><td>{s.flags.archived}건 / 전체 {s.total}건</td></tr>
               <tr><td>가장 바쁜 시간대</td><td>{s.peakHour != null ? `${s.peakHour}시 (${s.hours[s.peakHour]}건)` : '—'}</td></tr>
             </tbody>
           </table>

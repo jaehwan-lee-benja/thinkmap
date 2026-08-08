@@ -6,7 +6,7 @@ import { REVIEW_FLAGS } from '../config/seatRoles'
 import SeatTextField from './SeatTextField'
 import { isDineIn, removesFromSeatQueue, raiseDetailText, DELIVER_MODES, isTakeoutMaybe, deliverModeLabel, raiseIgnored } from '../utils/seatRules'
 
-export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, onAddSibling, dupSuffix, numpadOn, onOpenNumpad, raiseDetailOn }) {
+export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, onAddSibling, onArchive, onRestore, dupSuffix, numpadOn, onOpenNumpad, raiseDetailOn }) {
   const patch = (p) => onPatch?.(order.id, p)
   // 올리기 전달을 풀 때 실수 방지 재확인(인라인). 세부 텍스트는 raiseDetailOn 일 때만 노출.
   const [confirmUncheck, setConfirmUncheck] = useState(false) // false | 'raise' | 'both'
@@ -40,6 +40,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   const preDeliver = dineIn && !order.seat_delivered
   const raiseVoid = raiseIgnored(order) // 포장도고려(포장영수증) = 올림 무시 → 체크박스 ✕ 무효(R11)
   const canceled = order.seat_status === 'canceled' // 자리대기 취소된 줄(기록으로 남김, 복구 가능)
+  const archived = !!order.archived_at            // R12: 안내 완료 → 완료 리스트로 아카이빙(삭제 아님)
 
   // 자리순서: 실내 + 순서 살아있음 + 자리큐 유지(야외/포장로 안 빠짐). 야외병행은 유지.
   const seatNeeded = dineIn && order.seat_order_alive && !removesQueue
@@ -408,8 +409,19 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
         />
       </div>
 
-      {/* 줄 삭제 = 제일 오른쪽(확인 오른쪽). soft delete(deleted_at) — DB 복구 가능. */}
+      {/* 줄 삭제 = 제일 오른쪽(확인 오른쪽). soft delete(deleted_at) — DB 복구 가능.
+          ★그 왼쪽에 «완료»(✓) — 안내가 끝난 줄을 완료 리스트로 아카이빙(R12). 완료 탭에서는 «대기열로»(↩)로 바뀐다.
+          열을 새로 만들지 않고 삭제 셀 안에 넣는다(열 추가 = 4곳 동기화 함정). */}
       <div className="seat-cell seat-cell-del">
+        {archived ? (
+          onRestore && (
+            <button type="button" className="seat-arch-btn is-restore" aria-label="대기열로 되돌리기" title="대기열로 되돌리기" onClick={() => onRestore(order)}>↩</button>
+          )
+        ) : (
+          onArchive && (
+            <button type="button" className="seat-arch-btn" aria-label="안내 완료" title="안내 완료 — 완료 리스트로 보냅니다" onClick={() => onArchive(order)}>✓</button>
+          )
+        )}
         {onDelete && (
           <button type="button" className="seat-del-btn" aria-label="줄 삭제" title="줄 삭제" onClick={() => setConfirmDelete(true)}>✕</button>
         )}
