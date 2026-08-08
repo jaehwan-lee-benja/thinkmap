@@ -3,7 +3,7 @@
 //   ★이메일 필수(B): 없으면 셀프가입 불가 → "직원에게 문의" 안내. 자동완성 차단(공용 키오스크).
 import { useState } from 'react'
 import NumberPadModal from './NumberPadModal'
-import { formatPhone } from './kioskUtils'
+import { formatPhone, maskPhone } from './kioskUtils'
 import { signupMember, CONTRACT_PENDING } from '../../api/membership'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -123,7 +123,9 @@ export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
           <span className="mk-form-label">전화번호</span>
           {/* 탭하면 번호패드 팝업(항상 표시 아님) */}
           <button type="button" className="mk-form-input mk-phone-btn" onClick={() => setPadOpen(true)} disabled={submitting}>
-            {digits ? formatPhone(digits) : <span className="mk-phone-ph">탭하여 번호 입력</span>}
+            {/* ★가입 폼에서도 가린다 — 이름·이메일을 채우는 동안 번호가 **화면에 오래 떠 있다**(노출 시간이 가장 길다).
+                고쳐야 하면 탭해서 패드를 열면 되고, 그 안에 «번호 보기»가 있다. */}
+            {digits ? maskPhone(digits) : <span className="mk-phone-ph">탭하여 번호 입력</span>}
           </button>
         </label>
 
@@ -185,7 +187,7 @@ export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
         </div>
       )}
 
-      <NumberPadModal open={padOpen} digits={digits} onChange={setDigits} onClose={() => setPadOpen(false)} />
+      <NumberPadModal open={padOpen} digits={digits} onChange={setDigits} onClose={() => setPadOpen(false)} mask />
     </div>
   )
 }

@@ -1119,3 +1119,20 @@
 .mk-dom-opt.is-on { border-color: var(--md-primary); color: var(--md-primary); }
 .mk-dom-opt:active { transform: scale(.98); }
 @media (prefers-reduced-motion: reduce) { .mk-dom-opt:active { transform: none } }
+
+/* 번호 가림 — «번호 보기» 토글. 라벨 전체가 터치 영역이다(어르신 기준). */
+.mk-pad-reveal {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 48px; padding: 6px 12px; cursor: pointer;
+  font-size: clamp(14px, 2.2vw, 17px); color: var(--md-on-surface-variant);
+}
+.mk-pad-reveal input { width: 24px; height: 24px; }
+
+/* 조회 전 재확인 시트 — ★여기서는 번호를 **그대로** 보여준다(확인이 목적). */
+.mk-confirm-sheet { gap: clamp(12px, 2.4vh, 22px); }
+.mk-confirm-num {
+  font-family: var(--mk-font-title); font-weight: 700;
+  font-size: clamp(30px, 7vw, 52px); letter-spacing: .04em;
+  font-variant-numeric: tabular-nums; color: var(--md-primary);
+}
+.mk-confirm-acts { display: flex; gap: clamp(10px, 2vw, 18px); width: 100%; flex-wrap: wrap; justify-content: center; }

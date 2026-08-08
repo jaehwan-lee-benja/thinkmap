@@ -21,6 +21,9 @@ const PHONE_PREFILL = '010'
 export default function CustomerView({ store }) {
   const [digits, setDigits] = useState(PHONE_PREFILL)
   const [showSignup, setShowSignup] = useState(false)
+  // ★조회 전 재확인(유저 지시 2026-08-08: 「이 번호가 맞나요?」). ★이 모달 안에서는 **번호를 그대로 보여준다** —
+  //   가림의 목적은 «입력 중 어깨너머 노출» 방어이고, 확인의 목적은 «오입력 잡기»라 반대여야 한다(유저가 명시).
+  const [confirmNum, setConfirmNum] = useState(null)
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear, setMemberDirect } = useMemberLookup()
 
   // 원격 푸시(직원 → 고객). 로컬과 같은 currentMember 로 세팅.
@@ -139,6 +142,28 @@ export default function CustomerView({ store }) {
   return (
     <div className="mk-screen mk-customer-view">
       <IdleReset enabled armed={!isHome} />
+      {/* 조회 전 재확인 시트 — 오늘 만든 시트 문법과 통일(아래에서 올라옴·전체폭). */}
+      {confirmNum && (
+        <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="번호 확인"
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmNum(null) }}>
+          <div className="mk-pick mk-confirm-sheet">
+            <div className="mk-pick-q">이 번호가 맞나요?</div>
+            <div className="mk-confirm-num">{formatPhone(confirmNum)}</div>
+            <div className="mk-confirm-acts">
+              <button type="button" className="mk-none-btn" onClick={() => setConfirmNum(null)}>
+                <span className="mk-none-btn-label">아니요, 수정</span>
+                <span className="mk-none-btn-sub">번호를 다시 누르기</span>
+              </button>
+              <button type="button" className="mk-none-btn is-primary"
+                onClick={() => { const v = confirmNum; setConfirmNum(null); lookup(v) }}>
+                <span className="mk-none-btn-label">네, 조회하기</span>
+                <span className="mk-none-btn-sub">이 번호로 확인</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ★좌우 2분할 + 뷰포트높이 정렬(무스크롤). 좌=멘트+안내, 우=전화번호 입력. */}
       <div className="mk-lookup-split">
         {/* 좌: 사르르 로고 + 멘트 + 가입 안내 (첫 화면=로고만, 앰블럼 미배선 — 유저결정 2026-07-28) */}
@@ -152,10 +177,11 @@ export default function CustomerView({ store }) {
           <NumberPad
             digits={digits}
             onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
-            onSubmit={() => lookup(digits)}
+            onSubmit={() => { if (digits.length >= 10) setConfirmNum(digits) }}
             submitLabel="조회"
             size="xl"
             clearTo={PHONE_PREFILL}
+            mask
           />
           {/* ★가입 안내 = 조회 버튼 «아래»(유저 지시 2026-08-06): 주 과업은 조회, 가입은 그 다음이라는 위계.
               어포던스 = 타원 텍스트링크 → **명백한 버튼**(테두리·그림자·즉시 눌림). 어르신 기준이라

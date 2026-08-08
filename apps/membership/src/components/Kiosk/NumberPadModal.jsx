@@ -1,7 +1,7 @@
 // 전화번호 입력 팝업 — 가입 폼에서 전화 칸을 탭하면 번호패드가 모달로 뜬다(항상 표시 아님, D).
 import NumberPad from './NumberPad'
 
-export default function NumberPadModal({ open, digits, onChange, onClose }) {
+export default function NumberPadModal({ open, digits, onChange, onClose, mask = false }) {
   if (!open) return null
   return (
     <div className="mk-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
@@ -13,6 +13,7 @@ export default function NumberPadModal({ open, digits, onChange, onClose }) {
           onChange={onChange}
           onSubmit={onClose}
           submitLabel="확인"
+          mask={mask}
         />
       </div>
     </div>

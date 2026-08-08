@@ -27,6 +27,18 @@ export function formatClaimPrefix(claimedAt) {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours()}시에`
 }
 
+// ★번호 가림 — 앞 3자리(통신사 접두)는 남기고 나머지를 ● 로. **자릿수는 보인다**(진행 상황 피드백).
+//   접두를 남기는 이유: 010 은 누구나 같아 식별 정보가 아니고, 남겨두면 «어디까지 눌렀나»를 읽기 쉽다.
+export function maskPhone(digits) {
+  const d = String(digits || '').replace(/[^0-9]/g, '')
+  if (!d) return ''
+  const head = d.slice(0, 3)
+  const rest = d.slice(3)
+  const mid = rest.slice(0, 4).replace(/[0-9]/g, '●')
+  const tail = rest.slice(4).replace(/[0-9]/g, '●')
+  return [head, mid, tail].filter(Boolean).join('-')
+}
+
 // ★리스트 오른쪽 열에 쓸 «가지런한 날짜»(2026-08-08 유저 지시: 내용 좌·날짜 우).
 //   자릿수를 0 으로 채워 폭이 흔들리지 않게 한다 — 우측 정렬은 폭이 들쭉날쭉하면 정렬로 안 읽힌다.
 export function formatClaimDate(claimedAt) {
