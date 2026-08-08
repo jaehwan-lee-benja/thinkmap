@@ -396,6 +396,16 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             onChange={(e) => patch({ confirm_done: e.target.checked })}
           /> 확인완료
         </label>
+        {/* ★확인완료 아래 «완료» 버튼(유저 지시 2026-08-08) — 누르면 R12 아카이브(완료 탭으로).
+            안내 동선의 마지막 칸이라 여기가 제자리다. 완료 탭에서는 같은 자리가 «대기열로»(복귀).
+            ※삭제 셀에 있던 ✓ 는 제거했다 — 같은 동작이 두 곳이면 헷갈리고, 삭제 ✕ 바로 옆이라 오조작 위험도 컸다. */}
+        {archived
+          ? onRestore && (
+            <button type="button" className="seat-done-btn is-restore" onClick={() => onRestore(order)}>대기열로</button>
+          )
+          : onArchive && (
+            <button type="button" className="seat-done-btn" onClick={() => onArchive(order)}>완료</button>
+          )}
       </div>
 
       {/* 메모 = 자유 메모판(자리안내·주문서관리 둘 다 읽기·수정. 행 단위, 두 줄 높이 전체). */}
@@ -411,18 +421,8 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
       </div>
 
       {/* 줄 삭제 = 제일 오른쪽(확인 오른쪽). soft delete(deleted_at) — DB 복구 가능.
-          ★그 왼쪽에 «완료»(✓) — 안내가 끝난 줄을 완료 리스트로 아카이빙(R12). 완료 탭에서는 «대기열로»(↩)로 바뀐다.
-          열을 새로 만들지 않고 삭제 셀 안에 넣는다(열 추가 = 4곳 동기화 함정). */}
+          ※«완료»(R12 아카이브)는 2026-08-08 유저 지시로 **확인 셀**(확인완료 아래)로 옮겼다 — 여기엔 삭제만 둔다. */}
       <div className="seat-cell seat-cell-del">
-        {archived ? (
-          onRestore && (
-            <button type="button" className="seat-arch-btn is-restore" aria-label="대기열로 되돌리기" title="대기열로 되돌리기" onClick={() => onRestore(order)}>↩</button>
-          )
-        ) : (
-          onArchive && (
-            <button type="button" className="seat-arch-btn" aria-label="안내 완료" title="안내 완료 — 완료 리스트로 보냅니다" onClick={() => onArchive(order)}>✓</button>
-          )
-        )}
         {onDelete && (
           <button type="button" className="seat-del-btn" aria-label="줄 삭제" title="줄 삭제" onClick={() => setConfirmDelete(true)}>✕</button>
         )}
