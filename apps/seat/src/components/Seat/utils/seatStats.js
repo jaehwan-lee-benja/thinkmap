@@ -82,6 +82,7 @@ export function computeSeatStats(orders = [], stations = []) {
     // 포장도고려 전달(R11) — 매장영수증(올림에 포장 라벨) / 포장영수증(올림 무시)
     maybeStore: orders.filter((o) => o.deliver_mode === 'maybe_store').length,
     maybeReceipt: orders.filter((o) => o.deliver_mode === 'maybe_receipt').length,
+    archived: orders.filter((o) => o.archived_at).length, // R12: 안내 완료로 아카이빙된 줄
   }
 
   // ── 시간대 분포(생성 기준) — 피크 파악용 ───────────────────────

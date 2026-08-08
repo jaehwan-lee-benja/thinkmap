@@ -28,10 +28,19 @@ export default function SeatOrderScreen({
 }) {
   const [dragId, setDragId] = useState(null)
   const canReorder = !!onReorder // 순서 이동 핸들은 재배열 콜백이 있을 때만
-  const suffixMap = queueSuffixes(orders) // 중복 테이블링 번호 → 1-a,1-b
+  // ★R12 «완료» 아카이브 — 상단 탭으로 [안내중(대기열)] ↔ [완료] 를 전환한다(유저 지시 2026-08-08).
+  //   완료는 삭제가 아니라 상태 전환(archived_at) → 완료 탭에서 ↩ 한 번으로 대기열 복귀.
+  const [tab, setTab] = useState('active') // 'active' | 'archived'
+  const active = orders.filter((o) => !o.archived_at)
+  const archived = orders.filter((o) => o.archived_at)
+  const shown = tab === 'archived' ? archived : active
+  const suffixMap = queueSuffixes(orders) // 중복 테이블링 번호 → 1-a,1-b (전체 기준으로 매겨 탭을 오가도 같은 접미사)
   // ★표시 순서 = 같은 테이블링 번호끼리 붙여서(groupByQueue). 원본 배열(orders)은 그대로 두고
   //   드래그 재배열 인덱스는 항상 원본 기준으로 환산한다(표시 순서와 저장 순서를 섞지 않는다).
-  const rows = groupByQueue(orders)
+  //   완료 탭은 늦게 완료한 것이 위로(최근순) — 방금 잘못 누른 걸 바로 되돌리기 쉽게.
+  const rows = tab === 'archived'
+    ? [...archived].sort((a, b) => String(b.archived_at || '').localeCompare(String(a.archived_at || '')))
+    : groupByQueue(active)
   const origIdx = (id) => orders.findIndex((x) => x.id === id)
 
   // ★역할별 기능 설정(기기·역할 단위) — role 전환 시 리마운트되어 각자 로드.
@@ -62,10 +71,24 @@ export default function SeatOrderScreen({
 
   return (
     <div className="seat-screen seat-screen-order">
+      {/* 안내중 ↔ 완료 전환 — 표 위. 건수를 함께 보여 완료가 쌓이는 걸 알 수 있게. */}
+      <div className="seat-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'active'}
+          className={`seat-tab${tab === 'active' ? ' is-on' : ''}`} onClick={() => setTab('active')}>
+          안내중 <span className="seat-tab-n">{active.length}</span>
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'archived'}
+          className={`seat-tab${tab === 'archived' ? ' is-on' : ''}`} onClick={() => setTab('archived')}>
+          완료 <span className="seat-tab-n">{archived.length}</span>
+        </button>
+      </div>
+
       <div className="seat-table" role="table">
         <SeatTableHead resizable={!!onResizeColumn} onResize={onResizeColumn} />
-        {orders.length === 0 ? (
-          <div className="seat-empty">주문이 없습니다. “+ 새 주문”으로 추가하세요.</div>
+        {shown.length === 0 ? (
+          <div className="seat-empty">
+            {tab === 'archived' ? '완료된 안내가 없습니다.' : '주문이 없습니다. “+ 새 주문”으로 추가하세요.'}
+          </div>
         ) : (
           rows.map((o) => (
             <OrderRow
@@ -76,7 +99,7 @@ export default function SeatOrderScreen({
               numpadOn={numpadOn}
               raiseDetailOn={raiseDetailOn}
               onOpenNumpad={(id, field) => setEditing({ orderId: id, field })}
-              dragHandleProps={canReorder ? {
+              dragHandleProps={canReorder && tab === 'active' ? {
                 draggable: true,
                 onDragStart: (e) => { setDragId(o.id); e.dataTransfer.effectAllowed = 'move' },
                 onDragEnd: () => setDragId(null),
@@ -92,6 +115,9 @@ export default function SeatOrderScreen({
               onDelete={onDelete}
               // 같은 테이블링 번호로 줄 하나 더(영수증이 여러 장인 손님) — 새 줄은 이 줄 바로 아래에 붙어 보인다.
               onAddSibling={onCreate ? (src) => onCreate({ queue_no: src.queue_no }) : undefined}
+              // R12: 완료(아카이빙) ↔ 대기열 복귀. 삭제와 달리 되돌릴 수 있는 상태 전환이라 재확인 없이 즉시.
+              onArchive={(o) => onPatch?.(o.id, { archived_at: new Date().toISOString() })}
+              onRestore={(o) => onPatch?.(o.id, { archived_at: null })}
               dupSuffix={suffixMap[o.id]}
             />
           ))

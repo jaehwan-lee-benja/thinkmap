@@ -44,11 +44,16 @@ export const raiseIgnored = (o) => o?.deliver_mode === 'maybe_receipt'
 //   (자리앉음은 자리순서 셀의 상태 표시일 뿐, 자리후 대기 여부와 별개. 유저 지시 2026-08-01).
 //   ★포장도고려(포장영수증)은 스테이션에서 통째로 빠진다(raiseIgnored) — 주방은 이미 포장으로 만들고 있어
 //     '곧 올라올 대기'가 아니다. 그 줄은 자리안내·주문서관리 표에만 자리순서로 남는다(R11).
+//   ★R12 아카이빙된 줄(archived_at)도 제외 — 안내가 끝난 건은 더 이상 '곧 올라올 대기'가 아니다.
+//     단 올라감(isRaisedOrder)은 아카이빙과 무관하게 유지한다 — 제조 진행/완료 판단은 스테이션 몫(R6 독립).
 export const isWaitingOrder = (o) =>
   isDineIn(o) && !!o?.seat_delivered && !o?.raised && !removesFromSeatQueue(o)
-  && !raiseIgnored(o) && o?.seat_status !== 'canceled'
+  && !raiseIgnored(o) && !o?.archived_at && o?.seat_status !== 'canceled'
 // 올림(자리잡음)된 주문. ★포장도고려(포장영수증)은 raised 여부와 무관하게 올림에서 제외(R11).
 export const isRaisedOrder = (o) => !!o?.raised && !raiseIgnored(o)
+
+// R12: 안내 완료(아카이빙) 여부 — 완료 리스트로 옮겨진 줄. 삭제(deleted_at)와 별개 축.
+export const isArchived = (o) => !!o?.archived_at
 
 // 올림 경로 라벨.
 const RAISE_LABEL = { takeout: '포장으로변경', outdoor: '야외', parallel: '야외병행', direct: '직접체크' }
@@ -68,8 +73,6 @@ export const raiseDetailText = (o) => {
 // 주문 표시 번호 — 주문번호 우선, 없으면 자리대기번호.
 export const orderLabel = (o) => o?.order_no || (o?.queue_no != null ? String(o.queue_no) : '-')
 
-// 같은 테이블링 번호(queue_no>0)를 여러 주문이 쓰면(중복) 리스트에서 1-a,1-b 로 구분.
-// 반환 = { orderId: 'a'|'b'|... } — 중복 그룹에 속한 주문만 포함(단일 사용은 접미사 없음).
 // 같은 테이블링 번호 줄을 서로 붙여서 보여준다 — ★표시 전용(DB·생성순·정렬 규칙 무변경).
 //   한 테이블링 번호에 주문번호(영수증)가 여러 장 걸리는 실제 케이스(유저 2026-08-03) 때문에,
 //   나중에 추가한 같은 번호 줄이 표 맨 아래로 떨어져 짝을 눈으로 못 찾던 문제를 없앤다.
@@ -87,6 +90,8 @@ export function groupByQueue(orders = []) {
   return out
 }
 
+// 같은 테이블링 번호(queue_no>0)를 여러 주문이 쓰면(중복) 리스트에서 1-a,1-b 로 구분.
+// 반환 = { orderId: 'a'|'b'|... } — 중복 그룹에 속한 주문만 포함(단일 사용은 접미사 없음).
 export function queueSuffixes(orders = []) {
   const groups = new Map()
   for (const o of orders) {

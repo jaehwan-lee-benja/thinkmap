@@ -25,6 +25,7 @@ const orderDefaults = {
   memo: '',
   order_no_at: null,
   delivered_at: null,
+  archived_at: null, // R12: 안내 완료(아카이빙) 시각. null=안내중
 }
 
 export const withOrderDefaults = (o) => ({ ...orderDefaults, ...o })
@@ -46,6 +47,8 @@ export const DEMO_ORDERS = [
   { id: 'd7', queue_no: 7, order_no: '107', seat_delivered: true, deliver_mode: 'maybe_store', raised: true, seat_status: 'raised' },
   // 8) 포장도고려(포장영수증) → 올림 체크박스 ✕ 무효 + 스테이션에 아예 안 보임(R11)
   { id: 'd8', queue_no: 8, order_no: '108', seat_delivered: true, deliver_mode: 'maybe_receipt' },
+  // 9) 안내 완료(아카이빙) → '완료' 탭에서만 보이고 ↩ 로 대기열 복귀(R12)
+  { id: 'd9', queue_no: 9, order_no: '109', seat_delivered: true, seated: true, raised: true, seat_status: 'raised', archived_at: '2026-08-08T02:10:00Z' },
 ].map(withOrderDefaults)
 
 export const DEMO_STATIONS = [
