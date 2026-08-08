@@ -108,7 +108,18 @@ export const useAuth = () => {
                            currentHostname.startsWith('172.')
 
       // redirectUrl을 현재 origin + 앱 base 로 고정 (위성은 자기 base 로 자동 대응)
-      const redirectUrl = currentOrigin + BASE_URL
+      //
+      // ★2026-08-08 긴급 교정 — **BASE_URL 이 절대 URL 인 빌드가 생겼다.**
+      //   멤버십 키오스크는 자산을 Supabase Storage 에서 받으려고 `base` 를 절대 URL 로 굽는다.
+      //   그 경우 종전 식은 `https://thinkmap.pages.dev` + `https://sqisnt….../kiosk/` 로 **두 URL 이
+      //   이어붙은 기형 문자열**이 된다 → redirect_to 무효 → 구글 계정 선택 뒤 복귀가 깨진다
+      //   (유저 3기기 동일 재현 = 회선이 아니라 결정적 결함).
+      //   ⇒ base 가 절대면 그건 **자산 위치**이지 문서 위치가 아니다. 돌아올 곳은 **지금 이 문서**다.
+      //   ※상대 base(모선·기존 위성 전부)에서는 결과가 **한 바이트도 달라지지 않는다** — 그 분기만 추가한다.
+      const baseIsAbsolute = /^(https?:)?\/\//i.test(String(BASE_URL || ''))
+      const redirectUrl = baseIsAbsolute
+        ? currentOrigin + window.location.pathname
+        : currentOrigin + BASE_URL
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

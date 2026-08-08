@@ -66,7 +66,12 @@ export default function MembershipApp() {
     return () => { alive = false }
   }, [userId])
 
-  const login = () => { setDenied(false); handleGoogleLogin() }
+  // ★떠나기 전에 `?role=`·`?store=` 를 맡겨 둔다 — 복귀 주소에는 쿼리를 실을 수 없다(main.jsx 주석).
+  const login = () => {
+    setDenied(false)
+    try { if (window.location.search) sessionStorage.setItem('mk-return-search', window.location.search) } catch (e) { /* noop */ }
+    handleGoogleLogin()
+  }
 
   // ★프리뷰(`?preview=1`) — 로그인·인가 게이트 우회. **dev 서버에서만**(PREVIEW 정의부 참조).
   //   훅(useAuth·useEffect)은 위에서 이미 호출됐다 — 조기 return 이 훅 순서를 깨지 않는다(seat 과 같은 배치).
