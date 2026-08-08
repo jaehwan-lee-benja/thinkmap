@@ -40,6 +40,10 @@ echo "bucket = $BUCKET"
 #   이라고 적혀 있다. ⇒ 「service_role 이 이 컴퓨터에 없다」는 판정은 **조달 경로를 빠뜨린 것**이다.
 #   ★값은 이 셸 변수 안에만 머문다 — 출력·로그·파일에 절대 쓰지 않는다.
 if [ -z "${SUPABASE_SERVICE_KEY:-}" ]; then
+  # ★정본 토큰 = 맥 키체인 supabase-pat (SECRETS-MAP.md — thinkmap/.env 것은 만료(401 실측)라 최후 폴백)
+  if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+    SUPABASE_ACCESS_TOKEN="$(security find-generic-password -s supabase-pat -a benja -w 2>/dev/null || true)"
+  fi
   if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ] && [ -f "$HOME/claude-project/thinkmap/.env" ]; then
     SUPABASE_ACCESS_TOKEN="$(grep -m1 '^SUPABASE_ACCESS_TOKEN=' "$HOME/claude-project/thinkmap/.env" | cut -d= -f2- | tr -d '"'"'"' ')"
   fi
