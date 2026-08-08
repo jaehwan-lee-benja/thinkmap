@@ -1054,3 +1054,51 @@
 }
 .mk-member-card-hero .mk-history li { font-size: 15px; padding: 9px 14px; }
 .mk-member-card-hero .mk-hist-when { font-size: 14px; }
+
+/* ⑺ 카운트다운 막대의 [처음으로] — 막대 배경(primary) 위라 테두리는 currentColor 로 뽑는다.
+      버튼 문법 통일: 테두리·굵게·즉시 눌림. 어르신 기준 터치 타겟 ≥52px. */
+.mk-idle-home {
+  flex: 0 0 auto; margin-left: 6px;
+  min-height: 52px; padding: 12px 22px;
+  font: inherit; font-size: clamp(15px, 2.2vw, 18px); font-weight: 700;
+  color: inherit; background: transparent;
+  border: 2px solid currentColor; border-radius: var(--md-radius-md);
+  cursor: pointer;
+}
+.mk-idle-home:active { background: rgba(255, 255, 255, .18); transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mk-idle-home:active { transform: none } }
+
+/* ⑻ 미회원 결과 화면 — «결과»로 읽히게 자기 화면을 준다(종전엔 조회 화면 옆 작은 카드였다). */
+.mk-none-view { align-items: center; justify-content: center; }
+.mk-none-card {
+  max-width: min(560px, 92vw); width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 2vh, 18px);
+  padding: clamp(20px, 4vh, 40px) clamp(18px, 4vw, 36px); text-align: center;
+}
+.mk-none-mark { width: clamp(76px, 16vw, 128px); height: auto; }
+.mk-none-title {
+  font-family: var(--mk-font-title); font-weight: 700; line-height: 1.35;
+  font-size: clamp(24px, 5.2vw, 38px); color: var(--md-on-surface);
+}
+.mk-none-num {
+  font-variant-numeric: tabular-nums; letter-spacing: .04em;
+  font-size: clamp(18px, 3.4vw, 24px); font-weight: 700; color: var(--md-primary);
+}
+.mk-none-sub { margin: 0; color: var(--md-on-surface-variant); font-size: clamp(15px, 2.6vw, 19px); line-height: 1.5; }
+.mk-none-acts { display: flex; gap: clamp(10px, 2vw, 18px); width: 100%; flex-wrap: wrap; justify-content: center; }
+/* 버튼 문법 통일 — 테두리·굵게·보조문구·즉시 눌림(가입 버튼·2택 시트와 같은 축). */
+.mk-none-btn {
+  flex: 1 1 200px; min-height: 76px; padding: 14px 18px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font: inherit; cursor: pointer;
+  background: var(--md-surface); color: var(--md-on-surface);
+  border: 2px solid var(--md-outline); border-radius: var(--md-radius-lg);
+  box-shadow: var(--md-elev-1);
+}
+.mk-none-btn.is-primary {
+  background: var(--md-primary); color: var(--md-on-primary); border-color: var(--md-primary);
+}
+.mk-none-btn-label { font-family: var(--mk-font-title); font-weight: 700; font-size: clamp(17px, 3vw, 22px); }
+.mk-none-btn-sub { font-size: clamp(12px, 2vw, 14px); opacity: .85; }
+.mk-none-btn:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mk-none-btn:active { transform: none } }

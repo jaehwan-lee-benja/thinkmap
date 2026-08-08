@@ -10,6 +10,7 @@ import IdleReset, { IDLE_RESET_EVENT } from './IdleReset'
 import { useMemberLookup } from './useMemberLookup'
 import { useMembershipChannel } from './useMembershipChannel'
 import { CONTRACT_PENDING } from '../../api/membership'
+import { formatPhone } from './kioskUtils'
 
 // ★전화번호 프리필(2026-08-06 유저 지시 «010은 기본적으로 적혀있도록»).
 //   ⚠︎010 을 **고정(잠금)하지 않는다** — 011/016/017/018/019 도 유효 번호라(검증 정규식 `^01[016789]`)
@@ -63,7 +64,7 @@ export default function CustomerView({ store }) {
     return (<>
       {/* 가입 폼은 **길게**(120초) — 타이핑 중에 화면이 날아가면 안 된다. */}
       <IdleReset enabled armed sec={120} />
-      <CustomerSignupScreen onDone={() => { setShowSignup(false); resetAll() }} />
+      <CustomerSignupScreen initialPhone={digits} onDone={() => { setShowSignup(false); resetAll() }} />
     </>)
   }
 
@@ -78,6 +79,35 @@ export default function CustomerView({ store }) {
         </div>
         <div className="mk-loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
         <div className="mk-loading-text">조회 중</div>
+      </div>
+    )
+  }
+
+  // ★미회원 결과 = **자기 화면**(유저 지시 2026-08-08: 「번호 없을때, 멤버십 회원이 아니에요 + 다시 + 가입하기」).
+  //   종전엔 조회 화면 왼쪽에 작은 카드로 붙어 있어 «결과»로 읽히지 않았다(번호패드가 화면의 주인공이라).
+  //   문구는 탓하지 않는 톤 — «아직 …아니시네요». 보상 소구 없이 경험으로 권한다(보이스 §5.0).
+  //   유휴 복귀는 **30초**: 여기엔 남의 정보가 없고, 읽고 «가입하기»를 누를 시간이 필요하다
+  //   (조회 결과의 10초를 그대로 쓰면 결정하기 전에 화면이 사라진다).
+  if (status === 'notfound') {
+    return (
+      <div className="mk-screen mk-customer-view mk-none-view">
+        <IdleReset enabled armed sec={30} warn={15} />
+        <div className="mk-card mk-none-card">
+          <img className="mk-none-mark" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="" aria-hidden="true" />
+          <div className="mk-none-title">아직 멤버십 회원이<br />아니시네요</div>
+          <div className="mk-none-num">{formatPhone(digits)}</div>
+          <p className="mk-none-sub">멤버십을 가입하면 사르르를 더욱 즐길 수 있습니다.</p>
+          <div className="mk-none-acts">
+            <button type="button" className="mk-none-btn" onClick={resetAll}>
+              <span className="mk-none-btn-label">다시 입력</span>
+              <span className="mk-none-btn-sub">번호를 다시 누르기</span>
+            </button>
+            <button type="button" className="mk-none-btn is-primary" onClick={() => setShowSignup(true)}>
+              <span className="mk-none-btn-label">가입하기</span>
+              <span className="mk-none-btn-sub">누른 번호로 바로 가입</span>
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -115,12 +145,6 @@ export default function CustomerView({ store }) {
         <div className="mk-lookup-left">
           <img className="mk-brand-logo" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="사르르목장" />
           <div className="mk-lookup-ment">사르르목장 멤버십<br />이벤트에 참여해보세요!</div>
-          {status === 'notfound' && (
-            <div className="mk-card mk-card-none mk-signup-mini">
-              <p>아직 멤버십 회원이 아니세요.</p>
-              <button className="mk-reset" onClick={resetAll}>다시</button>
-            </div>
-          )}
         </div>
 
         {/* 우: 전화번호 입력(번호패드/조회) */}

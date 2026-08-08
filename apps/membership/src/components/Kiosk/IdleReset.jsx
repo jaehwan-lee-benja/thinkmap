@@ -62,11 +62,21 @@ export default function IdleReset({ enabled, armed = true, sec = 120, warn = WAR
   }, [enabled, armed, sec, warn])
 
   if (remain < 0) return null
-  // ★숫자를 크게(유저 지시 «카운트 잘 보이도록»): 문장 속 숫자는 멀리서 안 읽힌다.
+  // ★즉시 복귀 버튼(유저 지시 2026-08-08: 「10초 영역 좋아. 거기에 처음으로 버튼도 넣어줘」).
+  //   ★타임아웃과 **같은 경로**로 보낸다(이벤트 발화) — 리셋 로직이 두 벌이 되면 한쪽만 낡는다.
+  //   ⚠이 막대는 `position: fixed; bottom:0` 이라 **카드 안의 [처음으로]를 가린다.**
+  //     그래서 이 버튼이 «중복»이 아니라 **가려진 것의 대체**다.
+  const goHome = () => {
+    try { window.dispatchEvent(new Event(IDLE_RESET_EVENT)) } catch (e) {
+      const ev = document.createEvent('Event'); ev.initEvent(IDLE_RESET_EVENT, false, false)
+      window.dispatchEvent(ev)
+    }
+  }
   return (
     <div className="mk-idle-warn" aria-live="polite">
       <span className="mk-idle-num">{remain}</span>
       <span className="mk-idle-txt">초 후 처음 화면으로 돌아갑니다<br />계속 보시려면 화면을 터치하세요.</span>
+      <button type="button" className="mk-idle-home" onClick={goHome}>처음으로</button>
     </div>
   )
 }

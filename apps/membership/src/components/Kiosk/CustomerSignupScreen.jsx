@@ -12,8 +12,10 @@ const DOMAINS = ['gmail.com', 'naver.com', 'daum.net', 'hanmail.net', 'kakao.com
 const CONSENT_TEXT =
   '사르르목장 소식 전달 및 멤버십 회원 관리 목적으로 개인정보를 수집·이용하는 데 동의합니다.'
 
-export default function CustomerSignupScreen({ onDone }) {
-  const [digits, setDigits] = useState('010')   // ★조회 화면과 동일한 010 프리필(유저 지시 2026-08-06)
+// ★initialPhone: 미회원 조회 결과에서 [가입하기]로 넘어올 때 **친 번호를 그대로 들고 온다**
+//   (2026-08-08 유저 지시). 손님이 방금 누른 11자리를 다시 누르게 하는 건 어르신 기준에서 특히 나쁘다.
+export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
+  const [digits, setDigits] = useState(initialPhone || '010')
   const [padOpen, setPadOpen] = useState(false)
   const [name, setName] = useState('')
   const [emailLocal, setEmailLocal] = useState('')
