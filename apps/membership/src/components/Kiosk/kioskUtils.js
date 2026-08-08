@@ -27,16 +27,26 @@ export function formatClaimPrefix(claimedAt) {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours()}시에`
 }
 
-// ★번호 가림 — 앞 3자리(통신사 접두)는 남기고 나머지를 ● 로. **자릿수는 보인다**(진행 상황 피드백).
+// ★번호 가림 — 앞 3자리(통신사 접두)는 남기고 나머지는 «가린 자릿수»로. **자릿수는 보인다**(진행 피드백).
 //   접두를 남기는 이유: 010 은 누구나 같아 식별 정보가 아니고, 남겨두면 «어디까지 눌렀나»를 읽기 쉽다.
-export function maskPhone(digits) {
+//
+// ★2026-08-08 정정 — 문자 `●` 를 쓰지 않는다(실기기 피드백 2건이 같은 뿌리였다):
+//   ⑴ 「010 뒤 하이픈이 빠졌어」 ⑵ 「가림 점이 너무 크다」
+//   `●`(U+25CF)는 **본문 폰트 크기 그대로 그려지는 글리프**다. 표시 폰트가 clamp 로 최대 52px 이라
+//   점이 거대해지고, GmarketSans 에 이 글자가 없어 폴백 폰트로 넘어가면서 폭·베이스라인이 흔들려
+//   **사이 하이픈이 시각적으로 짓눌린다**(DOM 에는 있는데 눈에 안 보인다 — 그래서 textContent 측정만으론 못 잡았다).
+//   ⇒ 점을 **CSS 로 그린다**(글리프 아님) ⇒ 폰트 폴백과 무관하고 크기를 우리가 정한다.
+//   반환 = 그룹 배열: [{ text:'010' } , { dots:4 }, { dots:4 }] — 하이픈은 그리는 쪽이 넣는다.
+//   반환 = { head:'010', groups:['1234','5678'] } — **실제 문자**를 준다(그리는 쪽이 자리마다
+//   «숫자로 보일지 점으로 보일지»를 정한다. 마지막 입력 글자 잠깐 노출을 위해 필요하다).
+export function maskPhoneGroups(digits) {
   const d = String(digits || '').replace(/[^0-9]/g, '')
-  if (!d) return ''
-  const head = d.slice(0, 3)
+  if (!d) return null
   const rest = d.slice(3)
-  const mid = rest.slice(0, 4).replace(/[0-9]/g, '●')
-  const tail = rest.slice(4).replace(/[0-9]/g, '●')
-  return [head, mid, tail].filter(Boolean).join('-')
+  const groups = []
+  if (rest.length) groups.push(rest.slice(0, 4))
+  if (rest.length > 4) groups.push(rest.slice(4))
+  return { head: d.slice(0, 3), groups }
 }
 
 // ★리스트 오른쪽 열에 쓸 «가지런한 날짜»(2026-08-08 유저 지시: 내용 좌·날짜 우).

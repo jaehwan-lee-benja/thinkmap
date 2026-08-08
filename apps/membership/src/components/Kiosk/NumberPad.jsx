@@ -4,7 +4,8 @@
 //   (조회·가입 두 화면이 각자 NumberPad 를 쓰므로 한 번에 하나만 마운트 → 전역 리스너 안전).
 //   텍스트 입력(이름 등)에 포커스가 있으면 그쪽이 처리하도록 양보한다.
 import { useEffect, useRef, useState } from 'react'
-import { formatPhone, maskPhone } from './kioskUtils'
+import { formatPhone } from './kioskUtils'
+import MaskedPhone from './MaskedPhone'
 import { BURST_GAP_MS } from './useScanner'
 import './NumberPad.css'
 
@@ -114,7 +115,7 @@ export default function NumberPad({
     <div className={`mk-pad ${size === 'xl' ? 'mk-pad-xl' : ''}`}>
       <div className="mk-pad-display" aria-live="polite">
         {digits
-          ? (mask && !reveal ? maskPhone(digits) : formatPhone(digits))
+          ? (mask && !reveal ? <MaskedPhone digits={digits} /> : formatPhone(digits))
           : <span className="mk-pad-placeholder">전화번호</span>}
       </div>
       {mask && (

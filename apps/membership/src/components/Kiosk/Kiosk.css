@@ -1136,3 +1136,17 @@
   font-variant-numeric: tabular-nums; color: var(--md-primary);
 }
 .mk-confirm-acts { display: flex; gap: clamp(10px, 2vw, 18px); width: 100%; flex-wrap: wrap; justify-content: center; }
+
+/* 가린 번호 — 점은 CSS 원(폰트 폴백 무관). 하이픈은 본문 크기 그대로 남아 «010-» 이 또렷하다.
+   ★점과 «잠깐 보이는 숫자»의 칸 폭을 같게 둔다 — 안 그러면 전환 때 뒤 글자가 들썩인다. */
+.mk-masked { display: inline-flex; align-items: center; }
+.mk-masked-grp { display: inline-flex; align-items: center; }
+.mk-masked-sep { padding: 0 .06em; }              /* ★하이픈은 축소하지 않는다 */
+.mk-masked-dot,
+.mk-masked-num {
+  display: inline-block; width: .62em; text-align: center; vertical-align: middle;
+}
+.mk-masked-dot::before {
+  content: ''; display: inline-block; width: .3em; height: .3em;
+  border-radius: 50%; background: currentColor; vertical-align: middle;
+}
