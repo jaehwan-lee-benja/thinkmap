@@ -17,13 +17,15 @@ const CONSENT_TEXT =
 export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
   const [digits, setDigits] = useState(initialPhone || '010')
   const [padOpen, setPadOpen] = useState(false)
+  const [domOpen, setDomOpen] = useState(false)
   const [name, setName] = useState('')
   const [emailLocal, setEmailLocal] = useState('')
   const [emailDomain, setEmailDomain] = useState('')
   const [emailCustom, setEmailCustom] = useState('')
   const [consent, setConsent] = useState(false)
-  const [status, setStatus] = useState('idle') // idle | submitting | done | error
+  const [status, setStatus] = useState('idle') // idle | submitting | done | dup | error
   const [errMsg, setErrMsg] = useState('')
+  const [pending, setPending] = useState(false)   // 승격 전(=아직 조회 안 됨)
 
   const domain = emailDomain === CUSTOM ? emailCustom.trim() : emailDomain
   const email = `${emailLocal.trim()}@${domain}`
@@ -44,10 +46,41 @@ export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
         const why = r.error === 'invalid phone' ? '전화번호를 다시 확인해 주세요.' : (r.error || '가입 처리 실패')
         setStatus('error'); setErrMsg(why); return
       }
+      // ★2026-08-08 — **거짓 성공 경로를 막는다.** 종전 조건은 «명시적으로 ok:false 가 아니면 성공»이라
+      //   `null`·`{}`(빈 본문·204·프록시가 본문을 삼킨 경우)에도 **축하 화면이 떴다.**
+      //   ⇒ 성공은 «성공 신호가 온 것»으로만 인정한다.
+      if (!r || !(r.ok === true || r.member_id)) {
+        setStatus('error')
+        setErrMsg('가입 응답을 받지 못했습니다. 직원에게 문의해 주세요.')
+        return
+      }
+      // ★서버 실제 반환(2026-08-08 crm RPC 원문 실측):
+      //     { ok:false, error:'invalid phone' } | { ok:true, dup:true } | { ok:true, dup:false, merged:bool }
+      //   ⚠**`dup:true` 는 «이미 회원»이라 새로 저장된 게 없다.** 종전엔 이걸 그대로 «가입 완료 🎉»로
+      //   보여줬다 — 유저가 겪은 «축하까지 봤는데 가입이 안 됐다»의 정체다(실측: 그 번호는 7/26 에 이미
+      //   등록돼 있었고 오늘 새 행은 생기지 않았다).
+      if (r.dup === true) { setStatus('dup'); return }
+      // `merged:false` = 아직 **canonical 연결 전**(승격 배치 대기) ⇒ **지금은 조회로 안 나온다.**
+      //   손님에게 «바로 조회된다»고 약속하지 않는다 — 직원 경로로 안내한다.
+      setPending(r.merged === false)
       setStatus('done')
     } catch (e) {
       setStatus('error'); setErrMsg(e?.message || '가입 실패')
     }
+  }
+
+  // ★이미 회원 — «축하»가 아니라 «이미 되어 있다»를 말한다(거짓 축하 금지).
+  if (status === 'dup') {
+    return (
+      <div className="mk-screen mk-customer">
+        <div className="mk-card mk-card-member mk-thanks">
+          <div className="mk-badge">이미 멤버십 회원이세요</div>
+          <p>이 번호는 <b>이미 가입</b>되어 있습니다.<br />처음 화면에서 번호를 넣어 조회해 보세요.</p>
+          <p className="mk-note">조회가 안 되면 <b>직원에게 문의</b>해 주세요 — 확인해 드립니다.</p>
+          <button className="mk-reset" onClick={onDone}>처음으로</button>
+        </div>
+      </div>
+    )
   }
 
   if (status === 'done') {
@@ -58,6 +91,8 @@ export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
           <div className="mk-check" aria-hidden="true">✓</div>
           <div className="mk-badge">가입 완료 🎉</div>
           <p>사르르목장 멤버십에 오신 것을 환영합니다!</p>
+          {/* ★조회가 «지금»은 안 되는 경우를 숨기지 않는다(승격 배치 대기). 시간을 약속하지 않고 사람에게 연결한다. */}
+          {pending && <p className="mk-note">조회는 <b>직원에게 말씀해 주시면</b> 바로 확인해 드립니다.</p>}
           <button className="mk-reset" onClick={onDone}>완료</button>
         </div>
       </div>
@@ -104,12 +139,13 @@ export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
                 onChange={(e) => setEmailCustom(e.target.value)} placeholder="직접입력"
                 autoCapitalize="none" spellCheck={false} disabled={submitting} name="mk-noauto-ed" {...noauto} />
             ) : (
-              <select className="mk-email-dom" value={emailDomain}
-                onChange={(e) => setEmailDomain(e.target.value)} disabled={submitting}>
-                <option value="">도메인 선택</option>
-                {DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
-                <option value={CUSTOM}>직접입력</option>
-              </select>
+              /* ★네이티브 `<select>` 를 뺐다(2026-08-08 유저 실측: 「도메인 이메일 누르는게 화면이 잘린다」).
+                 안드로이드 WebView 의 select 팝업은 **우리 CSS 밖**에서 그려져 위치·크기를 우리가 통제할 수
+                 없다 — 뷰포트를 넘으면 잘리는 걸 막을 방법이 없다. ⇒ 팝업을 안 쓰고 **우리가 그리는 시트**로
+                 바꿨다(2택 시트와 같은 문법). 어르신 기준 큰 터치 타겟이라는 이점도 같이 온다. */
+              <button type="button" className="mk-email-dom mk-dom-btn" onClick={() => setDomOpen(true)} disabled={submitting}>
+                {emailDomain || <span className="mk-phone-ph">도메인 선택</span>}
+              </button>
             )}
           </div>
         </div>
@@ -129,6 +165,25 @@ export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
         {CONTRACT_PENDING && <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>}
         {errMsg && <div className="mk-err">{errMsg}</div>}
       </div>
+
+      {/* 도메인 선택 시트 — 화면 밖으로 나갈 수 없다(우리가 그리므로 항상 뷰포트 안). */}
+      {domOpen && (
+        <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="이메일 도메인 선택"
+          onClick={(e) => { if (e.target === e.currentTarget) setDomOpen(false) }}>
+          <div className="mk-pick mk-dom-sheet">
+            <div className="mk-pick-q">이메일 주소를 고르세요</div>
+            <div className="mk-dom-grid">
+              {DOMAINS.map((d) => (
+                <button key={d} type="button" className={`mk-dom-opt ${emailDomain === d ? 'is-on' : ''}`}
+                  onClick={() => { setEmailDomain(d); setDomOpen(false) }}>@{d}</button>
+              ))}
+              <button type="button" className="mk-dom-opt"
+                onClick={() => { setEmailDomain(CUSTOM); setDomOpen(false) }}>직접 입력</button>
+            </div>
+            <button type="button" className="mk-reset" onClick={() => setDomOpen(false)}>닫기</button>
+          </div>
+        </div>
+      )}
 
       <NumberPadModal open={padOpen} digits={digits} onChange={setDigits} onClose={() => setPadOpen(false)} />
     </div>

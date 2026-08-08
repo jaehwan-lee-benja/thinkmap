@@ -1102,3 +1102,20 @@
 .mk-none-btn-sub { font-size: clamp(12px, 2vw, 14px); opacity: .85; }
 .mk-none-btn:active { transform: scale(.98); }
 @media (prefers-reduced-motion: reduce) { .mk-none-btn:active { transform: none } }
+
+/* 도메인 선택 — 네이티브 select 팝업 대신 우리가 그리는 시트(잘림 원인 제거). */
+.mk-dom-btn { text-align: left; cursor: pointer; }
+.mk-dom-sheet { gap: clamp(12px, 2vh, 20px); }
+.mk-dom-grid {
+  width: 100%; display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  max-height: 52vh; overflow-y: auto;
+}
+.mk-dom-opt {
+  min-height: 60px; padding: 12px 14px; font: inherit; font-size: clamp(16px, 2.6vw, 19px); font-weight: 700;
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+  border: 2px solid var(--md-outline-variant); border-radius: var(--md-radius-md); cursor: pointer;
+}
+.mk-dom-opt.is-on { border-color: var(--md-primary); color: var(--md-primary); }
+.mk-dom-opt:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mk-dom-opt:active { transform: none } }
