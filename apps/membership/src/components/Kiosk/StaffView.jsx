@@ -58,11 +58,13 @@ export default function StaffView({ store }) {
   //   각 단은 **자기 안에서만 스크롤**한다 — 한쪽이 길어져도 반대쪽이 밀리지 않는다.
   return (
     <div className="mk-screen mk-staff">
-      <div className="mk-col mk-staff-ops">
-        {/* 전용 입력창이 없으니 «지금 스캔이 먹는다»를 화면이 말해줘야 한다. */}
-        <div className="mk-scan-ready">🔎 바코드 스캔 대기 중 — 어디서든 스캔하세요</div>
-        {/* ★가상 스캔 — 프리뷰에서만. `import.meta.env.DEV &&` 를 앞에 둬야 prod 빌드에서 통째로 접힌다
-            (PREVIEW 만 쓰면 다른 모듈의 const 라 번들러가 못 접는다). 동적 import 라 코드도 안 실린다. */}
+      {/* ★3단(유저 지시 2026-08-08: 「스캔 결과가 번호패드 위로 뜨는데, **왼쪽에 다른 단에 뜨는 감성**으로」).
+          종전엔 스캔 결과가 같은 칸에서 **번호패드를 아래로 밀어냈다** — 조회하려던 직원이 패드를 잃는다.
+          ⇒ 스캔은 **자기 칸**을 상시 차지한다(비었을 땐 대기 안내). 폭이 좁아지면 칸이 아래로 접힌다.
+          각 칸은 카드 테두리로 구획한다 — «어디까지가 한 기능인지»가 눈에 보이게. */}
+      <section className="mk-staff-col mk-staff-scan-col" aria-label="스캔">
+        <div className="mk-staff-col-head">바코드 스캔</div>
+        <div className="mk-scan-ready">🔎 대기 중 — 어디서든 스캔하세요</div>
         {import.meta.env.DEV && PREVIEW && (
           <div className="mk-vscan">
             <button
@@ -76,13 +78,18 @@ export default function StaffView({ store }) {
             {vscan && <div className="mk-note">쏜 값: <b>{vscan.token}</b> — {vscan.label} · 다음: {vscan.next}</div>}
           </div>
         )}
-        {scanState.phase !== 'idle' && (
-          <div className="mk-staff-scan">
-            <div className="mk-scan-title">스캔 결과</div>
+        {scanState.phase === 'idle' ? (
+          <div className="mk-placeholder mk-staff-idle">스캔하면<br />여기에 결과가 나옵니다.</div>
+        ) : (
+          <>
             <ScanResultPanel scan={scanState} printMsg={printMsg} setPrintMsg={setPrintMsg} />
             <button className="mk-reset" onClick={scanState.reset}>스캔 결과 닫기</button>
-          </div>
+          </>
         )}
+      </section>
+
+      <section className="mk-staff-col mk-staff-pad-col" aria-label="번호 조회">
+        <div className="mk-staff-col-head">번호 조회</div>
         <NumberPad
           digits={digits}
           onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
@@ -92,14 +99,15 @@ export default function StaffView({ store }) {
         />
         {mirror && realtimeOn && <div className="mk-note">↗ 고객 화면에 표시됨(미러링 ON)</div>}
         <button className="mk-ml-open" onClick={() => setShowList(true)}>회원 리스트 확인하기</button>
-      </div>
+      </section>
 
-      <div className="mk-col mk-result mk-staff-data">
+      <section className="mk-staff-col mk-result mk-staff-data" aria-label="조회 결과">
+        <div className="mk-staff-col-head">조회 결과</div>
         {CONTRACT_PENDING && status === 'idle' && (
           <div className="mk-note">※ CRM 데이터 연결 대기 — 배포 후 활성화(미리보기).</div>
         )}
-        {status === 'idle' && <div className="mk-placeholder">번호를 입력하고 조회하세요.</div>}
-        {status === 'loading' && <div className="mk-placeholder">조회 중…</div>}
+        {status === 'idle' && <div className="mk-placeholder mk-staff-idle">번호를 입력하고<br />조회하세요.</div>}
+        {status === 'loading' && <div className="mk-placeholder mk-staff-idle">조회 중…</div>}
 
         {status === 'found' && member && (
           <MemberCard
@@ -118,7 +126,7 @@ export default function StaffView({ store }) {
           <div className="mk-card mk-card-err"><p className="mk-err">{errMsg}</p>
             <button className="mk-reset" onClick={resetAll}>다시</button></div>
         )}
-      </div>
+      </section>
     </div>
   )
 }

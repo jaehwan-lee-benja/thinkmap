@@ -1,12 +1,39 @@
 // 공용 회원 카드 — 브랜드 히어로(인사말)+본문(이벤트·참여내역·스탬프). 고객뷰·직원뷰 공용.
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { formatClaimPrefix, todayStr } from './kioskUtils'
+import { formatClaimPrefix, formatClaimDate, todayStr } from './kioskUtils'
 import { printReceipt } from '../../receipt/print'
 import { buildTicketUrl } from './ticketLink'
 
 const EVENT_LABEL = '팝콘 이벤트'   // 이벤트명(태그 강조). 이벤트가 늘면 엔티티로 확장.
 const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크림(시안, 데이터모델=crm 조율).
+
+// ★인쇄 1회 정책(유저 지시 2026-08-08: 「한번 인쇄하면 그다음엔 안 되도록, «직원에게 문의바랍니다»」).
+//
+// 상태를 어디 두는가 — **localStorage(기기 로컬), 토큰 키**로 판단했다. 근거:
+//   · 컴포넌트 state 만이면 **새로고침·유휴 복귀에 리셋**된다 = 정책이 사실상 없는 것과 같다.
+//   · 서버(원장)에 «인쇄됨»을 두려면 **crm 계약 변경**이 필요하다(신규 필드·Edge) — 게이트가 크고,
+//     인쇄는 **그 기기에서 일어나는 물리 사건**이라 원장의 관심사도 아니다.
+//   · 인쇄는 **키오스크 한 대**에서만 일어난다 ⇒ 기기 로컬이면 실제 범위와 정확히 일치한다.
+// ⇒ 즉 «가장 약한 저장소»가 아니라 **사건이 일어나는 범위와 같은 저장소**를 골랐다.
+//
+// ★막지 않는 것: 직원 화면(스캔 결과 «영수증 인쇄»)·카운터 폰 인쇄 대기실. 그쪽은 이 문구가
+//   가리키는 **목적지**다 — 손님 쪽을 막고 직원 쪽까지 막으면 «직원에게 문의»가 갈 곳이 없어진다.
+const PRINTED_KEY = 'mk-printed-tokens'
+function readPrinted() {
+  try { const v = JSON.parse(localStorage.getItem(PRINTED_KEY) || '[]'); return Array.isArray(v) ? v : [] } catch (e) { return [] }
+}
+function isPrinted(token) { return !!token && readPrinted().indexOf(token) >= 0 }
+function markPrinted(token) {
+  if (!token) return
+  try {
+    const list = readPrinted()
+    if (list.indexOf(token) >= 0) return
+    list.push(token)
+    // 무한히 쌓이지 않게 최근 것만 남긴다(토큰은 당일용이라 오래된 건 의미가 없다).
+    localStorage.setItem(PRINTED_KEY, JSON.stringify(list.slice(-300)))
+  } catch (e) { /* 저장 불가 환경 — 정책만 약해지고 인쇄는 정상 동작 */ }
+}
 
 // ★printable = **프린터가 달린 기기에서만 true**(키오스크 단말). 직원 노트북(StaffView)은 false 라
 //   rawbt: 스킴이 호출되지 않는다 — 프린터 없는 기기에서 스킴을 던지면 오류 페이지로 튈 수 있다.
@@ -21,6 +48,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   //   (재방문·재조회 때마다 «어떻게 받으시겠어요?»가 뜨는 건 손님에게 뜬금없다.)
   const pendingClaimRef = useRef(false)      // 클릭했고 아직 티켓이 안 온 상태
   const [claimedToken, setClaimedToken] = useState(null)   // 이 클릭으로 받은 토큰
+  const [printedTok, setPrintedTok] = useState(null)       // 이 화면에서 «인쇄됨»으로 확정된 토큰
 
   const ticketForPrint = member
     ? (member._ticket || (member._todayTickets || []).find((t) => t.channel === 'kiosk' && t.state === 'issued') || null)
@@ -41,6 +69,8 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
 
   const doPrint = (tok, retry) => {
     if (!tok || !member) return
+    // ★1회 제한 — 이미 인쇄된 토큰이면 재발행하지 않는다(정책 근거는 파일 상단 주석).
+    if (isPrinted(tok)) { setPrintedTok(tok); setPrintMsg(''); return }
     const r = printReceipt({
       name: member.display_name || '',
       date: todayStr(),
@@ -48,8 +78,10 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
       stamp: member.stamp ? `${member.stamp.current_stamps ?? 0}/${member.stamp.threshold ?? STAMP_GOAL}` : '',
     })
     // ★"인쇄됨"이라 단정하지 않는다 — 스킴 호출은 결과를 알려주지 않는다(print.js 주석).
+    if (r.ok) markPrinted(tok)
+    setPrintedTok(r.ok ? tok : null)
     setPrintMsg(r.ok
-      ? (retry ? '인쇄를 다시 요청했습니다 — 종이를 확인하세요.' : '인쇄를 요청했습니다 — 종이를 확인하세요.')
+      ? '인쇄를 요청했습니다 — 종이를 확인하세요.'
       : '인쇄를 시작하지 못했습니다. 아래 번호를 카운터에 보여주세요.')
   }
 
@@ -80,6 +112,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   // 새 티켓이 뜨면 선택을 초기화한다(앞 손님의 선택이 남으면 안 된다).
   useEffect(() => {
     setChoice(null); setPrintMsg('')
+    setPrintedTok(printToken && isPrinted(printToken) ? printToken : null)
     if (printToken && pendingClaimRef.current) { pendingClaimRef.current = false; setClaimedToken(printToken) }
     if (!printToken) setClaimedToken(null)
   }, [printToken])
@@ -119,7 +152,9 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
           </svg>
         </div>
         <div className="mk-greeting">
-          안녕하세요,<br /><b>{member.display_name || '회원'}</b> 회원님!
+          {/* ★쉼표 뒤 공백(2026-08-08): 세로 화면에서 `br` 을 숨기면 «안녕하세요,정*아» 로 붙어 버린다.
+              공백을 문자로 넣어 두면 줄바꿈이 있든 없든 읽힌다. */}
+          안녕하세요,{' '}<br /><b>{member.display_name || '회원'}</b> 회원님!
         </div>
         {variant === 'hero' && (
           <img className="mk-hero-pose" src={`${import.meta.env.BASE_URL}img/cow-pose-welcome-navy.png`} alt="" aria-hidden="true" />
@@ -161,8 +196,9 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                       탭할 것 없음) / **종이 = 버튼**(눌러야 인쇄). 시각적 위계는 동급으로 유지한다.
                       결과적으로 «콘텐츠 하나 + 버튼 하나»라 어느 쪽이 눌러야 하는 것인지 더 분명해진다. */}
                   <div className="mk-pick-row">
-                    {/* 종이 = 버튼 */}
-                    <button type="button" className="mk-pick-btn" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
+                    {/* 종이 = 버튼. ★이미 인쇄한 토큰이면 누를 수 없다(1회 정책) — 버튼 자리에 안내를 둔다. */}
+                    <button type="button" className="mk-pick-btn" disabled={printedTok === issuedTicket.token}
+                      onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
                       {/* ★이모지 프린터 → **선화 영수증 아이콘**(2026-08-06): 우리 마스코트·로고가 전부
                           선화라 이모지만 질감이 튀었다. 톱니 절취선 + 텍스트 줄 = «영수증»이 형태로 읽힌다.
                           currentColor 를 써서 눌림 상태(색 반전)에도 자동으로 따라간다. */}
@@ -195,7 +231,9 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                   손님이 다시 조회했을 뿐인데 선택 모달이 튀어나오지 않게 한다. */}
               {claimedToken !== printToken && !choice && (
                 <div className="mk-pick-acts">
-                  {printable && <button type="button" className="mk-reset" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>종이로 인쇄</button>}
+                  {printable && (isPrinted(issuedTicket.token)
+                    ? <span className="mk-print-once">이미 인쇄했습니다 — 직원에게 문의 바랍니다.</span>
+                    : <button type="button" className="mk-reset" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>종이로 인쇄</button>)}
                   <button type="button" className="mk-reset" onClick={() => setChoice('phone')}>폰으로 받기</button>
                 </div>
               )}
@@ -204,8 +242,10 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                 <div className="mk-pick-done">
                   <div className="mk-pick-done-msg">종이를 가져가세요</div>
                   {printMsg && <div className="mk-ticket-hint">{printMsg}</div>}
+                  {/* ★«다시 인쇄»를 없앴다(1회 정책). 종이가 안 나왔을 때의 출구는 **사람**이다 —
+                      직원 화면에서 같은 토큰으로 인쇄할 수 있으므로 손님은 카운터로 보낸다. */}
+                  <div className="mk-print-once">직원에게 문의 바랍니다.</div>
                   <div className="mk-pick-acts">
-                    <button type="button" className="mk-reset" onClick={() => doPrint(issuedTicket.token, true)}>다시 인쇄</button>
                     <button type="button" className="mk-reset" onClick={() => setChoice('phone')}>폰으로 받기</button>
                   </div>
                 </div>
@@ -280,9 +320,12 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
             <div className="mk-history-wrap">
               <div className="mk-history-title">참여 내역</div>
               <ul className="mk-history">
+                {/* ★내용 좌 · 날짜 우(유저 지시 2026-08-08). 날짜는 자릿수를 채워 폭이 흔들리지 않게 하고
+                    tabular-nums 로 열을 맞춘다 — 우측 정렬은 폭이 들쭉날쭉하면 «정렬»로 안 읽힌다. */}
                 {history.map((h, i) => (
                   <li key={h.claimed_at || i}>
-                    {formatClaimPrefix(h.claimed_at)} <span className="mk-evt-tag">{EVENT_LABEL}</span> 참여
+                    <span className="mk-hist-what"><span className="mk-evt-tag">{EVENT_LABEL}</span> 참여</span>
+                    <span className="mk-hist-when">{formatClaimDate(h.claimed_at)}</span>
                   </li>
                 ))}
               </ul>

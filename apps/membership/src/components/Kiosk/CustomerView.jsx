@@ -61,7 +61,8 @@ export default function CustomerView({ store }) {
 
   if (showSignup) {
     return (<>
-      <IdleReset enabled armed />
+      {/* 가입 폼은 **길게**(120초) — 타이핑 중에 화면이 날아가면 안 된다. */}
+      <IdleReset enabled armed sec={120} />
       <CustomerSignupScreen onDone={() => { setShowSignup(false); resetAll() }} />
     </>)
   }
@@ -85,7 +86,11 @@ export default function CustomerView({ store }) {
   if (status === 'found' && member) {
     return (
       <div className="mk-screen mk-customer-view mk-result-view">
-        <IdleReset enabled armed />
+        {/* ★조회 결과 = **10초**(유저 지시). 남의 정보가 떠 있는 화면이라 짧아야 한다.
+            경고를 10초로 같이 줘서 **처음부터 카운트가 보이게** 한다(«잘 보이도록» 지시).
+            ⚠단 **발권 직후**(2택 시트·QR 국면)에는 60초로 늘린다 — 손님이 폰 카메라를 켜는 데
+            10초면 QR 이 사라진다. «짧게»의 취지는 방치 방지지, 진행 중인 손님을 끊는 게 아니다. */}
+        <IdleReset enabled armed sec={member?._ticket ? 60 : 10} warn={member?._ticket ? 15 : 10} />
         <MemberCard
           variant="hero"
           printable={localPrint}   /* 기본 false — 인쇄는 카운터 폰이 맡는다(위 주석). 외장 프린터 달면 ?print=local */

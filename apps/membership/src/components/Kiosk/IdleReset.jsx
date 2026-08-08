@@ -7,12 +7,12 @@ import { useState, useEffect } from 'react'
 
 const WARN_SEC = 15
 
-function readIdleSec() {
+function readIdleSec(fallback) {
   try {
     const m = /[?&]idle=(\d+)/.exec(window.location.search)
-    if (m) return parseInt(m[1], 10)
+    if (m) return parseInt(m[1], 10)   // URL 지정이 있으면 그게 최우선(현장 조정용)
   } catch (e) { /* noop */ }
-  return 120 // 기본 120초(유저 선택값 대기 — 90~120 제안 중 안전측)
+  return fallback
 }
 
 export const IDLE_RESET_EVENT = 'mk-idle-reset'
@@ -20,12 +20,16 @@ export const IDLE_RESET_EVENT = 'mk-idle-reset'
 // ★armed=false 면 **타이머를 아예 무장하지 않는다**(2026-08-06 결함: 첫 화면인데도 «몇 초 후
 //   첫 화면으로 갑니다»가 떴다 — 되돌릴 것이 없는 화면에서 카운트다운은 손님을 불안하게만 한다).
 //   «무엇이 홈인가»의 판단은 상태를 아는 쪽(CustomerView)이 한다 — 여기서 추측하지 않는다.
-export default function IdleReset({ enabled, armed = true }) {
+// ★sec/warn 을 프롭으로 뺀다(2026-08-08): 화면마다 «적당한 시간»이 다르다.
+//   조회 결과 = 10초(유저 지시 — 남의 정보가 떠 있는 화면이라 짧아야 한다)
+//   가입 폼    = 120초(타이핑 중에 날아가면 안 된다)
+//   ⚠하나로 묶으면 반드시 한쪽이 망가진다 — 그래서 상위가 정한다.
+export default function IdleReset({ enabled, armed = true, sec = 120, warn = WARN_SEC }) {
   const [remain, setRemain] = useState(-1) // -1=경고 아님, 0~WARN_SEC=카운트다운
 
   useEffect(() => {
     if (!enabled || !armed) { setRemain(-1); return undefined }
-    const idleSec = readIdleSec()
+    const idleSec = readIdleSec(sec)
     if (!idleSec) return undefined
 
     let last = Date.now()
@@ -44,7 +48,7 @@ export default function IdleReset({ enabled, armed = true }) {
           const ev = document.createEvent('Event'); ev.initEvent(IDLE_RESET_EVENT, false, false)
           window.dispatchEvent(ev)
         }
-      } else if (left <= WARN_SEC) {
+      } else if (left <= warn) {
         setRemain(left)
       } else {
         setRemain(-1)
@@ -55,12 +59,14 @@ export default function IdleReset({ enabled, armed = true }) {
       clearInterval(t)
       for (let i = 0; i < evs.length; i++) window.removeEventListener(evs[i], bump, true)
     }
-  }, [enabled, armed])
+  }, [enabled, armed, sec, warn])
 
   if (remain < 0) return null
+  // ★숫자를 크게(유저 지시 «카운트 잘 보이도록»): 문장 속 숫자는 멀리서 안 읽힌다.
   return (
     <div className="mk-idle-warn" aria-live="polite">
-      {remain}초 후 처음 화면으로 돌아갑니다 — 계속하시려면 화면을 터치하세요.
+      <span className="mk-idle-num">{remain}</span>
+      <span className="mk-idle-txt">초 후 처음 화면으로 돌아갑니다<br />계속 보시려면 화면을 터치하세요.</span>
     </div>
   )
 }

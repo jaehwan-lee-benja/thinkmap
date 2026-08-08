@@ -27,6 +27,15 @@ export function formatClaimPrefix(claimedAt) {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours()}시에`
 }
 
+// ★리스트 오른쪽 열에 쓸 «가지런한 날짜»(2026-08-08 유저 지시: 내용 좌·날짜 우).
+//   자릿수를 0 으로 채워 폭이 흔들리지 않게 한다 — 우측 정렬은 폭이 들쭉날쭉하면 정렬로 안 읽힌다.
+export function formatClaimDate(claimedAt) {
+  const d = new Date(claimedAt)
+  if (isNaN(d)) return String(claimedAt)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 // URL 파라미터 → 역할('customer' 기본 | 'staff' | 'editor'=영수증 편집 | 'scan'=카운터 회수
 //   | 'printer'=카운터 폰 인쇄 브리지 | 'ticket'=손님 폰 티켓 화면)과 매장 룸 id.
 export function readRoleAndStore() {

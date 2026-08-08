@@ -932,25 +932,35 @@
 /* 직원 허브 — 스캔 대기 표시·스캔 결과 영역 */
 .mk-scan-ready { font-size: 15px; color: var(--md-on-surface-variant); }
 
-/* ★가로 2단(좌=조작 · 우=데이터) — 직원 노트북은 가로가 기본이라 이게 기본값이다.
-   ★각 단이 **자기 안에서만** 스크롤한다: 한쪽이 길어져도 반대쪽이 밀려나지 않는다
-   (우측에 패드+회원카드를 쌓았을 때 본문이 통째로 밀려 회원카드를 찾아 스크롤해야 했다 — 실측). */
-.mk-app .mk-main:has(.mk-staff) { overflow: hidden; }
-.mk-staff { align-items: stretch; min-height: 0; }
-.mk-staff .mk-col { max-width: none; min-height: 0; overflow-y: auto; }
-.mk-staff-ops { flex: 0 0 400px; gap: 12px; }
-/* ★폭을 카드에 맞춘다 — 넓게 잡았더니 카드가 그 안에서 중앙정렬돼 **두 단 사이에 빈 띠**가 생겼다(실측). */
-.mk-staff-data { flex: 0 1 440px; justify-content: flex-start; }
-.mk-staff-ops .mk-staff-scan { margin-bottom: 0; }
+/* ★직원 허브 = **3단 카드**(좌 스캔 · 중 번호조회 · 우 조회결과) — 2026-08-08 유저 지시.
+   종전 2단에서는 스캔 결과가 번호패드를 아래로 밀어냈다(같은 칸이라). 칸을 나누면
+   **어느 하나가 떠도 나머지가 그 자리에** 있다. 좁아지면 wrap 으로 접힌다. */
+.mk-app .mk-main:has(.mk-staff) { overflow: auto; }
+.mk-staff { align-items: stretch; flex-wrap: wrap; gap: 16px; }
+.mk-staff-col {
+  flex: 1 1 320px; min-width: 300px; max-width: 460px; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 14px; border-radius: var(--md-radius-lg);
+  border: 1px solid var(--md-outline-variant); background: var(--md-surface-container-low);
+}
+.mk-staff-pad-col { flex: 1 1 360px; }
+.mk-staff-data { flex: 1.2 1 400px; max-width: 520px; justify-content: flex-start; }
+/* 칸 제목 — 장식이 아니라 «여기부터 이 기능»의 표지. 건조하게 작게. */
+.mk-staff-col-head {
+  align-self: stretch; font-size: 13px; font-weight: 700; letter-spacing: .02em;
+  color: var(--md-on-surface-variant); text-align: left;
+  padding-bottom: 8px; border-bottom: 1px solid var(--md-outline-variant);
+}
+.mk-staff-idle { padding: 20px 8px; font-size: 16px; line-height: 1.5; }
+.mk-staff-col .mk-scan-ready { align-self: stretch; text-align: left; }
+.mk-staff-col .mk-scan-card { width: 100%; }
 
-/* 좁은 창(세로)에선 세로로 접힌다 — 종전 흐름대로 조작이 위, 데이터가 아래.
-   이때는 칼럼별 스크롤을 풀어 **본문 하나가 스크롤**하게 한다(짧은 칼럼 안에 스크롤이 갇히면 못 읽는다). */
 @media (max-width: 860px) {
-  /* ★기존 세로 접기 임계는 760px 인데 이 2단은 400+460 이라 768(세로 태블릿)에서 이미 낀다
-     → 직원 허브만 임계를 860 으로 올린다(실측: 768 에서 두 단이 눌려 붙었다). */
   .mk-staff { flex-direction: column; align-items: center; }
-  .mk-app .mk-main:has(.mk-staff) { overflow: auto; }
-  .mk-staff .mk-col { overflow-y: visible; width: 100%; max-width: 460px; flex: 1 1 auto; }
+  .mk-staff-col { width: 100%; max-width: 460px; flex: 0 0 auto; }
+  .mk-staff-scan-col { order: 2; }   /* 좁은 화면에선 조회가 먼저(종전 흐름 보존) */
+  .mk-staff-pad-col { order: 1; }
+  .mk-staff-data { order: 3; }
 }
 
 /* ── 프리뷰 모드 배너(?preview=1, dev 전용) ──────────────────────────────────
@@ -982,3 +992,65 @@
 .mk-tv-thanks-count { font-size: clamp(18px, 5vw, 22px); }
 .mk-tv-thanks-goal { font-size: clamp(19px, 5.4vw, 24px); font-weight: 700; color: var(--md-primary); }
 .mk-tv-thanks-sub { margin-top: 6px; color: var(--md-on-surface-variant); font-size: clamp(15px, 4vw, 17px); }
+
+/* ═══ 현장 실사용 피드백 5건(2026-08-08) ═══════════════════════════════════ */
+
+/* ⑴ 2택 = **아래에서 열리는 시트**(유저 지시: 「모달처럼 아래로 열리는 방식」).
+      중앙 오버레이는 «화면을 덮는 것»으로 읽히고, 시트는 «이어지는 다음 단계»로 읽힌다.
+      2택 비대칭(폰=QR 즉시 · 종이=버튼)은 그대로 둔다. */
+.mk-pick-overlay { align-items: flex-end; justify-content: center; padding: 0; }
+.mk-pick {
+  width: 100%; max-width: none;
+  border-radius: var(--md-radius-xl) var(--md-radius-xl) 0 0;
+  padding-bottom: max(clamp(18px, 3.5vh, 32px), env(safe-area-inset-bottom, 0px));
+  animation: mk-sheet-up .22s ease-out;
+}
+@keyframes mk-sheet-up { from { transform: translateY(100%) } to { transform: none } }
+@media (prefers-reduced-motion: reduce) { .mk-pick { animation: none } }
+/* 손잡이 — «아래에서 올라온 것»을 형태로 알린다(장식이 아니라 방향 표시). */
+.mk-pick::before {
+  content: ''; width: 44px; height: 4px; border-radius: 2px;
+  background: var(--md-outline-variant); margin-bottom: 4px;
+}
+.mk-pick-btn:disabled { opacity: .45; }
+
+/* ⑵ 회원 정보(헤더)를 넓게 — 세로 결과화면에서 인사말·배지를 키운다.
+      가운데가 비어 보이던 자리를 여기에 쓴다(2026-08-06 캡처에서 확인된 여백). */
+@media (orientation: portrait) {
+  .mk-role-customer .mk-member-card-hero .mk-member-hero {
+    padding: clamp(16px, 3.2vh, 30px) 20px;
+    gap: 16px;
+  }
+  .mk-role-customer .mk-member-card-hero .mk-greeting { font-size: clamp(24px, 4.6vw, 38px); }
+  .mk-role-customer .mk-member-card-hero .mk-member-badge { font-size: clamp(14px, 2.2vw, 18px); padding: 7px 16px; }
+  .mk-role-customer .mk-member-card-hero .mk-verified { width: 26px; height: 26px; }
+}
+
+/* ⑶ 인쇄 1회 — 버튼이 있던 자리의 안내. 회색 문구가 아니라 «막힌 이유»로 읽히게 테두리를 준다. */
+.mk-print-once {
+  display: inline-block; padding: 10px 16px; border-radius: var(--md-radius-md);
+  border: 1px dashed var(--md-outline); color: var(--md-on-surface-variant);
+  font-size: 15px; line-height: 1.4;
+}
+
+/* ⑷ 유휴 카운트다운 — 숫자를 크게(문장 속 숫자는 멀리서 안 읽힌다). */
+.mk-idle-warn { display: flex; align-items: center; justify-content: center; gap: 14px; text-align: left; }
+.mk-idle-num {
+  font-family: var(--mk-font-title); font-weight: 700; line-height: 1;
+  font-size: clamp(34px, 6vw, 52px); font-variant-numeric: tabular-nums;
+  min-width: 1.4em; text-align: center;
+}
+.mk-idle-txt { font-size: clamp(14px, 2.2vw, 18px); font-weight: 400; line-height: 1.35; }
+
+/* ⑸ 참여 내역 — 내용 좌 · 날짜 우. 글씨는 한 단계 작게(유저: 「조금 작아도 됨」). */
+.mk-history li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 14px;
+}
+.mk-hist-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-hist-when {
+  flex: 0 0 auto; font-variant-numeric: tabular-nums;
+  color: var(--md-on-surface-variant); font-size: 13px;
+}
+.mk-member-card-hero .mk-history li { font-size: 15px; padding: 9px 14px; }
+.mk-member-card-hero .mk-hist-when { font-size: 14px; }
