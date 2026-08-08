@@ -16,6 +16,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   const [confirmOrderNo, setConfirmOrderNo] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [maybeOpen, setMaybeOpen] = useState(false) // 포장도고려 전달 갈래 선택 모달
+  const [archivePrompt, setArchivePrompt] = useState(false) // 완료 시 «올림도 체크?» 모달(R12·유저 확정 2026-08-08)
   const [orderNoApproved, setOrderNoApproved] = useState(false) // 한 번 승인하면 그 행에서는 계속 편집 가능
   const orderNoRef = useRef(null)
   const orderNoGuarded = !!order.raised && !orderNoApproved
@@ -126,6 +127,27 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
     seat_status: 'raised',
     raise_canceled: null,
   })
+
+  // ── 완료(R12) ↔ 올림 연동 (유저 확정 2026-08-08) ──────────────────────────
+  //   «완료를 눌렀는데 아직 안 올린» 줄에서만 묻는다. 나머지는 눌린 즉시 완료 — 바쁜 주방에서 매번 묻는 건 마찰이다.
+  //     · 이미 올림       → 묻지 않음(주방에 이미 나갔다)
+  //     · 올림 무효(R11 포장영수증) → 묻지 않음(올릴 게 없다)
+  //     · 자리대기 취소   → 묻지 않음(손님이 갔는데 올리면 유령 주문이 된다)
+  //   전달 전(preDeliver)이면 올림에 전달이 선행돼야 하므로 «전달+올림+완료» 를 한 번에 처리한다(R8 순서 유지).
+  //   ★단 주문번호가 없으면 전달 자체가 불가(R8) → 그 경우 올림 선택지를 막고 «완료만» 만 남긴다.
+  const needsRaiseAsk = !archived && !raiseVoid && !canceled && !order.raised
+  const canRaiseOnArchive = !!order.order_no || !preDeliver
+  const archiveNow = (withRaise) => {
+    const now = new Date().toISOString()
+    onArchive?.(order, withRaise ? {
+      ...(preDeliver ? { seat_delivered: true, delivered_at: now } : {}),
+      raised: true,
+      raised_at: order.raised_at || now,
+      seat_status: 'raised',
+      raise_canceled: null,
+    } : {})
+    setArchivePrompt(false)
+  }
 
   // 확인 신호(주문서관리 → 자리안내): 확인필요 켜짐 + 아직 확인완료 안 됨 = 하이라이트(자리안내 화면에서만).
   // 확인완료를 누르면 하이라이트만 꺼지고 확인필요 체크는 남는다(기록). 다시 확인필요를 껐다 켜면 재신호.
@@ -404,7 +426,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             <button type="button" className="seat-done-btn is-restore" onClick={() => onRestore(order)}>대기열로</button>
           )
           : onArchive && (
-            <button type="button" className="seat-done-btn" onClick={() => onArchive(order)}>완료</button>
+            <button type="button" className="seat-done-btn" onClick={() => (needsRaiseAsk ? setArchivePrompt(true) : archiveNow(false))}>완료</button>
           )}
       </div>
 
@@ -437,6 +459,31 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             <div className="seat-confirm-acts">
               <button type="button" className="seat-btn" onClick={() => setConfirmOrderNo(false)}>취소</button>
               <button type="button" className="seat-btn seat-btn-danger" onClick={approveOrderNo}>수정하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 완료 ↔ 올림 연동(R12, 유저 확정 2026-08-08) — «아직 안 올린 줄» 에서만 뜬다. */}
+      {archivePrompt && (
+        <div className="seat-confirm-scrim" onClick={() => setArchivePrompt(false)}>
+          <div className="seat-confirm" role="dialog" aria-modal="true" aria-label="완료 처리" onClick={(e) => e.stopPropagation()}>
+            <div className="seat-confirm-title">이 주문은 아직 올리지 않았습니다.</div>
+            <div className="seat-confirm-desc">
+              {canRaiseOnArchive
+                ? (preDeliver
+                  ? '올리려면 자리후 전달이 먼저입니다 — 함께 처리할 수 있습니다.'
+                  : '올림까지 체크하고 완료로 보낼까요?')
+                : '주문번호가 없어 올릴 수 없습니다. 완료만 가능합니다.'}
+            </div>
+            <div className="seat-confirm-acts seat-confirm-acts--stack">
+              {canRaiseOnArchive && (
+                <button type="button" className="seat-btn seat-btn-primary" onClick={() => archiveNow(true)}>
+                  {preDeliver ? '전달·올림까지 하고 완료' : '올림도 체크하고 완료'}
+                </button>
+              )}
+              <button type="button" className="seat-btn" onClick={() => archiveNow(false)}>올리지 않고 완료만</button>
+              <button type="button" className="seat-btn" onClick={() => setArchivePrompt(false)}>취소</button>
             </div>
           </div>
         </div>
