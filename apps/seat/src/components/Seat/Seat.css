@@ -304,6 +304,15 @@
   gap: 0;
   margin: 0 0 8px;
   border-bottom: 1px solid var(--md-outline-variant);
+  /* ★상단 고정(유저 지시 2026-08-08) — 표를 길게 스크롤해도 «지금 어느 리스트를 보는 중인지» 가 계속 보인다.
+     스크롤 컨테이너는 .seat-main. 표 헤더(.seat-row-head)도 sticky 라 그 위에 얹히도록 z-index 를 더 높인다.
+     box-shadow 는 그림자가 아니라 «아래 8px 여백을 배경색으로 메우는» 용도 — 안 그러면 탭바와 헤더 사이
+     8px 틈으로 스크롤되는 행이 비친다. */
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--md-surface);
+  box-shadow: 0 8px 0 0 var(--md-surface);
 }
 .seat-tab {
   position: relative;
@@ -472,7 +481,8 @@
    ★sticky: 표를 스크롤해도 헤더가 상단에 고정된다(유저 지시 2026-08-01). */
 .seat-row-head {
   position: sticky;
-  top: 0;
+  /* 탭바(sticky, 48px + 아래 여백 8px)가 위에 있으므로 그만큼 내려서 붙는다 — 두 sticky 가 겹치지 않게. */
+  top: var(--seat-tabs-h, 56px);
   z-index: 3;
   grid-template-areas: "tno tord hg1 hg2 hg3 confirm memo del";
   min-height: 44px;
