@@ -187,28 +187,29 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
         )}
         {/* 같은 번호가 여러 개면 리스트에서 -a,-b 로 구분(중복 허용). */}
         {dupSuffix ? <span className="seat-no-suffix">-{dupSuffix}</span> : null}
-        {/* ★한 테이블링 번호에 주문번호(영수증)가 여러 장 걸리는 경우 — 같은 번호로 줄을 하나 더 만든다.
-            새 줄은 groupByQueue 로 이 줄 바로 아래에 붙어 보인다(유저 지시 2026-08-03). */}
-        {onAddSibling && order.queue_no > 0 && (
+        {/* 번호 아래 줄의 버튼 2종(유저 지시 2026-08-08 — 큰 숫자 옆에 붙어 번호 폭을 잡아먹던 걸 아래로 뗐다).
+            · [+]  = 같은 테이블링 번호로 줄 하나 더(한 번호에 영수증 여러 장). 새 줄은 groupByQueue 로 바로 아래에 붙는다.
+            · [취소/복구] = 자리대기 취소. 삭제와 달리 표에 기록으로 남고 되살릴 수 있다(스테이션 대기에서는 빠진다). */}
+        <div className="seat-no-acts">
+          {onAddSibling && order.queue_no > 0 && (
+            <button
+              type="button"
+              className="seat-no-btn seat-no-add"
+              aria-label="이 번호로 주문 추가"
+              title="이 테이블링 번호로 주문(영수증) 한 줄 더"
+              onClick={() => onAddSibling(order)}
+            >+</button>
+          )}
           <button
             type="button"
-            className="seat-no-btn seat-no-add"
-            aria-label="이 번호로 주문 추가"
-            title="이 테이블링 번호로 주문(영수증) 한 줄 더"
-            onClick={() => onAddSibling(order)}
-          >+</button>
-        )}
-        {/* 자리대기 취소 — 대기하다 그냥 가시는 손님(유저 지시 2026-08-03). 삭제와 달리 표에 기록으로 남고
-            다시 누르면 되살아난다. 취소된 줄은 스테이션 '자리후(대기)'에서 빠진다. */}
-        <button
-          type="button"
-          className={`seat-no-btn seat-no-cancel${canceled ? ' is-on' : ''}`}
-          aria-label={canceled ? '자리대기 취소 되돌리기' : '자리대기 취소'}
-          title={canceled ? '취소 되돌리기' : '자리대기 취소(손님이 대기 포기)'}
-          onClick={() => patch(canceled
-            ? { seat_status: order.raised ? 'raised' : 'pending', seat_order_alive: true }
-            : { seat_status: 'canceled', seat_order_alive: false })}
-        >{canceled ? '복구' : '취소'}</button>
+            className={`seat-no-btn seat-no-cancel${canceled ? ' is-on' : ''}`}
+            aria-label={canceled ? '자리대기 취소 되돌리기' : '자리대기 취소'}
+            title={canceled ? '취소 되돌리기' : '자리대기 취소(손님이 대기 포기)'}
+            onClick={() => patch(canceled
+              ? { seat_status: order.raised ? 'raised' : 'pending', seat_order_alive: true }
+              : { seat_status: 'canceled', seat_order_alive: false })}
+          >{canceled ? '복구' : '취소'}</button>
+        </div>
       </div>
 
       <div className="seat-cell seat-cell-order">

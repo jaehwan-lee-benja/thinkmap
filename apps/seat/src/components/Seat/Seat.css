@@ -543,7 +543,10 @@
   touch-action: none;
 }
 .seat-drag-handle:active { cursor: grabbing; }
-.seat-cell-no { gap: 2px; flex-wrap: nowrap; } /* 핸들+입력 한 줄, 최소 간격 */
+.seat-cell-no { gap: 2px 2px; flex-wrap: wrap; } /* 핸들+입력 한 줄 / 버튼은 아랫줄 */
+/* ★[+]·[취소] = 번호 «아래» 줄(유저 지시 2026-08-08). flex-basis 100% 로 강제 줄바꿈 →
+   큰 숫자(32px)가 폭을 온전히 쓰고, 버튼은 그 밑에 가운데로 모인다. */
+.seat-no-acts { flex: 1 0 100%; display: flex; justify-content: center; gap: 4px; margin-top: 2px; }
 /* 확인 = 세로 2칸(확인필요/확인완료), 세로 가운데. */
 .seat-cell-confirm { flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .seat-cell-confirm .seat-check { white-space: nowrap; }
