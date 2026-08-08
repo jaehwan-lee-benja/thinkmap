@@ -146,7 +146,11 @@ export default function CustomerView({ store }) {
 
   return (
     <div className="mk-screen mk-customer-view">
-      <IdleReset enabled armed={!isHome} />
+      {/* ★첫 페이지도 **15초**(유저 지시 2026-08-08: 「첫 페이지에서 번호를 눌렀다면 15초 카운트가
+          또 이뤄질 수 있게」). 키를 누를 때마다 리셋되고, 만료 시 입력이 프리필로 돌아간다.
+          ⇒ **반쯤 친 번호가 다음 손님에게 남아 있는 것**을 막는 축이기도 하다(가림과 같은 목적).
+          홈(프리필만)에서는 여전히 무장하지 않는다 — 되돌릴 것이 없는 화면에 카운트다운은 불안만 준다. */}
+      <IdleReset enabled armed={!isHome} sec={15} warn={15} />
       {/* 조회 전 재확인 시트 — 오늘 만든 시트 문법과 통일(아래에서 올라옴·전체폭). */}
       {confirmNum && (
         <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="번호 확인"
