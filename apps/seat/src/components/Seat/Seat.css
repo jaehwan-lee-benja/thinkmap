@@ -279,7 +279,11 @@
 .seat-settings-row-label { font-weight: 500; }
 .seat-settings-row-hint { color: var(--md-on-surface-variant); opacity: .8; }
 
-.seat-main { flex: 1 1 auto; overflow: auto; padding: 16px; }
+/* ★스크롤 컨테이너에는 패딩을 두지 않는다(2026-08-08 긴급 수정).
+   패딩이 있으면 sticky 자식이 «패딩만큼 아래»에 멈춰 상단에 빈 띠가 생긴다 —
+   유저 신고 「상단탭 고정 아래로 좀 내려와있어」의 원인. 같은 16px 여백은 화면(.seat-screen)이 갖는다. */
+.seat-main { flex: 1 1 auto; overflow: auto; padding: 0; }
+.seat-screen { padding: 16px; }
 
 /* 레이아웃 — mobile-first: 기본 1열, 넓은 화면 2열. */
 .seat-screen-grid { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
@@ -312,7 +316,9 @@
 .seat-tabs {
   display: flex;
   gap: 0;
-  margin: 0 0 var(--seat-tab-gap);
+  /* 좌우는 화면 패딩(16px)을 음수 마진으로 덮어 전폭 바로. 위쪽은 화면 패딩이 탭바 위로 스크롤돼 사라진다. */
+  margin: 0 -16px var(--seat-tab-gap);
+  padding: 0 16px;
   border-bottom: 1px solid var(--md-outline-variant);
   /* ★상단 고정(유저 지시 2026-08-08) — 표를 길게 스크롤해도 «지금 어느 리스트를 보는 중인지» 가 계속 보인다.
      스크롤 컨테이너는 .seat-main. 표 헤더(.seat-row-head)도 sticky 라 그 위에 얹히도록 z-index 를 더 높인다.
