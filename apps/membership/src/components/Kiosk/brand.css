@@ -4,17 +4,21 @@
 /* G마켓산스(본문) — ★self-host(외부 CDN 금지, 표준=self-host·CSP·오프라인·안정성).
    design 대시보드와 동일 TTF 파일 재사용(public/fonts/). base 하위이므로 상대경로 './fonts/'. */
 /* ★weight 범위로 300~700 전 구간 커버 — 본문 기본 400 도 Medium face 로 매핑(폴백 폰트 섞임 방지). */
+/* ★경로는 **상대**여야 한다(2026-08-08). 종전엔 `/thinkmap/membership/fonts/…` 로 **gh-pages 경로가
+   하드코딩**돼 있었다 — base 가 다른 어떤 배포(Storage·cf-pages 루트·다른 하위경로)에서도 폰트가 404 라
+   브랜드 서체가 통째로 시스템 폰트로 떨어진다. 상대 경로로 두면 vite 가 base 에 맞춰 다시 쓴다.
+   ⇒ 이를 위해 폰트를 `public/` 에서 `src/fonts/` 로 옮겼다(public 은 vite 가 경로를 안 고쳐준다). */
 @font-face {
   font-family: 'GmarketSans'; font-weight: 100 349; font-style: normal; font-display: swap;
-  src: url('/thinkmap/membership/fonts/GmarketSansTTFLight.ttf') format('truetype');
+  src: url('../../fonts/GmarketSansTTFLight.ttf') format('truetype');
 }
 @font-face {
   font-family: 'GmarketSans'; font-weight: 350 599; font-style: normal; font-display: swap;
-  src: url('/thinkmap/membership/fonts/GmarketSansTTFMedium.ttf') format('truetype');
+  src: url('../../fonts/GmarketSansTTFMedium.ttf') format('truetype');
 }
 @font-face {
   font-family: 'GmarketSans'; font-weight: 600 900; font-style: normal; font-display: swap;
-  src: url('/thinkmap/membership/fonts/GmarketSansTTFBold.ttf') format('truetype');
+  src: url('../../fonts/GmarketSansTTFBold.ttf') format('truetype');
 }
 
 /* ★웹 타이틀 = G마켓산스 Bold 확정(유저결정 2026-07-27) — 오동통/Cafe24 웹대체 안 씀(오동통=인쇄물 전용, design).
