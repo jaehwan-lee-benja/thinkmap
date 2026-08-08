@@ -927,7 +927,8 @@
 @media (prefers-reduced-motion: reduce) { .mk-signup-btn:active { transform: none; } }
 
 /* 선화 영수증 아이콘 — 이모지 대신(브랜드 선화 세계와 결 맞춤). 크기는 종전 이모지 자리와 동등. */
-.mk-pick-ico-svg { width: clamp(38px, 7.5vw, 56px); height: auto; display: block; }
+.mk-pick-ico-svg { flex: 0 0 auto; width: clamp(38px, 7.5vw, 56px); height: auto; display: block; }
+/* ★flex 축소 금지 — 세로로 쌓은 버튼에서 높이가 모자라면 flex 가 아이콘을 납작하게 눌러 «실 같은 선»이 된다(실측). */
 
 /* 직원 허브 — 스캔 대기 표시·스캔 결과 영역 */
 .mk-scan-ready { font-size: 15px; color: var(--md-on-surface-variant); }
@@ -1170,14 +1171,18 @@
   font-size: 15px; line-height: 1.5; text-align: center;
 }
 
-/* ★인라인 펼침 중에는 본문을 **한 칸으로 넓힌다.**
-   세로 결과화면의 좌측 칸은 320px 대라 2택을 그 안에 넣으면 «종이로/인쇄/하기»로 끊긴다(실측 2회).
-   좁은 칸에 맞춰 부품을 줄이는 대신 **칸을 넓혔다** — 그 순간의 주 과업이 «참여권 받기»이기 때문이다.
-   참여 내역은 잠시 접고, 선택이 끝나면 원래 2단으로 돌아온다. */
+/* ★A안 — 카드 안 아코디언. 좁은 칸(세로 결과화면 좌측, 320px 대)에서는 2택을 **위아래로 쌓는다.**
+   ⚠직전 시도가 겹쳐 보인 이유: 쌓으면서 버튼 내부까지 가로로 바꿨다(min-height:0 + row).
+     버튼 **내부 배치는 건드리지 않는다** — 칸을 꽉 쓰게만 하면 «종이로/인쇄하기» 두 줄이 그대로 들어간다.
+   칸을 넓히거나 참여내역을 접지 않는다(유저 확정: 나머지 화면은 그대로). */
 @media (orientation: portrait) {
-  .mk-role-customer .mk-member-card-hero.mk-picking .mk-member-body {
-    grid-template-columns: 1fr;
-    grid-template-areas: "events" "foot";
-  }
-  .mk-role-customer .mk-member-card-hero.mk-picking .mk-history-wrap { display: none; }
+  .mk-role-customer .mk-pick-inline { padding: 12px 10px; }
+  .mk-role-customer .mk-pick-inline .mk-pick-row { flex-direction: column; gap: 10px; }
+  /* ★가로 2열용 `flex: 1 1 0` 이 **세로로 쌓으면 «높이 0에서 시작»** 이 된다(column 축에서 basis 는 높이).
+     그래서 버튼이 내용보다 작게 눌리고 아이콘·라벨이 밖으로 삐져나왔다(실측 2회, 스크린샷으로 확인).
+     ⇒ 쌓을 때는 **높이를 내용이 정하게** 한다. */
+  .mk-role-customer .mk-pick-inline .mk-pick-btn,
+  .mk-role-customer .mk-pick-inline .mk-pick-panel { flex: 0 0 auto; min-height: 0; padding: 16px 12px; }
+  .mk-role-customer .mk-pick-inline .mk-pick-qr { width: clamp(110px, 18vh, 150px); }
+  .mk-role-customer .mk-pick-inline .mk-pick-q { font-size: clamp(17px, 3.2vw, 22px); }
 }

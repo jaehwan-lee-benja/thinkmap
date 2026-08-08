@@ -147,10 +147,11 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   const rewardsAvail = stamp?.rewards_available ?? 0
 
   return (
-    /* ★`mk-picking` = 2택이 펼쳐진 동안. 이때는 본문을 **한 칸으로 넓혀** 준다(아래 CSS) —
-       세로 결과화면의 좌측 칸은 320px 대라 그 안에서는 «종이로/인쇄/하기»가 한 글자씩 끊긴다(실측).
-       참여 내역은 그 순간의 관심사가 아니므로 잠시 접는다 — 선택하면 돌아온다. */
-    <div className={`mk-card mk-member-card ${variant === 'hero' ? 'mk-member-card-hero' : ''}${pickOpen ? ' mk-picking' : ''}`}>
+    /* ★A안(유저가 그림으로 확정, 2026-08-08): **카드 안 아코디언**.
+       누른 카드가 아래로 늘어나며 그 안에 선택지가 나타나고, **아래 내용만 밀려 내려간다.**
+       나머지 화면(참여내역 등)은 **그대로 둔다** — 직전 판(본문 한 칸 확장 + 참여내역 접기)은
+       «재배치»라 의도와 달랐다. 좁은 칸 문제는 **카드 안에서** 세로로 쌓아 푼다(칸을 넓히지 않는다). */
+    <div className={`mk-card mk-member-card ${variant === 'hero' ? 'mk-member-card-hero' : ''}`}>
       <div className="mk-member-hero">
         <div className="mk-member-badge-row">
           <span className="mk-member-badge">멤버십 회원</span>
