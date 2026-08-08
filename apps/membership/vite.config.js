@@ -3,6 +3,19 @@ import react from '@vitejs/plugin-react'
 import legacy from '@vitejs/plugin-legacy'
 import postcssCustomProperties from 'postcss-custom-properties'
 import { fileURLToPath } from 'node:url'
+import { execSync } from 'node:child_process'
+
+// ★배포 버전 스탬프(유저 지시 2026-08-08: 「하단에 연한 회색으로 배포 버전 번호」).
+//   빌드 시점의 git short hash + 날짜를 인라인한다. **배포 검증에도 쓴다** —
+//   유저가 화면만 보고 «새 버전이 반영됐나»를 판별할 수 있게 되면, 번들 해시 폴링에 의존하지 않아도 된다.
+//   ⚠git 이 없거나 실패해도 빌드는 멈추지 않는다(스탬프는 보조 정보다).
+function buildStamp() {
+  let sha = 'local'
+  try { sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || 'local' } catch (e) { /* noop */ }
+  const d = new Date()
+  const p2 = (n) => String(n).padStart(2, '0')
+  return `${sha} · ${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+}
 
 // 멤버십 키오스크(Membership) 위성. base=/thinkmap/membership/(gh-pages 하위폴더),
 // envDir=레포루트(공유 .env=thinkmap DB=직원 인증용). 회원 데이터는 crm(로컬 RPC 1-hop).
@@ -40,6 +53,7 @@ export default defineConfig({
     target: 'es2015',
     cssTarget: 'chrome61', // CSS 최소화 시 최신 문법(#RGBA 등)으로 다시 낮추지 않게
   },
+  define: { __MK_BUILD__: JSON.stringify(buildStamp()) },
   base: process.env.APP_BASE || '/thinkmap/membership/',
   envDir: '../../',
   server: { host: '0.0.0.0', port: 5178 },

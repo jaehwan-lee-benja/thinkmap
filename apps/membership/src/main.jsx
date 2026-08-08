@@ -5,6 +5,7 @@ import './components/Kiosk/brand.css'         // ★정본 웹폰트(G마켓산�
 import './index.css'
 import MembershipApp from './MembershipApp.jsx'
 import MembershipKiosk from './components/Kiosk/MembershipKiosk.jsx'
+import BuildStamp from './components/Kiosk/BuildStamp.jsx'
 
 import { initTheme } from '@thinkmap/core'
 initTheme()
@@ -36,6 +37,9 @@ const isTicket = new URLSearchParams(window.location.search).get('role') === 'ti
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     {isTicket ? <MembershipKiosk session={null} /> : <MembershipApp />}
+    {/* ★여기 두면 **로그인 화면·대기 화면·티켓 화면까지 전부** 덮는다 — «지금 화면이 어느 버전인가»는
+        키오스크 안에서만 궁금한 게 아니다(로그인 단계에서 구버전에 걸려 있던 적이 있다). */}
+    <BuildStamp />
   </StrictMode>,
 )
 

@@ -1186,3 +1186,12 @@
   .mk-role-customer .mk-pick-inline .mk-pick-qr { width: clamp(110px, 18vh, 150px); }
   .mk-role-customer .mk-pick-inline .mk-pick-q { font-size: clamp(17px, 3.2vw, 22px); }
 }
+
+/* 배포 버전 스탬프 — 아주 연하게, 아무것도 가리지 않게(우하단 고정 · 클릭 통과). */
+.mk-build {
+  position: fixed; right: 8px; bottom: 6px; z-index: 1400;
+  pointer-events: none; user-select: none;
+  font-size: 11px; line-height: 1.2; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+  color: #9A9AA0; opacity: .55;
+}
