@@ -1188,8 +1188,10 @@
 }
 
 /* 배포 버전 스탬프 — 아주 연하게, 아무것도 가리지 않게(우하단 고정 · 클릭 통과). */
+/* ★우상단으로 옮겼다(유저 2026-08-08: 「스크롤에 영향을 덜 받으려면 오른쪽 위도 좋겠다」).
+   하단은 카운트다운 막대·가입 버튼·시트가 지나는 자리라 겹칠 일이 계속 생긴다 — 위는 조용하다. */
 .mk-build {
-  position: fixed; right: 8px; bottom: 6px; z-index: 1400;
+  position: fixed; right: 8px; top: 6px; z-index: 1400;
   pointer-events: none; user-select: none;
   font-size: 11px; line-height: 1.2; letter-spacing: .02em;
   font-variant-numeric: tabular-nums;
@@ -1198,3 +1200,5 @@
 /* 사람이 읽는 판 번호는 조금 진하게, hash 는 더 연하게(각자 쓰는 사람이 다르다). */
 .mk-build b { font-weight: 700; }
 .mk-build-sha { opacity: .6; }
+/* 프리뷰 배너(dev)가 있을 때만 그 아래로 — 프로덕션엔 배너가 없어 이 규칙이 걸리지 않는다. */
+body:has(.mk-preview-bar) .mk-build { top: 32px; }
