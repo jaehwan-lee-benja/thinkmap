@@ -1195,3 +1195,6 @@
   font-variant-numeric: tabular-nums;
   color: #9A9AA0; opacity: .55;
 }
+/* 사람이 읽는 판 번호는 조금 진하게, hash 는 더 연하게(각자 쓰는 사람이 다르다). */
+.mk-build b { font-weight: 700; }
+.mk-build-sha { opacity: .6; }
