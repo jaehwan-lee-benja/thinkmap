@@ -82,7 +82,8 @@ export default function StaffView({ store }) {
           <div className="mk-placeholder mk-staff-idle">스캔하면<br />여기에 결과가 나옵니다.</div>
         ) : (
           <>
-            <ScanResultPanel scan={scanState} printMsg={printMsg} setPrintMsg={setPrintMsg} />
+            {/* ★직원 허브엔 영수증 인쇄를 두지 않는다(유저 2026-08-08). `?role=scan`(프린터 기기)에는 남아 있다. */}
+            <ScanResultPanel scan={scanState} printMsg={printMsg} setPrintMsg={setPrintMsg} allowPrint={false} />
             <button className="mk-reset" onClick={scanState.reset}>스캔 결과 닫기</button>
           </>
         )}

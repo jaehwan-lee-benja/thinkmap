@@ -6,6 +6,16 @@ import { printReceipt } from '../../receipt/print'
 import { buildTicketUrl } from './ticketLink'
 
 const EVENT_LABEL = '팝콘 이벤트'   // 이벤트명(태그 강조). 이벤트가 늘면 엔티티로 확장.
+// ★펼침 화살표는 **SVG**로 그린다(문자 ▼ 아님). 8/08 에 문자 ●을 UI 부품으로 썼다가
+//   폰트 폴백으로 크기·기준선이 흔들려 하이픈까지 짓눌린 일이 있었다 — 같은 함정을 반복하지 않는다.
+function Caret({ up }) {
+  return (
+    <svg className={`mk-caret ${up ? 'is-up' : ''}`} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크림(시안, 데이터모델=crm 조율).
 
 // ★재인쇄 정책(2026-08-08 **오전 지시의 정밀화** — 유저: 「바코드를 읽힌 고객이 아니라면 종이 영수증
@@ -26,6 +36,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   const [printMsg, setPrintMsg] = useState('')
   // ★발권 후 «2택» 상태(2026-08-06 유저 지시): null=아직 안 고름 | 'paper' | 'phone'
   const [choice, setChoice] = useState(null)
+  const [pickCollapsed, setPickCollapsed] = useState(false)   // 아코디언 접기(화살표 어포던스)
   // ★모달 트리거 = «이벤트 참여하기» 클릭 유래일 때만(2026-08-06 정정).
   //   종전엔 티켓만 있으면 떴다 → **조회만 했는데** 오늘 이미 발권된 손님에게 모달이 튀어나왔다.
   //   (재방문·재조회 때마다 «어떻게 받으시겠어요?»가 뜨는 건 손님에게 뜬금없다.)
@@ -152,7 +163,27 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
         <div className="mk-event-section">
           <div className="mk-event-label">멤버십 이벤트</div>
           {claimedToday ? (
-            <div className="mk-event-done">오늘({today}) 참여 완료 ✓</div>
+            /* ★스캔(사용) 완료 회원(유저 2026-08-08): 완료 안내를 앞에 두고, 인쇄·QR 은 **흐릿하게
+               비활성으로 배경에 남긴다** — «없어진 것»이 아니라 «끝난 것»으로 읽히게 한다. */
+            <>
+              <div className="mk-event-done">오늘은 이미 이벤트 참여가 완료되었네요!<br />참여 감사합니다 🙏</div>
+              <div className="mk-pick-inline is-done" aria-hidden="true">
+                <div className="mk-pick-row">
+                  <div className="mk-pick-btn" role="presentation">
+                    <svg className="mk-pick-ico-svg" viewBox="0 0 48 56">
+                      <path d="M8 4h32v44l-4-3-4 3-4-3-4 3-4-3-4 3-4-3-4 3z" fill="none" stroke="currentColor"
+                        strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
+                      <path d="M15 16h18M15 24h18M15 32h11" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+                    </svg>
+                    <span className="mk-pick-label">종이로<br />인쇄하기</span>
+                  </div>
+                  <div className="mk-pick-panel">
+                    <span className="mk-pick-label">폰으로 받기</span>
+                    <div className="mk-pick-qr mk-pick-qr-off" />
+                  </div>
+                </div>
+              </div>
+            </>
           ) : issuedTicket ? (
             /* 발권됨(수령 대기) — 카운터 회수 시 스탬프 확정. 토큰=수기 입력 검증 경로(인쇄는 현장 확정 대기). */
             <div className="mk-ticket">
@@ -181,8 +212,14 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
                   손님이 «어디를 눌렀고 무엇이 열렸는지»를 위치로 안다. 2택 비대칭(폰=QR 즉시·종이=버튼)은 유지. */}
               {pickFlow && claimedToken === printToken && !choice && (
                 <div className="mk-pick-inline" role="group" aria-label="참여권 받는 방법 선택">
-                  <div className="mk-pick-q">참여권을 어떻게 받으시겠어요?</div>
-                  <div className="mk-pick-row">
+                  {/* ★헤더가 토글이다 — 펼친 상태는 ▲, 누르면 접히고 ▼ 로 바뀐다(표준 아코디언). */}
+                  <button type="button" className="mk-pick-toggle"
+                    aria-expanded={!pickCollapsed}
+                    onClick={() => setPickCollapsed((v) => !v)}>
+                    <span className="mk-pick-q">참여권을 어떻게 받으시겠어요?</span>
+                    <Caret up={!pickCollapsed} />
+                  </button>
+                  <div className="mk-pick-row" hidden={pickCollapsed}>
                     {/* 종이 = 버튼. ★이미 인쇄한 토큰이면 누를 수 없다(1회 정책) — 버튼 자리에 안내를 둔다. */}
                     <button type="button" className="mk-pick-btn"
                       onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
@@ -256,6 +293,8 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
               <button className="mk-claim-btn" onClick={handleClaim} disabled={claiming || !onClaim}>
                 <span className="mk-claim-main">
                   {claiming ? '발권 중…' : <>사르르 <span className="mk-evt-tag">{EVENT_LABEL}</span> 참여</>}
+                  {/* ★«누르면 아래로 펼쳐진다»를 생김새로 예고한다(유저 2026-08-08). */}
+                  {!claiming && <Caret />}
                 </span>
                 {!claiming && <span className="mk-claim-sub">눌러서 참여권 받기</span>}
               </button>

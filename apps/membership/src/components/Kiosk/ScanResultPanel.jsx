@@ -4,7 +4,10 @@ import { printReceipt } from '../../receipt/print'
 import { todayStr } from './kioskUtils'
 import { STATE_LABEL, CHANNEL_LABEL } from './useTicketScan'
 
-export default function ScanResultPanel({ scan, printMsg, setPrintMsg }) {
+// ★allowPrint — 직원 허브에서는 «영수증 인쇄»를 뺀다(유저 2026-08-08: 「직원 화면에서는 필요없는 기능」).
+//   ⚠`?role=scan`(프린터가 붙은 카운터 기기)에서는 **유지**한다: 그쪽은 실제로 종이를 뽑는 자리이고,
+//   손님이 «직원에게 문의»로 넘어오는 복구 경로다. 화면마다 다른 걸 **프롭 하나로** 가른다(복제 금지).
+export default function ScanResultPanel({ scan, printMsg, setPrintMsg, allowPrint = true }) {
   const { result, phase, errMsg, busy, doRedeem } = scan
   const stamp = result?.stamp
   return (
@@ -36,18 +39,20 @@ export default function ScanResultPanel({ scan, printMsg, setPrintMsg }) {
             </button>
           )}
           {/* ★영수증 인쇄 — 이 기기(프린터 붙은 폰)에서 바로 출력. 실시간 브리지가 꺼져 있어도
-              토큰만 있으면 언제든 인쇄 가능한 **복구 경로**(게이트 없음). */}
-          <button
-            className="mk-reset"
-            onClick={() => {
-              const r = printReceipt({
-                name: result.display_name || '', date: result.event_date || todayStr(),
-                token: result.token,
-                stamp: stamp ? `${stamp.current_stamps}/${stamp.threshold}` : '',
-              })
-              setPrintMsg(r.ok ? '인쇄를 요청했습니다 — 종이가 나오는지 확인하세요.' : '인쇄를 시작하지 못했습니다 — RawBT·프린터 연결 확인')
-            }}
-          >영수증 인쇄</button>
+              토큰만 있으면 언제든 인쇄 가능한 **복구 경로**(게이트 없음). 직원 허브에서는 숨긴다(allowPrint). */}
+          {allowPrint && (
+            <button
+              className="mk-reset"
+              onClick={() => {
+                const r = printReceipt({
+                  name: result.display_name || '', date: result.event_date || todayStr(),
+                  token: result.token,
+                  stamp: stamp ? `${stamp.current_stamps}/${stamp.threshold}` : '',
+                })
+                setPrintMsg(r.ok ? '인쇄를 요청했습니다 — 종이가 나오는지 확인하세요.' : '인쇄를 시작하지 못했습니다 — RawBT·프린터 연결 확인')
+              }}
+            >영수증 인쇄</button>
+          )}
           {printMsg && <div className="mk-scan-stamp">{printMsg}</div>}
           {/* ★2026-08-06 수정: 여기서 `setResult/setPhase/setErrMsg/setBuf` 를 직접 불렀는데
               **이 컴포넌트 스코프에 없는 식별자**였다(허브 통합 때 ScanView 본문에서 옮겨오며 딸려온 코드).
