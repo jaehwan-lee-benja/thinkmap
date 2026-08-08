@@ -26,6 +26,8 @@ export default function CustomerView({ store }) {
   const [confirmNum, setConfirmNum] = useState(null)
   // ★QR 국면 여부는 MemberCard 만 안다(그 안의 선택 상태) — 유휴 시간을 정하는 건 화면 소유자인 여기다.
   const [dwell, setDwell] = useState(false)
+  // ★가입 직후 진입 여부 — 조회가 «못 찾음»으로 와도 미회원 화면을 띄우면 안 된다(바로 아래 주석).
+  const [justSignedUp, setJustSignedUp] = useState(false)
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear, setMemberDirect } = useMemberLookup()
 
   // 원격 푸시(직원 → 고객). 로컬과 같은 currentMember 로 세팅.
@@ -51,7 +53,15 @@ export default function CustomerView({ store }) {
     return r
   }
 
-  const resetAll = () => { setDigits(PHONE_PREFILL); clear() }
+  const resetAll = () => { setDigits(PHONE_PREFILL); clear(); setJustSignedUp(false) }
+
+  // 가입 완료 → 그 번호로 바로 조회해 «자기 페이지»로 들여보낸다.
+  const enterAfterSignup = (phone) => {
+    setShowSignup(false)
+    setDigits(phone)
+    setJustSignedUp(true)
+    lookup(phone)
+  }
 
   // ★«홈»의 정의: 가입폼 아님 + 조회 전 + 입력이 프리필뿐.
   //   ⚠︎프리필(`010`)은 **손님이 누른 게 아니다** — 그래서 «입력 있음»으로 치지 않는다.
@@ -69,7 +79,7 @@ export default function CustomerView({ store }) {
     return (<>
       {/* 가입 폼은 **길게**(120초) — 타이핑 중에 화면이 날아가면 안 된다. */}
       <IdleReset enabled armed sec={120} />
-      <CustomerSignupScreen initialPhone={digits} onDone={() => { setShowSignup(false); resetAll() }} />
+      <CustomerSignupScreen initialPhone={digits} onEnter={enterAfterSignup} onDone={() => { setShowSignup(false); resetAll() }} />
     </>)
   }
 
@@ -94,6 +104,30 @@ export default function CustomerView({ store }) {
   //   유휴 복귀는 **30초**: 여기엔 남의 정보가 없고, 읽고 «가입하기»를 누를 시간이 필요하다
   //   (조회 결과의 10초를 그대로 쓰면 결정하기 전에 화면이 사라진다).
   if (status === 'notfound') {
+    // ★★가입 직후에 «못 찾음»이 오는 경우 — **미회원 화면을 띄우면 안 된다.**
+    //   원인은 손님이 아니라 우리 쪽이다: 신규 가입은 crm 에서 canonical 승격 전까지 조회에 안 잡힌다
+    //   (2026-08-08 실측 — `membership_intake` 가 POS 이력 없는 번호를 `pending/canonical_id=null` 로 넣고,
+    //    `membership_query` 는 canonical 연결을 요구한다. 승격 배치는 7/25 이후 안 돌았다).
+    //   방금 「가입 완료 🎉」를 본 손님에게 「아직 회원이 아니시네요」를 보이면 **거짓말이 된다** ⇒ 갈라 준다.
+    if (justSignedUp) {
+      return (
+        <div className="mk-screen mk-customer-view mk-none-view">
+          <IdleReset enabled armed sec={30} warn={15} />
+          <div className="mk-card mk-none-card">
+            <img className="mk-none-mark" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="" aria-hidden="true" />
+            <div className="mk-none-title">가입이 완료됐어요!</div>
+            <div className="mk-none-num">{formatPhone(digits)}</div>
+            <p className="mk-none-sub">조회 준비가 끝나면 이 번호로 확인하실 수 있어요.<br /><b>직원에게 말씀해 주시면</b> 바로 확인해 드립니다.</p>
+            <div className="mk-none-acts">
+              <button type="button" className="mk-none-btn is-primary" onClick={resetAll}>
+                <span className="mk-none-btn-label">처음으로</span>
+                <span className="mk-none-btn-sub">첫 화면으로 돌아가기</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="mk-screen mk-customer-view mk-none-view">
         <IdleReset enabled armed sec={30} warn={15} />

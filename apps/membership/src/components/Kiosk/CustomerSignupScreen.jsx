@@ -15,7 +15,9 @@ const CONSENT_TEXT =
 
 // ★initialPhone: 미회원 조회 결과에서 [가입하기]로 넘어올 때 **친 번호를 그대로 들고 온다**
 //   (2026-08-08 유저 지시). 손님이 방금 누른 11자리를 다시 누르게 하는 건 어르신 기준에서 특히 나쁘다.
-export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
+// ★onEnter(phone): 가입 성공 후 **그 번호로 바로 자기 페이지(조회 결과)로 진입**시킨다
+//   (유저 2026-08-08: 「회원가입이 되면 바로 자기 페이지로 가야하는데 대기화면으로 가더라」).
+export default function CustomerSignupScreen({ onDone, onEnter, initialPhone = '010' }) {
   const [digits, setDigits] = useState(initialPhone || '010')
   const [padOpen, setPadOpen] = useState(false)
   const [domOpen, setDomOpen] = useState(false)
@@ -60,7 +62,8 @@ export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
       //   ⚠**`dup:true` 는 «이미 회원»이라 새로 저장된 게 없다.** 종전엔 이걸 그대로 «가입 완료 🎉»로
       //   보여줬다 — 유저가 겪은 «축하까지 봤는데 가입이 안 됐다»의 정체다(실측: 그 번호는 7/26 에 이미
       //   등록돼 있었고 오늘 새 행은 생기지 않았다).
-      if (r.dup === true) { setStatus('dup'); return }
+      // ★이미 회원 — 축하할 게 없다. 안내를 읽히기보다 **바로 자기 페이지로** 들여보낸다.
+      if (r.dup === true) { if (onEnter) { onEnter(digits); return } setStatus('dup'); return }
       // `merged:false` = 아직 **canonical 연결 전**(승격 배치 대기) ⇒ **지금은 조회로 안 나온다.**
       //   손님에게 «바로 조회된다»고 약속하지 않는다 — 직원 경로로 안내한다.
       setPending(r.merged === false)
@@ -94,7 +97,8 @@ export default function CustomerSignupScreen({ onDone, initialPhone = '010' }) {
           <p>사르르목장 멤버십에 오신 것을 환영합니다!</p>
           {/* ★조회가 «지금»은 안 되는 경우를 숨기지 않는다(승격 배치 대기). 시간을 약속하지 않고 사람에게 연결한다. */}
           {pending && <p className="mk-note">조회는 <b>직원에게 말씀해 주시면</b> 바로 확인해 드립니다.</p>}
-          <button className="mk-reset" onClick={onDone}>완료</button>
+          {/* ★[완료]가 홈이 아니라 **자기 페이지**로 간다(그게 «가입했다»의 자연스러운 다음 화면이다). */}
+          <button className="mk-reset" onClick={() => (onEnter ? onEnter(digits) : onDone())}>완료</button>
         </div>
       </div>
     )
