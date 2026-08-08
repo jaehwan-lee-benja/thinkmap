@@ -30,6 +30,10 @@
   --md-on-none: #452B00;
   --md-error: #FFB4AB;
   --md-on-error: #690005;
+  /* «완료» 전용 초록 — 브랜드 정본 그린(#3CB44B). 글자는 진한 초록으로 둬 라이트·다크 모두 대비를 확보한다
+     (흰 글자는 이 배경에서 대비 2.4:1 로 미달). 유저 지시 2026-08-08. */
+  --seat-done: #3CB44B;
+  --seat-on-done: #06300F;
 
   /* elevation (Material 3 그림자) */
   --md-elev-1: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15);
@@ -83,6 +87,8 @@
   --md-on-none: #FFFFFF;
   --md-error: #BA1A1A;
   --md-on-error: #FFFFFF;
+  --seat-done: #3CB44B;
+  --seat-on-done: #06300F;
   color-scheme: light;
 }
 
@@ -289,49 +295,73 @@
 /* 자리후 전달 체크박스: 라벨 줄바꿈 방지 */
 .seat-deliver-check { white-space: nowrap; }
 
-/* R12 «완료» 아카이브 — 표 위 [안내중] ↔ [완료] 전환. 건수 뱃지 포함. */
-.seat-tabs { display: flex; gap: 8px; margin: 0 0 8px; }
+/* R12 «완료» 아카이브 — 표 위 [안내중] ↔ [완료] 전환.
+   ★2026-08-08 «구글 설문 편집(질문/응답/설정)» 문법으로 교체(유저 지시): 알약 버튼이 아니라 **탭 바** —
+   텍스트를 나열하고 **활성 탭만 하단 굵은 언더바** + 진한 색, 비활성은 흐린 색.
+   버튼형은 '누르는 것'으로 읽혀 지금 무엇을 보는 중인지가 약했다. 언더바는 현재 위치를 즉답한다. */
+.seat-tabs {
+  display: flex;
+  gap: 0;
+  margin: 0 0 8px;
+  border-bottom: 1px solid var(--md-outline-variant);
+}
 .seat-tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid var(--md-outline-variant);
-  border-radius: var(--md-radius-full);
+  min-height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--md-on-surface-variant);
   font: inherit;
+  font-weight: 500;
   cursor: pointer;
-  transition: background var(--md-dur) var(--md-ease), color var(--md-dur) var(--md-ease);
+  transition: color var(--md-dur) var(--md-ease), background var(--md-dur) var(--md-ease);
 }
-.seat-tab.is-on {
-  border-color: transparent;
-  background: var(--md-secondary-container);
-  color: var(--md-on-secondary-container);
-  font-weight: 600;
+.seat-tab:hover { background: var(--md-surface-variant); }
+.seat-tab.is-on { color: var(--md-primary); font-weight: 700; }
+/* 활성 표시 = 하단 언더바. 셀 경계선(border-bottom) 위에 겹쳐 얹어 두 선이 어긋나 보이지 않게 -1px. */
+.seat-tab.is-on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--md-primary);
 }
-.seat-tab-n { font-variant-numeric: tabular-nums; opacity: .8; }
+.seat-tab-n { font-variant-numeric: tabular-nums; opacity: .7; font-weight: 500; }
 
-/* 안내 완료(✓) / 대기열 복귀(↩) — 삭제 셀 안, 삭제 ✕ 왼쪽. 삭제와 헷갈리지 않게 색을 나눈다. */
-.seat-arch-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-right: 4px;
-  padding: 0;
-  border: 1px solid var(--md-outline-variant);
+/* ★«완료» 버튼 — 확인 셀, 확인완료 아래(유저 지시 2026-08-08). 초록 = 브랜드 정본 그린 토큰.
+   완료 탭에서는 같은 자리가 «대기열로»(중립색) — 되돌리기는 강조할 일이 아니라 조용한 아웃라인. */
+.seat-done-btn {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 2px;
+  padding: 0 10px;
+  border: 1px solid transparent;
   border-radius: var(--md-radius-full);
-  background: transparent;
-  color: var(--md-on-surface-variant);
+  background: var(--seat-done);
+  color: var(--seat-on-done);
   font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background var(--md-dur) var(--md-ease), color var(--md-dur) var(--md-ease);
+  transition: filter var(--md-dur) var(--md-ease);
 }
-.seat-arch-btn:hover { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
-.seat-arch-btn.is-restore { border-color: transparent; background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.seat-done-btn:hover { filter: brightness(1.08); }
+.seat-done-btn:active { filter: brightness(.94); }
+.seat-done-btn.is-restore {
+  background: transparent;
+  border-color: var(--md-outline-variant);
+  color: var(--md-on-surface-variant);
+  font-weight: 500;
+}
+.seat-done-btn.is-restore:hover { background: var(--md-surface-variant); }
 
 /* 테이블링 셀의 작은 버튼 2종 — '+'(같은 번호로 줄 추가) · '취소'(자리대기 취소). 번호 입력 오른쪽에 붙는다. */
 .seat-no-btn {
