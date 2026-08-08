@@ -277,9 +277,14 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
     줄 삭제(✕)와 달리 **표에 기록으로 남고**(흐림 + 번호 취소선) 다시 누르면 되살아난다. 취소된 줄은 스테이션 '자리후(대기)'에서 빠진다.
 - **표 표시 순서** = 저장 순서(생성순) 위에 **같은 테이블링 번호끼리 인접**하게만 재배열한다(`groupByQueue`).
   DB·드래그 저장 순서는 건드리지 않는다 — 드래그 인덱스는 항상 원본 배열 기준으로 환산한다.
-- **입력칸은 로컬 draft 방식**(`SeatTextField`, 2026-08-03). 타이핑 중에는 화면이 로컬 값만 보고,
-  저장은 타이핑이 멎은 뒤(450ms) 한 번 + blur·Enter 즉시. **끝 글자 유실**(“132 → 1”, 한글 “취소 → 취”)의 구조적 원인
-  — 키 입력마다 서버 쓰기 + 그 사이 도착한 Realtime refetch·IME 조합 중 리렌더 — 를 없앤다. 화면키패드 경로는 해당 없음.
+- ★**모든 번호·텍스트 입력은 «로컬 draft» 방식** — 화면은 입력 중 로컬 값만 그리고, 저장은 입력이 멎은 뒤 + 확정(blur/Enter/닫기) 시.
+  - 표 입력칸 = `SeatTextField`(2026-08-03, 450ms). 한글 IME 조합 중에는 서버 값 미반영·sanitize 미적용.
+  - **화면키패드 = `SeatNumpad`(2026-08-08 수정, 300ms)** — 2026-08-03 수정에서 «해당 없음» 으로 **잘못 제외했던 경로**다.
+    실제로는 같은 병이었다: 키패드가 **서버에서 온 값(raw)** 을 읽어 `raw + 누른키` 를 만들고 즉시 서버로 보내는
+    read-modify-write 라, 연타하면 두 번째 키가 아직 갱신 안 된 raw 를 읽어 앞 글자가 통째로 사라졌다(“132” → “12”/“2”).
+    ▸ 수정 = 로컬 draft + **함수형 setState**(연타 순서 보장) + 닫기·언마운트 flush. 누적 로직은 순수 함수
+    `utils/numpadDraft.js` 로 분리해 단위 검증 가능하게 했다.
+    ▸ ★키패드는 **주문서관리 역할 기본 ON**(§11.2)이라, 이 경로가 곧 그 역할의 상시 입력 경로였다 — 체감 빈도가 높았던 이유.
 - **올림 셀은 체크박스 3종**(2026-08-03) — `자리앉음` · `올리기 전달` · **`한번에`**(둘을 동시에).
   실무에선 대부분 한 번에 누르게 되지만 나눠 누르는 경우도 있어 **개별 2 + 함께 1** 을 다 둔다.
   `한번에` 는 두 값이 모두 켜져야 체크로 보이고, 풀면 재확인 후 **자리앉음까지 함께** 되돌린다(건 단위 = 푸는 단위).
@@ -434,7 +439,8 @@ src/components/Seat/
     useStationOrder.js      스테이션 카드 수동 순서(워크스페이스 공유, prefs.stationOrder)
     useDemoSeat.js          프리뷰 전용 로컬 메모리 CRUD
   utils/
-    seatRules.js            R1·R4·R9·R10 파생 순수함수(isDineIn·isWaitingOrder·raiseDetailText 등)
+    seatRules.js            R1·R4·R9·R10·R11·R12 파생 순수함수(isDineIn·isWaitingOrder·raiseDetailText·isArchived 등)
+    numpadDraft.js          화면키패드 입력 누적 순수함수(applyNumpadKey) — 연타 잘림 방지의 핵심
     seatStats.js            통계 집계 순수함수(computeSeatStats·formatDuration)
 ```
 
