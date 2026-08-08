@@ -431,6 +431,16 @@ CREATE POLICY seat_station_rw ON seat_station_status FOR ALL
 - ★**세부 보기는 표시 전용**이다. 꺼도 올림 취소(R10)와 그 재확인 모달은 그대로 동작한다
   (한때 꺼면 취소 자체가 불가능했던 버그 — 2026-08-02 수정).
 
+### 11.3 터치 반응성 (아이패드 — 2026-08-08 실측)
+
+- **인터랙티브 요소는 `touch-action: manipulation`** (`.seat-app` 의 button/input/select/textarea/label).
+  `index.html` 뷰포트가 `user-scalable=yes, maximum-scale=5` 라 **더블탭 줌이 살아 있어**, 이게 없으면 Safari 가
+  두 번째 탭을 기다리느라 click 을 늦게 쏜다 = 「한 번에 안 눌리는 느낌」. 핀치 줌은 그대로 유지된다.
+  ※**드래그 핸들·열 리사이저는 `touch-action: none` 유지** — 위 선택자에 안 걸리게 span 으로 두었다.
+- **hover 효과는 `@media (hover: none)` 에서 끈다.** 터치에서는 첫 탭이 hover 로 소비되거나 손을 뗀 뒤에도
+  눌린 듯 남아 «안 눌렸나?» 로 오인된다.
+- 터치 타깃은 **≥44px**(현행 버튼 48px). 표 아래 툴바는 화면 밖에 있을 수 있으니 신고 시 **버튼이 보이는 위치인지**부터 확인.
+
 ## 12. 진입 & 컴포넌트 구조
 
 - `pageTypes.js`: `PAGE_TYPES.SEAT='seat'` + `isSeatPage()`. `INDEPENDENT_PAGE_TYPES`에 포함.
