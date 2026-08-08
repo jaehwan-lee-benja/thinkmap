@@ -304,6 +304,15 @@
   gap: 0;
   margin: 0 0 8px;
   border-bottom: 1px solid var(--md-outline-variant);
+  /* ★상단 고정(유저 지시 2026-08-08) — 표를 길게 스크롤해도 «지금 어느 리스트를 보는 중인지» 가 계속 보인다.
+     스크롤 컨테이너는 .seat-main. 표 헤더(.seat-row-head)도 sticky 라 그 위에 얹히도록 z-index 를 더 높인다.
+     box-shadow 는 그림자가 아니라 «아래 8px 여백을 배경색으로 메우는» 용도 — 안 그러면 탭바와 헤더 사이
+     8px 틈으로 스크롤되는 행이 비친다. */
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--md-surface);
+  box-shadow: 0 8px 0 0 var(--md-surface);
 }
 .seat-tab {
   position: relative;
@@ -382,6 +391,20 @@
 .seat-no-btn:hover { background: var(--md-surface-variant); }
 .seat-no-add { min-width: 30px; font-size: 16px; }
 .seat-no-cancel.is-on { border-color: transparent; background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+
+/* 완료 탭 «취소» 라벨 — 정상 완료와 즉시 구분. 붉은 아웃라인 칩(면을 채우면 삭제처럼 읽혀 과하다). */
+.seat-cancel-tag {
+  display: inline-block;
+  align-self: center;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border: 1px solid var(--md-error);
+  border-radius: var(--md-radius-full);
+  color: var(--md-error);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+}
 
 /* 자리대기 취소된 줄 — 지운 게 아니라 '대기를 접었다'는 기록. 흐리게 + 번호에 취소선. */
 .seat-row--canceled { opacity: .55; }
@@ -472,7 +495,8 @@
    ★sticky: 표를 스크롤해도 헤더가 상단에 고정된다(유저 지시 2026-08-01). */
 .seat-row-head {
   position: sticky;
-  top: 0;
+  /* 탭바(sticky, 48px + 아래 여백 8px)가 위에 있으므로 그만큼 내려서 붙는다 — 두 sticky 가 겹치지 않게. */
+  top: var(--seat-tabs-h, 56px);
   z-index: 3;
   grid-template-areas: "tno tord hg1 hg2 hg3 confirm memo del";
   min-height: 44px;
@@ -1384,14 +1408,33 @@
   background: rgba(0, 0, 0, .45);
 }
 .seat-confirm {
+  position: relative; /* 우상단 X 닫기(.seat-confirm-x) 기준 */
   width: min(420px, 100%);
   display: flex; flex-direction: column; gap: 10px;
   padding: 20px; border-radius: var(--md-radius-md);
   background: var(--md-surface-container); color: var(--md-on-surface);
   box-shadow: var(--md-elev-3);
 }
-.seat-confirm-title { font-size: 18px; font-weight: 700; }
+.seat-confirm-title { font-size: 18px; font-weight: 700; padding-right: 36px; } /* 우상단 X 자리 확보 */
 .seat-confirm-desc { font-size: 15px; color: var(--md-on-surface-variant); }
+/* 모달 우상단 X 닫기 — «닫기»를 액션 버튼으로 두지 않는다(액션과 이탈은 위계가 다르다). */
+.seat-confirm-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--md-radius-full);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.seat-confirm-x:hover { background: var(--md-surface-variant); color: var(--md-on-surface); }
 .seat-confirm-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 /* 선택지가 3개 이상인 모달(포장도고려 전달 등) — 가로로 밀지 않고 세로로 쌓아 터치 타겟을 넓게. */
 .seat-confirm-acts--stack { flex-direction: column; align-items: stretch; }

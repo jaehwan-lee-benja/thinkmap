@@ -16,6 +16,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   const [confirmOrderNo, setConfirmOrderNo] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [maybeOpen, setMaybeOpen] = useState(false) // 포장도고려 전달 갈래 선택 모달
+  const [archivePrompt, setArchivePrompt] = useState(false) // 완료 시 «올림도 체크?» 모달(R12·유저 확정 2026-08-08)
   const [orderNoApproved, setOrderNoApproved] = useState(false) // 한 번 승인하면 그 행에서는 계속 편집 가능
   const orderNoRef = useRef(null)
   const orderNoGuarded = !!order.raised && !orderNoApproved
@@ -127,6 +128,27 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
     raise_canceled: null,
   })
 
+  // ── 완료(R12) ↔ 올림 연동 (유저 확정 2026-08-08) ──────────────────────────
+  //   «완료를 눌렀는데 아직 안 올린» 줄에서만 묻는다. 나머지는 눌린 즉시 완료 — 바쁜 주방에서 매번 묻는 건 마찰이다.
+  //     · 이미 올림       → 묻지 않음(주방에 이미 나갔다)
+  //     · 올림 무효(R11 포장영수증) → 묻지 않음(올릴 게 없다)
+  //     · 자리대기 취소   → 묻지 않음(손님이 갔는데 올리면 유령 주문이 된다)
+  //   전달 전(preDeliver)이면 올림에 전달이 선행돼야 하므로 «전달+올림+완료» 를 한 번에 처리한다(R8 순서 유지).
+  //   ★단 주문번호가 없으면 전달 자체가 불가(R8) → 그 경우 올림 선택지를 막고 «완료만» 만 남긴다.
+  const needsRaiseAsk = !archived && !raiseVoid && !canceled && !order.raised
+  const canRaiseOnArchive = !!order.order_no || !preDeliver
+  const archiveNow = (withRaise) => {
+    const now = new Date().toISOString()
+    onArchive?.(order, withRaise ? {
+      ...(preDeliver ? { seat_delivered: true, delivered_at: now } : {}),
+      raised: true,
+      raised_at: order.raised_at || now,
+      seat_status: 'raised',
+      raise_canceled: null,
+    } : {})
+    setArchivePrompt(false)
+  }
+
   // 확인 신호(주문서관리 → 자리안내): 확인필요 켜짐 + 아직 확인완료 안 됨 = 하이라이트(자리안내 화면에서만).
   // 확인완료를 누르면 하이라이트만 꺼지고 확인필요 체크는 남는다(기록). 다시 확인필요를 껐다 켜면 재신호.
   const needsAttention = !!order.confirm_flag && !order.confirm_done
@@ -200,15 +222,22 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
               onClick={() => onAddSibling(order)}
             >+</button>
           )}
-          <button
-            type="button"
-            className={`seat-no-btn seat-no-cancel${canceled ? ' is-on' : ''}`}
-            aria-label={canceled ? '자리대기 취소 되돌리기' : '자리대기 취소'}
-            title={canceled ? '취소 되돌리기' : '자리대기 취소(손님이 대기 포기)'}
-            onClick={() => patch(canceled
-              ? { seat_status: order.raised ? 'raised' : 'pending', seat_order_alive: true }
-              : { seat_status: 'canceled', seat_order_alive: false })}
-          >{canceled ? '복구' : '취소'}</button>
+          {/* ★취소를 누르면 그 줄은 «완료» 쪽으로 넘어간다(유저 지시 2026-08-08) — 대기를 접은 손님은
+              더 이상 안내 대상이 아니라 대기열에 남을 이유가 없다. 완료 탭에서 «취소» 라벨로 구분된다.
+              되살리기는 완료 탭의 [대기열로] 하나로 모았다(여기서 또 '복구'를 주면 경로가 둘이 된다). */}
+          {!archived && (
+            <button
+              type="button"
+              className="seat-no-btn seat-no-cancel"
+              aria-label="자리대기 취소"
+              title="자리대기 취소(손님이 대기 포기) — 완료 탭으로 넘어갑니다"
+              onClick={() => patch({
+                seat_status: 'canceled',
+                seat_order_alive: false,
+                archived_at: new Date().toISOString(),
+              })}
+            >취소</button>
+          )}
         </div>
       </div>
 
@@ -400,11 +429,17 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             안내 동선의 마지막 칸이라 여기가 제자리다. 완료 탭에서는 같은 자리가 «대기열로»(복귀).
             ※삭제 셀에 있던 ✓ 는 제거했다 — 같은 동작이 두 곳이면 헷갈리고, 삭제 ✕ 바로 옆이라 오조작 위험도 컸다. */}
         {archived
-          ? onRestore && (
-            <button type="button" className="seat-done-btn is-restore" onClick={() => onRestore(order)}>대기열로</button>
-          )
+          ? onRestore && (<>
+            {/* 완료 탭 안에서 «정상 완료» 와 «자리대기 취소» 를 한눈에 가른다. */}
+            {canceled && <span className="seat-cancel-tag">취소</span>}
+            {/* [대기열로] = 다시 안내 대상으로. ★취소 건이면 취소 상태도 함께 푼다 — 손님이 돌아온 경우이고,
+                취소인 채로 대기열에 되돌리면 흐린 줄이 대기열에 남아 오히려 헷갈린다. */}
+            <button type="button" className="seat-done-btn is-restore" onClick={() => onRestore(order, canceled
+              ? { seat_status: order.raised ? 'raised' : 'pending', seat_order_alive: true }
+              : {})}>대기열로</button>
+          </>)
           : onArchive && (
-            <button type="button" className="seat-done-btn" onClick={() => onArchive(order)}>완료</button>
+            <button type="button" className="seat-done-btn" onClick={() => (needsRaiseAsk ? setArchivePrompt(true) : archiveNow(false))}>완료</button>
           )}
       </div>
 
@@ -437,6 +472,33 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             <div className="seat-confirm-acts">
               <button type="button" className="seat-btn" onClick={() => setConfirmOrderNo(false)}>취소</button>
               <button type="button" className="seat-btn seat-btn-danger" onClick={approveOrderNo}>수정하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 완료 ↔ 올림 연동(R12, 유저 확정 2026-08-08) — «아직 안 올린 줄» 에서만 뜬다. */}
+      {archivePrompt && (
+        <div className="seat-confirm-scrim" onClick={() => setArchivePrompt(false)}>
+          <div className="seat-confirm" role="dialog" aria-modal="true" aria-label="완료 처리" onClick={(e) => e.stopPropagation()}>
+            {/* 닫기 = 우상단 X(유저 확인 2026-08-08). [취소] 버튼은 뺐다 — X 와 중복이고,
+                완료 탭의 «취소» 라벨과 같은 낱말이라 «취소 처리» 로 오읽힐 여지가 있었다. */}
+            <button type="button" className="seat-confirm-x" aria-label="닫기" title="닫기" onClick={() => setArchivePrompt(false)}>✕</button>
+            <div className="seat-confirm-title">이 주문은 아직 올리지 않았습니다.</div>
+            <div className="seat-confirm-desc">
+              {canRaiseOnArchive
+                ? (preDeliver
+                  ? '올리려면 자리후 전달이 먼저입니다 — 함께 처리할 수 있습니다.'
+                  : '올림까지 체크하고 완료로 보낼까요?')
+                : '주문번호가 없어 올릴 수 없습니다. 완료만 가능합니다.'}
+            </div>
+            <div className="seat-confirm-acts seat-confirm-acts--stack">
+              {canRaiseOnArchive && (
+                <button type="button" className="seat-btn seat-btn-primary" onClick={() => archiveNow(true)}>
+                  {preDeliver ? '전달·올림까지 하고 완료' : '올림도 체크하고 완료'}
+                </button>
+              )}
+              <button type="button" className="seat-btn" onClick={() => archiveNow(false)}>올리지 않고 완료만</button>
             </div>
           </div>
         </div>

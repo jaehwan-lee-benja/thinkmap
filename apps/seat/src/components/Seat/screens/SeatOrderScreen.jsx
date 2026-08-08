@@ -116,8 +116,9 @@ export default function SeatOrderScreen({
               // 같은 테이블링 번호로 줄 하나 더(영수증이 여러 장인 손님) — 새 줄은 이 줄 바로 아래에 붙어 보인다.
               onAddSibling={onCreate ? (src) => onCreate({ queue_no: src.queue_no }) : undefined}
               // R12: 완료(아카이빙) ↔ 대기열 복귀. 삭제와 달리 되돌릴 수 있는 상태 전환이라 재확인 없이 즉시.
-              onArchive={(o) => onPatch?.(o.id, { archived_at: new Date().toISOString() })}
-              onRestore={(o) => onPatch?.(o.id, { archived_at: null })}
+              // extra = 완료와 함께 확정되는 필드(올림 체크 등 — OrderRow 의 «완료↔올림» 모달이 넘긴다). 쓰기 1회로 묶는다.
+              onArchive={(o, extra = {}) => onPatch?.(o.id, { archived_at: new Date().toISOString(), ...extra })}
+              onRestore={(o, extra = {}) => onPatch?.(o.id, { archived_at: null, ...extra })}
               dupSuffix={suffixMap[o.id]}
             />
           ))
