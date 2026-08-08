@@ -441,3 +441,9 @@ verify_jwt = false
 verify_jwt = false
 [functions.membership-reward]
 verify_jwt = false
+# ★키오스크 HTML 서빙(2026-08-08) — Storage 가 HTML 을 렌더하지 않아(text/plain + nosniff 강제)
+#   HTML 한 장만 이 함수가 text/html 로 내보낸다. 자산은 Storage 공개 URL 그대로.
+#   verify_jwt=false 는 **필수**다: 키오스크·손님 폰이 무인증으로 여는 정적 화면이고,
+#   데이터 접근은 여전히 프록시 Edge + 매장 세션 게이트를 지난다(이 함수는 DB 를 안 만진다).
+[functions.kiosk]
+verify_jwt = false

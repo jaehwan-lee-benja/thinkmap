@@ -12,9 +12,15 @@
 # 선택:
 #   BUCKET(기본 kiosk) · DIST(기본 apps/membership/dist-storage)
 #
+# ★2026-08-08 정정 — base 는 './' 가 아니라 **storage 공개 절대경로**다.
+#   HTML 은 Storage 가 렌더하지 않아(text/plain 강제) **Edge Function `kiosk` 가 서빙**한다.
+#   그러면 문서 URL 이 `/functions/v1/kiosk` 라서 상대경로 자산이 전부 어긋난다 ⇒ 자산은 절대경로여야 한다.
+#
 # 사용:
-#   cd apps/membership && APP_BASE=./ npx vite build --outDir dist-storage   # ★base 는 반드시 './'
-#   SUPABASE_URL=… SUPABASE_SERVICE_KEY=… bash scripts/deploy-membership-storage.sh
+#   cd apps/membership && npm run build:storage      # = APP_BASE=<storage 공개 base>
+#   node scripts/gen-kiosk-edge.mjs                  # HTML → Edge Function 으로 박아넣기
+#   SUPABASE_URL=… bash scripts/deploy-membership-storage.sh   # 자산 업로드(키는 스크립트가 조달)
+#   supabase functions deploy kiosk                  # HTML 서빙(verify_jwt=false — config.toml 등재)
 set -euo pipefail
 
 BUCKET="${BUCKET:-kiosk}"
@@ -59,7 +65,11 @@ fi
 # ★base 가 './' 인 산출물인지 확인한다. gh-pages 용(`/thinkmap/membership/`)을 잘못 올리면
 #   자산 경로가 전부 어긋나 하얀 화면이 된다 — 여기서 막는 게 현장에서 겪는 것보다 싸다.
 if grep -q 'src="/thinkmap/membership/' "$DIST/index.html"; then
-  echo "✗ 이 산출물은 gh-pages base 입니다(APP_BASE=./ 로 다시 빌드하세요)"; exit 1
+  echo "✗ 이 산출물은 gh-pages base 입니다 — npm run build:storage 로 다시 빌드하세요"; exit 1
+fi
+# 상대경로 산출물도 막는다: Edge 가 HTML 을 서빙하므로 자산이 상대경로면 함수 URL 기준으로 풀려 전부 404 다.
+if grep -q 'src="\./assets/' "$DIST/index.html"; then
+  echo "✗ 이 산출물은 상대 base('./') 입니다 — Edge 서빙에는 storage 절대경로가 필요합니다"; exit 1
 fi
 
 api() { curl -sS -w '\n%{http_code}' -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" -H "apikey: $SUPABASE_SERVICE_KEY" "$@"; }
