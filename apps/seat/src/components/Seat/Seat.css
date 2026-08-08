@@ -289,29 +289,46 @@
 /* 자리후 전달 체크박스: 라벨 줄바꿈 방지 */
 .seat-deliver-check { white-space: nowrap; }
 
-/* R12 «완료» 아카이브 — 표 위 [안내중] ↔ [완료] 전환. 건수 뱃지 포함. */
-.seat-tabs { display: flex; gap: 8px; margin: 0 0 8px; }
+/* R12 «완료» 아카이브 — 표 위 [안내중] ↔ [완료] 전환.
+   ★2026-08-08 «구글 설문 편집(질문/응답/설정)» 문법으로 교체(유저 지시): 알약 버튼이 아니라 **탭 바** —
+   텍스트를 나열하고 **활성 탭만 하단 굵은 언더바** + 진한 색, 비활성은 흐린 색.
+   버튼형은 '누르는 것'으로 읽혀 지금 무엇을 보는 중인지가 약했다. 언더바는 현재 위치를 즉답한다. */
+.seat-tabs {
+  display: flex;
+  gap: 0;
+  margin: 0 0 8px;
+  border-bottom: 1px solid var(--md-outline-variant);
+}
 .seat-tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid var(--md-outline-variant);
-  border-radius: var(--md-radius-full);
+  min-height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--md-on-surface-variant);
   font: inherit;
+  font-weight: 500;
   cursor: pointer;
-  transition: background var(--md-dur) var(--md-ease), color var(--md-dur) var(--md-ease);
+  transition: color var(--md-dur) var(--md-ease), background var(--md-dur) var(--md-ease);
 }
-.seat-tab.is-on {
-  border-color: transparent;
-  background: var(--md-secondary-container);
-  color: var(--md-on-secondary-container);
-  font-weight: 600;
+.seat-tab:hover { background: var(--md-surface-variant); }
+.seat-tab.is-on { color: var(--md-primary); font-weight: 700; }
+/* 활성 표시 = 하단 언더바. 셀 경계선(border-bottom) 위에 겹쳐 얹어 두 선이 어긋나 보이지 않게 -1px. */
+.seat-tab.is-on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--md-primary);
 }
-.seat-tab-n { font-variant-numeric: tabular-nums; opacity: .8; }
+.seat-tab-n { font-variant-numeric: tabular-nums; opacity: .7; font-weight: 500; }
 
 /* 안내 완료(✓) / 대기열 복귀(↩) — 삭제 셀 안, 삭제 ✕ 왼쪽. 삭제와 헷갈리지 않게 색을 나눈다. */
 .seat-arch-btn {
