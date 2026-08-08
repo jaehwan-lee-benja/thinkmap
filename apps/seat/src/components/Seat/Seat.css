@@ -326,8 +326,23 @@
 .seat-toolbar { margin-bottom: 12px; }
 /* 표 위 툴바(번호 정렬 등) — 왼쪽 정렬. */
 .seat-toolbar-above { display: flex; justify-content: flex-start; gap: 8px; }
-/* 표 아래 배치(새 주문): 위쪽 여백 + 왼쪽 정렬. 시작 갈래 픽커 + 새 주문 버튼 가로 배치. */
-.seat-toolbar-below { margin: 12px 0 0; display: flex; align-items: center; gap: 8px; }
+/* 표 아래 배치(새 주문): 왼쪽 정렬.
+   ★하단 고정(유저 승인 2026-08-08 「고정해줘」) — 행이 많으면 이 버튼이 화면 밖이라 스크롤 왕복이 필요했고,
+   모멘텀 스크롤 중 첫 탭이 «스크롤 정지» 에 먹혀 「한 번에 안 눌린다」 체감에 기여했다.
+   sticky 규율(§9.0): 스크롤포트는 .seat-main(패딩 0), 중간에 overflow 상자 없음 — 확인함.
+   좌우·아래는 화면 패딩(16px)을 음수 마진으로 덮어 **전폭 바**로. iOS 홈 인디케이터는 safe-area 로 피한다. */
+.seat-toolbar-below {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin: 12px -16px -16px;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--md-surface);
+  box-shadow: 0 -1px 0 0 var(--md-outline-variant);
+}
 /* 자리후 전달 체크박스: 라벨 줄바꿈 방지 */
 .seat-deliver-check { white-space: nowrap; }
 
