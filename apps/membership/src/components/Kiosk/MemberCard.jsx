@@ -4,17 +4,11 @@ import QRCode from 'qrcode'
 import { formatClaimPrefix, formatClaimDate, todayStr } from './kioskUtils'
 import { printReceipt } from '../../receipt/print'
 import { buildTicketUrl } from './ticketLink'
+// ★참여 카드(발권 전/후/스캔 완료)는 **한 컴포넌트가 상태만 갈아입는다**(유저 2026-08-09 「셋트로」).
+//   골격·2택 마크업·단계 표시가 전부 그 안에 한 벌로 있다 — 이 파일에 흩어져 있던 다섯 문법을 걷어냈다.
+import EventTicketCard from './EventTicketCard'
 
 const EVENT_LABEL = '팝콘 이벤트'   // 이벤트명(태그 강조). 이벤트가 늘면 엔티티로 확장.
-// ★펼침 화살표는 **SVG**로 그린다(문자 ▼ 아님). 8/08 에 문자 ●을 UI 부품으로 썼다가
-//   폰트 폴백으로 크기·기준선이 흔들려 하이픈까지 짓눌린 일이 있었다 — 같은 함정을 반복하지 않는다.
-function Caret({ up }) {
-  return (
-    <svg className={`mk-caret ${up ? 'is-up' : ''}`} viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
 const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크림(시안, 데이터모델=crm 조율).
 
@@ -34,9 +28,6 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   // ★훅은 조기 return 보다 위에 — member 가 null 이어도 호출 순서가 바뀌면 안 된다(Rules of Hooks).
   const printedRef = useRef(null)          // (예약) 중복 인쇄 방지용 — 자동 인쇄 제거로 현재 미사용
   const [printMsg, setPrintMsg] = useState('')
-  // ★발권 후 «2택» 상태(2026-08-06 유저 지시): null=아직 안 고름 | 'paper' | 'phone'
-  const [choice, setChoice] = useState(null)
-  const [pickCollapsed, setPickCollapsed] = useState(false)   // 아코디언 접기(화살표 어포던스)
   // ★모달 트리거 = «이벤트 참여하기» 클릭 유래일 때만(2026-08-06 정정).
   //   종전엔 티켓만 있으면 떴다 → **조회만 했는데** 오늘 이미 발권된 손님에게 모달이 튀어나왔다.
   //   (재방문·재조회 때마다 «어떻게 받으시겠어요?»가 뜨는 건 손님에게 뜬금없다.)
@@ -98,15 +89,10 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
     return () => { dead = true }
   }, [showQr, printToken, member, ticketForPrint])
 
-  // ★«머무를 국면»을 상위에 알린다 — QR 이 떠 있으면 손님이 폰 카메라를 켤 시간이 필요하다.
-  //   유휴 복귀 시간을 정하는 건 화면 소유자(CustomerView)지만, «지금 QR 국면인가»는 여기만 안다.
-  const pickOpen = pickFlow && claimedToken === printToken && !choice && !!printToken
-  const dwelling = !!printToken && (choice === 'phone' || pickOpen)
-  useEffect(() => { if (onDwell) onDwell(dwelling) }, [dwelling, onDwell])
-
-  // 새 티켓이 뜨면 선택을 초기화한다(앞 손님의 선택이 남으면 안 된다).
+  // 새 티켓이 뜨면 인쇄 메시지를 비운다(앞 손님의 문구가 남으면 안 된다).
+  //   선택 상태는 EventTicketCard 가 **토큰별 key** 로 새로 마운트되며 스스로 초기화한다.
   useEffect(() => {
-    setChoice(null); setPrintMsg('')
+    setPrintMsg('')
     if (printToken && pendingClaimRef.current) { pendingClaimRef.current = false; setClaimedToken(printToken) }
     if (!printToken) setClaimedToken(null)
   }, [printToken])
@@ -162,149 +148,22 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
       <div className="mk-member-body">
         <div className="mk-event-section">
           <div className="mk-event-label">멤버십 이벤트</div>
-          {claimedToday ? (
-            /* ★스캔(사용) 완료 회원(유저 2026-08-08): 완료 안내를 앞에 두고, 인쇄·QR 은 **흐릿하게
-               비활성으로 배경에 남긴다** — «없어진 것»이 아니라 «끝난 것»으로 읽히게 한다. */
-            <div className="mk-done-wrap">
-              {/* ★문구를 흐린 이미지 **위에** 겹친다(유저 2026-08-08: 「멘트를 비활성화 이미지 위에
-                  오버랩해서 안내문구처럼」). 흐린 2택이 배경, 문구가 안내판이다 —
-                  «무엇이 끝났는지»를 그 자리에서 말해준다. */}
-              <div className="mk-pick-inline is-done" aria-hidden="true">
-                <div className="mk-pick-row">
-                  <div className="mk-pick-btn" role="presentation">
-                    <svg className="mk-pick-ico-svg" viewBox="0 0 48 56">
-                      <path d="M8 4h32v44l-4-3-4 3-4-3-4 3-4-3-4 3-4-3-4 3z" fill="none" stroke="currentColor"
-                        strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
-                      <path d="M15 16h18M15 24h18M15 32h11" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
-                    </svg>
-                    <span className="mk-pick-label">종이로<br />인쇄하기</span>
-                  </div>
-                  <div className="mk-pick-panel">
-                    <span className="mk-pick-label">폰으로 받기</span>
-                    <div className="mk-pick-qr mk-pick-qr-off" />
-                  </div>
-                </div>
-              </div>
-              <div className="mk-event-done mk-done-overlay">
-                오늘은 이미 이벤트 참여가 완료되었네요!<br />참여 감사합니다 🙏
-              </div>
-            </div>
-          ) : issuedTicket ? (
-            /* 발권됨(수령 대기) — 카운터 회수 시 스탬프 확정. 토큰=수기 입력 검증 경로(인쇄는 현장 확정 대기). */
-            <div className="mk-ticket">
-              <div className="mk-ticket-title">
-                {/* ★상태 어휘(2026-08-06 유저 정정): **발권 ≠ 참여**.
-                    티켓만 만들어진 단계는 «발권»이고, «참여»는 카운터 회수·스탬프 확정 후에만 쓴다.
-                    (내가 «이미 참여하셨어요»라고 썼던 건 발권을 참여로 올려 부른 오표기였다.) */}
-                {claimedToken === printToken ? '참여권 발권 완료' : '발권된 참여권이 있어요'}
-              </div>
-              <div className="mk-ticket-token">{issuedTicket.token}</div>
-              {claimedToken !== printToken && <div className="mk-ticket-hint">아직 수령 전이에요 — 카운터에서 보여주세요.</div>}
-              <div className="mk-ticket-hint">유효기간: 오늘({issuedTicket.event_date || today})</div>
-
-              {/* ★2택 경험(2026-08-06 유저 지시): 손님이 «종이 / 폰» 중 하나를 자기 손으로 고른다.
-                  종전엔 자동 인쇄 + QR 상시노출이라 «뭘 해야 하는지» 화면이 말해주지 않았다.
-                  토큰은 어느 쪽을 골라도 위에 계속 보인다(정본은 토큰). */}
-              {/* ★모달/오버레이(유저 확정 2026-08-06: 「모달처럼 나오게 — 페이지 전환 느낌이 아니라」).
-                  뒤에 발권 완료 맥락(회원 카드)이 그대로 남아 보인다. 라우팅·화면 교체 없음. */}
-              {/* ★pickFlow = «손님이 고르는 화면인가»(2026-08-06 수정). 종전엔 무조건 떠서
-                  **직원 노트북에서 발권해도 손님용 2택 모달이 떴고**, 오버레이가 직원 화면 전체를
-                  가려 회수·리스트를 못 눌렀다. 게다가 [종이로 인쇄]는 printable 게이트 밖이라
-                  **프린터 없는 직원 기기에서 rawbt 스킴을 쏠** 수 있었다(이 파일 상단 경고와 모순). */}
-              {/* ★«그 자리 토글 펼침»(유저 지시 2026-08-08: 「참여하기를 누르면 그 위치에서 토글이
-                  내려가듯 하위 요소가 열리게. 지금처럼 모달방식이 아니라」).
-                  ⇒ 오버레이·시트를 걷고 **티켓 블록 안에서 아래로 펼친다**. 뒤 화면을 덮지 않으니
-                  손님이 «어디를 눌렀고 무엇이 열렸는지»를 위치로 안다. 2택 비대칭(폰=QR 즉시·종이=버튼)은 유지. */}
-              {pickFlow && claimedToken === printToken && !choice && (
-                <div className="mk-pick-inline" role="group" aria-label="참여권 받는 방법 선택">
-                  {/* ★헤더가 토글이다 — 펼친 상태는 ▲, 누르면 접히고 ▼ 로 바뀐다(표준 아코디언). */}
-                  <button type="button" className="mk-pick-toggle"
-                    aria-expanded={!pickCollapsed}
-                    onClick={() => setPickCollapsed((v) => !v)}>
-                    <span className="mk-pick-q">참여권을 어떻게 받으시겠어요?</span>
-                    <Caret up={!pickCollapsed} />
-                  </button>
-                  <div className="mk-pick-row" hidden={pickCollapsed}>
-                    {/* 종이 = 버튼. ★이미 인쇄한 토큰이면 누를 수 없다(1회 정책) — 버튼 자리에 안내를 둔다. */}
-                    <button type="button" className="mk-pick-btn"
-                      onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>
-                      <svg className="mk-pick-ico-svg" viewBox="0 0 48 56" aria-hidden="true">
-                        <path
-                          d="M8 4h32v44l-4-3-4 3-4-3-4 3-4-3-4 3-4-3-4 3z"
-                          fill="none" stroke="currentColor" strokeWidth="2.6"
-                          strokeLinejoin="round" strokeLinecap="round"
-                        />
-                        <path d="M15 16h18M15 24h18M15 32h11" fill="none" stroke="currentColor"
-                          strokeWidth="2.6" strokeLinecap="round" />
-                      </svg>
-                      <span className="mk-pick-label">종이로<br />인쇄하기</span>
-                      <span className="mk-pick-sub">눌러서 인쇄</span>
-                    </button>
-                    {/* 폰 = 완결된 콘텐츠(뎁스 0) — 버튼이 아니라 패널이다 */}
-                    <div className="mk-pick-panel">
-                      <span className="mk-pick-label">폰으로 받기</span>
-                      {qrUrl
-                        ? <img className="mk-pick-qr" src={qrUrl} alt="참여권 QR" />
-                        : <span className="mk-pick-sub">QR을 준비하는 중…</span>}
-                      <span className="mk-pick-sub">폰 카메라로 찍으세요</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 조회로 드러난 «오늘 이미 발권된» 티켓 — 모달을 띄우지 않고 조용한 인라인 액션만.
-                  손님이 다시 조회했을 뿐인데 선택 모달이 튀어나오지 않게 한다. */}
-              {claimedToken !== printToken && !choice && (
-                <div className="mk-pick-acts">
-                  {/* ★스캔 여부로 갈린다(정책은 파일 상단 주석). issued = 아직 안 쓴 티켓 → 재인쇄 허용. */}
-                  {printable && (issuedTicket.state && issuedTicket.state !== 'issued'
-                    ? <span className="mk-print-once">이미 사용된 참여권입니다 — 직원에게 문의 바랍니다.</span>
-                    : <button type="button" className="mk-reset" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>종이로 인쇄</button>)}
-                  <button type="button" className="mk-reset" onClick={() => setChoice('phone')}>폰으로 받기</button>
-                </div>
-              )}
-
-              {choice === 'paper' && (
-                <div className="mk-pick-done">
-                  <div className="mk-pick-done-msg">종이를 가져가세요</div>
-                  {printMsg && <div className="mk-ticket-hint">{printMsg}</div>}
-                  {/* ★«다시 인쇄» 복원 — 아직 스캔 안 된 티켓이므로 같은 바코드를 다시 뽑아도 된다
-                      (사용 1회 게이트는 카운터 스캔이 지킨다). 종이가 안 나왔을 때 손님이 그 자리에서 해결한다. */}
-                  <div className="mk-pick-acts">
-                    <button type="button" className="mk-reset" onClick={() => doPrint(issuedTicket.token, true)}>다시 인쇄</button>
-                    <button type="button" className="mk-reset" onClick={() => setChoice('phone')}>폰으로 받기</button>
-                  </div>
-                </div>
-              )}
-
-              {choice === 'phone' && (
-                <div className="mk-pick-done">
-                  {qrUrl
-                    ? <img className="mk-tqr-img mk-tqr-big" src={qrUrl} alt="참여권 QR" />
-                    : <div className="mk-ticket-hint">QR을 준비하는 중…</div>}
-                  <div className="mk-pick-done-msg">폰 카메라로 찍으세요</div>
-                  <div className="mk-ticket-hint">찍으면 폰에 바코드가 뜹니다 — 카운터에서 보여주세요</div>
-                  <div className="mk-pick-acts">
-                    <button type="button" className="mk-reset" onClick={() => { setChoice('paper'); doPrint(issuedTicket.token, false) }}>종이로 받기</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="mk-event-todo">오늘은 아직 참여 전이에요.</div>
-              {/* ★버튼 문법 통일(2026-08-06): 테두리·그림자·즉시 눌림 + 보조문구로 «무엇이 일어나는지» 명시.
-                  2택 모달의 종이 버튼·가입 버튼과 같은 축이라 키오스크 전체에서 «버튼처럼 생긴 것=눌리는 것». */}
-              <button className="mk-claim-btn" onClick={handleClaim} disabled={claiming || !onClaim}>
-                <span className="mk-claim-main">
-                  {claiming ? '발권 중…' : <>사르르 <span className="mk-evt-tag">{EVENT_LABEL}</span> 참여</>}
-                  {/* ★«누르면 아래로 펼쳐진다»를 생김새로 예고한다(유저 2026-08-08). */}
-                  {!claiming && <Caret />}
-                </span>
-                {!claiming && <span className="mk-claim-sub">눌러서 참여권 받기</span>}
-              </button>
-            </>
-          )}
+          <EventTicketCard
+            key={printToken || 'none'}
+            issuedTicket={issuedTicket}
+            claimedToday={claimedToday}
+            justClaimed={claimedToken === printToken}
+            qrUrl={qrUrl}
+            printable={printable}
+            pickFlow={pickFlow}
+            claiming={claiming}
+            onClaim={handleClaim}
+            onPrint={doPrint}
+            printMsg={printMsg}
+            eventLabel={EVENT_LABEL}
+            today={today}
+            onDwell={onDwell}
+          />
           {member._justRedeemed && <div className="mk-claimed">아이스크림 수령 완료 🍦🎉</div>}
 
           {/* ★스탬프 진행(실값) — 아이스크림까지. crm stamp 있을 때만. */}
