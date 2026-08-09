@@ -38,6 +38,19 @@
   --seat-done-parallel: #2D4B82;
   --seat-on-done-parallel: #FFFFFF;
 
+  /* z 척도 — ★즉흥 숫자 금지(리팩토링 ⑶, 2026-08-09). 값은 기존 그대로 옮겨 담았다(시각 변화 0).
+     .seat-app 자신이 position:fixed + z-index 로 **스태킹 컨텍스트**를 만들므로, 아래 값들은
+     전부 «자리후 안에서만» 겨루는 상대값이다. 새 층은 반드시 여기 이름을 하나 더 만들고 쓴다. */
+  --z-header: 2;         /* 상단 앱바 · 열 리사이저 */
+  --z-sticky-head: 3;    /* 표 헤더(sticky) */
+  --z-sticky-bar: 4;     /* 탭바 · 하단 툴바(sticky) */
+  --z-tooltip: 5;        /* 물음표 툴팁 */
+  --z-modal: 10;         /* 설정·현황·통계 모달 */
+  --z-numpad: 30;        /* 숫자 키패드 */
+  --z-undo: 60;          /* 되돌리기 바 */
+  --z-confirm: 70;       /* 행 확인 모달 */
+  --z-toast: 2000;       /* 저장 실패 토스트 — 무엇에도 가리면 안 된다 */
+
   /* elevation (Material 3 그림자) */
   --md-elev-1: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15);
   --md-elev-2: 0 1px 2px rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.15);
@@ -57,6 +70,7 @@
   inset: 0;
   height: 100vh;
   height: 100dvh; /* ★모바일 브라우저 주소창 반영(동적 뷰포트) — 세로형 하단 잘림 방지 */
+  /* ★페이지 레벨 값(자리후 안쪽 --z-* 척도와 다른 층이다 — 여기가 스태킹 컨텍스트의 뿌리다). */
   z-index: 1000; /* 키오스크: 탭바/사이드바 등 크롬 위를 덮는다 */
   display: flex;
   flex-direction: column;
@@ -170,7 +184,7 @@
   padding: 8px 16px;
   background: var(--md-surface-container);
   box-shadow: var(--md-elev-2);
-  z-index: 2;
+  z-index: var(--z-header);
 }
 /* 날짜 = 달력 입력(누르면 네이티브 달력). 지난 날짜를 보는 중이면 강조 + '오늘로'. */
 .seat-header-date {
@@ -273,6 +287,7 @@
 .seat-build b { font-weight: 700; }
 .seat-build-sha { opacity: .6; }
 /* 헤더가 없는 화면(로그인)용 — 화면 우상단 고정. */
+/* 로그인 화면은 .seat-app 밖이라 안쪽 --z-* 척도가 닿지 않는다 → 페이지 레벨 값. */
 .seat-build.is-corner { position: fixed; right: 8px; top: 6px; z-index: 1400; margin-left: 0; }
 /* ★세로형(태블릿 세로) — 헤더 한 줄이 이미 폭 한계다(768 에서 날짜+탭4+버튼2 = 거의 767px).
    실측: 스탬프를 흐름에 그냥 두면 역할 탭이 **한 줄 밀려** 헤더가 64→116px 로 커진다(내용 52px 손실).
@@ -288,7 +303,7 @@
 .seat-modal-scrim {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -350,7 +365,20 @@
 /* ★overscroll-behavior: contain — 표를 끝까지 스크롤한 뒤 계속 끌면 그 스크롤이 문서로 **연쇄**되어
    iOS 가 페이지 전체를 튕긴다(= 화면이 밀려 올라가고 아래에 검은 배경. 유저 신고 2026-08-09).
    여기서 끊으면 표 끝은 «끝»에서 멎는다. 문서 쪽 잠금은 index.css 참조. */
-.seat-main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0; }
+/* ★★스크롤포트 — 자리후에 **스크롤 상자는 이것 하나뿐**이다(리팩토링 ⑶, 2026-08-09).
+   이 규칙을 클래스로 뽑은 이유: 2026-08-08 하루에 sticky 결함이 **3연속**으로 났고 원인이 전부 같은 종류였다.
+     ① 스크롤포트에 패딩이 있어 sticky 정지선이 밀림  ② 조상 `.seat-table` 의 `overflow:hidden` 이
+     «스크롤 불가능한 스크롤포트»를 만들어 자손 sticky 를 재기준화  ③ 태블링 액자를 스크롤포트 안에 넣을 뻔함.
+   ⇒ 새 스크롤 상자를 만들고 싶으면 **먼저 이 주석을 읽게** 만든다. 개발 중에는 seatDevGuard 가 위반을 콘솔에 띄운다.
+   ※패딩은 여기 두지 않는다 — 안쪽 `.seat-screen` 이 갖는다(패딩이 sticky 정지선을 밀기 때문). */
+.seat-scrollport {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain; /* 끝에서 더 끌어도 문서로 연쇄되지 않는다(iOS 러버밴드 차단) */
+  padding: 0;                   /* ★금지: 여기에 패딩을 주면 sticky 가 그만큼 어긋난다 */
+}
 .seat-screen { padding: 16px; }
 
 /* 태블링 액자 — 폭(가로형)·높이(세로형)는 flex-basis(%)로 한 벌. 축소는 막는다(flex-shrink:0). */
@@ -450,7 +478,7 @@
 .seat-toolbar-below {
   position: sticky;
   bottom: 0;
-  z-index: 4;
+  z-index: var(--z-sticky-bar);
   margin: 12px -16px -16px;
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
   display: flex;
@@ -489,7 +517,7 @@
      8px 틈으로 스크롤되는 행이 비친다. */
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: var(--z-sticky-bar);
   background: var(--md-surface);
   box-shadow: 0 var(--seat-tab-gap) 0 0 var(--md-surface);
 }
@@ -695,7 +723,7 @@
   /* 탭바(sticky)가 위에 있으므로 그만큼 내려서 붙는다 — 두 sticky 가 겹치지 않게.
      ★폴백을 일부러 뺐다: 변수 정의가 사라지면 조용히 어긋나느니 바로 눈에 띄게 깨지는 편이 낫다. */
   top: var(--seat-tabs-h);
-  z-index: 3;
+  z-index: var(--z-sticky-head);
   grid-template-areas: "tno tord hg1 hg2 hg3 confirm memo del";
   min-height: 44px;
   font-weight: 500;
@@ -720,7 +748,7 @@
   width: 10px;
   cursor: col-resize;
   touch-action: none;
-  z-index: 2;
+  z-index: var(--z-header);
 }
 .seat-col-resizer--right { right: -5px; }
 .seat-col-resizer--left { left: -5px; } /* 마지막 열(확인) — 올림|확인 경계 */
@@ -1343,7 +1371,7 @@
   top: 76px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2000;
+  z-index: var(--z-toast);
   max-width: 90vw;
   padding: 14px 28px;
   border-radius: var(--md-radius-full);
@@ -1364,7 +1392,7 @@
 .seat-numpad-scrim {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: var(--z-numpad);
   display: flex;
   align-items: center;
   justify-content: flex-end; /* 오른쪽 치우침 */
@@ -1448,7 +1476,7 @@
   position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
   white-space: nowrap; padding: 6px 10px; border-radius: var(--md-radius-sm);
   background: var(--md-inverse-surface, #313033); color: var(--md-inverse-on-surface, #f4eff4);
-  font-size: 13px; font-weight: 500; box-shadow: var(--md-elev-2); z-index: 5; pointer-events: none;
+  font-size: 13px; font-weight: 500; box-shadow: var(--md-elev-2); z-index: var(--z-tooltip); pointer-events: none;
 }
 /* 각 기능 = 외곽선 박스 한 묶음(타이틀+힌트+컨트롤) → 위계 시각화. */
 .seat-func-body { display: flex; flex-direction: column; gap: 10px; }
@@ -1528,7 +1556,7 @@
 
 /* 행 안 재확인 모달(자리순서 리셋 등) — 화면 중앙. */
 .seat-confirm-scrim {
-  position: fixed; inset: 0; z-index: 70;
+  position: fixed; inset: 0; z-index: var(--z-confirm);
   display: flex; align-items: center; justify-content: center; padding: 16px;
   background: rgba(0, 0, 0, .45);
 }
@@ -1571,7 +1599,7 @@
   display: flex; align-items: center; gap: 14px;
   padding: 12px 16px; border-radius: var(--md-radius-md);
   background: var(--md-inverse-surface, #313033); color: var(--md-inverse-on-surface, #f4eff4);
-  box-shadow: var(--md-elev-3); z-index: 60; font-size: 16px;
+  box-shadow: var(--md-elev-3); z-index: var(--z-undo); font-size: 16px;
 }
 .seat-undo-bar .seat-btn { min-height: 40px; background: transparent; color: var(--md-inverse-on-surface, #f4eff4); border: 1px solid currentColor; }
 

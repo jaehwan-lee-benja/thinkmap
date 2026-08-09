@@ -18,6 +18,7 @@ import SeatOrderScreen from './screens/SeatOrderScreen'
 import StationScreen from './screens/StationScreen'
 import SeatBuildStamp from './components/SeatBuildStamp'
 import TablingPane from './components/TablingPane'
+import { checkStickyDiscipline } from './utils/seatDevGuard'
 import './Seat.css'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -125,6 +126,14 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
     setUndoStamp(null)
   }
 
+  // ★sticky 규율 가드(dev 전용) — 스크롤포트가 둘이 되거나, 스크롤포트에 패딩이 붙거나,
+  //   sticky 와 스크롤포트 사이에 overflow 상자가 끼면 콘솔에 띄운다. 2026-08-08 결함 3연속의 재발 방지.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const t = setTimeout(() => checkStickyDiscipline(), 300) // 레이아웃이 자리잡은 뒤 본다
+    return () => clearTimeout(t)
+  }, [role.key, settings.tablingPane])
+
   // 숨긴 열 = 루트 클래스(is-hide-<key>)로 전달 → CSS 가 헤더·데이터행을 함께 숨긴다.
   // (OrderRow 는 자리안내와 공용이라 DOM 은 건드리지 않는다 — 헤더 3곳 동기화 함정 회피.)
   const hideCls = hiddenColumnClasses(settings.hiddenColumns)
@@ -214,7 +223,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
           이 상자에는 overflow 를 주지 않는다(같은 이유). */}
       <div className="seat-body">
         {settings.tablingPane && <TablingPane onClose={() => setSetting('tablingPane', false)} />}
-        <main className="seat-main">
+        <main className="seat-main seat-scrollport">
           {role.key === 'guide' || role.key === 'manager' ? (
             <SeatOrderScreen key={role.key} role={role} orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} settings={settings} />
           ) : role.station ? (
