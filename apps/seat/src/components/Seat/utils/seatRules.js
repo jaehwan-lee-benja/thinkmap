@@ -158,6 +158,22 @@ export const deliverPatch = (now = nowISO()) => ({
   delivered_at: now,
 })
 
+// 자리후 전달 **해제** — deliverPatch 의 역방향. 세 키가 항상 함께 간다
+//   (전달 플래그·전달 시각·전달 갈래). 주문번호를 비우면 전달도 풀리는 규칙(유저 지시 2026-08-02)이
+//   표 입력·키패드·전달 체크박스 **세 곳**에서 같은 세 키를 손으로 적고 있었다.
+export const undeliverPatch = () => ({
+  seat_delivered: false,
+  delivered_at: null,
+  deliver_mode: null,
+})
+
+// R10 «올림취소 방식» 판정 — ★우선순위가 optOf 와 다르다(포장 먼저).
+//   구 코드가 그랬고, 두 컬럼이 동시에 true 인 행이 있으면 이력 라벨이 갈리므로 **그대로 보존**한다(기능 변경 0).
+//   현재 쓰기 경로는 전부 optPatch 를 통과해 «하나만 true» 를 보장하니 실제로 갈릴 일은 없다.
+export const raiseMethodOf = (o) => o?.opt_takeout ? 'takeout'
+  : o?.opt_outdoor ? 'outdoor'
+  : o?.opt_outdoor_parallel ? 'parallel' : 'direct'
+
 // 제조옵션(야외/포장/야외병행) — 실제로는 **단일 선택**인데 boolean 3개로 저장한다.
 //   여기를 통하면 «셋 중 둘이 켜진» 상태를 코드가 만들 수 없다. v: 'outdoor'|'takeout'|'parallel'|'none'
 export const OPT_NONE = 'none'

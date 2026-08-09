@@ -10,6 +10,7 @@
 //   저장은 타이핑이 멎은 뒤(300ms) + 닫기·언마운트 시 즉시 flush. 열려 있는 동안 서버 값은 draft 를 덮지 않는다.
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { applyNumpadKey, NUMPAD_MAX_LEN } from '../utils/numpadDraft'
+import { undeliverPatch } from '../utils/seatRules'
 
 const SAVE_DELAY = 300
 
@@ -41,7 +42,7 @@ export default function SeatNumpad({ order, field, onPatch, onClose }) {
         // 통계용: 주문번호가 처음 채워지는 순간만 시각 기록.
         ...(!o.order_no && next && !o.order_no_at ? { order_no_at: new Date().toISOString() } : {}),
         // ★주문번호를 비우면 전달 체크도 함께 풀린다(표 입력과 동일 규칙, 유저 지시 2026-08-02).
-        ...(!next && o.seat_delivered ? { seat_delivered: false, delivered_at: null, deliver_mode: null } : {}),
+        ...(!next && o.seat_delivered ? undeliverPatch() : {}),
       })
     }
   }, [field, onPatch])

@@ -31,7 +31,13 @@ export default function SeatConfirm({ open, label, title, desc, stack = false, o
         aria-label={label}
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="seat-confirm-x" aria-label="닫기" title="닫기" onClick={onClose}>✕</button>
+        {/* ★닫기 아이콘은 SVG — 문자 글리프(✕)는 폰트/기기에 따라 안 그려지거나 두부(□)로 뜬다
+            (body-portal 안 아이콘 미렌더 실증). 아이콘 폰트도 같은 이유로 쓰지 않는다. */}
+        <button type="button" className="seat-confirm-x" aria-label="닫기" title="닫기" onClick={onClose}>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+          </svg>
+        </button>
         <div className="seat-confirm-title">{title}</div>
         {desc ? <div className="seat-confirm-desc">{desc}</div> : null}
         <div className={`seat-confirm-acts${stack ? ' seat-confirm-acts--stack' : ''}`}>{children}</div>
