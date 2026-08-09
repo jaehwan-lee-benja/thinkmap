@@ -2,6 +2,7 @@
 // businessDate 가 falsy 면(미리보기 등) 네트워크/구독을 하지 않는다.
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@thinkmap/core'
+import { deliverPatch } from '../utils/seatRules'
 
 // 저장 실패 사유 → 직원용 문구(주방에서 멀리서도 읽히게 짧게). UNIQUE 충돌 등 원인별.
 export function saveErrorMessage(error) {
@@ -149,7 +150,7 @@ export function useSeatOrders(businessDate, onError) {
   const commitOrder = useCallback(async (id, scope, extra = {}) => {
     if (scope !== 'seat') return
     // delivered_at = 통계용 전달 시각(주문→전달 / 전달→올림 구간).
-    return patchOrder(id, { seat_status: 'pending', seat_delivered: true, delivered_at: new Date().toISOString(), ...extra })
+    return patchOrder(id, { ...deliverPatch(), ...extra })
   }, [patchOrder])
 
   return { orders, loading, refetch, createOrder, patchOrder, commitOrder, deleteOrder, resetToday, undoResetToday }

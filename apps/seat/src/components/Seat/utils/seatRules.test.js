@@ -156,3 +156,89 @@ describe('표시 헬퍼', () => {
     expect(map).toEqual({ a: 'a', b: 'b' })
   })
 })
+
+// ── 쓰기 헬퍼 (리팩토링 ⑵) ───────────────────────────────────────────────
+// 여기 테스트의 목적은 «동작 동일» 증명이다 — 호출부 11곳이 손으로 맞추던 짝을 헬퍼로 옮겼을 뿐,
+// 만들어지는 patch 는 같아야 한다.
+import { raisePatch, unraisePatch, cancelPatch, uncancelPatch, deliverPatch, optOf, optPatch, isParallel, OPT_NONE } from './seatRules'
+
+const NOW = '2026-08-09T07:00:00.000Z'
+
+describe('raisePatch — raised ↔ seat_status 짝', () => {
+  it('안 올라간 줄은 지금 시각을 찍는다', () => {
+    expect(raisePatch(o(), NOW)).toEqual({ raised: true, raised_at: NOW, seat_status: 'raised', raise_canceled: null })
+  })
+
+  it('이미 올라간 줄은 원래 시각을 지킨다(다시 눌러도 통계가 어긋나지 않게)', () => {
+    const old = '2026-08-09T05:00:00.000Z'
+    expect(raisePatch(o({ raised: true, raised_at: old }), NOW).raised_at).toBe(old)
+  })
+
+  it('취소 이력을 항상 푼다 — 다시 올렸으니 «올림취소됨» 표시가 남으면 안 된다', () => {
+    expect(raisePatch(o({ raise_canceled: 'outdoor' }), NOW).raise_canceled).toBe(null)
+  })
+
+  it('★구 호출부 3벌과 결과가 같다(도달 가능한 상태 전수)', () => {
+    // 리팩토링 전 호출부들이 쓰던 식. raised=false 일 때 raised_at 은 항상 null 이므로(올림 해제 시 지운다)
+    // 세 식이 갈리는 조합은 실제로 생기지 않는다 — 그 사실을 여기서 못박는다.
+    const A = (x) => (x.raised ? x.raised_at : NOW)   // setOpt · setBoth
+    const B = (x) => (x.raised_at || NOW)             // archiveNow
+    const C = () => NOW                               // 올리기 체크박스
+    for (const st of [o(), o({ raised: true, raised_at: '2026-08-09T05:00:00.000Z' })]) {
+      expect(raisePatch(st, NOW).raised_at).toBe(A(st))
+      expect(raisePatch(st, NOW).raised_at).toBe(B(st))
+      if (!st.raised) expect(raisePatch(st, NOW).raised_at).toBe(C())
+    }
+  })
+})
+
+describe('unraisePatch — 이력 3갈래', () => {
+  it('인자 없음 = 이력 손대지 않음(갈래 전환, R11)', () => {
+    expect(unraisePatch()).toEqual({ raised: false, raised_at: null, seat_status: 'pending' })
+    expect('raise_canceled' in unraisePatch()).toBe(false)
+  })
+
+  it('null = 이력 지움(자리순서 리셋)', () => {
+    expect(unraisePatch(null).raise_canceled).toBe(null)
+  })
+
+  it('방식 문자열 = 그 방식으로 취소했음을 남김(R10)', () => {
+    expect(unraisePatch('parallel').raise_canceled).toBe('parallel')
+    // 그 값이 그대로 세부 텍스트가 된다
+    expect(raiseDetailText(o({ ...unraisePatch('parallel') }))).toBe('올림취소됨(야외병행)')
+  })
+})
+
+describe('취소 / 복귀 / 전달', () => {
+  it('자리대기 취소 = 상태·자리순서·완료탭 셋이 함께 간다', () => {
+    expect(cancelPatch(NOW)).toEqual({ seat_status: 'canceled', seat_order_alive: false, archived_at: NOW })
+  })
+
+  it('대기열로 = 올림 여부에 맞는 상태로 복원', () => {
+    expect(uncancelPatch(o())).toEqual({ seat_status: 'pending', seat_order_alive: true })
+    expect(uncancelPatch(o({ raised: true })).seat_status).toBe('raised')
+  })
+
+  it('자리후 전달(R8)', () => {
+    expect(deliverPatch(NOW)).toEqual({ seat_status: 'pending', seat_delivered: true, delivered_at: NOW })
+  })
+})
+
+describe('제조옵션 — 단일 선택 보장', () => {
+  it('optOf ↔ optPatch 왕복', () => {
+    for (const v of ['outdoor', 'takeout', 'parallel', OPT_NONE]) {
+      expect(optOf({ ...o(), ...optPatch(v) })).toBe(v)
+    }
+  })
+
+  it('★셋 중 둘이 켜진 상태를 만들 수 없다', () => {
+    const patched = optPatch('parallel')
+    expect(Object.values(patched).filter(Boolean).length).toBe(1)
+    expect(optPatch(OPT_NONE)).toEqual({ opt_outdoor: false, opt_takeout: false, opt_outdoor_parallel: false })
+  })
+
+  it('isParallel — 완료 버튼 파랑의 근거', () => {
+    expect(isParallel(o({ opt_outdoor_parallel: true }))).toBe(true)
+    expect(isParallel(o({ opt_outdoor: true }))).toBe(false)
+  })
+})

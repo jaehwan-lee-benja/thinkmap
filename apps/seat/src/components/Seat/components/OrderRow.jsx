@@ -5,7 +5,11 @@ import { useState, useRef } from 'react'
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import SeatTextField from './SeatTextField'
 import SeatConfirm from './SeatConfirm'
-import { isDineIn, removesFromSeatQueue, raiseDetailText, DELIVER_MODES, isTakeoutMaybe, deliverModeLabel, raiseIgnored, hasManufactureOption } from '../utils/seatRules'
+import {
+  isDineIn, removesFromSeatQueue, raiseDetailText, DELIVER_MODES, isTakeoutMaybe, deliverModeLabel,
+  raiseIgnored, hasManufactureOption, isParallel,
+  raisePatch, unraisePatch, cancelPatch, uncancelPatch, optOf, optPatch, OPT_NONE,
+} from '../utils/seatRules'
 
 export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, onAddSibling, onArchive, onRestore, dupSuffix, numpadOn, onOpenNumpad, raiseDetailOn }) {
   const patch = (p) => onPatch?.(order.id, p)
@@ -49,28 +53,19 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   const seatToggleLocked = !dineIn || removesQueue // 수동 살아있음/필요없음 토글 잠금(옵션/시작이 결정)
 
   // 제조옵션 = 드랍다운(단일 선택). 데이터모델(3 boolean) 불변 — 선택값 매핑. (실내 주문의 전달 후 변경기록)
-  const optValue = order.opt_outdoor ? 'outdoor'
-    : order.opt_takeout ? 'takeout'
-    : order.opt_outdoor_parallel ? 'parallel' : 'none'
+  const optValue = optOf(order)
   // 제조옵션 선택 시 자동 전환(유저 지시 2026-07-31):
   //   야외·포장  → 자리앉음 취소(seated=false, 자리큐 제외) + 올리기 전달 체크(raised=true).
   //   야외병행   → 자리앉음은 빈 체크 유지(seated=false, 자리큐는 유지) + 올리기 전달 체크(raised=true).
   //   (셋 다 seated=false·raised=true. 차이는 자리앉음 조작 가능 여부 — 야외/포장은 잠김(✕), 야외병행은 활성.)
   //   ★포장도고려(포장영수증)은 올림이 무시되는 줄이라 자동 올림을 걸지 않는다 — 자리큐 제외만 적용(R11).
   const setOpt = (v) => {
-    const isOpt = v !== 'none'
+    const isOpt = v !== OPT_NONE
     patch({
-      opt_outdoor: v === 'outdoor',
-      opt_takeout: v === 'takeout',
-      opt_outdoor_parallel: v === 'parallel',
+      ...optPatch(v),
       ...(isOpt ? {
         seated: false,
-        ...(raiseVoid ? {} : {
-          raised: true,
-          raised_at: order.raised ? order.raised_at : new Date().toISOString(),
-          seat_status: 'raised',
-        }),
-        raise_canceled: null, // 제조옵션으로 다시 올림 → 취소이력 해제
+        ...(raiseVoid ? { raise_canceled: null } : raisePatch(order)), // raisePatch 가 raise_canceled 도 푼다
       } : {}),
     })
   }
@@ -79,9 +74,8 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   //   영수증 포장(maybe_receipt) 로 바꾸면 올림이 무시되므로 남아있던 올림 표시도 함께 내린다
   //   (취소가 아니라 갈래 전환이라 raise_canceled 이력은 남기지 않는다).
   const setDeliverMode = (v) => {
-    const extra = v === 'maybe_receipt' && order.raised
-      ? { raised: false, raised_at: null, seat_status: 'pending' }
-      : {}
+    // ★취소가 아니라 «갈래 전환»이라 raise_canceled 이력은 남기지 않는다(unraisePatch 인자 생략).
+    const extra = v === 'maybe_receipt' && order.raised ? unraisePatch() : {}
     if (order.seat_delivered) patch({ deliver_mode: v, ...extra })
     else onCommit?.(order.id, 'seat', { deliver_mode: v, ...extra })
     setMaybeOpen(false)
@@ -92,8 +86,8 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   const resetSeatOrder = () => {
     patch({
       seated: false, seat_order_alive: true,
-      raised: false, raised_at: null, raise_canceled: null, seat_status: 'pending',
-      opt_outdoor: false, opt_takeout: false, opt_outdoor_parallel: false,
+      ...unraisePatch(null), // 이력까지 지운다 — '처음 전달을 눌렀던 상태'로 돌아가는 것이므로
+      ...optPatch(OPT_NONE),
     })
     setConfirmSeatReset(false)
   }
@@ -105,11 +99,12 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   //   ★'한번에' 로 걸었던 것을 풀면(mode==='both') 자리앉음까지 함께 되돌린다 — 건 것과 같은 단위로 푼다.
   const uncheckRaise = (mode = confirmUncheck) => {
     // 취소 당시 방식을 raise_canceled(text)에 남긴다 → '올림취소됨(야외)' 히스토리 + 다시 올림 활성(isRaiseEnabled).
-    const method = order.opt_takeout ? 'takeout' : order.opt_outdoor ? 'outdoor' : order.opt_outdoor_parallel ? 'parallel' : 'direct'
-    const base = { raised: false, raised_at: null, seat_status: 'pending', raise_canceled: method }
+    const opt = optOf(order)
+    const method = opt === OPT_NONE ? 'direct' : opt
+    const base = unraisePatch(method)
     const both = mode === 'both' ? { seated: false, seat_order_alive: true } : {}
     if (method !== 'direct') {
-      patch({ ...base, ...both, opt_outdoor: false, opt_takeout: false, opt_outdoor_parallel: false, seat_order_alive: true })
+      patch({ ...base, ...both, ...optPatch(OPT_NONE), seat_order_alive: true })
     } else {
       patch({ ...base, ...both }) // 직접체크 → raised만 해제, 자리앉음(seated)은 유지('한번에' 취소면 함께 해제)
     }
@@ -123,10 +118,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   const setBoth = () => patch({
     seated: true,
     seat_order_alive: false,
-    raised: true,
-    raised_at: order.raised ? order.raised_at : new Date().toISOString(),
-    seat_status: 'raised',
-    raise_canceled: null,
+    ...raisePatch(order),
   })
 
   // ── 완료(R12) ↔ 올림 연동 (유저 확정 2026-08-08) ──────────────────────────
@@ -142,10 +134,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
     const now = new Date().toISOString()
     onArchive?.(order, withRaise ? {
       ...(preDeliver ? { seat_delivered: true, delivered_at: now } : {}),
-      raised: true,
-      raised_at: order.raised_at || now,
-      seat_status: 'raised',
-      raise_canceled: null,
+      ...raisePatch(order, now),
     } : {})
     setArchivePrompt(false)
   }
@@ -157,7 +146,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   //   · pre(회색)  = 아직 올림 전. 눌리기는 한다(모달로 «올림도 체크?» 를 묻는 자리).
   //   ★포장도고려(포장영수증, raiseVoid)은 올림이 개념상 없는 줄이라 회색에 남는다 — 초록으로 칠하면
   //     '주방에 나갔다'는 거짓 신호가 된다.
-  const doneTone = order.opt_outdoor_parallel ? 'is-parallel'
+  const doneTone = isParallel(order) ? 'is-parallel'
     : (order.raised && !raiseVoid) ? ''
     : 'is-pre'
 
@@ -243,11 +232,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
               className="seat-no-btn seat-no-cancel"
               aria-label="자리대기 취소"
               title="자리대기 취소(손님이 대기 포기) — 완료 탭으로 넘어갑니다"
-              onClick={() => patch({
-                seat_status: 'canceled',
-                seat_order_alive: false,
-                archived_at: new Date().toISOString(),
-              })}
+              onClick={() => patch(cancelPatch())}
             >취소</button>
           )}
         </div>
@@ -379,7 +364,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
               checked={!!order.raised && !raiseVoid}
               disabled={preDeliver || raiseVoid}
               onChange={(e) => {
-                if (e.target.checked) patch({ raised: true, raised_at: new Date().toISOString(), seat_status: 'raised', raise_canceled: null })
+                if (e.target.checked) patch(raisePatch(order))
                 else setConfirmUncheck('raise') // 바로 풀지 않고 재확인 버튼을 띄운다
               }}
             /> <span className="seat-check-text">올리기 전달</span>
@@ -446,9 +431,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
             {canceled && <span className="seat-cancel-tag">취소</span>}
             {/* [대기열로] = 다시 안내 대상으로. ★취소 건이면 취소 상태도 함께 푼다 — 손님이 돌아온 경우이고,
                 취소인 채로 대기열에 되돌리면 흐린 줄이 대기열에 남아 오히려 헷갈린다. */}
-            <button type="button" className="seat-done-btn is-restore" onClick={() => onRestore(order, canceled
-              ? { seat_status: order.raised ? 'raised' : 'pending', seat_order_alive: true }
-              : {})}>대기열로</button>
+            <button type="button" className="seat-done-btn is-restore" onClick={() => onRestore(order, canceled ? uncancelPatch(order) : {})}>대기열로</button>
           </>)
           : onArchive && (
             <button type="button" className={`seat-done-btn ${doneTone}`} onClick={() => (needsRaiseAsk ? setArchivePrompt(true) : archiveNow(false))}>완료</button>
