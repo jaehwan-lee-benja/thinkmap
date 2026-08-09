@@ -318,7 +318,7 @@
 }
 .seat-modal-head { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
 .seat-modal-title { flex: 1 1 auto; font-weight: 700; font-size: 18px; }
-.seat-modal-body { flex: 1 1 auto; overflow: auto; }
+.seat-modal-body { flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; }
 .seat-modal-foot { flex: 0 0 auto; color: var(--md-on-surface-variant); opacity: .8; }
 .seat-settings-body { display: flex; flex-direction: column; gap: 4px; }
 .seat-settings-row {
@@ -356,7 +356,10 @@
     그 상자 기준으로 다시 잡혀 죽는다(2026-08-08 실증, SEAT-SPEC §9.0).
    ·min-height:0 — flex 자식이 내용 높이로 부풀어 스크롤포트를 밀어내는 것을 막는다. */
 .seat-body { flex: 1 1 auto; display: flex; min-height: 0; }
-.seat-main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; padding: 0; }
+/* ★overscroll-behavior: contain — 표를 끝까지 스크롤한 뒤 계속 끌면 그 스크롤이 문서로 **연쇄**되어
+   iOS 가 페이지 전체를 튕긴다(= 화면이 밀려 올라가고 아래에 검은 배경. 유저 신고 2026-08-09).
+   여기서 끊으면 표 끝은 «끝»에서 멎는다. 문서 쪽 잠금은 index.css 참조. */
+.seat-main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0; }
 .seat-screen { padding: 16px; }
 
 /* 태블링 액자 — 폭(가로형)·높이(세로형)는 flex-basis(%)로 한 벌. 축소는 막는다(flex-shrink:0). */
@@ -395,7 +398,7 @@
   white-space: nowrap;
   text-decoration: none;
 }
-.seat-side-frame { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.seat-side-frame { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; overscroll-behavior: contain; }
 /* ★배율(줌) — 유저 지시 2026-08-09 「더 넓게 보고 싶은데 배율 조정 가능할까」.
    액자의 **레이아웃 폭·높이를 1/k 로 키우고** 그림만 k 로 줄인다. 즉 태블링은 «더 큰 화면»으로 인식하고
    우리는 작게 본다 — 폰트만 줄이는 게 아니라 반응형 분기까지 넓은 쪽으로 넘어가서 표가 잘리지 않는다.
