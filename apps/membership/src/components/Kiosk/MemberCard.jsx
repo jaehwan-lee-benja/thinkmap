@@ -67,7 +67,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
       date: todayStr(),
       token: tok,
       stamp: member.stamp ? `${member.stamp.current_stamps ?? 0}/${member.stamp.threshold ?? STAMP_GOAL}` : '',
-    })
+    }, { source: retry ? 'reprint' : 'claim' })   // ★경로 이름을 남긴다 — 신고 재구성의 첫 축
     // ★"인쇄됨"이라 단정하지 않는다 — 스킴 호출은 결과를 알려주지 않는다(print.js 주석).
     setPrintMsg(r.ok
       ? (retry ? '인쇄를 다시 요청했습니다 — 종이를 확인하세요.' : '인쇄를 요청했습니다 — 종이를 확인하세요.')

@@ -467,7 +467,10 @@
   background: var(--md-surface-container); color: var(--md-on-surface); border: 1px solid var(--md-outline-variant); border-radius: 6px; }
 .mk-ed-row input[type=number] { width: 64px; min-height: 32px; padding: 2px 6px;
   background: var(--md-surface-container); color: var(--md-on-surface); border: 1px solid var(--md-outline-variant); border-radius: 6px; }
-.mk-ed-actions { display: flex; gap: 10px; }
+/* ★버튼 글자는 줄바꿈하지 않는다 — 좁아지면 «저 장», «인쇄 기록 닫 기» 처럼 한 글자씩 접혀
+   무엇을 누르는 버튼인지 읽히지 않았다(실측). 넘치면 줄로 흘려보낸다(wrap). */
+.mk-ed-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.mk-ed-actions button { white-space: nowrap; }
 /* 실물 프리뷰 — 흰 감열지 */
 .mk-ed-preview-wrap { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .mk-ed-paper {
@@ -1280,3 +1283,20 @@ body:has(.mk-preview-bar) .mk-build { top: 32px; }
 }
 .mk-manual-input:focus { border-color: var(--md-primary); outline: none; }
 .mk-manual-scan .mk-reset { flex: 0 0 auto; }
+
+/* ── 편집기: 프린터 설정 + 인쇄 블랙박스(2026-08-09 구조 라운드) ────────────── */
+.mk-ed-cfg {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px; margin-bottom: 10px;
+  border: 1px solid var(--md-outline-variant); border-radius: var(--md-radius-sm);
+}
+.mk-ed-cfg-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mk-ed-log { margin-top: 10px; border-top: 1px solid var(--md-outline-variant); padding-top: 8px; }
+/* 표는 «자기 안에서만» 가로 스크롤한다 — 화면 전체가 가로로 밀리면 안 된다(모바일 기준). */
+.mk-ed-log-table { overflow-x: auto; font-size: 12px; }
+.mk-ed-log-row {
+  display: grid; grid-template-columns: 108px 88px 64px 108px 64px 72px 84px;
+  gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--md-outline-variant);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.mk-ed-log-head { font-weight: 700; }

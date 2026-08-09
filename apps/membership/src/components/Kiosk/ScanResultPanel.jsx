@@ -48,7 +48,7 @@ export default function ScanResultPanel({ scan, printMsg, setPrintMsg, allowPrin
                   name: result.display_name || '', date: result.event_date || todayStr(),
                   token: result.token,
                   stamp: stamp ? `${stamp.current_stamps}/${stamp.threshold}` : '',
-                })
+                }, { source: 'scan' })
                 setPrintMsg(r.ok ? '인쇄를 요청했습니다 — 종이가 나오는지 확인하세요.' : '인쇄를 시작하지 못했습니다 — RawBT·프린터 연결 확인')
               }}
             >영수증 인쇄</button>

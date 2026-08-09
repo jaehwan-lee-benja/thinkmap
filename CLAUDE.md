@@ -31,6 +31,9 @@
 자리후 시스템(seat — 카페 주방 자리후·올리기 실시간 협업) 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
 - [docs/SEAT-SPEC.md](docs/SEAT-SPEC.md) — 자리후 시스템 명세서 (4역할 모델, seat_orders·seat_station_status 데이터 모델, 워크스페이스 grant(can_in_workspace) 테넌시·RLS, Realtime 동기화, 규칙 R1~R7, 카메라 슬롯, Phase 로드맵, 체크리스트)
 
+영수증 인쇄(ESC/POS 바이트·컷 방언·RawBT·템플릿 저장) 관련 코드를 수정하기 전에 반드시 아래 문서를 읽을 것:
+- [docs/RECEIPT-PRINT-SPEC.md](docs/RECEIPT-PRINT-SPEC.md) — ★영수증 인쇄 명세서 (파이프라인 계층·단일 진입점, 바이트 계약, 컷 방언 4종과 «주체는 하나» 규율, 정본 기본값+명시 오버라이드 저장, 블랙박스 로그, 현장 진단 순서, 수정 원칙, 체크리스트)
+
 ## 디자인 / UI 작업
 
 UI·스타일을 만들거나 다듬기 전에 아래 기준을 따른다:

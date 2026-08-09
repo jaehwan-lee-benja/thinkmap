@@ -16,7 +16,10 @@
 // ★템플릿 버전(2026-08-06 신설): 저장본(localStorage)은 코드를 고쳐도 **옛 내용을 계속 쓴다**.
 //   버전이 낮으면 loadTemplate 이 올려준다(아래 migrateTemplate) — 현장 태블릿에 이미 저장된
 //   «옛 카피·컷 없는» 판이 조용히 살아남는 것을 막는다.
-export const TEMPLATE_VERSION = 2
+// v3(2026-08-09 구조 라운드): ⑴`cutMode` 를 템플릿에서 **프린터 설정으로 이관**(printerConfig.js)
+//   — 컷 방언은 «이 기기 프린터의 성질»이고 템플릿은 «매장 공통 영수증 모양»이라 수명이 다르다.
+//   ⑵저장 형식을 **명시 오버라이드**로 바꿨다(아래 diffFromDefault/mergeWithDefault).
+export const TEMPLATE_VERSION = 3
 
 export const DEFAULT_TEMPLATE = {
   version: TEMPLATE_VERSION,
@@ -176,18 +179,32 @@ function rasterText(lines, widthDots) {
 //   우리가 보내는 바이트는 계속 있었다(실측: 페이로드 **맨 끝** `1d 56 42 00` = GS V 66 0, 이후 0바이트).
 //   ⇒ 코드 축은 깨끗하고 남는 변수는 **프린터가 그 방언을 아는지**다. `GS V 66 n`(컷 위치까지 급지 후
 //   부분컷)은 현대 기종의 표준이지만 **구형·일부 기종은 `GS V 0/1`(급지 없는 풀/부분컷)만 안다.**
-//   그래서 방언을 **템플릿 값으로** 뺐다 — 현장에서 편집기에서 바꿔 테스트할 수 있고 재배포가 필요 없다.
-//   'feed'(기본) = GS V 66 0 · 'full' = GS V 0 · 'partial' = GS V 1
-function pushCut(push, tpl) {
-  const mode = (tpl && tpl.cutMode) || 'feed'
-  if (mode === 'full') return push(GS, 0x56, 0)
-  if (mode === 'partial') return push(GS, 0x56, 1)
-  return push(GS, 0x56, 66, 0)
+//   그래서 방언을 **값으로** 뺐다 — 현장에서 편집기에서 바꿔 테스트할 수 있고 재배포가 필요 없다.
+//   값의 소유자는 «그 기기 프린터 설정»이다(printerConfig.js) — 템플릿(영수증 모양)과 수명이 다르다.
+//   'feed'(기본) = GS V 66 0 · 'full' = GS V 0 · 'partial' = GS V 1 · 'none' = **미전송**
+// ★'none' 이 필요한 이유(2026-08-09): RawBT/드라이버가 자체 후행 피드+자동컷을 하면
+//   우리 컷과 합쳐 **컷 2회** → 사이에 빈 조각이 따로 잘려 나온다(8/08 현장 «빈 여백지 1장»).
+//   컷 주체는 **하나여야 한다**. 종전 코드엔 「맡긴다」를 표현할 방법이 아예 없었다 = 구조 결함.
+// @returns {boolean} 실제로 컷 바이트를 냈는지
+function pushCut(push, cut) {
+  if (cut === 'none') return false
+  if (cut === 'full') { push(GS, 0x56, 0); return true }
+  if (cut === 'partial') { push(GS, 0x56, 1); return true }
+  push(GS, 0x56, 66, 0)
+  return true
 }
 
-export function buildEscpos(tpl, data) {
+/**
+ * ESC/POS 바이트 생성.
+ * @param {object} tpl  영수증 모양(블록·폭)
+ * @param {object} data {name,date,token,stamp}
+ * @param {{cut?:string}} [cfg] 그 기기 프린터 설정 — 컷 방언. 생략 시 'feed'(코드 정본 기본값).
+ *   ★옛 저장본 호환: cfg 가 없고 tpl.cutMode 가 남아 있으면 그것을 쓴다(마이그레이션 전 1회성 경로).
+ */
+export function buildEscpos(tpl, data, cfg) {
   const v = validateTemplate(tpl)
   if (!v.ok) throw new Error('invalid template: ' + v.errors.join(', '))
+  const cut = (cfg && cfg.cut) || (tpl && tpl.cutMode) || 'feed'
   const out = []
   const push = (...b) => out.push(...b)
   // ★용지폭이 이제 실제 출력에 반영된다(종전엔 58/80 토글이 프리뷰만 바꾸고 바이트엔 미반영이었다).
@@ -256,8 +273,7 @@ export function buildEscpos(tpl, data) {
         for (let i = 0; i < (b.lines | 0 || 1); i++) push(0x0a)
         break
       case 'cut':
-        pushCut(push, tpl)
-        cutEmitted = true
+        cutEmitted = pushCut(push, cut) || cutEmitted
         break
     }
   }
@@ -265,7 +281,10 @@ export function buildEscpos(tpl, data) {
   //   **종이는 반드시 잘린다**. validateTemplate 은 폭·바코드만 보므로 컷 없는 옛 저장본이
   //   그대로 통과해 왔다. «있어야 하는 것은 구조가 보장한다».
   //   중복 컷 가드: 템플릿이 이미 컷을 냈으면 추가하지 않는다.
-  if (!cutEmitted) { push(0x0a, 0x0a); pushCut(push, tpl) }
+  // ★단 cut='none' 은 예외다 — 그건 «컷을 안 냄»이 **의도**(RawBT 가 컷 주체)이므로
+  //   불변 조항이 그 의도를 덮으면 컷 2회 문제를 영원히 못 고친다. 불변 조항은 «사고 방지»용이고,
+  //   'none' 은 사고가 아니라 선언이다. 이 구분이 없던 게 이번 라운드의 F1 결함이다.
+  if (!cutEmitted && cut !== 'none') { push(0x0a, 0x0a); pushCut(push, cut) }
   return Uint8Array.from(out)
 }
 
@@ -278,7 +297,11 @@ export function escposToBase64(bytes) {
 }
 
 // ── 프리뷰 시퀀스 — ESC/POS 와 같은 블록 순회를 UI 렌더용으로 변환 ──────────
-export function previewSequence(tpl, data) {
+// ★cfg 를 받는 이유: `cut='none'` 이면 우리는 컷을 **안 보낸다**. 그때도 프리뷰가 ✂ 를 그대로 그리면
+//   「프리뷰=실인쇄」 규율이 깨진다(화면은 우리가 자른다 하고 실물은 RawBT 가 자른다).
+//   ⇒ 컷 줄에 «누가 자르는지»를 실어 보낸다.
+export function previewSequence(tpl, data, cfg) {
+  const cut = (cfg && cfg.cut) || (tpl && tpl.cutMode) || 'feed'
   const seq = []
   for (const b of tpl.blocks) {
     if (!b.on) continue
@@ -291,7 +314,7 @@ export function previewSequence(tpl, data) {
       case 'qr':      seq.push({ kind: 'qr', align, size: b.size || 5, url: b.url }); break
       case 'stamp':   seq.push({ kind: 'text', align, text: '스탬프 ' + (data.stamp || '') + '  (10개 = 아이스크림)', bold: false, big: false }); break
       case 'feed':    seq.push({ kind: 'feed', lines: b.lines || 1 }); break
-      case 'cut':     seq.push({ kind: 'cut' }); break
+      case 'cut':     seq.push({ kind: 'cut', by: cut === 'none' ? 'rawbt' : 'us', cut }); break
     }
   }
   return seq
@@ -320,4 +343,51 @@ export function migrateTemplate(tpl) {
   if (!t.blocks.some((b) => b.type === 'cut')) t.blocks.push({ type: 'cut', on: true, align: 'left' })
   t.version = TEMPLATE_VERSION
   return t
+}
+
+// ── ★저장 = «명시 오버라이드»만 (2026-08-09 구조 라운드) ─────────────────────
+// 문제: 종전엔 편집기가 템플릿을 **통째로** 저장했다. 그래서 한 번 저장한 기기는
+//   코드에서 블록·문구를 개선해도 **영원히 옛 판**을 썼다(= 같은 코드, 다른 출력).
+//   migrateTemplate 은 그 구멍을 사후에 하나씩 막는 붕대였을 뿐 원인은 «통째 저장»이다.
+// ⇒ 저장분에는 **기본값과 다른 키만** 남긴다. 없는 키는 언제나 코드 기본값을 쓴다.
+//   ⇒ 기본값 개선이 저장분 있는 기기에도 그대로 흘러들고, 막는 것은 «일부러 다르게 둔 것»뿐이다.
+// blocks 는 배열이라 키 단위 diff 가 무의미하므로 **통째 오버라이드**로 다룬다(같으면 저장 안 함).
+const SCALAR_KEYS = ['width']
+
+function sameJson(a, b) {
+  try { return JSON.stringify(a) === JSON.stringify(b) } catch (e) { return false }
+}
+
+/** 편집 중 템플릿 → 저장할 오버라이드 객체. 기본값과 같은 부분은 빠진다. */
+export function diffFromDefault(tpl) {
+  const out = { version: TEMPLATE_VERSION }
+  for (const k of SCALAR_KEYS) {
+    if (tpl && tpl[k] !== undefined && tpl[k] !== DEFAULT_TEMPLATE[k]) out[k] = tpl[k]
+  }
+  if (tpl && Array.isArray(tpl.blocks) && !sameJson(tpl.blocks, DEFAULT_TEMPLATE.blocks)) {
+    out.blocks = JSON.parse(JSON.stringify(tpl.blocks))
+  }
+  return out
+}
+
+/** 저장분(오버라이드) → 실제 사용 템플릿. 저장분이 없거나 깨졌으면 순수 기본값. */
+export function mergeWithDefault(saved) {
+  const base = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE))
+  if (!saved || typeof saved !== 'object') return base
+  // 옛 저장본(v2 이하, 통째 저장)은 마이그레이션을 태워 그 내용을 존중한다 —
+  // 현장 태블릿이 이미 손으로 맞춘 모양을 이 전환으로 날려버리지 않는다.
+  const s = (saved.version || 0) < TEMPLATE_VERSION ? migrateTemplate(saved) : saved
+  for (const k of SCALAR_KEYS) if (s[k] !== undefined) base[k] = s[k]
+  if (Array.isArray(s.blocks) && s.blocks.length) base.blocks = JSON.parse(JSON.stringify(s.blocks))
+  base.version = TEMPLATE_VERSION
+  return base
+}
+
+/** 저장분이 기본값에서 무엇을 덮고 있는지(화면 표시용). */
+export function templateOverrides(saved) {
+  if (!saved || typeof saved !== 'object') return []
+  const out = []
+  for (const k of SCALAR_KEYS) if (saved[k] !== undefined && saved[k] !== DEFAULT_TEMPLATE[k]) out.push(k)
+  if (Array.isArray(saved.blocks) && !sameJson(saved.blocks, DEFAULT_TEMPLATE.blocks)) out.push('blocks')
+  return out
 }
