@@ -34,6 +34,13 @@ export default function MembershipKiosk({ session }) {
         {role === 'ticket' && <TicketView />}
         {role === 'customer' && <CustomerView store={store} />}
       </main>
+      {/* ★카운트다운 자리를 **상시 예약**한다(유저 2026-08-09: 「15초 칸이 생기면 전체 유아이가 위로
+          튕기듯 올라가 — 아래에 빈칸 여백을 두고 메꾸는 방식으로」).
+          종전엔 막대가 뜨는 순간 `.mk-app` 을 56px 줄여서 **본문 전체가 점프**했다.
+          ⇒ 앱 안에 높이 고정 슬롯을 상시 두고, 막대는 그 위에 겹쳐 나타난다 — 본문은 픽셀 하나 안 움직인다.
+          빈 상태에서도 앱 배경과 같은 색이라 «빈 여백»으로 보인다(앱 스코프 안이라 토큰이 그대로 붙는다).
+          고객 화면에만 둔다 — 막대가 뜨는 화면이 여기뿐이고, 직원·편집기에서 56px 를 낭비할 이유가 없다. */}
+      {role === 'customer' && <div className="mk-idle-slot" aria-hidden="true" />}
     </div>
   )
 }

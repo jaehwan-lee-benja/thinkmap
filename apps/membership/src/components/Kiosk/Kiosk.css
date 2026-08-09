@@ -1233,11 +1233,18 @@ body:has(.mk-preview-bar) .mk-build { top: 32px; }
 .mk-idle-warn .mk-idle-txt { font-size: clamp(13px, 1.9vw, 16px); }
 /* ★두 문장을 붙이지 않는다 — br 을 숨겼더니 «돌아갑니다계속 보시려면» 으로 붙었다(실측 스크린샷). */
 .mk-idle-home { min-height: 40px; padding: 8px 16px; font-size: clamp(14px, 2vw, 16px); }
-/* ★앱 자체를 막대 위까지로 줄인다 — `.mk-main` 에 padding 을 주는 방식은 **안 통했다**(실측 49px 겹침):
-   패딩은 «흘러넘친 콘텐츠»를 밀어 올리지 못한다(스크롤도 안 생겨 그대로 침범한다).
-   `.mk-app` 이 fixed inset:0 이므로 **bottom 을 올리면** 그 아래 화면 전체가 겹칠 수 없다 —
-   프리뷰 배너에서 top 을 내린 것과 같은 수법이고, 화면·역할과 무관하게 한 번에 성립한다. */
-body:has(.mk-idle-warn) .mk-app { bottom: 56px; }
+/* ★막대 자리 = **상시 예약 슬롯**(2026-08-09 유저: 「막대가 생기면 전체 유아이가 위로 튕긴다」).
+   경위: ⑴`.mk-main` padding 은 «흘러넘친 콘텐츠»를 밀어 올리지 못했다(실측 49px 겹침).
+        ⑵그래서 막대가 뜨는 동안만 `.mk-app{bottom:56px}` 로 앱을 줄였는데, 그 «동안만»이 곧 **점프**였다.
+   ⇒ 앱 안에 높이 고정 슬롯을 **항상** 둔다. 본문(.mk-main)이 flex 로 그만큼 줄어든 상태로 시작하고,
+     막대는 fixed 로 그 슬롯 위에 겹친다 — 등장·소멸이 레이아웃을 전혀 건드리지 않는다.
+   ★앱 안에 있으므로 배경 토큰이 그대로 붙는다(빈 상태 = 앱과 같은 색 여백). */
+.mk-app { --mk-idle-slot: 0px; }
+.mk-app.mk-role-customer { --mk-idle-slot: 56px; }
+.mk-idle-slot { flex: 0 0 var(--mk-idle-slot); min-height: var(--mk-idle-slot); }
+/* ★fixed 오버레이는 앱 안에 있어도 **뷰포트 기준**이라 슬롯을 모른다 — 예약칸을 명시로 알려준다.
+   (실측: 이 한 줄이 없으면 «이 번호가 맞나요?» 시트의 버튼 아랫줄이 막대에 잘렸다.) */
+.mk-role-customer .mk-pick-overlay { bottom: var(--mk-idle-slot); }
 
 /* ★② 완료 멘트를 흐린 2택 «위에» 겹친다 — 배경은 «끝난 것», 문구는 그 위 안내판. */
 .mk-done-wrap { position: relative; width: 100%; }
@@ -1249,17 +1256,19 @@ body:has(.mk-idle-warn) .mk-app { bottom: 56px; }
   text-align: center; word-break: keep-all; line-height: 1.45;
 }
 
-/* ★막대가 떠 있는 동안엔 첫 화면을 조금 다잡는다 — 앱이 56px 줄어드는데 vh 기반 크기는 그만큼
-   줄지 않아 **가입 버튼 아래가 잘렸다**(실측 29px). «앱만 줄이면 된다»가 아니었다:
-   줄어든 만큼 내용도 앉을 수 있어야 한다. 값은 이 상황에서만 적용되므로 평소 여백은 그대로다. */
-body:has(.mk-idle-warn) .mk-role-customer .mk-lookup-split { gap: 8px; }
-body:has(.mk-idle-warn) .mk-role-customer .mk-signup-below { margin-top: 4px; gap: 6px; }
-body:has(.mk-idle-warn) .mk-role-customer .mk-lookup-left { gap: 6px; }
-body:has(.mk-idle-warn) .mk-role-customer .mk-brand-logo { max-height: 84px; }
-body:has(.mk-idle-warn) .mk-role-customer .mk-lookup-ment { font-size: clamp(17px, 2.4vh, 22px); }
-/* ★막대가 떠 있으면 카드 안 [처음으로]는 숨긴다 — 막대가 **같은 버튼을 이미 제공**하고,
-   앱이 줄어든 만큼 이 버튼이 아래로 잘려 «깨진 것»처럼 보였다(실측). 중복을 지우면 잘림도 사라진다. */
-body:has(.mk-idle-warn) .mk-member-card-hero > .mk-member-body > .mk-reset { display: none; }
+/* ★첫 화면 여백은 **상시** 이 값으로 둔다 — 본문이 항상 56px 줄어든 상태이기 때문이다.
+   경위: 앱을 56px 줄였더니 vh 기반 크기는 그만큼 줄지 않아 **가입 버튼 아래가 잘렸다**(실측 29px).
+   종전엔 이 보정을 «막대가 떠 있는 동안만» 걸었는데, 그 조건부가 곧 두 번째 점프였다(여백·로고가 순간 줄었다).
+   ⇒ 슬롯이 상시 예약된 지금은 보정도 상시다. 화면은 언제나 같은 모양으로 앉아 있다. */
+.mk-role-customer .mk-lookup-split { gap: 8px; }
+.mk-role-customer .mk-signup-below { margin-top: 4px; gap: 6px; }
+.mk-role-customer .mk-lookup-left { gap: 6px; }
+.mk-role-customer .mk-brand-logo { max-height: 84px; }
+.mk-role-customer .mk-lookup-ment { font-size: clamp(17px, 2.4vh, 22px); }
+/* ★고객 조회 결과 카드 안 [처음으로]는 **상시** 숨긴다 — 막대가 같은 버튼을 이미 제공한다(막대는
+   조회 결과에서 warn==sec 이라 처음부터 떠 있다). 종전처럼 «막대가 뜨면 숨김»으로 두면
+   그 순간 카드가 한 번 더 접히며 튄다. 직원 허브의 [새 조회]는 대상이 아니다(hero 카드 아님·역할 스코프). */
+.mk-role-customer .mk-member-card-hero > .mk-member-body > .mk-reset { display: none; }
 
 /* ★직원 허브 수기 토큰 입력(G2) — 스캐너 고장 시 우회로. 스캔 칸 안, 결과 위. */
 .mk-manual-scan { width: 100%; display: flex; gap: 8px; align-items: center; }
