@@ -8,7 +8,7 @@ import SeatConfirm from './SeatConfirm'
 import {
   isDineIn, removesFromSeatQueue, raiseDetailText, DELIVER_MODES, isTakeoutMaybe, deliverModeLabel,
   raiseIgnored, hasManufactureOption, isParallel,
-  raisePatch, unraisePatch, cancelPatch, uncancelPatch, optOf, optPatch, OPT_NONE,
+  raisePatch, unraisePatch, cancelPatch, uncancelPatch, undeliverPatch, raiseMethodOf, optOf, optPatch, OPT_NONE,
 } from '../utils/seatRules'
 
 export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandleProps, rowDropProps, onDelete, onAddSibling, onArchive, onRestore, dupSuffix, numpadOn, onOpenNumpad, raiseDetailOn }) {
@@ -99,8 +99,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   //   ★'한번에' 로 걸었던 것을 풀면(mode==='both') 자리앉음까지 함께 되돌린다 — 건 것과 같은 단위로 푼다.
   const uncheckRaise = (mode = confirmUncheck) => {
     // 취소 당시 방식을 raise_canceled(text)에 남긴다 → '올림취소됨(야외)' 히스토리 + 다시 올림 활성(isRaiseEnabled).
-    const opt = optOf(order)
-    const method = opt === OPT_NONE ? 'direct' : opt
+    const method = raiseMethodOf(order)
     const base = unraisePatch(method)
     const both = mode === 'both' ? { seated: false, seat_order_alive: true } : {}
     if (method !== 'direct') {
@@ -258,7 +257,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
               // 통계용: 주문번호가 처음 채워지는 순간만 시각 기록(이후 수정해도 최초 시각 유지).
               ...(!order.order_no && v && !order.order_no_at ? { order_no_at: new Date().toISOString() } : {}),
               // ★주문번호를 비우면 전달 체크도 함께 풀린다(비활성만 되고 체크가 남던 문제 — 유저 지시 2026-08-02).
-              ...(!v && order.seat_delivered ? { seat_delivered: false, delivered_at: null, deliver_mode: null } : {}),
+              ...(!v && order.seat_delivered ? undeliverPatch() : {}),
             })}
           />
         )}
@@ -291,7 +290,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
               type="checkbox"
               checked={!!order.seat_delivered}
               disabled={!order.order_no}
-              onChange={(e) => (e.target.checked ? onCommit?.(order.id, 'seat') : patch({ seat_delivered: false, delivered_at: null, deliver_mode: null }))}
+              onChange={(e) => (e.target.checked ? onCommit?.(order.id, 'seat') : patch(undeliverPatch()))}
             /> <span className="seat-check-text">전달</span>
           </label>
           <button

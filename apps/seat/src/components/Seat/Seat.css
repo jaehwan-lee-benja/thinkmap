@@ -957,7 +957,10 @@
    (기본 정보라 전달 전에도 주문서관리가 채워넣을 수 있어야 함 — 유저 지시 2026-08-01). */
 .seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) { opacity: .5; }
 .seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-input,
-.seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-select,
+.seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-select { pointer-events: none; }
+/* ★2026-08-09 회귀 수정 — 죽은 클래스(.seat-toggle) 정리 때 **선언부를 지고 있던 마지막 줄**이 통째로
+   지워지면서 위 두 줄이 고아가 됐고, 바로 아래 guide-locked 규칙의 셀렉터 목록에 흡수됐다.
+   («삭제할 이름이 콤마 목록의 마지막이면 `{...}` 도 같이 사라진다» — CSS 정리의 고전 함정.) */
 /* Guide 모드: 전달 전 실내 주문 = 자리후 전달까지는 활성, 제조옵션부터 이후 컨트롤만 dim/비활성.
    (전달 체크박스를 살려둬야 전달 가능 → seat-cell-deliver 이전 컬럼은 그대로) */
 .seat-row--guide-locked .seat-cell-opts,
@@ -1583,9 +1586,11 @@
   background: transparent;
   color: var(--md-on-surface-variant);
   font: inherit;
-  font-size: 16px;
   line-height: 1;
   cursor: pointer;
+  display: inline-flex;      /* SVG 아이콘 가운데 정렬(문자 글리프에서 SVG 로 교체, 2026-08-09) */
+  align-items: center;
+  justify-content: center;
 }
 .seat-confirm-x:hover { background: var(--md-surface-variant); color: var(--md-on-surface); }
 .seat-confirm-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
