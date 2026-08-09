@@ -4,6 +4,7 @@
 // 셸은 로그인만 확인하고 SeatSystemPage 에 session 을 넘긴다(모선에서의 기존 동작과 동일). 본 UI는 풀스크린 키오스크.
 import { useAuth } from '@thinkmap/core'
 import SeatSystemPage from './components/Seat/SeatSystemPage'
+import SeatBuildStamp from './components/Seat/components/SeatBuildStamp'
 
 // 모선(Hub) base — 같은 origin 형제 서브경로.
 const HUB_BASE = import.meta.env.VITE_HUB_BASE || '/thinkmap/'
@@ -29,6 +30,9 @@ export default function SeatApp() {
       <p>ThinkMap 계정으로 로그인하세요.</p>
       <button onClick={handleGoogleLogin}>Google로 로그인</button>
       <a href={HUB_BASE}>← 모선</a>
+      {/* 로그인 화면에도 둔다 — «지금 어느 버전인가»는 키오스크 안에서만 궁금한 게 아니다.
+          여기엔 헤더가 없으니 화면 우상단 고정(is-corner). */}
+      <SeatBuildStamp corner />
     </div>
   )
 
