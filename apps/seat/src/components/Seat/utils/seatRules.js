@@ -107,3 +107,67 @@ export function queueSuffixes(orders = []) {
   }
   return map
 }
+
+// ── 쓰기 헬퍼 (리팩토링 ⑵, 2026-08-09) ─────────────────────────────────────
+// ★왜: `seat_status` 와 `raised` 는 **같은 사실을 두 번 적는다**. 둘을 손으로 맞추는 지점이 11곳이었고,
+//   한 곳만 빠뜨리면 «올림인데 pending» 같은 유령 상태가 만들어져 스테이션 목록(isRaisedOrder)과
+//   통계(seatStats)가 서로 다른 답을 낸다. 지금까지 맞아 있던 건 구조가 보장해서가 아니라 우연이었다.
+//   ⇒ 짝을 **여기서만** 맞춘다. 컬럼은 그대로 둔다(DB 마이그 없음).
+//   ※`seat_status` 를 파생값으로 강등하는 건 별건이다 — 여기서는 «두 번 적되 한 곳에서 적는다» 까지만.
+
+const nowISO = () => new Date().toISOString()
+
+// 올림 켜기. 시각은 **이미 올라간 줄이면 그 시각을 유지**하고, 아니면 지금을 찍는다.
+//   (호출부 4곳이 조금씩 다른 식을 쓰고 있었지만, 도달 가능한 상태에서는 전부 이 식과 같다 —
+//    올림을 풀 때 raised_at 을 항상 null 로 지우기 때문에 «raised=false 인데 raised_at 이 남은» 상태가 없다.)
+export const raisePatch = (o, now = nowISO()) => ({
+  raised: true,
+  raised_at: o?.raised ? o.raised_at : now,
+  seat_status: 'raised',
+  raise_canceled: null,
+})
+
+// 올림 끄기. canceled 를 주면 취소 이력(raise_canceled)까지 함께 정한다.
+//   · undefined = 이력 손대지 않음(갈래 전환처럼 «취소가 아닌» 해제, R11)
+//   · null      = 이력 지움(자리순서 리셋)
+//   · 'takeout'|'outdoor'|'parallel'|'direct' = 그 방식으로 취소했음을 남김(R10)
+export const unraisePatch = (canceled = undefined) => ({
+  raised: false,
+  raised_at: null,
+  seat_status: 'pending',
+  ...(canceled === undefined ? {} : { raise_canceled: canceled }),
+})
+
+// 자리대기 취소 = 상태 + 자리순서 종료 + 완료 탭으로(R12). 세 가지가 항상 함께 간다.
+export const cancelPatch = (now = nowISO()) => ({
+  seat_status: 'canceled',
+  seat_order_alive: false,
+  archived_at: now,
+})
+
+// 취소 건을 대기열로 되돌리기 — 취소 전 상태를 따로 저장하지 않으므로 raised 로 판정해 복원한다.
+export const uncancelPatch = (o) => ({
+  seat_status: o?.raised ? 'raised' : 'pending',
+  seat_order_alive: true,
+})
+
+// 자리후 전달(R8) — 전달 시각은 통계 구간(주문→전달 / 전달→올림)에 쓰인다.
+export const deliverPatch = (now = nowISO()) => ({
+  seat_status: 'pending',
+  seat_delivered: true,
+  delivered_at: now,
+})
+
+// 제조옵션(야외/포장/야외병행) — 실제로는 **단일 선택**인데 boolean 3개로 저장한다.
+//   여기를 통하면 «셋 중 둘이 켜진» 상태를 코드가 만들 수 없다. v: 'outdoor'|'takeout'|'parallel'|'none'
+export const OPT_NONE = 'none'
+export const optOf = (o) => o?.opt_outdoor ? 'outdoor'
+  : o?.opt_takeout ? 'takeout'
+  : o?.opt_outdoor_parallel ? 'parallel' : OPT_NONE
+export const optPatch = (v) => ({
+  opt_outdoor: v === 'outdoor',
+  opt_takeout: v === 'takeout',
+  opt_outdoor_parallel: v === 'parallel',
+})
+// 야외병행 — 올림이 걸려도 **자리순서가 살아있는** 유일한 상태(완료 버튼 파랑의 근거, §9.0).
+export const isParallel = (o) => !!o?.opt_outdoor_parallel

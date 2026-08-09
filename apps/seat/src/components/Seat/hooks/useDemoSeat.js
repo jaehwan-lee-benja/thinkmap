@@ -2,6 +2,7 @@
 // live 훅(useSeatOrders/useStationStatus)과 같은 인터페이스를 흉내내 SeatSystemPage 배선을 그대로 쓴다.
 import { useState, useRef, useCallback } from 'react'
 import { DEMO_ORDERS, DEMO_STATIONS, withOrderDefaults } from '../config/demoData'
+import { deliverPatch } from '../utils/seatRules'
 
 export function useDemoSeat(active) {
   const [orders, setOrders] = useState(() => (active ? DEMO_ORDERS : []))
@@ -25,7 +26,7 @@ export function useDemoSeat(active) {
   // 명시 전달(A안): 'seat' = 자리후 확정.
   const commitOrder = useCallback((id, scope, extra = {}) => {
     if (scope !== 'seat') return
-    patchOrder(id, { seat_status: 'pending', seat_delivered: true, delivered_at: new Date().toISOString(), ...extra })
+    patchOrder(id, { ...deliverPatch(), ...extra })
   }, [patchOrder])
 
   const deleteOrder = useCallback((id) => {
