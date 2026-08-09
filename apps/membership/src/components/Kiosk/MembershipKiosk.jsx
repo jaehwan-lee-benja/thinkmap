@@ -1,7 +1,7 @@
 // 멤버십 키오스크 본체 — ★2대 분리(유저결정 A/A-2): URL role 로 뷰 분기.
 //   고객 태블릿  = 기본(?role 없음/customer): CustomerView (셀프검색+원격푸시+가입).
 //   직원 노트북  = ?role=staff: StaffView (조회→고객푸시 + 회원리스트 + 팝콘).
-//   영수증 편집  = ?role=editor: ReceiptEditor (마스터 — 템플릿·테스트 인쇄).
+//   영수증 편집  = ?role=editor: ReceiptEditor (**매장 계정 이상** — 템플릿·테스트 인쇄. G12 판정 2026-08-09).
 //   카운터 회수  = ?role=scan: ScanView (바코드 스캔 → 조회·회수·인쇄).
 //   카운터 폰    = ?role=printer: PrinterView (발권 수신 → 자동 인쇄 브리지).
 //   ★손님 폰     = ?role=ticket: TicketView — **인증 없이 열린다**(main.jsx 에서 분기).
