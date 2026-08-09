@@ -12,19 +12,18 @@ const rules = readKioskRules()
 const map = ruleMap(rules)
 const src = readSourceText()
 
-// 템플릿 문자열로 조립되는 클래스 — 소스에 리터럴로 안 나타난다(오탐 방지 화이트리스트).
-// ★새 항목을 넣을 땐 «조립하는 코드 위치»를 같이 적는다. 근거 없는 면제는 죽은 규칙의 은신처가 된다.
-const DYNAMIC = new Set([
-  'mk-role-customer',   // MembershipKiosk.jsx: `mk-role-${role}`
-  'mk-role-staff',
-  'mk-role-scan',
-  'mk-role-printer',
-  'mk-role-editor',
-  'mk-role-ticket',
-  'mk-evt-step-0',      // EventTicketCard.jsx: `mk-evt-step-${step}`
-  'mk-evt-step-1',
-  'mk-evt-step-2',
-])
+// 템플릿 문자열로 조립되는 클래스 — 소스에 리터럴로 안 나타나므로 죽은 규칙 판정에서 면제한다.
+//
+// ★면제는 «울타리»다 — 세운 이유를 문서가 아니라 **테스트가 들고 있어야** 이유가 소멸했을 때 같이 무너진다.
+//   그래서 각 항목은 «어떤 표현이 이 이름을 만드는가»를 리터럴로 지니고, 아래 테스트가
+//   그 표현이 소스에 아직 있는지 확인한다. 조립 코드가 사라지면 면제도 즉시 무효가 되어
+//   그 클래스는 다시 «죽은 규칙» 판정 대상이 된다.
+//   (근거 없는 면제를 손으로 나열하면 그 목록 자체가 죽은 규칙의 은신처가 된다 — 교본 지적.)
+const DYNAMIC_SOURCES = [
+  { prefix: 'mk-role-', values: ['customer', 'staff', 'scan', 'printer', 'editor', 'ticket'], composedBy: 'mk-role-${role}' },
+  { prefix: 'mk-evt-step-', values: ['0', '1', '2'], composedBy: 'mk-evt-step-${step}' },
+]
+const DYNAMIC = new Set(DYNAMIC_SOURCES.flatMap((d) => d.values.map((v) => d.prefix + v)))
 
 describe('Kiosk.css — 죽은 규칙', () => {
   it('CSS 의 모든 mk-* 클래스가 소스에서 참조된다', () => {
@@ -35,6 +34,13 @@ describe('Kiosk.css — 죽은 규칙', () => {
       .sort()
     expect(dead, `죽은 CSS 클래스 ${dead.length}개 — JSX 에서 지웠으면 CSS 도 지운다`).toEqual([])
   })
+
+  // ★면제의 이유가 아직 살아 있는지 — 울타리는 자기 이유를 들고 있어야 한다.
+  for (const d of DYNAMIC_SOURCES) {
+    it(`동적 조립 «${d.composedBy}» 이 소스에 아직 있다 — 없으면 ${d.prefix}* 면제는 무효다`, () => {
+      expect(src, `${d.composedBy} 를 만드는 코드가 사라졌다 — DYNAMIC_SOURCES 항목을 지워라`).toContain(d.composedBy)
+    })
+  }
 })
 
 // ★고아화 감시 대상 — 죽은 셀렉터와 **같은 콤마 그룹에 살아 있던** 셀렉터들.
