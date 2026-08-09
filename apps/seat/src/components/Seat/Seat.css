@@ -34,6 +34,9 @@
      (흰 글자는 이 배경에서 대비 2.4:1 로 미달). 유저 지시 2026-08-08. */
   --seat-done: #3CB44B;
   --seat-on-done: #06300F;
+  /* «완료» 야외병행 단계 파랑 — 브랜드 정본 네이비(#2D4B82). 흰 글자 대비 7.9:1. 유저 지시 2026-08-09. */
+  --seat-done-parallel: #2D4B82;
+  --seat-on-done-parallel: #FFFFFF;
 
   /* elevation (Material 3 그림자) */
   --md-elev-1: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15);
@@ -89,6 +92,8 @@
   --md-on-error: #FFFFFF;
   --seat-done: #3CB44B;
   --seat-on-done: #06300F;
+  --seat-done-parallel: #2D4B82;
+  --seat-on-done-parallel: #FFFFFF;
   color-scheme: light;
 }
 
@@ -427,6 +432,19 @@
 }
 .seat-done-btn:hover { filter: brightness(1.08); }
 .seat-done-btn:active { filter: brightness(.94); }
+/* ★완료 버튼 3색(유저 지시 2026-08-09) — 직원 2명이 병행할 때 버튼 색만 보고 그 줄의 진행 단계를 안다.
+     초록(기본) = 올림까지 끝남 / 파랑 = 야외병행(올렸지만 자리 안내가 아직 남은 줄) / 회색 = 올림 전.
+   ※회색은 «비활성»이 아니다 — 눌리며, 누르면 «올림도 체크?» 모달로 간다. 그래서 굵기·테두리를 살려
+     '지금은 이르다'만 말하게 하고, disabled 처럼 흐리게 죽이지 않는다. */
+.seat-done-btn.is-parallel {
+  background: var(--seat-done-parallel);
+  color: var(--seat-on-done-parallel);
+}
+.seat-done-btn.is-pre {
+  background: var(--md-surface-container-high);
+  border-color: var(--md-outline);
+  color: var(--md-on-surface);
+}
 .seat-done-btn.is-restore {
   background: transparent;
   border-color: var(--md-outline-variant);

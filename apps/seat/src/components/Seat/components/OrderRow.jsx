@@ -149,6 +149,17 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
     setArchivePrompt(false)
   }
 
+  // «완료» 버튼 3색 — 직원 2명이 병행할 때 버튼 색만 보고 그 줄이 어디까지 갔는지 알게(유저 지시 2026-08-09).
+  //   · parallel(파랑) = 야외병행. 올림은 걸렸지만 ★자리순서가 살아있어(removesFromSeatQueue 제외)
+  //     자리가 나면 안내가 남는다 — 이 하나만 «올렸는데 아직 내 일» 이라 초록보다 앞서 판정한다.
+  //   · raised(초록) = 올림까지 끝(야외·포장·직접체크·한번에). 지금 색 그대로.
+  //   · pre(회색)  = 아직 올림 전. 눌리기는 한다(모달로 «올림도 체크?» 를 묻는 자리).
+  //   ★포장도고려(포장영수증, raiseVoid)은 올림이 개념상 없는 줄이라 회색에 남는다 — 초록으로 칠하면
+  //     '주방에 나갔다'는 거짓 신호가 된다.
+  const doneTone = order.opt_outdoor_parallel ? 'is-parallel'
+    : (order.raised && !raiseVoid) ? ''
+    : 'is-pre'
+
   // 확인 신호(주문서관리 → 자리안내): 확인필요 켜짐 + 아직 확인완료 안 됨 = 하이라이트(자리안내 화면에서만).
   // 확인완료를 누르면 하이라이트만 꺼지고 확인필요 체크는 남는다(기록). 다시 확인필요를 껐다 켜면 재신호.
   const needsAttention = !!order.confirm_flag && !order.confirm_done
@@ -439,7 +450,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
               : {})}>대기열로</button>
           </>)
           : onArchive && (
-            <button type="button" className="seat-done-btn" onClick={() => (needsRaiseAsk ? setArchivePrompt(true) : archiveNow(false))}>완료</button>
+            <button type="button" className={`seat-done-btn ${doneTone}`} onClick={() => (needsRaiseAsk ? setArchivePrompt(true) : archiveNow(false))}>완료</button>
           )}
       </div>
 
