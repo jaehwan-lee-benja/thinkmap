@@ -16,6 +16,7 @@ import StatusOverview from './components/StatusOverview'
 import SeatStats from './components/SeatStats'
 import SeatOrderScreen from './screens/SeatOrderScreen'
 import StationScreen from './screens/StationScreen'
+import SeatBuildStamp from './components/SeatBuildStamp'
 import './Seat.css'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -180,6 +181,9 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
           aria-expanded={settingsOpen}
           onClick={() => setSettingsOpen(true)}
         >설정</button>
+        {/* 버전 스탬프 — 헤더는 4역할(자리안내·주문서관리·카이막·커피)이 공유하는 한 줄이라
+            여기 하나만 두면 «페이지마다» 가 자동으로 충족된다. 우상단 끝, 연회색, 탭을 먹지 않는다. */}
+        <SeatBuildStamp />
       </header>
 
       {/* ★오늘자 초기화는 '오늘'을 볼 때만 — 지난 날짜 기록을 실수로 비우지 않도록 숨긴다. */}
