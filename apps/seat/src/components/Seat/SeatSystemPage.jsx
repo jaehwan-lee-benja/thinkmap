@@ -17,6 +17,7 @@ import SeatStats from './components/SeatStats'
 import SeatOrderScreen from './screens/SeatOrderScreen'
 import StationScreen from './screens/StationScreen'
 import SeatBuildStamp from './components/SeatBuildStamp'
+import TablingPane from './components/TablingPane'
 import './Seat.css'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -207,21 +208,28 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
         <SeatStats businessDate={businessDate} maxDate={today} orders={orders} stations={stations} live={isLive} />
       </SeatModal>
 
-      <main className="seat-main">
-        {role.key === 'guide' || role.key === 'manager' ? (
-          <SeatOrderScreen key={role.key} role={role} orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} settings={settings} />
-        ) : role.station ? (
-          <StationScreen
-            role={role}
-            orders={orders}
-            stations={stations}
-            onPatchStation={onPatchStation}
-            cardOrder={stationOrders[role.station]}
-            onReorderCards={(ids) => setStationOrder(role.station, ids)}
-            settings={settings}
-          />
-        ) : null}
-      </main>
+      {/* ★분할 상자 — 태블링 액자와 자리후 본문의 형제 컨테이너.
+          액자를 .seat-main **밖**에 두는 게 핵심이다(안에 넣으면 스크롤 상자가 하나 끼어
+          표 헤더·탭바·툴바의 sticky 기준이 통째로 흔들린다 — 2026-08-08 실증).
+          이 상자에는 overflow 를 주지 않는다(같은 이유). */}
+      <div className="seat-body">
+        {settings.tablingPane && <TablingPane onClose={() => setSetting('tablingPane', false)} />}
+        <main className="seat-main">
+          {role.key === 'guide' || role.key === 'manager' ? (
+            <SeatOrderScreen key={role.key} role={role} orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} settings={settings} />
+          ) : role.station ? (
+            <StationScreen
+              role={role}
+              orders={orders}
+              stations={stations}
+              onPatchStation={onPatchStation}
+              cardOrder={stationOrders[role.station]}
+              onReorderCards={(ids) => setStationOrder(role.station, ids)}
+              settings={settings}
+            />
+          ) : null}
+        </main>
+      </div>
 
       {toast ? <div className="seat-toast" role="alert">{toast}</div> : null}
 

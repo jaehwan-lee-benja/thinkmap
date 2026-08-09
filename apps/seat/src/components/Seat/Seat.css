@@ -351,8 +351,81 @@
 /* ★스크롤 컨테이너에는 패딩을 두지 않는다(2026-08-08 긴급 수정).
    패딩이 있으면 sticky 자식이 «패딩만큼 아래»에 멈춰 상단에 빈 띠가 생긴다 —
    유저 신고 「상단탭 고정 아래로 좀 내려와있어」의 원인. 같은 16px 여백은 화면(.seat-screen)이 갖는다. */
-.seat-main { flex: 1 1 auto; overflow: auto; padding: 0; }
+/* ★분할 상자 — [태블링 액자][손잡이][자리후 본문]. 유저 승인 2026-08-09.
+   ·overflow 를 **주지 않는다**: 스크롤 상자가 하나 끼면 안쪽 sticky(탭바·표 헤더·툴바)가
+    그 상자 기준으로 다시 잡혀 죽는다(2026-08-08 실증, SEAT-SPEC §9.0).
+   ·min-height:0 — flex 자식이 내용 높이로 부풀어 스크롤포트를 밀어내는 것을 막는다. */
+.seat-body { flex: 1 1 auto; display: flex; min-height: 0; }
+.seat-main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; padding: 0; }
 .seat-screen { padding: 16px; }
+
+/* 태블링 액자 — 폭(가로형)·높이(세로형)는 flex-basis(%)로 한 벌. 축소는 막는다(flex-shrink:0). */
+.seat-side {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--md-surface-container-low);
+}
+.seat-side-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+.seat-side-title { flex: 1 1 auto; font-size: 13px; font-weight: 700; color: var(--md-on-surface-variant); }
+/* ★`.seat-side .` 로 한 단계 올린다 — `.seat-btn` 본체가 이 파일 뒤쪽(615줄)에 있어
+   같은 특이도면 뒤가 이긴다(min-height 48·padding 24 가 되살아나 머리말이 뚱뚱해진다. 실측 확인). */
+.seat-side .seat-side-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;      /* 터치 타겟 하한(MOBILE-DESIGN) */
+  padding: 0 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.seat-side-frame { position: relative; flex: 1 1 auto; min-height: 0; }
+.seat-side-iframe { display: block; width: 100%; height: 100%; border: 0; }
+/* 폴백 — 액자가 끝내 안 뜨는 경우. 교차 출처라 «차단당함»은 JS 로 못 읽어서, 이건 시간초과가 잡는 몫이다. */
+.seat-side-fallback {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px; text-align: center;
+  background: var(--md-surface);
+  color: var(--md-on-surface-variant);
+}
+.seat-side-fallback .seat-btn { text-decoration: none; }
+
+/* 손잡이 — 경계를 잡아 비율 조절. 터치 타겟을 위해 실선보다 두껍게 잡는다(≥12px). */
+.seat-splitter {
+  flex: 0 0 12px;
+  background: var(--md-surface-container);
+  border-left: 1px solid var(--md-outline-variant);
+  border-right: 1px solid var(--md-outline-variant);
+  cursor: col-resize;
+  touch-action: none; /* 드래그가 스크롤/줌으로 새지 않게 */
+}
+/* ★드래그 중엔 액자가 포인터를 먹지 않게 — 포인터가 iframe 위로 들어가면 이벤트를 태블링 문서가 가져가
+   리사이즈가 뚝 끊긴다(iframe 리사이저의 고전적 함정). */
+.seat-body.is-splitting .seat-side-iframe { pointer-events: none; }
+.seat-body.is-splitting { user-select: none; }
+
+/* 세로형(태블릿 세로) — 좌우로 가르면 표가 못 쓰게 좁아진다. 위/아래로 가른다.
+   flex-basis(%) 는 방향만 바뀌면 그대로 높이로 먹히므로 비율 코드는 한 벌로 돌아간다. */
+@media (max-width: 820px) {
+  .seat-body { flex-direction: column; }
+  .seat-splitter {
+    flex-basis: 12px;
+    cursor: row-resize;
+    border: 0;
+    border-top: 1px solid var(--md-outline-variant);
+    border-bottom: 1px solid var(--md-outline-variant);
+  }
+}
 
 /* 레이아웃 — mobile-first: 기본 1열, 넓은 화면 2열. */
 .seat-screen-grid { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
