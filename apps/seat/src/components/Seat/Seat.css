@@ -119,8 +119,7 @@
   .seat-btn-primary:hover { box-shadow: var(--md-elev-1); }
   .seat-btn:hover::after,
   .seat-role-tab:hover::after,
-  .seat-settings-btn:hover::after,
-  .seat-toggle:hover::after { opacity: 0; }
+  .seat-settings-btn:hover::after { opacity: 0; }
   .seat-row:not(.seat-row-head):hover { background: transparent; }
   .seat-tab:hover { background: transparent; }
   .seat-no-btn:hover { background: transparent; }
@@ -132,9 +131,7 @@
 /* ── State layer (M3 상호작용) — 인터랙티브 요소 공통 ───────────────────────── */
 .seat-role-tab,
 .seat-btn,
-.seat-status-btn,
-.seat-settings-btn,
-.seat-toggle {
+.seat-settings-btn {
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -142,9 +139,7 @@
 }
 .seat-role-tab::after,
 .seat-btn::after,
-.seat-status-btn::after,
-.seat-settings-btn::after,
-.seat-toggle::after {
+.seat-settings-btn::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -155,14 +150,10 @@
 }
 .seat-role-tab:hover::after,
 .seat-btn:hover::after,
-.seat-status-btn:hover::after,
-.seat-settings-btn:hover::after,
-.seat-toggle:hover:not(:disabled)::after { opacity: .08; }
+.seat-settings-btn:hover::after { opacity: .08; }
 .seat-role-tab:active::after,
 .seat-btn:active::after,
-.seat-status-btn:active::after,
-.seat-settings-btn:active::after,
-.seat-toggle:active:not(:disabled)::after { opacity: .12; }
+.seat-settings-btn:active::after { opacity: .12; }
 
 /* 포커스 링 (Material 포커스 인디케이터) */
 .seat-app :focus-visible {
@@ -241,9 +232,9 @@
   box-shadow: var(--md-elev-1);
 }
 
-/* 앱바 우측 버튼(전체화면·현황·설정) — 역할 탭과 구분되게 아웃라인 톤. */
+/* 앱바 우측 버튼(전체화면·설정) — 역할 탭과 구분되게 아웃라인 톤.
+   ※'현황'은 설정 안으로 이동(2026-08-02) — .seat-status-btn 규칙은 2026-08-09 정리에서 제거. */
 .seat-fullscreen-btn,
-.seat-status-btn,
 .seat-settings-btn {
   flex: 0 0 auto;
   min-height: 48px;
@@ -449,15 +440,8 @@
   }
 }
 
-/* 레이아웃 — mobile-first: 기본 1열, 넓은 화면 2열. */
-.seat-screen-grid { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
-.seat-col-main { flex: 1 1 auto; min-width: 0; }
-.seat-col-side { display: flex; flex-direction: column; gap: 16px; width: 100%; }
-
 /* ── 버튼 (Material filled / tonal / text) ────────────────────────────────── */
 .seat-toolbar { margin-bottom: 12px; }
-/* 표 위 툴바(번호 정렬 등) — 왼쪽 정렬. */
-.seat-toolbar-above { display: flex; justify-content: flex-start; gap: 8px; }
 /* 표 아래 배치(새 주문): 왼쪽 정렬.
    ★하단 고정(유저 승인 2026-08-08 「고정해줘」) — 행이 많으면 이 버튼이 화면 밖이라 스크롤 왕복이 필요했고,
    모멘텀 스크롤 중 첫 탭이 «스크롤 정지» 에 먹혀 「한 번에 안 눌린다」 체감에 기여했다.
@@ -883,7 +867,6 @@
 .seat-table .seat-cell { padding: 7px 8px; gap: 4px; } /* 위아래 공간 확보(2→7px) */
 .seat-table .seat-input,
 .seat-table .seat-select { min-height: 36px; padding: 2px 10px; }
-.seat-table .seat-toggle { min-height: 36px; padding: 0 12px; font-size: 15px; }
 .seat-table .seat-check { min-height: 36px; }
 
 /* ── 세로(portrait) 최적화 — 주문서관리 전용 (SEAT-SPEC §12.1 운용 기기·방향) ──
@@ -947,7 +930,6 @@
 .seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) { opacity: .5; }
 .seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-input,
 .seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-select,
-.seat-row--gated .seat-cell:not(.seat-cell-no):not(.seat-cell-order) .seat-toggle { pointer-events: none; }
 /* Guide 모드: 전달 전 실내 주문 = 자리후 전달까지는 활성, 제조옵션부터 이후 컨트롤만 dim/비활성.
    (전달 체크박스를 살려둬야 전달 가능 → seat-cell-deliver 이전 컬럼은 그대로) */
 .seat-row--guide-locked .seat-cell-opts,
@@ -1041,25 +1023,6 @@
 }
 .seat-check input:disabled { opacity: .4; cursor: not-allowed; }
 
-/* ── 토글 버튼 (Material tonal — 상태색 유지) ─────────────────────────────── */
-.seat-toggle {
-  min-height: 48px;
-  padding: 0 16px;
-  border: 1px solid var(--md-outline-variant);
-  border-radius: var(--md-radius-full);
-  background: transparent;
-  color: var(--md-on-surface);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-.seat-toggle.is-on {
-  background: var(--md-primary);
-  color: var(--md-on-primary);
-  border-color: transparent;
-  font-weight: 700;
-  box-shadow: var(--md-elev-1);
-}
 /* 자리순서 = 상태 표시(클릭 불가). 살아있음=초록 / 필요없음=회색. */
 .seat-order-status {
   display: inline-flex;
@@ -1084,24 +1047,6 @@
 }
 .seat-seatreset-btn:hover { color: var(--md-on-surface); border-color: var(--md-primary); }
 
-/* 자리순서 상태: 살아있음=초록 톤 / 필요없음=회색(중성) 톤 */
-.seat-toggle.is-alive {
-  background: var(--md-alive);
-  color: var(--md-on-alive);
-  border-color: transparent;
-  font-weight: 700;
-}
-.seat-toggle.is-none {
-  background: var(--md-surface-container-highest);
-  color: var(--md-on-surface-variant);
-  border-color: var(--md-outline-variant);
-  font-weight: 500;
-}
-.seat-toggle:disabled { opacity: .38; cursor: not-allowed; }
-/* (자리순서는 버튼이 아니라 상태 표시 span 으로 바뀜 — seat-order-btn 톤다운 규칙 제거.) */
-/* 전달 버튼 라벨 줄바꿈 방지 */
-.seat-cell-deliver .seat-toggle,
-.seat-cell-confirm .seat-toggle { white-space: nowrap; }
 /* 올림 셀 체크박스(자리앉음·올리기 전달) 라벨 줄바꿈 방지 */
 .seat-cell-raise .seat-check { white-space: nowrap; }
 
@@ -1122,7 +1067,6 @@
   padding: 12px 16px;
   color: var(--md-on-surface);
 }
-.seat-panel-hint { font-weight: 400; color: var(--md-on-surface-variant); }
 .seat-panel-body,
 .seat-mirror-col-body { padding: 0 16px 16px; color: var(--md-on-surface-variant); }
 
@@ -1148,31 +1092,6 @@
   font-weight: 700;
 }
 .seat-chip-done { opacity: .5; text-decoration: line-through; }
-
-/* 올림(자리잡음) 카드 */
-.seat-raised-list { display: flex; flex-direction: column; gap: 10px; }
-.seat-raised-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 8px;
-  border-radius: var(--md-radius-sm);
-  background: var(--md-surface-container-high);
-}
-.seat-raised-no {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 52px;
-  min-height: 40px;
-  padding: 6px 14px;
-  border-radius: var(--md-radius-sm);
-  background: var(--md-primary-container);
-  color: var(--md-on-primary-container);
-  font-weight: 700;
-}
-.seat-raised-note { flex: 1 1 160px; }
 
 /* 주문서관리: 입력 아래 가로 배치(카메라 + 요약 패널) */
 .seat-manager-side { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
@@ -1383,7 +1302,6 @@
 }
 
 /* 완료 트랙 칩 = 번호 + 되돌리기(↺). 흐림/취소선 없이 또렷하게(완료 섹션 위치로 자명). */
-.seat-done-chip { gap: 8px; text-decoration: none; opacity: 1; }
 .seat-st-done .seat-chip { flex: 0 0 auto; min-width: 72px; min-height: 56px; padding: 8px 18px; font-size: 24px; gap: 10px; }
 .seat-undo-btn {
   display: inline-flex;
@@ -1418,12 +1336,6 @@
 .seat-camera-placeholder { color: var(--md-on-surface-variant); text-align: center; padding: 16px; }
 .seat-camera-placeholder-title { font-weight: 500; margin-bottom: 4px; }
 .seat-camera-placeholder-sub { color: var(--md-on-surface-variant); opacity: .7; }
-
-/* ── 넓은 화면: 사이드 2열 (주문 행은 grid 라 반응형 불필요) ─────────────────── */
-@media (min-width: 1024px) {
-  .seat-screen-grid { flex-direction: row; align-items: flex-start; }
-  .seat-col-side { flex: 0 0 300px; width: auto; }
-}
 
 /* ── 저장 실패 토스트 — 주방에서 멀리서도 보이게 큰 글씨·화면 상단 중앙 ─────────── */
 .seat-toast {
@@ -1502,7 +1414,6 @@
 .seat-numpad-key--fn { font-size: 20px; color: var(--md-primary); }
 
 /* 번호 화면키패드 토글 — 툴바에서 줄바꿈 방지. */
-.seat-numpad-toggle { white-space: nowrap; }
 
 /* 새 주문 시작번호 설정 — 툴바 인라인 라벨 + 숫자 입력. */
 .seat-startnum { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--md-on-surface-variant); }
