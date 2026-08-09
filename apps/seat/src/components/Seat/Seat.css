@@ -368,14 +368,21 @@
   flex-direction: column;
   background: var(--md-surface-container-low);
 }
+/* 머리말 — 좁은 액자에선 컨트롤이 다 안 들어간다. 줄바꿈을 허용해 두 줄로 눕게 둔다
+   (억지로 한 줄에 우겨넣으면 버튼이 글자보다 작아진다 = 터치 타겟 붕괴). */
 .seat-side-head {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 4px 6px;
   border-bottom: 1px solid var(--md-outline-variant);
 }
+/* 배율 3연 버튼은 한 덩어리로 — 줄바꿈이 이 사이를 가르면 −  와 + 가 흩어진다. */
+.seat-side-zoom { display: inline-flex; align-items: center; gap: 4px; }
+.seat-side-zoom-val { min-width: 56px; justify-content: center; font-variant-numeric: tabular-nums; }
+.seat-side .seat-side-btn[disabled] { opacity: .4; cursor: default; }
 .seat-side-title { flex: 1 1 auto; font-size: 13px; font-weight: 700; color: var(--md-on-surface-variant); }
 /* ★`.seat-side .` 로 한 단계 올린다 — `.seat-btn` 본체가 이 파일 뒤쪽(615줄)에 있어
    같은 특이도면 뒤가 이긴다(min-height 48·padding 24 가 되살아나 머리말이 뚱뚱해진다. 실측 확인). */
@@ -388,8 +395,20 @@
   white-space: nowrap;
   text-decoration: none;
 }
-.seat-side-frame { position: relative; flex: 1 1 auto; min-height: 0; }
-.seat-side-iframe { display: block; width: 100%; height: 100%; border: 0; }
+.seat-side-frame { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+/* ★배율(줌) — 유저 지시 2026-08-09 「더 넓게 보고 싶은데 배율 조정 가능할까」.
+   액자의 **레이아웃 폭·높이를 1/k 로 키우고** 그림만 k 로 줄인다. 즉 태블링은 «더 큰 화면»으로 인식하고
+   우리는 작게 본다 — 폰트만 줄이는 게 아니라 반응형 분기까지 넓은 쪽으로 넘어가서 표가 잘리지 않는다.
+   transform-origin 0 0 = 좌상단 고정(가운데 기준이면 축소할 때 액자 안에서 떠 보인다).
+   ※iframe 내부 스크롤은 그대로 산다(실측 확인) — transform 은 그리기만 바꾸고 내부 스크롤포트는 건드리지 않는다. */
+.seat-side-iframe {
+  display: block;
+  border: 0;
+  transform-origin: 0 0;
+  transform: scale(var(--seat-side-zoom, 1));
+  width: calc(100% / var(--seat-side-zoom, 1));
+  height: calc(100% / var(--seat-side-zoom, 1));
+}
 /* 폴백 — 액자가 끝내 안 뜨는 경우. 교차 출처라 «차단당함»은 JS 로 못 읽어서, 이건 시간초과가 잡는 몫이다. */
 .seat-side-fallback {
   position: absolute; inset: 0;

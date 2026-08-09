@@ -21,7 +21,18 @@ const RATIO_MIN = 0.15
 const RATIO_MAX = 0.6
 const LOAD_TIMEOUT = 12000 // 이 시간 안에 load 가 한 번도 안 오면 «못 불러왔다»로 본다
 
+// ★배율(줌) — 유저 지시 2026-08-09 「테이블링 같이 뜨는 영역 화면 더 넓게 보고싶은데, 배율 조정 가능할까? 태블릿이야」.
+//   같은 칸에 더 넓은 태블링 화면을 넣는 방법은 **액자를 넓히는 것**과 **내용을 줄이는 것** 둘인데,
+//   칸은 이미 분할비로 조절하니 여기서 필요한 건 후자다. `transform: scale(k)` + `width/height: calc(100%/k)` —
+//   액자의 레이아웃 폭을 1/k 로 키우고 그림만 k 로 줄인다. 즉 **태블링은 «더 큰 화면»으로 인식하고 우리는 작게 본다.**
+//   (단순히 폰트만 줄이는 게 아니라 반응형 분기까지 넓은 쪽으로 넘어간다 — 표가 잘리지 않는 이유.)
+const ZOOM_KEY = 'seat.tablingPane.zoom.v1'
+const ZOOM_MIN = 50
+const ZOOM_MAX = 150
+const ZOOM_STEP = 10
+
 const clamp = (r) => Math.min(RATIO_MAX, Math.max(RATIO_MIN, r))
+const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z)))
 
 function loadRatio() {
   try {
@@ -30,8 +41,16 @@ function loadRatio() {
   } catch { return RATIO_DEFAULT }
 }
 
+function loadZoom() {
+  try {
+    const v = Number(localStorage.getItem(ZOOM_KEY))
+    return Number.isFinite(v) && v > 0 ? clampZoom(v) : 100
+  } catch { return 100 }
+}
+
 export default function TablingPane({ onClose }) {
   const [ratio, setRatio] = useState(loadRatio)
+  const [zoom, setZoom] = useState(loadZoom)
   const [loaded, setLoaded] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
   const [nonce, setNonce] = useState(0) // ↻ 새로고침 — key 를 바꿔 액자를 다시 만든다(교차 출처라 내부 reload 호출 불가)
@@ -40,6 +59,7 @@ export default function TablingPane({ onClose }) {
 
   // 저장은 드래그가 끝난 뒤가 아니라 값이 멎을 때 — 어차피 문자열 하나라 비용이 없다.
   useEffect(() => { try { localStorage.setItem(RATIO_KEY, String(ratio)) } catch { /* noop */ } }, [ratio])
+  useEffect(() => { try { localStorage.setItem(ZOOM_KEY, String(zoom)) } catch { /* noop */ } }, [zoom])
 
   // 로드 판정: load 가 오면 성공, 안 오면 폴백. ★교차 출처라 «차단당했는지»는 JS 로 알 수 없다
   //   (X-Frame-Options 로 막히면 크롬이 오류 페이지를 그리고 load 는 **정상 발화**한다).
@@ -94,12 +114,18 @@ export default function TablingPane({ onClose }) {
       >
         <div className="seat-side-head">
           <span className="seat-side-title">태블링</span>
+          {/* 배율 — [−][%][+]. 가운데 숫자를 누르면 100% 로 되돌린다(초기화 버튼을 따로 두면 머리말이 더 붐빈다). */}
+          <span className="seat-side-zoom">
+            <button type="button" className="seat-btn seat-side-btn" onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))} disabled={zoom <= ZOOM_MIN} title="작게(더 넓게 보기)">−</button>
+            <button type="button" className="seat-btn seat-side-btn seat-side-zoom-val" onClick={() => setZoom(100)} title="배율 100% 로">{zoom}%</button>
+            <button type="button" className="seat-btn seat-side-btn" onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))} disabled={zoom >= ZOOM_MAX} title="크게">+</button>
+          </span>
           {/* 새 탭 = 폴백이자 상시 탈출구. 액자 안에서 로그인이 안 되거나 화면이 깨지면 여기로 나간다. */}
           <a className="seat-btn seat-side-btn" href={TABLING_URL} target="_blank" rel="noreferrer">새 탭</a>
           <button type="button" className="seat-btn seat-side-btn" onClick={() => setNonce((n) => n + 1)} title="다시 불러오기">↻</button>
           {onClose && <button type="button" className="seat-btn seat-side-btn" onClick={onClose} title="나란히 보기 끄기">✕</button>}
         </div>
-        <div className="seat-side-frame">
+        <div className="seat-side-frame" style={{ '--seat-side-zoom': zoom / 100 }}>
           <iframe
             key={nonce}
             className="seat-side-iframe"
