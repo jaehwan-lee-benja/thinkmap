@@ -28,6 +28,8 @@ export default function StaffView({ store }) {
   const [printMsg, setPrintMsg] = useState('')
   // 가상 스캔(프리뷰 전용) 안내 — 방금 무엇을 쐈고 다음엔 무엇이 나오는지.
   const [vscan, setVscan] = useState(null)
+  // 수기 토큰 입력(G2) — 스캐너가 죽었을 때의 유일한 우회로.
+  const [manualTok, setManualTok] = useState('')
   // 스캔 = 조회와 **별개 상태**로 둔다(하나로 합치면 스캔 결과가 회원 조회 카드를 덮어써 혼선).
   const scanState = useTicketScan()
   // ★리스트 화면에서도 스캔이 먹힌다 — 직원이 어디에 있든 바코드를 쏘면 처리된다.
@@ -78,6 +80,24 @@ export default function StaffView({ store }) {
             {vscan && <div className="mk-note">쏜 값: <b>{vscan.token}</b> — {vscan.label} · 다음: {vscan.next}</div>}
           </div>
         )}
+        {/* ★수기 입력(G2, 유저 승인 2026-08-08) — 스캐너 고장·판독 실패 시 코드를 손으로 넣는 우회로.
+            전역 스캐너·번호패드와 안 싸운다: 사람 타이핑은 버스트(80ms)로 잡히지 않고,
+            NumberPad 는 INPUT 에 포커스가 있으면 키를 양보한다. 조회 경로는 스캔과 **같은** doLookup. */}
+        <form
+          className="mk-manual-scan"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const v = manualTok.trim()
+            if (v) { setManualTok(''); scanState.doLookup(v) }
+          }}
+        >
+          <input
+            className="mk-manual-input" type="text" inputMode="text" autoComplete="off"
+            value={manualTok} onChange={(e) => setManualTok(e.target.value)}
+            placeholder="스캔 안 되면 코드 입력" aria-label="참여권 코드 직접 입력"
+          />
+          <button type="submit" className="mk-reset" disabled={!manualTok.trim()}>조회</button>
+        </form>
         {scanState.phase === 'idle' ? (
           <div className="mk-placeholder mk-staff-idle">스캔하면<br />여기에 결과가 나옵니다.</div>
         ) : (

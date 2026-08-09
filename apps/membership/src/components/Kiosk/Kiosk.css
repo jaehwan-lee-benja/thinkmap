@@ -1260,3 +1260,14 @@ body:has(.mk-idle-warn) .mk-role-customer .mk-lookup-ment { font-size: clamp(17p
 /* ★막대가 떠 있으면 카드 안 [처음으로]는 숨긴다 — 막대가 **같은 버튼을 이미 제공**하고,
    앱이 줄어든 만큼 이 버튼이 아래로 잘려 «깨진 것»처럼 보였다(실측). 중복을 지우면 잘림도 사라진다. */
 body:has(.mk-idle-warn) .mk-member-card-hero > .mk-member-body > .mk-reset { display: none; }
+
+/* ★직원 허브 수기 토큰 입력(G2) — 스캐너 고장 시 우회로. 스캔 칸 안, 결과 위. */
+.mk-manual-scan { width: 100%; display: flex; gap: 8px; align-items: center; }
+.mk-manual-input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px 12px;
+  font: inherit; font-size: 15px; letter-spacing: .04em;
+  border: 1px solid var(--md-outline); border-radius: var(--md-radius-sm);
+  background: var(--md-surface); color: var(--md-on-surface);
+}
+.mk-manual-input:focus { border-color: var(--md-primary); outline: none; }
+.mk-manual-scan .mk-reset { flex: 0 0 auto; }
