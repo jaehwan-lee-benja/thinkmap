@@ -1,7 +1,7 @@
 // 공용 회원 카드 — 브랜드 히어로(인사말)+본문(이벤트·참여내역·스탬프). 고객뷰·직원뷰 공용.
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { formatClaimPrefix, formatClaimDate, todayStr } from './kioskUtils'
+import { formatClaimDate, todayStr } from './kioskUtils'
 import { printReceipt } from '../../receipt/print'
 import { buildTicketUrl } from './ticketLink'
 // ★참여 카드(발권 전/후/스캔 완료)는 **한 컴포넌트가 상태만 갈아입는다**(유저 2026-08-09 「셋트로」).
@@ -26,7 +26,6 @@ const STAMP_GOAL = 10               // ★증폭: N회 참여 시 아이스크�
 //     회수된 티켓은 `today_event_claimed` 로 «참여 완료» 화면으로 갈라진다. 새 조회가 필요 없었다.
 export default function MemberCard({ member, history = [], claiming, redeeming, errMsg, onClaim, onRedeem, onReset, resetLabel = '새 조회', variant = 'card', printable = false, showQr = false, pickFlow = false, onDwell }) {
   // ★훅은 조기 return 보다 위에 — member 가 null 이어도 호출 순서가 바뀌면 안 된다(Rules of Hooks).
-  const printedRef = useRef(null)          // (예약) 중복 인쇄 방지용 — 자동 인쇄 제거로 현재 미사용
   const [printMsg, setPrintMsg] = useState('')
   // ★모달 트리거 = «이벤트 참여하기» 클릭 유래일 때만(2026-08-06 정정).
   //   종전엔 티켓만 있으면 떴다 → **조회만 했는데** 오늘 이미 발권된 손님에게 모달이 튀어나왔다.
@@ -34,10 +33,15 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   const pendingClaimRef = useRef(false)      // 클릭했고 아직 티켓이 안 온 상태
   const [claimedToken, setClaimedToken] = useState(null)   // 이 클릭으로 받은 토큰
 
-  const ticketForPrint = member
+  // ★오늘 kiosk 티켓(발권됨·미회수) — 방금 발권(`_ticket`) 또는 ticket_today 재표시(`_todayTickets`).
+  //   ★유도는 **여기 한 번만** 한다(2026-08-09 리팩토링): 종전엔 조기 return 위에 `ticketForPrint`,
+  //     아래에 `issuedTicket` 이라는 **같은 표현 두 벌**이 이름만 달리 있었다. 둘이 갈라지는 순간
+  //     화면(발권 후 카드)과 인쇄·QR 이 다른 티켓을 가리키게 된다 — «두 벌이 되면 한쪽이 낡는다».
+  //   훅보다 위에 두는 이유: 아래 useEffect 들이 이 값을 의존성으로 쓴다(Rules of Hooks).
+  const issuedTicket = member
     ? (member._ticket || (member._todayTickets || []).find((t) => t.channel === 'kiosk' && t.state === 'issued') || null)
     : null
-  const printToken = ticketForPrint ? ticketForPrint.token : null
+  const printToken = issuedTicket ? issuedTicket.token : null
 
   // ★발권 순서 = «발권 먼저 → 그 다음 모달».
   //   근거: 토큰이 정본이라 **티켓이 실제로 만들어진 뒤에 «어떻게 받을지»를 묻는 게 맞다.**
@@ -79,7 +83,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
       url = buildTicketUrl({
         token: printToken,
         name: member?.display_name || null,
-        date: (ticketForPrint && ticketForPrint.event_date) || null,
+        date: (issuedTicket && issuedTicket.event_date) || null,
       })
     } catch (e) { url = null }
     if (!url) return
@@ -87,7 +91,7 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
       .then((d) => { if (!dead) setQrUrl(d) })
       .catch(() => { if (!dead) setQrUrl('') })
     return () => { dead = true }
-  }, [showQr, printToken, member, ticketForPrint])
+  }, [showQr, printToken, member, issuedTicket])
 
   // 새 티켓이 뜨면 인쇄 메시지를 비운다(앞 손님의 문구가 남으면 안 된다).
   //   선택 상태는 EventTicketCard 가 **토큰별 key** 로 새로 마운트되며 스스로 초기화한다.
@@ -107,12 +111,6 @@ export default function MemberCard({ member, history = [], claiming, redeeming, 
   // ★티켓 모델(0018): today_event_claimed = "오늘 회수됨"(스탬프 확정). 발권됨(수령 대기)은 별도 상태.
   const today = todayStr()
   const claimedToday = !!member.today_event_claimed
-  // 오늘 kiosk 티켓(발권됨·미회수) — 방금 발권(_ticket) 또는 ticket_today 재표시(_todayTickets).
-  const todayList = member._todayTickets || []
-  const issuedTicket = member._ticket
-    || todayList.find((t) => t.channel === 'kiosk' && t.state === 'issued')
-    || null
-
   // ★스탬프 = crm 실값(0017). current_stamps(0~9)/threshold, rewards_available.
   const stamp = member.stamp || null
   const goal = stamp?.threshold ?? STAMP_GOAL
