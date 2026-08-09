@@ -18,6 +18,34 @@ import { formatPhone } from './kioskUtils'
 //   [전체지움]은 빈칸이 아니라 010 으로 되돌린다(그래야 프리필이 실효).
 const PHONE_PREFILL = '010'
 
+// ★«조회했지만 회원 카드를 못 보여주는» 결과 화면 — 한 벌.
+//   두 경우가 쓴다: ⑴미가입 번호 ⑵방금 가입했는데 승격 전이라 조회에 안 잡히는 번호.
+//   둘은 **문구·버튼만** 다르다. 종전엔 골격(화면·카드·마크·번호·유휴 30초)을 통째로 두 번 적어 놨고,
+//   그러면 「번호 표시를 고쳐라」 같은 지시가 왔을 때 한쪽만 고쳐진다 — «두 벌이 되면 한쪽이 낡는다».
+//   ★유휴 복귀 30초/경고 15초는 두 경우 공통 정책이라 여기 한 곳에 둔다: 남의 정보가 없는 화면이고,
+//     읽고 버튼을 누를 시간이 필요하다(조회 결과의 15초를 그대로 쓰면 결정 전에 화면이 사라진다).
+function NoneResult({ digits, title, sub, actions }) {
+  return (
+    <div className="mk-screen mk-customer-view mk-none-view">
+      <IdleReset enabled armed sec={30} warn={15} />
+      <div className="mk-card mk-none-card">
+        <img className="mk-none-mark" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="" aria-hidden="true" />
+        <div className="mk-none-title">{title}</div>
+        <div className="mk-none-num">{formatPhone(digits)}</div>
+        <p className="mk-none-sub">{sub}</p>
+        <div className="mk-none-acts">
+          {actions.map((a) => (
+            <button key={a.label} type="button" className={a.primary ? 'mk-none-btn is-primary' : 'mk-none-btn'} onClick={a.onClick}>
+              <span className="mk-none-btn-label">{a.label}</span>
+              <span className="mk-none-btn-sub">{a.sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CustomerView({ store }) {
   const [digits, setDigits] = useState(PHONE_PREFILL)
   const [showSignup, setShowSignup] = useState(false)
@@ -109,45 +137,22 @@ export default function CustomerView({ store }) {
     //   (2026-08-08 실측 — `membership_intake` 가 POS 이력 없는 번호를 `pending/canonical_id=null` 로 넣고,
     //    `membership_query` 는 canonical 연결을 요구한다. 승격 배치는 7/25 이후 안 돌았다).
     //   방금 「가입 완료 🎉」를 본 손님에게 「아직 회원이 아니시네요」를 보이면 **거짓말이 된다** ⇒ 갈라 준다.
-    if (justSignedUp) {
-      return (
-        <div className="mk-screen mk-customer-view mk-none-view">
-          <IdleReset enabled armed sec={30} warn={15} />
-          <div className="mk-card mk-none-card">
-            <img className="mk-none-mark" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="" aria-hidden="true" />
-            <div className="mk-none-title">가입이 완료됐어요!</div>
-            <div className="mk-none-num">{formatPhone(digits)}</div>
-            <p className="mk-none-sub">조회 준비가 끝나면 이 번호로 확인하실 수 있어요.<br /><b>직원에게 말씀해 주시면</b> 바로 확인해 드립니다.</p>
-            <div className="mk-none-acts">
-              <button type="button" className="mk-none-btn is-primary" onClick={resetAll}>
-                <span className="mk-none-btn-label">처음으로</span>
-                <span className="mk-none-btn-sub">첫 화면으로 돌아가기</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )
-    }
+    // ★셸은 한 벌이다(2026-08-09 리팩토링): 두 결과가 **문구·버튼만** 다른데 종전엔 같은 골격을
+    //   통째로 두 번 적어 놨다. 「번호 표시를 고친다」 같은 지시가 오면 한쪽만 고쳐질 자리였다.
     return (
-      <div className="mk-screen mk-customer-view mk-none-view">
-        <IdleReset enabled armed sec={30} warn={15} />
-        <div className="mk-card mk-none-card">
-          <img className="mk-none-mark" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="" aria-hidden="true" />
-          <div className="mk-none-title">아직 멤버십 회원이<br />아니시네요</div>
-          <div className="mk-none-num">{formatPhone(digits)}</div>
-          <p className="mk-none-sub">멤버십을 가입하면 사르르를 더욱 즐길 수 있습니다.</p>
-          <div className="mk-none-acts">
-            <button type="button" className="mk-none-btn" onClick={resetAll}>
-              <span className="mk-none-btn-label">다시 입력</span>
-              <span className="mk-none-btn-sub">번호를 다시 누르기</span>
-            </button>
-            <button type="button" className="mk-none-btn is-primary" onClick={() => setShowSignup(true)}>
-              <span className="mk-none-btn-label">가입하기</span>
-              <span className="mk-none-btn-sub">누른 번호로 바로 가입</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <NoneResult
+        digits={digits}
+        title={justSignedUp ? '가입이 완료됐어요!' : <>아직 멤버십 회원이<br />아니시네요</>}
+        sub={justSignedUp
+          ? <>조회 준비가 끝나면 이 번호로 확인하실 수 있어요.<br /><b>직원에게 말씀해 주시면</b> 바로 확인해 드립니다.</>
+          : '멤버십을 가입하면 사르르를 더욱 즐길 수 있습니다.'}
+        actions={justSignedUp
+          ? [{ label: '처음으로', sub: '첫 화면으로 돌아가기', primary: true, onClick: resetAll }]
+          : [
+            { label: '다시 입력', sub: '번호를 다시 누르기', onClick: resetAll },
+            { label: '가입하기', sub: '누른 번호로 바로 가입', primary: true, onClick: () => setShowSignup(true) },
+          ]}
+      />
     )
   }
 
