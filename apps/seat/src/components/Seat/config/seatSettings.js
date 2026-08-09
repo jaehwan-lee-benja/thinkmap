@@ -51,6 +51,15 @@ export const SEAT_SETTINGS = [
     default: false,
   },
   {
+    // 태블링 나란히 보기 — 자리후 옆에 태블링 대기열(ceo.tabling.co.kr/list)을 액자로 띄운다.
+    // 유저 승인 2026-08-09. 기기별 설정 — 담당 기기에서만 켜면 된다(가로형 태블릿 권장).
+    key: 'tablingPane',
+    type: 'toggle',
+    label: '태블링 나란히 보기',
+    hint: '자리후 옆에 태블링 대기열 화면을 함께 띄웁니다. 경계를 드래그해 비율을 조절합니다. 태블링 로그인은 이 기기의 브라우저 로그인을 따릅니다.',
+    default: false,
+  },
+  {
     key: 'hiddenColumns',
     type: 'columns',
     label: '표에 보일 열',
