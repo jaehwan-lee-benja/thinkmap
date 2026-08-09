@@ -26,6 +26,13 @@ export function parseRules(cssText) {
   let head = ''
   for (let i = 0; i < css.length; i++) {
     const c = css[i]
+    // ★블록 없는 at-rule(`@import`·`@charset`·`@namespace`)은 «;» 로 끝난다 — 여기서 소비해야 한다.
+    //   안 하면 그 문장이 head 에 남아, 다음 규칙의 `{` 을 만날 때 head 가 `@` 로 시작해
+    //   **at-rule 컨텍스트 오픈으로 오인**되고 그 규칙 블록이 지도에서 통째로 사라진다.
+    //   실증(감사관 2호, 2026-08-09): `@import './brand.css';` 때문에 바로 뒤 `:root { --md-* … }`
+    //   다크 토큰 블록 **전체가 규칙 지도에서 누락**돼 있었다 — 33개 가드가 그 구간에 침묵했다.
+    //   ★내가 프루너에서 잡은 «at-rule 오인»과 같은 결함이 영구 가드 쪽에 남아 있던 것이다.
+    if (c === ';' && head.trim().startsWith('@')) { head = ''; continue }
     if (c === '{') {
       const h = head.trim()
       head = ''

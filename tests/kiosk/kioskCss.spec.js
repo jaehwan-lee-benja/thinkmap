@@ -6,7 +6,7 @@
 //   ⑵ **콤마 셀렉터 고아화** — 죽은 셀렉터를 지울 때 그 줄이 선언부를 지니고 있어서
 //      앞의 콤마 형제들이 다음 규칙에 병합된다. 이름 방향 검사로는 안 잡힌다.
 import { describe, it, expect } from 'vitest'
-import { readKioskRules, ruleMap, readSourceText, classesIn } from './cssRules.js'
+import { readKioskRules, ruleMap, readSourceText, classesIn, parseRules } from './cssRules.js'
 
 const rules = readKioskRules()
 const map = ruleMap(rules)
@@ -77,11 +77,49 @@ describe('Kiosk.css — 구조 불변', () => {
     expect(map.get('||.mk-role-customer .mk-pick-overlay').join(' ; ')).toContain('bottom: var(--mk-idle-slot)')
   })
 
+  it('★:root 다크 토큰 블록이 규칙 지도에 있다 — 가드의 사각을 막는다', () => {
+    // 감사관 2호 실증(2026-08-09): 파서가 `@import ...;` 를 소비하지 못해 바로 뒤 `:root` 블록이
+    // 지도에서 통째로 누락돼 있었다. 그 구간에선 삭제·고아화가 나도 다른 가드가 전부 침묵한다.
+    const root = map.get('||:root')
+    expect(root, ':root 규칙이 지도에 없다 — parseRules 의 at-rule 소비를 확인하라').toBeTruthy()
+    const joined = root.join(' ; ')
+    for (const tok of ['--md-surface:', '--md-on-surface:', '--md-primary:', '--md-outline:']) {
+      expect(joined, `${tok} 토큰이 사라졌다`).toContain(tok)
+    }
+    expect(root.filter((d) => d.startsWith('--md-')).length, '--md-* 토큰 수가 급감했다').toBeGreaterThanOrEqual(20)
+  })
+
   it('로고가 비율을 지키는 선언을 유지한다 — 눌림 회귀 방지(3fd5ce7 경위)', () => {
     const logo = map.get('||.mk-role-customer .mk-brand-logo')
     expect(logo, '.mk-role-customer .mk-brand-logo 규칙 없음').toBeTruthy()
     const joined = logo.join(' ; ')
     expect(joined, 'object-fit 이 없으면 max-height 가 비율을 깬다').toContain('object-fit: contain')
     expect(joined, 'width 가 고정이면 다시 눌린다').toContain('width: auto')
+  })
+})
+
+// ★파서 자체의 회귀 시험 — 가드가 «못 보는 구간»을 만들지 않는지.
+//   이 블록이 없으면 파서 결함(=그 구간 전체 침묵)을 어떤 CSS 테스트도 잡지 못한다.
+//   교훈 출처: 내 프루너의 «주석 + @media 오인»과 이 가드의 «@import 미소비»가 같은 결함이었다.
+describe('parseRules — at-rule 처리(가드의 사각 방지)', () => {
+  it('블록 없는 at-rule(@import) 뒤의 규칙을 소비한다', () => {
+    const m = ruleMap(parseRules("@import './x.css';\n:root { --a: 1; }\n.b { color: red; }"))
+    expect([...m.keys()]).toEqual(['||:root', '||.b'])
+    expect(m.get('||:root')).toEqual(['--a: 1'])
+  })
+
+  it('@import 가 컨텍스트를 열지 않는다', () => {
+    expect(parseRules("@import 'a';\n.x { color: red; }")[0].ctx).toBe('')
+  })
+
+  it('@media 는 컨텍스트로 유지된다(같은 셀렉터가 컨텍스트별로 갈린다)', () => {
+    const m = ruleMap(parseRules('.x { a: 1; }\n@media (min-width: 10px) { .x { a: 2; } }'))
+    expect(m.get('||.x')).toEqual(['a: 1'])
+    expect(m.get('@media (min-width: 10px)||.x')).toEqual(['a: 2'])
+  })
+
+  it('주석이 앞에 붙은 at-rule 도 컨텍스트로 인식한다(오인 시 그 블록이 통째로 누락된다)', () => {
+    const m = ruleMap(parseRules('/* 설명 */\n@media print { .p { a: 1; } }'))
+    expect(m.get('@media print||.p')).toEqual(['a: 1'])
   })
 })

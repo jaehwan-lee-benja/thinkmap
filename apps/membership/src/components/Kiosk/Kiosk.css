@@ -116,7 +116,7 @@
   font-family: inherit;
 }
 
-/* 타이틀 = G마켓산스 Bold(확정). 인사말·화면 제목·CTA 타이틀. */
+/* 타이틀 = G마켓산스 Bold(확정). 인사말·가입/리스트 화면 제목·로그인 제목. */
 .mk-greeting,
 .mk-signup-head h2,
 .mk-ml-head h2,
