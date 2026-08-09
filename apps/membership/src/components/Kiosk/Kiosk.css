@@ -1261,7 +1261,18 @@ body:has(.mk-preview-bar) .mk-build { top: 32px; }
 .mk-role-customer .mk-lookup-split { gap: 8px; }
 .mk-role-customer .mk-signup-below { margin-top: 4px; gap: 6px; }
 .mk-role-customer .mk-lookup-left { gap: 6px; }
-.mk-role-customer .mk-brand-logo { max-height: 84px; }
+/* ★로고는 **비율을 잃지 않게** 높이를 제한한다(유저 신고 2026-08-09: 「로고 위아래로 눌렸다」).
+   원인: `width: clamp(...)` 가 걸린 img 에 `max-height` 만 얹으면, 폭은 그대로인데 높이만 잘려
+   **세로로 납작해진다**(object-fit 기본값이 `fill` 이라 비율을 안 지킨다). 실측 왜곡률:
+   768 폭에서 1.29배, 1024 폭에서 1.72배 — 눌림이 «보이는» 수준이 아니라 큰 값이었다.
+   ⇒ 폭을 «상한»으로 바꿔 높이가 지배하게 하고, object-fit 으로 비율을 한 번 더 못박는다.
+   (max-height 자체는 필요하다 — 예약칸 56px 때문에 첫 화면이 이 값 없이는 가입 버튼이 잘린다.) */
+.mk-role-customer .mk-brand-logo {
+  max-height: 84px;
+  width: auto;
+  max-width: clamp(160px, 20vw, 240px);
+  object-fit: contain;
+}
 .mk-role-customer .mk-lookup-ment { font-size: clamp(17px, 2.4vh, 22px); }
 /* ★고객 조회 결과 카드 안 [처음으로]는 **상시** 숨긴다 — 막대가 같은 버튼을 이미 제공한다(막대는
    조회 결과에서 warn==sec 이라 처음부터 떠 있다). 종전처럼 «막대가 뜨면 숨김»으로 두면
