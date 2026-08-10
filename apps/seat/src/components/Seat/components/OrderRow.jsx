@@ -5,6 +5,7 @@ import { useState, useRef } from 'react'
 import { REVIEW_FLAGS } from '../config/seatRoles'
 import SeatTextField from './SeatTextField'
 import SeatConfirm from './SeatConfirm'
+import { IconX } from './SeatIcon'
 import {
   isDineIn, removesFromSeatQueue, raiseDetailText, DELIVER_MODES, isTakeoutMaybe, deliverModeLabel,
   raiseIgnored, hasManufactureOption, isParallel,
@@ -127,6 +128,11 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
   //     · 자리대기 취소   → 묻지 않음(손님이 갔는데 올리면 유령 주문이 된다)
   //   전달 전(preDeliver)이면 올림에 전달이 선행돼야 하므로 «전달+올림+완료» 를 한 번에 처리한다(R8 순서 유지).
   //   ★단 주문번호가 없으면 전달 자체가 불가(R8) → 그 경우 올림 선택지를 막고 «완료만» 만 남긴다.
+  // ★`!order.raised` 는 «묻기» 조건이자 **archiveNow 의 두 번째 자물쇠**다(2026-08-10 감사 ⒢).
+  //   archiveNow(true) 는 raisePatch(order, now) 를 쓰는데, 그 식이 구 코드(`order.raised_at || now`)와
+  //   같아지는 근거가 «여기서 이미 raised=false 로 걸렀다» 이다. 이 조건이 빠지면 이미 올라간 줄이 이 경로로
+  //   들어와 raised_at 이 조용히 지금 시각으로 덮인다(통계 구간이 틀어진다). 조건을 손댈 땐 seatRules.raisePatch
+  //   의 «도달 가능한 상태» 주석과 seatRules.test.js «구 호출부 3벌 대조» 케이스를 함께 본다.
   const needsRaiseAsk = !archived && !raiseVoid && !canceled && !order.raised
   const canRaiseOnArchive = !!order.order_no || !preDeliver
   const archiveNow = (withRaise) => {
@@ -453,7 +459,7 @@ export default function OrderRow({ order, onPatch, onCommit, gateMode, dragHandl
           ※«완료»(R12 아카이브)는 2026-08-08 유저 지시로 **확인 셀**(확인완료 아래)로 옮겼다 — 여기엔 삭제만 둔다. */}
       <div className="seat-cell seat-cell-del">
         {onDelete && (
-          <button type="button" className="seat-del-btn" aria-label="줄 삭제" title="줄 삭제" onClick={() => setConfirmDelete(true)}>✕</button>
+          <button type="button" className="seat-del-btn" aria-label="줄 삭제" title="줄 삭제" onClick={() => setConfirmDelete(true)}><IconX /></button>
         )}
       </div>
 

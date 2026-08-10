@@ -218,12 +218,12 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
       </SeatModal>
 
       {/* ★분할 상자 — 태블링 액자와 자리후 본문의 형제 컨테이너.
-          액자를 .seat-main **밖**에 두는 게 핵심이다(안에 넣으면 스크롤 상자가 하나 끼어
+          액자를 스크롤포트(.seat-scrollport) **밖**에 두는 게 핵심이다(안에 넣으면 스크롤 상자가 하나 끼어
           표 헤더·탭바·툴바의 sticky 기준이 통째로 흔들린다 — 2026-08-08 실증).
           이 상자에는 overflow 를 주지 않는다(같은 이유). */}
       <div className="seat-body">
         {settings.tablingPane && <TablingPane onClose={() => setSetting('tablingPane', false)} />}
-        <main className="seat-main seat-scrollport">
+        <main className="seat-scrollport">
           {role.key === 'guide' || role.key === 'manager' ? (
             <SeatOrderScreen key={role.key} role={role} orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} settings={settings} />
           ) : role.station ? (
