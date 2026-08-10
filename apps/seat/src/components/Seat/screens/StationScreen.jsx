@@ -89,7 +89,7 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
                 {/* 체크 표시 = 수기 영수증에서 포장을 체크로 적는 관행과 경험 통일(유저 지시 2026-08-02). */}
                 {/* 포장도고려(매장영수증)도 같은 라벨 — 주방 입장에선 '이 주문은 포장'이 새 정보인 건 같다(R11). */}
                 {showsTakeoutLabel(o)
-                  ? <div className="seat-st-tag seat-st-tag--takeout"><IconCheck /> {o.opt_takeout ? '포장으로 변경됨' : '포장'}</div>
+                  ? <div className="seat-st-tag seat-st-tag--takeout"><IconCheck />{o.opt_takeout ? '포장으로 변경됨' : '포장'}</div>
                   : null}
                 <div className="seat-st-no">{labelOf(o)}</div>
                 {/* 전달사항 = 읽기 전용 텍스트(자리후 대기 카드와 동일 구조). 수정은 표에서 — 유저 지시 2026-08-02. */}

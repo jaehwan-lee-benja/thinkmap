@@ -1206,9 +1206,17 @@
   font-size: 15px;
   font-weight: 800;
   line-height: 1.25;
-  text-align: center;
   word-break: keep-all;
   pointer-events: none;
+  /* ★아이콘(SVG)과 글자를 **한 줄에서 세로 가운데**로 맞춘다(2026-08-10 재감사 지적).
+     이 배지만 `display` 미지정 = block 이라 인라인 흐름이었고, 인라인 SVG 의 기본 `vertical-align: baseline` 때문에
+     아이콘이 글자 baseline 위로 약 2px 떠 보인다. 아이콘을 쓰는 나머지 4곳은 전부 flex/inline-flex 라 원래 안전했다
+     — 여기만 예외였던 것이라 **같은 규칙으로 수렴**시킨다. 「픽셀을 확인하는 대신 확인이 필요 없게」.
+     ※absolute 오버레이라 `justify-content: center` 가 기존 `text-align: center` 를 대신한다. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 /* 카드 자체도 테두리로 한 번 더 구분(outline 은 레이아웃 비침습). */
 .seat-st-card { position: relative; }

@@ -711,6 +711,14 @@ src/components/Seat/
       (2026-08-09 실제 발생). `npx vitest run apps/seat` 의 구조 검사(§16.1)가 이걸 잡는다.
 - [ ] **아이콘을 넣었으면** `components/SeatIcon.jsx` 를 썼는가 — **문자 글리프(✕·✓·●·▼)는 UI 부품으로 쓰지 않는다**
       (폰트 폴백에 크기·기준선이 흔들리고 최악엔 두부로 뜬다). 의사요소라 SVG 를 못 넣는 자리는 `--seat-icon-*` 토큰 + `mask`.
+      ⚠**mask 의 실패 모드는 «안전»하지 않다** — 미지원 환경에선 `background-color` 만 남아 **11×11 실심 사각형**이 된다
+        (사라지는 게 아니라 **검은 네모**). 지금 타깃(WebView 126·iPadOS)에선 이론적이지만, 이 우회를 쓸 땐 그 사실을 안고 쓴다.
+        ★이 자리가 도는 근거: 부모 `.seat-check input` 이 `display: inline-grid` 라 `::after` 가 그리드 아이템으로 블록화돼
+        width/height 가 먹는다(inline 이면 0×0 으로 사라졌을 자리다). 같은 파일 `:checked::after` 가 이미 그 패턴에 의존한다.
+- [ ] **아이콘을 텍스트와 나란히 놓았으면** 그 컨테이너가 `flex`/`inline-flex` + `align-items: center` 인가 —
+      인라인 흐름에 두면 SVG 의 기본 `vertical-align: baseline` 때문에 아이콘이 글자 위로 뜬다(실측 ~2px, 2026-08-10 재감사).
+      Seat.css 에는 `vertical-align` 선언도 svg 전역 규칙도 **없다** — 받쳐주는 게 없으니 컨테이너가 책임진다.
+      ★**자동 검사로는 안 잡힌다**(「측정은 통과, 그림은 깨짐」). 그래서 픽셀을 확인하는 대신 **확인이 필요 없는 구조**로 둔다.
 - [ ] **확인 모달을 추가했으면** `SeatConfirm` 을 썼는가(스크림·다이얼로그를 손으로 그리지 않는다 — §9.0 재확인 모달).
 - [ ] `seatRules.js` 의 판정을 고쳤으면 `seatRules.test.js` 판정표도 함께 고쳤는가(레포 루트 `npx vitest run apps/seat`).
 - [ ] 같은 판정을 화면에서 **다시 인라인으로** 쓰고 있지 않은가(규칙은 `seatRules.js` 한 곳 — 인라인 사본은 규칙 수정을 안 따라온다).
