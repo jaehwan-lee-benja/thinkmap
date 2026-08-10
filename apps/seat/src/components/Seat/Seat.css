@@ -38,6 +38,9 @@
   --seat-done-parallel: #2D4B82;
   --seat-on-done-parallel: #FFFFFF;
 
+  /* 아이콘 도형 — 문자 글리프 금지(SeatIcon.jsx 와 같은 ✕ 모양). mask 로 쓰므로 색은 background-color 가 정한다. */
+  --seat-icon-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18'/%3E%3C/svg%3E");
+
   /* z 척도 — ★즉흥 숫자 금지(리팩토링 ⑶, 2026-08-09). 값은 기존 그대로 옮겨 담았다(시각 변화 0).
      .seat-app 자신이 position:fixed + z-index 로 **스태킹 컨텍스트**를 만들므로, 아래 값들은
      전부 «자리후 안에서만» 겨루는 상대값이다. 새 층은 반드시 여기 이름을 하나 더 만들고 쓴다. */
@@ -473,7 +476,7 @@
 /* 표 아래 배치(새 주문): 왼쪽 정렬.
    ★하단 고정(유저 승인 2026-08-08 「고정해줘」) — 행이 많으면 이 버튼이 화면 밖이라 스크롤 왕복이 필요했고,
    모멘텀 스크롤 중 첫 탭이 «스크롤 정지» 에 먹혀 「한 번에 안 눌린다」 체감에 기여했다.
-   sticky 규율(§9.0): 스크롤포트는 .seat-main(패딩 0), 중간에 overflow 상자 없음 — 확인함.
+   sticky 규율(§9.0): 스크롤포트는 .seat-scrollport(패딩 0), 중간에 overflow 상자 없음 — 확인함.
    좌우·아래는 화면 패딩(16px)을 음수 마진으로 덮어 **전폭 바**로. iOS 홈 인디케이터는 safe-area 로 피한다. */
 .seat-toolbar-below {
   position: sticky;
@@ -512,7 +515,7 @@
   padding: 0 16px;
   border-bottom: 1px solid var(--md-outline-variant);
   /* ★상단 고정(유저 지시 2026-08-08) — 표를 길게 스크롤해도 «지금 어느 리스트를 보는 중인지» 가 계속 보인다.
-     스크롤 컨테이너는 .seat-main. 표 헤더(.seat-row-head)도 sticky 라 그 위에 얹히도록 z-index 를 더 높인다.
+     스크롤 컨테이너는 .seat-scrollport. 표 헤더(.seat-row-head)도 sticky 라 그 위에 얹히도록 z-index 를 더 높인다.
      box-shadow 는 그림자가 아니라 «아래 8px 여백을 배경색으로 메우는» 용도 — 안 그러면 탭바와 헤더 사이
      8px 틈으로 스크롤되는 행이 비친다. */
   position: sticky;
@@ -683,7 +686,7 @@
   border-radius: var(--md-radius-md);
   box-shadow: var(--md-elev-1);
   /* ★`overflow: hidden` 이 아니라 `clip` 이어야 한다(2026-08-08 실측으로 밝혀진 결함).
-     hidden 은 «스크롤 불가능한 스크롤포트» 를 만든다 → 자식의 position:sticky 가 바깥(.seat-main)이 아니라
+     hidden 은 «스크롤 불가능한 스크롤포트» 를 만든다 → 자식의 position:sticky 가 바깥(.seat-scrollport)이 아니라
      이 박스를 기준으로 붙는다. 그래서 표 헤더가 ①표 상단에서 top 만큼(56px) 안쪽으로 밀려 빈 띠를 만들고
      ②세로 스크롤 시 표와 함께 화면 밖으로 나가버렸다(= 헤더 고정이 사실상 죽어 있었다).
      clip 은 스크롤포트를 만들지 않아 모서리 자르기는 그대로 두면서 sticky 기준을 바깥으로 돌려준다. */
@@ -836,11 +839,16 @@
    자리앉음이 잠기거나(자리순서 필요없음) '이 단계 무효'를 ✕로 표시. */
 .seat-check--void { opacity: .55; }
 .seat-check--void input { border-color: var(--md-outline-variant); background: transparent; }
+/* ★글리프가 아니라 **도형**으로 그린다(2026-08-10) — 문자 `✕` 는 폰트 폴백에 따라 크기·기준선이 흔들리고
+   최악엔 두부(□)로 뜬다. 의사요소라 SVG 자식을 넣을 수 없으니 mask 로 SVG 를 씌우고 색은 배경색으로 준다
+   (currentColor 대신 토큰을 직접 써서 상속에 기대지 않는다). JSX 쪽 아이콘은 components/SeatIcon.jsx. */
 .seat-check--void input::after {
-  content: '✕';
-  color: var(--md-on-surface-variant);
-  font-size: 15px;
-  line-height: 1;
+  content: '';
+  width: 11px;
+  height: 11px;
+  background-color: var(--md-on-surface-variant);
+  -webkit-mask: var(--seat-icon-x) center / contain no-repeat;
+  mask: var(--seat-icon-x) center / contain no-repeat;
 }
 .seat-check--void .seat-check-text { text-decoration: line-through; }
 

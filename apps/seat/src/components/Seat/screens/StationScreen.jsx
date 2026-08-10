@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import { isWaitingOrder, isRaisedOrder, orderLabel, showsTakeoutLabel } from '../utils/seatRules'
+import { IconCheck } from '../components/SeatIcon'
 
 // 색종이 가루 입자 — 고정 배열(랜덤 없이 결정적: 매 완료마다 같은 모양이라 깜빡임·재현 이슈 없음).
 //   x/y = 흩어지는 방향(px), r = 회전(deg), d = 시작 지연(ms).
@@ -88,7 +89,7 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
                 {/* 체크 표시 = 수기 영수증에서 포장을 체크로 적는 관행과 경험 통일(유저 지시 2026-08-02). */}
                 {/* 포장도고려(매장영수증)도 같은 라벨 — 주방 입장에선 '이 주문은 포장'이 새 정보인 건 같다(R11). */}
                 {showsTakeoutLabel(o)
-                  ? <div className="seat-st-tag seat-st-tag--takeout">{o.opt_takeout ? '✓ 포장으로 변경됨' : '✓ 포장'}</div>
+                  ? <div className="seat-st-tag seat-st-tag--takeout"><IconCheck /> {o.opt_takeout ? '포장으로 변경됨' : '포장'}</div>
                   : null}
                 <div className="seat-st-no">{labelOf(o)}</div>
                 {/* 전달사항 = 읽기 전용 텍스트(자리후 대기 카드와 동일 구조). 수정은 표에서 — 유저 지시 2026-08-02. */}
@@ -99,7 +100,7 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
                   onClick={() => complete(o.id)}
                   disabled={celebrating.has(o.id)}
                 >
-                  <span className="seat-complete-check" aria-hidden="true">✓</span> 완료
+                  <IconCheck className="seat-complete-check" /> 완료
                   {/* 색종이 가루 — 완료 순간에만 흩뿌려진다(이모지 대신 실제 입자, 유저 지시 2026-08-02). */}
                   {celebrating.has(o.id) && (
                     <span className="seat-confetti" aria-hidden="true">

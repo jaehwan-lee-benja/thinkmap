@@ -2,7 +2,7 @@
 // 유저 지시 2026-08-09 「혹시 자리후에 좌우를 나눠서 태블링 리스트를 함께 볼 수 있나?」 → 「만들어보자」.
 //
 // ★배치 규율(오늘 sticky 로 두 번 데인 뒤 세운 것):
-//   이 판은 **자리후 스크롤포트(.seat-main) 밖 형제**다. 안에 넣으면 표 헤더·탭바·툴바의 sticky 기준이
+//   이 판은 **자리후 스크롤포트(.seat-scrollport) 밖 형제**다. 안에 넣으면 표 헤더·탭바·툴바의 sticky 기준이
 //   통째로 흔들린다(2026-08-08 실증: 스크롤 상자가 하나 끼면 sticky 가 그 상자 기준으로 다시 잡힌다).
 //
 // ★리사이저는 SeatTableHead.ColumnResizer 와 같은 문법 — React 합성 onPointerDown 이 이 환경에서
@@ -13,6 +13,7 @@
 // ★분할비는 **퍼센트(flex-basis)** 로 준다 — 가로형(row)에선 폭, 세로형(column)에선 높이로 같은 값이
 //   그대로 먹혀서 방향 분기 없이 한 벌로 돌아간다.
 import { useEffect, useRef, useState } from 'react'
+import { IconX } from './SeatIcon'
 
 export const TABLING_URL = 'https://ceo.tabling.co.kr/list'
 const RATIO_KEY = 'seat.tablingPane.ratio.v1'
@@ -123,7 +124,7 @@ export default function TablingPane({ onClose }) {
           {/* 새 탭 = 폴백이자 상시 탈출구. 액자 안에서 로그인이 안 되거나 화면이 깨지면 여기로 나간다. */}
           <a className="seat-btn seat-side-btn" href={TABLING_URL} target="_blank" rel="noreferrer">새 탭</a>
           <button type="button" className="seat-btn seat-side-btn" onClick={() => setNonce((n) => n + 1)} title="다시 불러오기">↻</button>
-          {onClose && <button type="button" className="seat-btn seat-side-btn" onClick={onClose} title="나란히 보기 끄기">✕</button>}
+          {onClose && <button type="button" className="seat-btn seat-side-btn" onClick={onClose} title="나란히 보기 끄기" aria-label="나란히 보기 끄기"><IconX /></button>}
         </div>
         <div className="seat-side-frame" style={{ '--seat-side-zoom': zoom / 100 }}>
           <iframe
