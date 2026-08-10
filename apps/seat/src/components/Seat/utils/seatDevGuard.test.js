@@ -31,15 +31,32 @@ describe('seatDevGuard — 정상 상태에서는 조용하다', () => {
   })
 
   it('스크롤포트 **밖**의 sticky(상단 앱바)는 이 규율 대상이 아니다', () => {
-    const n = [...healthy(), { id: 5, tag: 'header', classes: ['seat-header'], parent: 0, style: S({ position: 'sticky' }) }]
+    // ★판별 fixture(2026-08-10 재감사 ⑴): 밖-sticky 의 **조상에 overflow:hidden 을 둔다.**
+    //   전에는 조상이 깨끗해서 `if (!inside) continue` 를 통째로 지워도 통과했다 — 주장은 참인데
+    //   시험이 그 주장을 안 보고 있었다(«비판별 주장»). 이제 필터를 지우면 이 시험이 red 가 된다.
+    const n = [
+      ...healthy(),
+      { id: 5, tag: 'div', classes: ['seat-header-wrap'], parent: 0, style: S({ overflowX: 'hidden', overflowY: 'hidden' }) },
+      { id: 6, tag: 'header', classes: ['seat-header'], parent: 5, style: S({ position: 'sticky' }) },
+    ]
     expect(stickyViolations(n)).toEqual([])
   })
 
-  it('의도된 스크롤 부품(액자·모달 본문·트랙)은 허용 목록으로 통과한다', () => {
-    for (const c of ALLOWED_SCROLLERS) {
+  it('의도된 스크롤 부품(모달 본문·스테이션 트랙)은 허용 목록으로 통과한다', () => {
+    // ★실앱에서 **정말로 auto/scroll 인 것만** 시험한다(2026-08-10 재감사 ⑵ — 「화이트리스트는 은신처」).
+    //   전에는 목록 4개 전부에 overflowY:'auto' 를 인위로 부여해 돌렸다. 통과는 하지만 **필요성을 증명하지 못한다**
+    //   — 실앱에 존재할 수 없는 상태를 만들어 놓고 «면제가 필요하다»고 말하는 셈이었다.
+    for (const c of ['seat-modal-body', 'seat-st-track']) {
       const n = [...healthy(), { id: 9, tag: 'div', classes: [c], parent: 0, style: S({ overflowY: 'auto' }) }]
       expect(stickyViolations(n), c).toEqual([])
     }
+  })
+
+  it('★죽은 면제는 목록에 두지 않는다 — 지금 필요한 것만 남았다', () => {
+    // `seat-side-frame`(실제 overflow:hidden → SCROLLS 에서 먼저 걸러짐)과
+    // `pv-center`(.seat-app 밖이라 collectNodes 가 수집조차 안 함)는 **닿을 수 없는 면제**였다.
+    // 면제 목록은 «지금 진짜로 필요한 것»만 담는다 — 안 그러면 나중 결함이 그 그늘에 숨는다.
+    expect([...ALLOWED_SCROLLERS].sort()).toEqual(['seat-modal-body', 'seat-st-track'])
   })
 })
 

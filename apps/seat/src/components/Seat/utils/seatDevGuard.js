@@ -27,7 +27,11 @@ export const SCROLLS = (v) => v === 'auto' || v === 'scroll'
 
 // 의도적으로 스크롤하는 부품 — sticky 조상이 아니라 무해하다는 **판단**이고, 그 판단을 코드에 적어 둔다
 // (다음 세션이 재판정할 수 있게). 여기 없는 스크롤 상자가 생기면 가드가 말한다.
-export const ALLOWED_SCROLLERS = ['seat-side-frame', 'seat-modal-body', 'seat-st-track', 'pv-center']
+//   ★**지금 진짜로 닿는 것만 남긴다**(2026-08-10 재감사 ⑵ — 「화이트리스트는 은신처」).
+//     뺀 것: `seat-side-frame` = 실제 값이 `overflow:hidden` 이라 SCROLLS() 에서 먼저 걸러진다(면제까지 오지 않는다).
+//            `pv-center`       = `.seat-app` 밖이라 collectNodes 가 수집조차 하지 않는다.
+//     닿지 않는 면제를 두면 나중 결함이 그 그늘에 숨는다. 필요해지는 날 근거와 함께 다시 넣어라.
+export const ALLOWED_SCROLLERS = ['seat-modal-body', 'seat-st-track']
 // 스크롤이 **본래 기능**인 폼 컨트롤 — 레이아웃 스크롤포트가 아니다(메모 textarea 는 UA 기본이 overflow:auto).
 //   실측: 이걸 빼먹으면 정상 화면에서 메모칸 수만큼 경고가 뜬다(8건). 노이즈는 가드를 죽인다.
 export const INTRINSIC_SCROLL_TAGS = ['textarea', 'select', 'input']
