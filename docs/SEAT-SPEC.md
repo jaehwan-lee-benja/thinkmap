@@ -719,6 +719,14 @@ src/components/Seat/
       인라인 흐름에 두면 SVG 의 기본 `vertical-align: baseline` 때문에 아이콘이 글자 위로 뜬다(실측 ~2px, 2026-08-10 재감사).
       Seat.css 에는 `vertical-align` 선언도 svg 전역 규칙도 **없다** — 받쳐주는 게 없으니 컨테이너가 책임진다.
       ★**자동 검사로는 안 잡힌다**(「측정은 통과, 그림은 깨짐」). 그래서 픽셀을 확인하는 대신 **확인이 필요 없는 구조**로 둔다.
+      ⚠**잠복 조건 — `text-align: center` → `justify-content: center` 교체는 «한 줄일 때만» 등가다.**
+      flex 에서 텍스트는 익명 아이템이 되고, 그 **안**에서 줄바꿈되면 2번째 줄을 정렬하는 건 여전히 `text-align` 인데 그게 사라진 상태다.
+      받쳐줄 곳도 없다 — `.seat-st-tag` 단독 규칙이 없고 조상(`.seat-st-card`·`.seat-st-track`·`.seat-st-section`) 중 `text-align:center` 를 주는 것도 없다.
+      **현재는 회귀 0**: 이 배지는 `.seat-st-active` 카드에만 뜨고(`StationScreen.jsx`), 그 카드 폭 **220px** − padding 16 = 가용 204px 인데
+      최장 라벨 `포장으로 변경됨`(한글 7자 ≈105px) + 아이콘 15 + gap 4 ≈ **128px** ⇒ **여유 76px, 줄바꿈 없음**.
+      ★**임계 폭 ≈ 144px**(= 128 + padding 16). **그 아래로 내려가면 2번째 줄이 왼쪽으로 붙는다** ⇒ 그때 `text-align: center` 를 되돌린다.
+      다른 두 섹션 카드는 `.seat-st-waiting` **168px**(여유 24) · `.seat-st-done` **150px**(여유 **6**) — 배지를 그리로 옮겨도
+      «깨지진» 않지만 done 카드는 **6px 차**다. 폰트·라벨이 조금만 바뀌어도 넘는다 ⇒ 옮길 거면 그 자리에서 다시 재라.
 - [ ] **확인 모달을 추가했으면** `SeatConfirm` 을 썼는가(스크림·다이얼로그를 손으로 그리지 않는다 — §9.0 재확인 모달).
 - [ ] `seatRules.js` 의 판정을 고쳤으면 `seatRules.test.js` 판정표도 함께 고쳤는가(레포 루트 `npx vitest run apps/seat`).
 - [ ] 같은 판정을 화면에서 **다시 인라인으로** 쓰고 있지 않은가(규칙은 `seatRules.js` 한 곳 — 인라인 사본은 규칙 수정을 안 따라온다).
