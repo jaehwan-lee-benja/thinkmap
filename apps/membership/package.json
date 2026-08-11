@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:storage": "APP_BASE=./ vite build --outDir dist-storage",
+    "postbuild": "node ../../scripts/check-env-baked.mjs dist",
+    "build:storage": "APP_BASE=./ vite build --outDir dist-storage && node ../../scripts/check-env-baked.mjs dist-storage",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist -e membership --add"
