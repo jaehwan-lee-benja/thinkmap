@@ -2,17 +2,35 @@
 //   회수 실패를 초록 «유효»로 보여주지 않는 판정 순서 등 방어가 여기 들어 있다(복제 금지).
 import { printReceipt } from '../../receipt/print'
 import { todayStr } from './kioskUtils'
-import { STATE_LABEL, CHANNEL_LABEL } from './useTicketScan'
+import { STATE_LABEL, CHANNEL_LABEL, FAIL_SYSTEM } from './useTicketScan'
 
 // ★allowPrint — 직원 허브에서는 «영수증 인쇄»를 뺀다(유저 2026-08-08: 「직원 화면에서는 필요없는 기능」).
 //   ⚠`?role=scan`(프린터가 붙은 카운터 기기)에서는 **유지**한다: 그쪽은 실제로 종이를 뽑는 자리이고,
 //   손님이 «직원에게 문의»로 넘어오는 복구 경로다. 화면마다 다른 걸 **프롭 하나로** 가른다(복제 금지).
 export default function ScanResultPanel({ scan, printMsg, setPrintMsg, allowPrint = true }) {
-  const { result, phase, errMsg, busy, doRedeem } = scan
+  const { result, phase, errMsg, failKind, busy, lastToken, doRedeem, retry } = scan
   const stamp = result?.stamp
+  // ★«판정 없음»을 «거부»로 착지시키지 않는다(2026-08-10). 시스템 축은 빨강 거부 카드가 아니라
+  //   **중립 안내 + 다시 시도 + 토큰 노출**로 그린다 — 직원이 할 행동이 «돌려보냄»이 아니라
+  //   «다시 대보거나 수기 확인»이기 때문이다. 색·문구가 아니라 **다음 행동**이 갈리는 게 목적이다.
+  const systemFail = phase === 'error' && failKind === FAIL_SYSTEM
   return (
     <>
-      {phase === 'error' && !result && (
+      {systemFail && (
+        <div className="mk-scan-card mk-scan-wait">
+          <div className="mk-scan-state">지금 확인이 안 됩니다</div>
+          <div className="mk-scan-sub">이 참여권이 잘못됐다는 뜻이 <b>아닙니다</b> — 통신·서버 문제입니다.<br />
+            다시 시도하거나, 아래 번호로 <b>직원이 수기 확인</b>해 주세요.</div>
+          {lastToken && <div className="mk-scan-token">{lastToken}</div>}
+          <div className="mk-scan-acts">
+            <button className="mk-scan-redeem" onClick={retry} disabled={phase === 'looking'}>다시 시도</button>
+            <button className="mk-reset" onClick={() => { scan.reset(); setPrintMsg('') }}>다음 스캔</button>
+          </div>
+          <div className="mk-scan-why">{errMsg}</div>
+        </div>
+      )}
+
+      {phase === 'error' && !result && !systemFail && (
         <div className="mk-scan-card mk-scan-bad"><div className="mk-scan-state">✗ {errMsg}</div></div>
       )}
 
@@ -20,9 +38,10 @@ export default function ScanResultPanel({ scan, printMsg, setPrintMsg, allowPrin
             화면이 그대로 "✓ 유효 — 제공 가능"이면 **팝콘이 무료로 나가고 스탬프는 안 쌓인다**.
             phase==='error' 를 최우선으로 판정한다. */}
       {result && (
-        <div className={`mk-scan-card ${phase === 'error' ? 'mk-scan-bad' : result.state === 'issued' ? 'mk-scan-ok' : phase === 'redeemed' ? 'mk-scan-done' : 'mk-scan-bad'}`}>
+        <div className={`mk-scan-card ${phase === 'error' ? (failKind === FAIL_SYSTEM ? 'mk-scan-wait' : 'mk-scan-bad') : result.state === 'issued' ? 'mk-scan-ok' : phase === 'redeemed' ? 'mk-scan-done' : 'mk-scan-bad'}`}>
           <div className="mk-scan-state">
-            {phase === 'error' ? `✗ 회수 실패 — ${errMsg || '다시 시도하세요'}`
+            {phase === 'error' && failKind === FAIL_SYSTEM ? '지금 확인이 안 됩니다 — 다시 시도해 주세요'
+              : phase === 'error' ? `✗ 회수 실패 — ${errMsg || '다시 시도하세요'}`
               : phase === 'redeemed' ? '✓ 회수 완료 — 팝콘 제공'
               : (result.state === 'issued' ? '✓ ' : '✗ ') + (STATE_LABEL[result.state] || result.state)}
           </div>

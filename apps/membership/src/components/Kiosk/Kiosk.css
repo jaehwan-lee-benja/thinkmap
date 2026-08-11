@@ -1295,3 +1295,19 @@ body:has(.mk-preview-bar) .mk-build { top: 32px; }
 .mk-evt-steps .is-past { opacity: .55; }
 /* 선택 결과는 아코디언 **안**에 앉는다 — 별도 문법(.mk-pick-done)을 만들지 않는다. */
 .mk-pick-result { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+
+/* ★시스템 축 실패 = «판정 없음» — 거부(빨강)와 **다른 것으로 읽혀야** 한다(2026-08-10).
+   빨강은 「이 종이는 못 쓴다」는 판정이고, 이것은 「아직 판정을 못 했다」는 상태다.
+   중립 표면 + 안내 + [다시 시도] + 토큰 노출로, 직원의 다음 행동을 «돌려보냄»에서 «재시도·수기 확인»으로 돌린다. */
+.mk-scan-wait {
+  background: var(--md-surface-container); border: 2px dashed var(--md-outline);
+  color: var(--md-on-surface);
+}
+.mk-scan-wait .mk-scan-state { color: var(--md-on-surface); }
+.mk-scan-sub { font-size: 15px; line-height: 1.5; word-break: keep-all; text-align: center; }
+.mk-scan-token {
+  font-family: monospace; font-size: 22px; font-weight: 700; letter-spacing: 2px;
+  padding: 6px 12px; border-radius: var(--md-radius-sm); background: var(--md-surface);
+}
+.mk-scan-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.mk-scan-why { font-size: 12px; opacity: .6; word-break: break-all; }
