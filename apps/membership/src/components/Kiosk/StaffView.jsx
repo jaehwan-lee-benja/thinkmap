@@ -36,7 +36,11 @@ export default function StaffView({ store }) {
   //
   //   ★번호칸 오염 방지는 NumberPad 의 «지연 확정»이 맡는다(그 파일 주석에 3차 수정 경위).
   //     여기서 되돌리는 방식은 **멀쩡한 자리를 지우는** 부작용이 있어 폐기했다.
-  useScanner((tok) => { setShowList(false); scanState.doLookup(tok) })
+  //   ★수기 입력칸도 함께 비운다(2026-08-11 발견): 사람이 **빠르게**(문자 간격 ≤80ms) 타이핑하면
+  //     전역 스캐너가 그걸 버스트로 claim 하고 Enter 에 preventDefault 를 건다 → **form submit 이 안 일어나
+  //     입력칸이 안 비워진다**(조회는 정상, 텍스트만 남는다). 남은 토큰이 다음 손님 차례에 다시 조회될 수 있다.
+  //     스캐너가 claim 하든 form 이 처리하든 «조회가 시작되면 칸은 빈다»로 한 곳에서 맞춘다.
+  useScanner((tok) => { setShowList(false); setManualTok(''); scanState.doLookup(tok) })
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear } = useMemberLookup()
   // 미러링 옵트인 여부 — 기본 false.
   const mirror = new URLSearchParams(window.location.search).get('mirror') === '1'
