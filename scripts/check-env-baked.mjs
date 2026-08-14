@@ -24,6 +24,14 @@ import { join } from 'node:path'
 const dist = process.argv[2] || 'dist'
 const app = process.cwd().split('/').slice(-1)[0]
 
+// ★면제 — 「이 앱은 Supabase 를 안 쓴다」. 단 **자기 이유를 들어야** 하고, **스스로 검사받는다**.
+//   (교본 §87 「면제 목록은 은신처다」 — 2026-08-14 감사관 지적을 여기 적용)
+//   사용: node check-env-baked.mjs dist --no-supabase="사유"
+//   ⇒ 그냥 통과시키지 않는다. **번들에 Supabase 흔적이 «있으면» 실패**시킨다.
+//     면제가 낡아 실제로는 Supabase 를 쓰게 됐는데 면제만 남아 있는 상태를 그때 잡는다.
+const noSupaArg = process.argv.find((a) => a.startsWith('--no-supabase'))
+const noSupaReason = noSupaArg?.includes('=') ? noSupaArg.split('=').slice(1).join('=').replace(/^["']|["']$/g, '') : ''
+
 /** dist 하위 .js 를 전부 모은다(assets/ 고정이 아니라 실제로 훑는다 — 경로 가정이 곧 사각이다). */
 function jsFiles(dir) {
   let out = []
@@ -56,6 +64,25 @@ const blob = files.map((f) => readFileSync(f, 'utf8')).join('\n')
 const urlHits = blob.match(/https:\/\/[a-z0-9]{20}\.supabase\.co/g) || []
 // anon 키는 JWT 라 `eyJ` 로 시작한다. 값은 보지 않고 «있는지»만 센다.
 const keyHits = blob.match(/eyJ[A-Za-z0-9_-]{10,}/g) || []
+
+// ── 면제 경로: 「안 쓴다」를 «검사»한다 ────────────────────────────────────
+if (noSupaArg) {
+  if (!noSupaReason) {
+    console.error(`✗ [env-gate:${app}] --no-supabase 에 사유가 없습니다. 면제는 이유를 적어야 합니다(--no-supabase="…").`)
+    process.exit(1)
+  }
+  const dirty = urlHits.length > 0 || keyHits.length > 0
+  console.log(`[env-gate:${app}] js ${files.length}개 · 면제(Supabase 미사용): "${noSupaReason}" · 흔적 URL ${urlHits.length}·키 ${keyHits.length} → ${dirty ? 'FAIL' : 'PASS'}`)
+  if (dirty) {
+    console.error(
+      `✗ [env-gate:${app}] 면제라고 선언했는데 번들에 Supabase 자격이 «있습니다».\n` +
+        `  둘 중 하나입니다: ⑴이 앱이 이제 Supabase 를 쓴다(면제를 지우고 정상 게이트로) ⑵실수로 자격이 섞였다(제거).\n` +
+        `  어느 쪽이든 지금 상태로 배포하면 안 됩니다.`
+    )
+    process.exit(1)
+  }
+  process.exit(0)
+}
 
 const ok = urlHits.length > 0 && keyHits.length > 0
 console.log(

@@ -119,6 +119,21 @@ export const SITE_NODES_SEED = [
     note: '§8 Phase 2 위성 분리 완료(apps/inventory). 없음·독립. 로그인 사용자 노출(세부 권한 게이트는 향후 RLS).',
   },
   {
+    id: 'seed-expense',
+    name: '지출 분류 (Expense)',
+    kind: 'satellite',
+    domain: 'asset',
+    // ★로컬 전용 위성 — gh-pages 에 안 올린다. 큐에 «품목명+금액»(사업 재무)이 들어가는데
+    //   공개 저장소로 나가면 안 되고, 원천도 asset 도메인의 로컬 SQLite 라 Edge 로 서빙할 수 없다.
+    //   ⇒ 맥미니에서 로컬 서버로 돌고 폰은 같은 와이파이로 붙는다(warroom 과 같은 성질).
+    //   저장 위치 승인이 나면 URL 을 /thinkmap/expense/ 로 바꾸고 어댑터(expenseSource.js)만 Edge 로 교체한다.
+    url: 'http://Mac-mini.local:5180/',
+    required_role: 'owner',
+    status: 'local',
+    sort_order: 8,
+    note: '§8 Phase 8(2026-08-14). 미분류 지출을 폰에서 원탭 분류. 데이터=asset 계약 spend-queue@1 파일 교환(msg/spend-queue/). 실행: node apps/expense/server.js',
+  },
+  {
     id: 'seed-crmboard',
     name: 'CRM 보드 (운영보드·월보)',
     kind: 'satellite',

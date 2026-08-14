@@ -1,0 +1,24 @@
+{
+  "name": "@thinkmap/expense-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "지출 분류(Expense) 위성 — 미분류 지출을 폰에서 원탭으로 분류한다. 데이터는 asset 도메인 Edge 계약으로만 접근(내부 스키마 비노출).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "postbuild": "node ../../scripts/check-env-baked.mjs dist --no-supabase=\"로컬 서버 전용 위성 — 데이터는 msg/spend-queue 파일에서 오고 Supabase 를 쓰지 않는다(2026-08-14)\"",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist -e expense --add"
+  },
+  "dependencies": {
+    "@thinkmap/core": "*",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^5.4.21"
+  }
+}
