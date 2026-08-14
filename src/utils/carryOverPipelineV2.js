@@ -137,12 +137,23 @@ export function toCarryOverSubtree(srcRoot, srcAllRows, ctx, sectionIdMap = null
     const remappedSectionId = sectionIdMap?.get(r.sectionId)
     const newSectionId = remappedSectionId || r.sectionId
     // root 의 parentBlockId 결정:
-    //   - parentBlockId 있고 어제 section row 면 → 새 section row 로 매핑 (자식으로 들어감)
-    //   - parentBlockId null 이지만 sectionId 가 어제 섹션 blockId 면 → 새 섹션 row 자식으로 (root-level 텍스트도 카드 안으로)
-    //   - 둘 다 매핑 안 되면 null (doc 최상위)
+    //   - parentBlockId 가 어제 section row 면 → 새 section row 로 매핑 (자식으로 들어감)
+    //   - 아니면 sectionId 로 새 섹션 row 자식으로 (root-level 텍스트도 카드 안으로)
+    //   - 둘 다 매핑 안 되면 null (doc 최상위) — 호출자가 걸러낸다(아래 ★).
+    //
+    // ★2026-08-14 결함 수정 — 섹션 폴백에 `!r.parentBlockId` 게이트가 걸려 있었다.
+    //   그래서 **고아 블록**(parentBlockId 는 있는데 그 부모 행이 없는 것)이 이월될 때:
+    //     · remappedParent          = 매달린 id 라 섹션이 아님 → undefined
+    //     · remappedSectionAsParent = 게이트에 막혀 **평가조차 안 됨** → null
+    //     ⇒ rootParent = null → **문서 최상위로 떨어졌다**(sectionMasterId 는 이월 설계상 null 이라
+    //       화면엔 «마스터 없는 루트 블록» = 깨진 섹션으로 보인다. 2026-08-14 회원님 신고 실물 2건).
+    //   position 충돌도 같은 뿌리다 — 호출자가 `position = i+1` 을 «섹션 안 순번»으로 매기는데
+    //   루트로 떨어지면 그 1·3 이 섹션 행의 1·3 과 같은 층에서 부딪친다.
+    //   ⇒ 게이트를 없애 **parentBlockId 유무와 무관하게 섹션 폴백**을 쓴다.
+    //   안전한 이유: 호출자(carryOverEager/Lazy)가 `if (!sectionIdMap.get(root.sectionId)) continue` 로
+    //   **루트 후보의 sectionId 가 매핑됨을 이미 보장**한다 ⇒ 루트의 부모는 null 이 되지 않는다.
     const remappedParent = r.parentBlockId ? sectionIdMap?.get(r.parentBlockId) : null
-    const remappedSectionAsParent = !r.parentBlockId ? sectionIdMap?.get(r.sectionId) : null
-    const rootParent = remappedParent ?? remappedSectionAsParent ?? null
+    const rootParent = remappedParent ?? sectionIdMap?.get(r.sectionId) ?? null
     return {
       blockId: idMap.get(r.blockId),
       pageId: ctx.pageId,
@@ -295,7 +306,14 @@ export async function carryOverEager(supabase, fromPageId, ctx, currentRows = nu
   for (const [, rootsInSection] of bySection) {
     rootsInSection.forEach((root, i) => {
       const subtree = toCarryOverSubtree(root, prevRows, ctx, sectionIdMap, sectionVisMap)
-      if (subtree[0]) subtree[0].position = i + 1  // root 만 1, 2, 3...
+      // ★부모 없는 루트는 «넣지 않는다»(2026-08-14). 위 게이트 수정 후엔 나올 수 없지만,
+      //   나온다면 그건 «섹션을 못 찾았다»는 전건 실패이지 «최상위에 둘 블록»이 아니다.
+      //   조용히 doc 최상위로 떨구면 화면엔 깨진 섹션으로 보이고 아무도 원인을 모른다.
+      if (!subtree[0] || !subtree[0].parentBlockId) {
+        console.warn('[carryOverEager] 섹션 부모를 못 찾아 이월 skip:', root?.blockId, root?.sectionId)
+        return
+      }
+      subtree[0].position = i + 1  // root 만 1, 2, 3...
       carryRows.push(...subtree)
     })
   }
@@ -350,7 +368,12 @@ export async function carryOverLazy(supabase, prevPageId, ctx) {
     let nextPos = (sectionMaxPos.get(secKey) || 0) + 1
     rootsInSection.forEach(root => {
       const subtree = toCarryOverSubtree(root, prevRows, ctx, sectionIdMap, sectionVisMap)
-      if (subtree[0]) subtree[0].position = nextPos++
+      // ★eager 와 같은 가드 — 부모 없는 루트는 넣지 않는다(toCarryOverSubtree 주석 참조).
+      if (!subtree[0] || !subtree[0].parentBlockId) {
+        console.warn('[carryOverLazy] 섹션 부모를 못 찾아 이월 skip:', root?.blockId, root?.sectionId)
+        return
+      }
+      subtree[0].position = nextPos++
       carryRows.push(...subtree)
     })
   }
