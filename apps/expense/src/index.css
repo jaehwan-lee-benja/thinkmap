@@ -65,3 +65,9 @@ body { background: var(--bg); color: var(--fg); }
 .xp-empty, .xp-stub, .xp-done-all { padding: 8px 0; line-height: 1.6; }
 .xp-stub b, .xp-done-all b { display: block; margin-bottom: 8px; font-size: 18px; }
 .xp-stub code { font-size: 13px; }
+
+/* 새 유입 알림 — 진행률 분모가 커져 «뒤로 간 것처럼» 보이는 오해를 막는다(asset ③). */
+.xp-added { margin: 12px 16px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: 10px;
+  color: var(--accent); font-size: 14px; line-height: 1.5; }
+.xp-added button { margin-left: 8px; min-height: 36px; padding: 0 12px; font: inherit; font-weight: 700;
+  border-radius: 8px; border: 1px solid currentColor; background: none; color: inherit; cursor: pointer; }

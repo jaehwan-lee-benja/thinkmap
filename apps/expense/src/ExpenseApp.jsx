@@ -18,9 +18,20 @@ export default function ExpenseApp() {
   const [err, setErr] = useState(null)
   const [busy, setBusy] = useState(false)
 
+  // ★새 유입 알림(asset ③): 쿠팡·이카운트가 붙으면 큐의 total 이 «늘어난다».
+  //   그러면 분모가 커져 **진행률이 뒤로 가는 것처럼** 보인다 — 열심히 했는데 숫자가 내려가면
+  //   회원님은 「내가 한 게 날아갔나」로 읽는다. 늘어난 사실을 «말해주면» 그 오해가 안 생긴다.
+  const [added, setAdded] = useState(0)
+
   const load = useCallback(async () => {
-    try { setErr(null); setData(await fetchQueue()) }
-    catch (e) { setErr(e) }
+    try {
+      setErr(null)
+      const d = await fetchQueue()
+      const prev = Number(localStorage.getItem('xp.lastTotal') || 0)
+      if (prev && d.total > prev) setAdded(d.total - prev)
+      localStorage.setItem('xp.lastTotal', String(d.total))
+      setData(d)
+    } catch (e) { setErr(e) }
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -64,6 +75,13 @@ export default function ExpenseApp() {
           <button key={t.id} type="button" className={`xp-tab${tab === t.id ? ' is-on' : ''}`} onClick={() => setTab(t.id)}>{t.label}</button>
         ))}
       </nav>
+
+      {added > 0 && (
+        <div className="xp-added">
+          새 항목 <b>{added}종</b>이 추가됐습니다 — 진행률 분모가 늘어난 것이지 판정이 사라진 게 아닙니다.
+          <button type="button" onClick={() => setAdded(0)}>확인</button>
+        </div>
+      )}
 
       {err && (
         <div className="xp-err">
