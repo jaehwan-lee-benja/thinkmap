@@ -38,29 +38,54 @@ const put = (k, v, cls, note) => {
     `<div class="row"><span class="k">${k}${note ? `<small>${note}</small>` : ''}</span><span class="v ${cls}">${v}</span></div>`)
 }
 
-// ★같은 오리진(github.io) 이라 모선이 저장한 세션이 이 페이지의 localStorage 에 있다.
-//   supabase-js 는 `sb-<ref>-auth-token` 키를 쓴다. 그걸 찾아 그대로 얹는다.
-function findSession() {
+// ★2026-08-14 2차 실패의 원인을 여기서 잡는다.
+//   1차 수정 후에도 PostgREST 가 401 PGRST301 을 냈는데, 내가 두 메시지를 실험으로 갈라 보니:
+//     · "None of the keys was able to decode"  = 키는 찾았고 «서명»이 안 맞음
+//     · "No suitable key was found to decode"  = 키 «탐색» 자체 실패 (kid 있음 / 비대칭 alg)
+//   회원님이 받은 건 «후자»다. 이 프로젝트 JWKS 는 비어 있어(대칭키) 정상 토큰이면 전자가 나와야 한다.
+//   ⇒ **다른 프로젝트/낡은 항목의 토큰을 집었을 가능성**이 크다.
+//   그래서 이제 «전부 나열하고, 이 프로젝트 것만 고른다».
+const REF = 'sqisntxippjzcekyhqyo'
+function decode(t) {
+  try {
+    const [h, p] = t.split('.').slice(0, 2).map((x) => JSON.parse(atob(x.replace(/-/g, '+').replace(/_/g, '/') + '===')))
+    return { h, p }
+  } catch { return null }
+}
+function findSessions() {
+  const out = []
   for (const k of Object.keys(localStorage)) {
-    if (!/^sb-.*-auth-token$/.test(k)) continue
-    try { const v = JSON.parse(localStorage.getItem(k)); if (v?.access_token) return v } catch {}
+    if (!/^sb-/.test(k)) continue
+    let v = localStorage.getItem(k)
+    try { if (v.startsWith('base64-')) v = atob(v.slice(7)) } catch {}
+    let o; try { o = JSON.parse(v) } catch { continue }
+    const tok = o?.access_token || o?.currentSession?.access_token
+    if (!tok) continue
+    const d = decode(tok)
+    out.push({ key: k, token: tok, alg: d?.h?.alg, kid: d?.h?.kid, ref: d?.p?.ref, email: d?.p?.email,
+               exp: d?.p?.exp, expired: d?.p?.exp ? d.p.exp * 1000 < Date.now() : null,
+               audience: d?.p?.app_metadata?.audience })
   }
-  return null
+  return out
 }
 
 const run = async () => {
-  const sess = findSession()
+  const all = findSessions()
+  put('localStorage 세션 항목', `${all.length}개`, all.length ? 'ok' : 'no',
+      all.length > 1 ? '★여러 개다 — 낡은 항목을 집으면 401 이 난다' : '')
+  for (const a of all) {
+    put(`· ${a.key}`, `${a.ref === REF ? '이 프로젝트' : '★다른 프로젝트'} · alg=${a.alg}${a.kid ? ` · kid=${a.kid.slice(0,8)}…` : ' · kid없음'}${a.expired ? ' · ★만료' : ''}`,
+        a.ref === REF && !a.expired ? 'ok' : 'no', a.email || '')
+  }
+  // ★이 프로젝트 것 중 «만료 안 된» 것만 쓴다. 이게 2차 실패의 교정점이다.
+  const sess = all.find((a) => a.ref === REF && !a.expired) || all.find((a) => a.ref === REF)
   if (!sess) {
-    put('로그인 세션', '없음', 'no', '먼저 thinkmap 에 로그인한 뒤 이 페이지를 여세요')
-    verdict.textContent = '✗ 세션 없음 — 로그인 후 다시 열어주세요'
+    verdict.textContent = '✗ 이 프로젝트의 유효한 세션이 없습니다 — thinkmap 에 로그인한 뒤 다시 열어주세요'
     verdict.className = 'no'; return
   }
-  const jwt = JSON.parse(atob(sess.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-  put('로그인 계정', jwt.email || '(이메일 없음)', 'ok')
-  // ★층1 audience 는 «클레임»이다 — 함수가 있어도 클레임이 없으면 is_staff() 가 false 다.
-  const aud = jwt.app_metadata?.audience
-  put('토큰 audience 클레임', aud ?? '없음', aud === 'staff' ? 'ok' : 'no',
-      aud === 'staff' ? '' : "★없으면 is_staff() 가 false → spend 전체가 0행이 됩니다")
+  put('사용할 세션', `${sess.key}`, 'ok', sess.email || '')
+  put('토큰 audience 클레임', sess.audience ?? '없음', sess.audience === 'staff' ? 'ok' : 'no',
+      sess.audience === 'staff' ? '' : '★없으면 is_staff() 가 false → spend 전체가 0행')
 
   // ★supabase-js 를 쓰지 않는다 — 2026-08-14 1차 스모크가 «No suitable key or wrong key type» 로 죽었다.
   //   원인: esm.sh 의 `@supabase/supabase-js@2` 가 최신(2.112.3)을 주는데 그 버전이 JWKS 로 로컬 검증을 시도하고,
@@ -69,7 +94,7 @@ const run = async () => {
   const call = async (fn) => {
     const r = await fetch(`${URL}/rest/v1/rpc/${fn}`, {
       method: 'POST',
-      headers: { apikey: KEY, Authorization: `Bearer ${sess.access_token}`, 'content-type': 'application/json' },
+      headers: { apikey: KEY, Authorization: `Bearer ${sess.token}`, 'content-type': 'application/json' },
       body: '{}',
     })
     const t = await r.text()
