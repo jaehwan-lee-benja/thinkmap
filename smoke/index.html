@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>spend 마이그 스모크 · ThinkMap</title>
+<style>
+  :root { color-scheme: light dark; font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif; }
+  body { margin: 0; padding: 20px; max-width: 640px; margin: 0 auto; line-height: 1.6; }
+  h1 { font-size: 20px; }
+  .row { display: flex; align-items: baseline; gap: 10px; padding: 12px 0; border-top: 1px solid #8884; }
+  .k { flex: 1 1 auto; font-weight: 700; }
+  .v { font-variant-numeric: tabular-nums; font-weight: 800; }
+  .ok { color: #2E9A3E; } .no { color: #BA1A1A; } .dim { opacity: .6; }
+  #verdict { margin-top: 18px; padding: 14px; border: 2px solid currentColor; border-radius: 10px; font-weight: 800; }
+  small { display: block; opacity: .7; font-weight: 400; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>spend 마이그 적용 전 스모크</h1>
+<p class="dim">이 페이지는 <b>회원님이 이미 로그인한 세션</b>으로 함수 3개를 실제 호출합니다.
+SQL Editor 는 JWT 컨텍스트가 없어 못 쓰는 검사라, 브라우저에서만 진실이 나옵니다.</p>
+
+<div id="rows"></div>
+<div id="verdict">확인 중…</div>
+<p class="dim"><small>결과를 그대로 캡처해 보내주시면 됩니다. 이 페이지는 아무것도 바꾸지 않습니다(읽기만).</small></p>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const URL = 'https://sqisntxippjzcekyhqyo.supabase.co'
+// anon 키는 공개 전제(프론트 번들에 이미 실려 나간다). 세션은 아래 localStorage 에서 «빌려온다».
+// anon 키는 설계상 공개다(모든 위성 번들에 이미 실려 나간다). 여기 두는 것이 새 노출이 아니다.
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxaXNudHhpcHBqemNla3locXlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyMDYyMzQsImV4cCI6MjA4MTc4MjIzNH0.wMdFeuYbxBJnJUeON0ccOiULDhEA88R25ewnIeb9dPg'
+
+const rows = document.getElementById('rows')
+const verdict = document.getElementById('verdict')
+const put = (k, v, cls, note) => {
+  rows.insertAdjacentHTML('beforeend',
+    `<div class="row"><span class="k">${k}${note ? `<small>${note}</small>` : ''}</span><span class="v ${cls}">${v}</span></div>`)
+}
+
+// ★같은 오리진(github.io) 이라 모선이 저장한 세션이 이 페이지의 localStorage 에 있다.
+//   supabase-js 는 `sb-<ref>-auth-token` 키를 쓴다. 그걸 찾아 그대로 얹는다.
+function findSession() {
+  for (const k of Object.keys(localStorage)) {
+    if (!/^sb-.*-auth-token$/.test(k)) continue
+    try { const v = JSON.parse(localStorage.getItem(k)); if (v?.access_token) return v } catch {}
+  }
+  return null
+}
+
+const run = async () => {
+  const sess = findSession()
+  if (!sess) {
+    put('로그인 세션', '없음', 'no', '먼저 thinkmap 에 로그인한 뒤 이 페이지를 여세요')
+    verdict.textContent = '✗ 세션 없음 — 로그인 후 다시 열어주세요'
+    verdict.className = 'no'; return
+  }
+  const jwt = JSON.parse(atob(sess.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+  put('로그인 계정', jwt.email || '(이메일 없음)', 'ok')
+  // ★층1 audience 는 «클레임»이다 — 함수가 있어도 클레임이 없으면 is_staff() 가 false 다.
+  const aud = jwt.app_metadata?.audience
+  put('토큰 audience 클레임', aud ?? '없음', aud === 'staff' ? 'ok' : 'no',
+      aud === 'staff' ? '' : "★없으면 is_staff() 가 false → spend 전체가 0행이 됩니다")
+
+  const sb = createClient(URL, KEY, {
+    global: { headers: { Authorization: `Bearer ${sess.access_token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const results = {}
+  for (const fn of ['is_staff', 'is_master', 'current_workspace']) {
+    try {
+      const { data, error } = await sb.rpc(fn)
+      if (error) { results[fn] = null; put(`${fn}()`, `오류: ${error.message}`, 'no') }
+      else { results[fn] = data; put(`${fn}()`, String(data), (data === true || (fn === 'current_workspace' && data)) ? 'ok' : 'no') }
+    } catch (e) { results[fn] = null; put(`${fn}()`, `실패: ${e.message}`, 'no') }
+  }
+
+  const pass = results.is_staff === true && results.is_master === true && !!results.current_workspace
+  verdict.textContent = pass
+    ? '✓ 통과 — 셋 다 참/비null 입니다. 마이그를 적용해도 됩니다.'
+    : '✗ 미통과 — 이대로 적용하면 spend 가 «0행»으로 태어납니다. 캡처해 보내주세요.'
+  verdict.className = pass ? 'ok' : 'no'
+}
+run().catch((e) => { verdict.textContent = '오류: ' + e.message; verdict.className = 'no' })
+</script>
+</body>
+</html>
