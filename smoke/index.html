@@ -25,9 +25,7 @@ SQL Editor 는 JWT 컨텍스트가 없어 못 쓰는 검사라, 브라우저에�
 <div id="verdict">확인 중…</div>
 <p class="dim"><small>결과를 그대로 캡처해 보내주시면 됩니다. 이 페이지는 아무것도 바꾸지 않습니다(읽기만).</small></p>
 
-<script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
+<script>
 const URL = 'https://sqisntxippjzcekyhqyo.supabase.co'
 // anon 키는 공개 전제(프론트 번들에 이미 실려 나간다). 세션은 아래 localStorage 에서 «빌려온다».
 // anon 키는 설계상 공개다(모든 위성 번들에 이미 실려 나간다). 여기 두는 것이 새 노출이 아니다.
@@ -64,18 +62,26 @@ const run = async () => {
   put('토큰 audience 클레임', aud ?? '없음', aud === 'staff' ? 'ok' : 'no',
       aud === 'staff' ? '' : "★없으면 is_staff() 가 false → spend 전체가 0행이 됩니다")
 
-  const sb = createClient(URL, KEY, {
-    global: { headers: { Authorization: `Bearer ${sess.access_token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
+  // ★supabase-js 를 쓰지 않는다 — 2026-08-14 1차 스모크가 «No suitable key or wrong key type» 로 죽었다.
+  //   원인: esm.sh 의 `@supabase/supabase-js@2` 가 최신(2.112.3)을 주는데 그 버전이 JWKS 로 로컬 검증을 시도하고,
+  //   이 프로젝트의 JWKS 는 **비어 있다**(`{"keys":[]}` — 레거시 HS256 대칭키). 모선은 2.89.0 을 번들해 멀쩡했다.
+  //   ⇒ «떠 있는 최신»에 의존한 것이 결함이었다. 라이브러리를 빼면 그 축 자체가 사라진다.
+  const call = async (fn) => {
+    const r = await fetch(`${URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: { apikey: KEY, Authorization: `Bearer ${sess.access_token}`, 'content-type': 'application/json' },
+      body: '{}',
+    })
+    const t = await r.text()
+    if (!r.ok) return { error: `HTTP ${r.status} ${t.slice(0, 120)}` }
+    try { return { data: JSON.parse(t) } } catch { return { data: t } }
+  }
 
   const results = {}
   for (const fn of ['is_staff', 'is_master', 'current_workspace']) {
-    try {
-      const { data, error } = await sb.rpc(fn)
-      if (error) { results[fn] = null; put(`${fn}()`, `오류: ${error.message}`, 'no') }
-      else { results[fn] = data; put(`${fn}()`, String(data), (data === true || (fn === 'current_workspace' && data)) ? 'ok' : 'no') }
-    } catch (e) { results[fn] = null; put(`${fn}()`, `실패: ${e.message}`, 'no') }
+    const { data, error } = await call(fn)
+    if (error) { results[fn] = null; put(`${fn}()`, error, 'no') }
+    else { results[fn] = data; put(`${fn}()`, String(data), (data === true || (fn === 'current_workspace' && data)) ? 'ok' : 'no') }
   }
 
   const pass = results.is_staff === true && results.is_master === true && !!results.current_workspace
