@@ -427,6 +427,14 @@ verify_jwt = false
 # 게이트웨이 JWT 검증은 끄고 함수 내부에서 getUser + (is_master() OR is_store()) 로 검증.
 # CORS preflight 를 함수가 직접 처리 + 직원 게이트. 시크릿 MEMBERSHIP_KIOSK_KEY 는 이 함수 env 에만
 # 유저가 세팅(값=crm 발급). MEMBERSHIP-KIOSK-SPEC §3.3·§5.
+[functions.kiosk]
+# 키오스크 HTML 한 장을 text/html 로 내보낸다. Storage 공개 버킷은 HTML 을 text/plain 으로
+# 강제해 브라우저가 렌더하지 않기 때문이다(2026-08-14 실측: index.html 200·text/plain).
+# 자산(JS·CSS·폰트·img·manifest)은 Storage 공개 URL 을 그대로 가리키므로 이 함수는 자족이다.
+# ★인증 없음 — 키오스크·손님 폰이 무인증으로 열어야 한다. 여는 것은 정적 HTML 한 장이고,
+#   데이터 접근은 여전히 프록시 Edge + 매장 세션 게이트를 지난다.
+verify_jwt = false
+
 [functions.membership-lookup]
 verify_jwt = false
 [functions.membership-event]
