@@ -49,17 +49,20 @@
 .dp-note { margin-top: 26px; font-size: 33px; font-weight: 700; color: #1F3860; word-break: keep-all; }
 
 /* 물결 — 화면 아래 띠가 «수평으로만» 흐른다. 로고 안의 물결은 정지다(로고는 안 건드린다). */
-.dp-waves { position: absolute; left: 0; right: 0; bottom: 0; height: 92px; z-index: 0; pointer-events: none;
+.dp-waves { position: absolute; left: 0; right: 0; bottom: 0; height: 72px; z-index: 0; pointer-events: none;
   background-repeat: repeat-x; background-position: 0 center; background-size: 240px 48px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 48'><path d='M0 24 q30 -18 60 0 t60 0 t60 0 t60 0' fill='none' stroke='%233CB44B' stroke-width='13' stroke-linecap='round'/></svg>");
-  opacity: .5; -webkit-animation: dp-flow 12s linear infinite; animation: dp-flow 12s linear infinite; }
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 48'><path d='M0 24 q30 -9 60 0 t60 0 t60 0 t60 0' fill='none' stroke='%233CB44B' stroke-width='11' stroke-linecap='round'/></svg>");
+  opacity: .38; -webkit-animation: dp-flow 12s linear infinite; animation: dp-flow 12s linear infinite; }
 @-webkit-keyframes dp-flow { from { background-position: 0 center } to { background-position: -240px center } }
 @keyframes dp-flow { from { background-position: 0 center } to { background-position: -240px center } }
 
-/* 콘페티 — ★글자 «뒤»로 보낸다(z-index 0). 앞에 두면 조각 하나가 이름·숫자에 얹혀 오탈자처럼 읽힌다(실측). */
+/* 콘페티 — ★모션 규범 v1.0: 1.2~2.0s · **1회** · 정본 팔레트 · 중앙 회피.
+   글자 «뒤»로도 보낸다(z-index 0) — 앞에 두면 조각이 이름·숫자에 얹혀 오탈자처럼 읽힌다(실측).
+   ★`infinite` 를 뺀 이유: 축하는 «터지고 끝나는» 것이다. 12초 내내 흩날리면 배경 소음이 되고,
+   손님이 읽어야 할 이름·도장 수에서 눈을 계속 뺏는다. `forwards` 로 마지막 프레임(화면 밖)에 멈춘다. */
 .dp-confetti { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 .dp-confetti i { position: absolute; top: -24px; width: 10px; height: 16px; border-radius: 2px;
-  -webkit-animation: dp-drop 3.2s linear infinite; animation: dp-drop 3.2s linear infinite; }
+  -webkit-animation: dp-drop 1.8s linear 1 forwards; animation: dp-drop 1.8s linear 1 forwards; }
 @-webkit-keyframes dp-drop { to { -webkit-transform: translateY(105vh) rotate(540deg) } }
 @keyframes dp-drop { to { transform: translateY(105vh) rotate(540deg) } }
 

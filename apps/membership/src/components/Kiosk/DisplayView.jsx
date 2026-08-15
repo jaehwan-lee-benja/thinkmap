@@ -21,11 +21,21 @@ const LOGO = `${import.meta.env.BASE_URL}img/logo-membership.png`
 
 // ★콘페티 조각은 «결정적»으로 흩는다 — Math.random 을 쓰면 캡처마다 그림이 달라져
 //   시각 회귀를 눈으로 비교할 수 없다(오늘 여러 번 그 비교로 결함을 잡았다).
-const CONFETTI = Array.from({ length: 22 }, (_, k) => ({
-  left: `${((k * 7.3) % 98).toFixed(1)}%`,
-  delay: `-${((k * 0.37) % 3.2).toFixed(2)}s`,
-  color: k % 3 ? 'var(--brand-green)' : 'var(--brand-blue)',
-}))
+//
+// ★모션 규범 v1.0 준수(2026-08-16 대조에서 위반 2건 잡아 고침):
+//   · «1회» — 예전엔 infinite 였다. 12초 내내 흩날리면 축하가 아니라 배경 소음이 된다.
+//   · «중앙 회피» — 이름 100px 과 도장 줄이 가운데를 쓴다. 조각을 좌우 날개(0~26% / 74~98%)에만
+//     둔다. 앞서 콘페티를 글자 «뒤»로 보낸 것(z-index)은 겹침을 «가리는» 처방이었고,
+//     이건 애초에 «겹치지 않게» 하는 처방이다 — 둘 다 둔다.
+const CONFETTI = Array.from({ length: 18 }, (_, k) => {
+  const wing = k % 2 === 0                      // 좌우 날개에 번갈아
+  const t = (k * 11.7) % 26                     // 날개 폭 26% 안에서 결정적으로 분산
+  return {
+    left: `${(wing ? t : 74 + t).toFixed(1)}%`,
+    delay: `${((k * 0.021) % 0.35).toFixed(3)}s`,  // 한 번의 «터짐»으로 읽히는 범위(≤0.35s)
+    color: k % 3 ? 'var(--brand-green)' : 'var(--brand-blue)',
+  }
+})
 
 /** 모형 데이터 — 2차에서 `membership_query` 응답으로 갈아끼운다. 필드 이름을 계약과 같게 둔다. */
 const FIXTURES = {
@@ -42,6 +52,7 @@ export default function DisplayView({ store }) {
   const p = new URLSearchParams(window.location.search)
   const mock = p.get('state')                     // ?state= 가 있으면 «모형»(서버·채널 안 붙는다)
   const [live, setLive] = useState(null)          // 실판: 마지막으로 받은 축하 payload
+  const [seq, setSeq] = useState(0)               // 축하 회차 — 콘페티 «재생» 키
   const timerRef = useRef(null)
 
   // ★실판 구독 — 키오스크가 claim 성공 직후 쏘는 `cheer`. 같은 매장 private 룸이라
@@ -50,6 +61,9 @@ export default function DisplayView({ store }) {
     onCheer: (payload) => {
       if (!payload) return
       setLive(payload)
+      // ★회차를 올려 콘페티 DOM 을 갈아끼운다. 1회 애니메이션은 같은 노드에서 «다시 안 터진다» —
+      //   키를 바꿔야 새로 마운트되며 재생된다. 이걸 빼면 두 번째 손님부터 조용히 축하가 사라진다.
+      setSeq((n) => n + 1)
       if (timerRef.current) clearTimeout(timerRef.current)
       // 연달아 스캔되면 «마지막 손님»으로 갈아타고 타이머도 다시 센다 —
       // 앞사람 화면이 남아 있으면 뒷사람이 자기 것으로 오해한다.
@@ -86,7 +100,7 @@ export default function DisplayView({ store }) {
     <div className="dp">
       {/* 콘페티는 «완료»에서만 — 이미 참여한 손님에게 축하를 또 던지면 그건 안내가 아니라 소음이다. */}
       {!already && (
-        <div className="dp-confetti" aria-hidden="true">
+        <div className="dp-confetti" key={seq} aria-hidden="true">
           {CONFETTI.map((c, i) => (
             <i key={i} style={{ left: c.left, animationDelay: c.delay, background: c.color }} />
           ))}
