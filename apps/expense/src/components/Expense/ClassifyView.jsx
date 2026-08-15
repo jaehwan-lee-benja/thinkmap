@@ -106,7 +106,7 @@ function Row({ item, buttons, busy, onDecide, details, setDetails }) {
   const saved = details.items[item.item_key] || {}
   const chosen = taxonomyById(details, saved.detail)
   // ★세부가 대분류를 이긴다 — 화면에 «실효 대분류»를 그대로 비춘다(버튼과 다르면 그게 보여야 한다).
-  const effective = chosen ? chosen.group : item.verdict
+  const effective = chosen ? chosen.category : item.verdict
 
   const put = (patch) => setDetails({ ...saveDetail(item.item_key, patch) })
   const onSelect = (v) => {
