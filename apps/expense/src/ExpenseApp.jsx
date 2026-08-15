@@ -115,10 +115,17 @@ function Board({ session }) {
   const progress = useMemo(() => {
     if (!data) return null
     const items = data.items || []
+    // ★계약 v1.1 개정⑶ — 진행률은 «서버가 준 3필드»로 그린다: pending / done / total = pending+done.
+    //   v1 은 total=남은 수·done=0 고정이라 «분자 없는 분모»였다. 클라이언트가 items 로 세면
+    //   **페이지(limit 50)만큼만 세게 되어** 전체 진행률이 아니라 «이번 페이지 진행률»이 된다 — 조용히 틀린다.
+    //   서버 필드가 없으면(로컬 모드) 그때만 items 로 폴백한다.
     const decided = items.filter((i) => i.verdict)
+    const total = Number.isFinite(data.total) ? data.total : items.length
+    const count = Number.isFinite(data.done) ? data.done : decided.length
+    // 금액 비율은 서버가 안 주므로 «이번 페이지 기준»이다 — 라벨에 그렇게 적는다(착시 방지).
     const totalAmount = data.total_amount || items.reduce((s, i) => s + (i.amount || 0), 0) || 1
     const amount = decided.reduce((s, i) => s + (i.amount || 0), 0)
-    return { count: decided.length, total: items.length, amount, totalAmount, pct: Math.round(amount / totalAmount * 100) }
+    return { count, total, amount, totalAmount, pct: Math.round(count / (total || 1) * 100) }
   }, [data])
 
   return (
