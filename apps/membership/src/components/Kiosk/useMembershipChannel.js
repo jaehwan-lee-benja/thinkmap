@@ -7,6 +7,12 @@ import { useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@thinkmap/core'
 
 const REALTIME_ON = import.meta.env.VITE_MEMBERSHIP_REALTIME === '1'
+// ★능력별 게이트(2026-08-16 판정): 응원화면만 켠다.
+//   VITE_MEMBERSHIP_REALTIME 은 «직원→고객 푸시 + 인쇄 브리지»를 잠그는 기존 플래그인데
+//   프로덕션에서 꺼진 채였다. 그 둘을 검증 없이 같이 깨우지 않기 위해 cheer 를 **따로** 연다.
+//   채널 자체는 공유한다(같은 private 룸·같은 인가) — 쪼갤 것은 «룸»이 아니라 «리스너와 발신»이다.
+const CHEER_ON = import.meta.env.VITE_CHEER_REALTIME === '1'
+const CHANNEL_ON = REALTIME_ON || CHEER_ON
 const EVT_MEMBER = 'member'   // {member_id, display_name, today_event_claimed}
 const EVT_CLEAR = 'clear'
 // ★인쇄 브리지(2026-08-03): 키오스크 발권 → 카운터 폰(프린터 보유)으로 티켓 푸시.
@@ -32,17 +38,23 @@ export function useMembershipChannel(store, { onMember, onClear, onTicket, onChe
   onTicketRef.current = onTicket
 
   useEffect(() => {
-    if (!REALTIME_ON || !store) return
+    if (!CHANNEL_ON || !store) return
     // private 채널(RLS 인가). 자기 브로드캐스트는 수신 안 함(self:false).
     const channel = supabase.channel(`membership:${store}`, {
       config: { broadcast: { self: false }, private: true },
     })
-    channel
-      .on('broadcast', { event: EVT_MEMBER }, ({ payload }) => onMemberRef.current?.(payload))
-      .on('broadcast', { event: EVT_CLEAR }, () => onClearRef.current?.())
-      .on('broadcast', { event: EVT_TICKET }, ({ payload }) => onTicketRef.current?.(payload))
-      .on('broadcast', { event: EVT_CHEER }, ({ payload }) => onCheerRef.current?.(payload))
-      .subscribe()
+    // ★리스너를 «능력별»로 단다 — 플래그가 꺼진 기능은 아예 구독하지 않는다.
+    //   룸을 열었다는 이유로 잠자던 기능이 깨어나면 분리한 의미가 없다.
+    if (REALTIME_ON) {
+      channel
+        .on('broadcast', { event: EVT_MEMBER }, ({ payload }) => onMemberRef.current?.(payload))
+        .on('broadcast', { event: EVT_CLEAR }, () => onClearRef.current?.())
+        .on('broadcast', { event: EVT_TICKET }, ({ payload }) => onTicketRef.current?.(payload))
+    }
+    if (CHEER_ON) {
+      channel.on('broadcast', { event: EVT_CHEER }, ({ payload }) => onCheerRef.current?.(payload))
+    }
+    channel.subscribe()
     chanRef.current = channel
     return () => { supabase.removeChannel(channel); chanRef.current = null }
   }, [store])
@@ -87,7 +99,7 @@ export function useMembershipChannel(store, { onMember, onClear, onTicket, onChe
    * 금지(계약): phone · canonical_id · 매출 · 테이블명. member_id 도 안 싣는다(화면이 안 쓴다).
    */
   const pushCheer = useCallback((c) => {
-    if (!REALTIME_ON || !chanRef.current || !c) return
+    if (!CHEER_ON || !chanRef.current || !c) return
     chanRef.current.send({
       type: 'broadcast', event: EVT_CHEER,
       payload: {
@@ -103,7 +115,7 @@ export function useMembershipChannel(store, { onMember, onClear, onTicket, onChe
     })
   }, [])
 
-  return { pushMember, pushClear, pushTicket, pushCheer, realtimeOn: REALTIME_ON }
+  return { pushMember, pushClear, pushTicket, pushCheer, realtimeOn: REALTIME_ON, cheerOn: CHEER_ON }
 }
 
 // ── 손님 폰 «회수 확정» 알림 채널 ────────────────────────────────────────────
