@@ -427,6 +427,19 @@ verify_jwt = false
 # 게이트웨이 JWT 검증은 끄고 함수 내부에서 getUser + (is_master() OR is_store()) 로 검증.
 # CORS preflight 를 함수가 직접 처리 + 직원 게이트. 시크릿 MEMBERSHIP_KIOSK_KEY 는 이 함수 env 에만
 # 유저가 세팅(값=crm 발급). MEMBERSHIP-KIOSK-SPEC §3.3·§5.
+[functions.spend-queue]
+# ★verify_jwt = false — 게이트웨이 검증을 «끄고» 함수 내부에서 getUser 로 검증한다.
+#   이유는 보안 완화가 아니라 **CORS 프리플라이트**다: OPTIONS 요청엔 Authorization 이 없으므로
+#   게이트웨이 검증을 켜면 프리플라이트가 401 로 거부되고 **브라우저가 아예 호출을 못 한다.**
+#   (ensure-daily-page·membership-* 전부 같은 이유로 false. 2026-08-15 계약 v1.1 의 «verify_jwt=true» 는
+#    이 레포 사정을 안 본 내 권고였고, 배포 전에 정정한다.)
+#   익명 호출은 함수가 401 `no_token` 으로 거부한다 — 검증 위치만 다르고 강도는 같다.
+verify_jwt = false
+
+[functions.spend-verdicts]
+# 위와 같은 이유(프리플라이트). 함수 내부 getUser + spend_can_view 로 3층 게이트를 지난다.
+verify_jwt = false
+
 [functions.kiosk]
 # 키오스크 HTML 한 장을 text/html 로 내보낸다. Storage 공개 버킷은 HTML 을 text/plain 으로
 # 강제해 브라우저가 렌더하지 않기 때문이다(2026-08-14 실측: index.html 200·text/plain).
