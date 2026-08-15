@@ -6,9 +6,9 @@
 //   · 셸이 막는 것은 «화면»이고, 진짜 방어는 DB RLS 다(셸을 우회해도 0행). 이중이라 안전하다.
 //   · ★계약 의존부(큐 읽기·판정 쓰기)는 아직 붙이지 않는다 — expenseSource.js 어댑터 뒤에 있고
 //     Edge 계약이 확정되면 «그 파일만» 바뀐다. 지금 셸은 데이터 0 으로도 온전히 돈다.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth, supabase } from '@thinkmap/core'
-import { fetchQueue, putVerdict, isRemote } from './expenseSource.js'
+import { fetchQueue, createVerdictQueue, isRemote } from './expenseSource.js'
 import ClassifyView from './components/Expense/ClassifyView.jsx'
 import ReconcileView from './components/Expense/ReconcileView.jsx'
 import EnvelopeView from './components/Expense/EnvelopeView.jsx'
@@ -88,7 +88,6 @@ function Board({ session }) {
   const [tab, setTab] = useState('classify')
   const [data, setData] = useState(null)
   const [err, setErr] = useState(null)
-  const [busy, setBusy] = useState(false)
   const [added, setAdded] = useState(0)
 
   const load = useCallback(async () => {
@@ -103,14 +102,34 @@ function Board({ session }) {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const decide = useCallback(async (itemKey, category) => {
-    setBusy(true)
-    const before = data
+  // ★판정은 «모아서» 보낸다(계약 §5 240/min). 품목 1건씩 치면 «쭉 탭» 흐름이 상한에 닿는다.
+  //   화면은 낙관적으로 즉시 반영하고, 전송은 400ms 디바운스로 배치된다.
+  const [note, setNote] = useState('')
+  const queueRef = useRef(null)
+  if (!queueRef.current) {
+    queueRef.current = createVerdictQueue({
+      onFlushed: (res) => {
+        // ★unknown_keys 를 조용히 버리지 않는다(계약 §2-2). 빈 배열이 정상이다.
+        if (res?.unknown_keys?.length) setErr(new Error(`서버가 못 찾은 품목 ${res.unknown_keys.length}건 — 보고가 필요합니다.`))
+        else if (res?.rows_updated) setNote(`${res.rows_updated}건 정리됨`)
+      },
+      onError: (e) => setErr(e),
+    })
+  }
+  // ★떠나기 전 남은 판정을 밀어낸다 — «마지막 한 건이 안 날아가는» 창을 막는다.
+  useEffect(() => {
+    const q = queueRef.current
+    const bye = () => { if (q.size) q.flushNow() }
+    window.addEventListener('pagehide', bye)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') bye() })
+    return () => { window.removeEventListener('pagehide', bye); bye() }
+  }, [])
+
+  const decide = useCallback((itemKey, category) => {
+    setErr(null)
     setData((d) => d && ({ ...d, items: d.items.map((i) => i.item_key === itemKey ? { ...i, verdict: category === '보류' ? null : category } : i) }))
-    try { await putVerdict(itemKey, category) }
-    catch (e) { setErr(e); setData(before) }
-    finally { setBusy(false) }
-  }, [data])
+    queueRef.current.push(itemKey, category)
+  }, [])
 
   const progress = useMemo(() => {
     if (!data) return null
@@ -143,6 +162,8 @@ function Board({ session }) {
         ))}
       </nav>
 
+      {note && <div className="xp-added">{note}<button type="button" onClick={() => setNote('')}>확인</button></div>}
+
       {added > 0 && (
         <div className="xp-added">
           새 항목 <b>{added}종</b>이 추가됐습니다 — 진행률 분모가 늘어난 것이지 판정이 사라진 게 아닙니다.
@@ -162,7 +183,7 @@ function Board({ session }) {
 
       <main className="xp-main">
         {!data && !err && <div className="xp-empty">불러오는 중…</div>}
-        {data && tab === 'classify' && <ClassifyView data={data} progress={progress} busy={busy} onDecide={decide} />}
+        {data && tab === 'classify' && <ClassifyView data={data} progress={progress} busy={false} onDecide={decide} />}
         {data && tab === 'reconcile' && <ReconcileView />}
         {data && tab === 'envelope' && <EnvelopeView />}
         {!data && err && tab !== 'classify' && (tab === 'reconcile' ? <ReconcileView /> : <EnvelopeView />)}
