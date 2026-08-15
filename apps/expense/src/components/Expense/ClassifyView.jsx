@@ -8,11 +8,14 @@
 // 유지되는 것: 금액 내림차순(상위 10종이 금액의 68.4%) · 각 행의 «N건이 함께 정리됩니다» ·
 //   판정 배치 디바운스 · 「보류」는 아무것도 저장하지 않음 · 커서 페이지네이션.
 import { useMemo, useState } from 'react'
+import { loadDetails, saveDetail, addCustomDetail, detailsFor } from '../../detailStore.js'
 
 const won = (n) => (n || 0).toLocaleString('ko-KR')
 
 export default function ClassifyView({ data, progress, busy, onDecide, onLoadMore, loadingMore }) {
   const [showDone, setShowDone] = useState(false)
+  // 세부·메모는 계약 v1.3 대기 — 기기에 남기고, 화면이 «서버 저장 전»이라고 말한다(detailStore 주석 참조)
+  const [details, setDetails] = useState(loadDetails)
   const buttons = data.buttons || ['사업-원재료', '사업-운영', '개인', '보류']
 
   const pending = useMemo(
@@ -41,7 +44,7 @@ export default function ClassifyView({ data, progress, busy, onDecide, onLoadMor
               {showDone ? '판정 목록 접기' : `판정한 것 보기 (${done.length})`}
             </button>
             {showDone && <ul className="xp-rows">{done.map((r) => (
-              <Row key={r.item_key} item={r} buttons={buttons} busy={busy} onDecide={onDecide} />
+              <Row key={r.item_key} item={r} buttons={buttons} busy={busy} onDecide={onDecide} details={details} setDetails={setDetails} />
             ))}</ul>}
           </>
         )}
@@ -58,7 +61,7 @@ export default function ClassifyView({ data, progress, busy, onDecide, onLoadMor
 
       <ul className="xp-rows">
         {pending.map((it) => (
-          <Row key={it.item_key} item={it} buttons={buttons} busy={busy} onDecide={onDecide} />
+          <Row key={it.item_key} item={it} buttons={buttons} busy={busy} onDecide={onDecide} details={details} setDetails={setDetails} />
         ))}
       </ul>
 
@@ -75,7 +78,7 @@ export default function ClassifyView({ data, progress, busy, onDecide, onLoadMor
             {showDone ? '판정한 것 접기' : `판정한 것 보기 (${done.length})`}
           </button>
           {showDone && <ul className="xp-rows">{done.map((r) => (
-            <Row key={r.item_key} item={r} buttons={buttons} busy={busy} onDecide={onDecide} />
+            <Row key={r.item_key} item={r} buttons={buttons} busy={busy} onDecide={onDecide} details={details} setDetails={setDetails} />
           ))}</ul>}
         </>
       )}
@@ -83,9 +86,21 @@ export default function ClassifyView({ data, progress, busy, onDecide, onLoadMor
   )
 }
 
-/** 한 행 = 품목 하나 + 그 자리에서 누르는 판정 버튼 4개.
- *  ★판정한 행도 목록에 남는다(사라지면 «방금 뭘 눌렀지»를 확인할 수 없다) — 눌린 버튼이 표시되고 바꿀 수 있다. */
-function Row({ item, buttons, busy, onDecide }) {
+/** 한 행 = 품목 하나 + 그 자리에서 누르는 판정 버튼 4개 + (접힌) 세부 서랍.
+ *  ★판정한 행도 목록에 남는다(사라지면 «방금 뭘 눌렀지»를 확인할 수 없다) — 눌린 버튼이 표시되고 바꿀 수 있다.
+ *  ★버튼 4종 «원탭» 경로는 세부가 생겨도 그대로다 — 세부는 부가 입력이지 관문이 아니다(발주 명시). */
+function Row({ item, buttons, busy, onDecide, details, setDetails }) {
+  const [open, setOpen] = useState(false)
+  const [adding, setAdding] = useState('')
+  const saved = details.items[item.item_key] || {}
+  const options = detailsFor(details, item.verdict)
+
+  const put = (patch) => setDetails({ ...saveDetail(item.item_key, patch) })
+  const addOwn = () => {
+    const label = addCustomDetail(item.verdict, adding)
+    if (label) { setAdding(''); setDetails(loadDetails()); put({ detail: label }) }
+  }
+
   return (
     <li className={`xp-row2${item.verdict ? ' is-done' : ''}`}>
       <div className="xp-row2-head">
@@ -105,6 +120,49 @@ function Row({ item, buttons, busy, onDecide }) {
           >{b}</button>
         ))}
       </div>
+
+      {/* 세부 서랍 — 기본 접힘. 판정 전에는 열 게 없다(2단의 1단이 아직 없으므로). */}
+      {item.verdict && item.verdict !== '보류' && (
+        <div className="xp-det">
+          <button type="button" className="xp-det-toggle" onClick={() => setOpen((v) => !v)}>
+            {open ? '▾' : '▸'} 세부
+            {!open && saved.detail && <em className="xp-det-tag">{saved.detail}</em>}
+            {!open && saved.memo && <em className="xp-det-tag is-memo">메모</em>}
+          </button>
+
+          {open && (
+            <div className="xp-det-body">
+              <div className="xp-det-chips">
+                {options.map((o) => (
+                  <button
+                    key={o}
+                    type="button"
+                    className={`xp-chip${saved.detail === o ? ' is-on' : ''}`}
+                    onClick={() => put({ detail: saved.detail === o ? '' : o })}
+                  >{o}</button>
+                ))}
+              </div>
+              <div className="xp-det-add">
+                <input
+                  value={adding}
+                  placeholder="세부요소 직접 추가"
+                  onChange={(e) => setAdding(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOwn() } }}
+                />
+                <button type="button" onClick={addOwn} disabled={!adding.trim()}>추가</button>
+              </div>
+              <input
+                className="xp-det-memo"
+                value={saved.memo || ''}
+                placeholder="메모 (2단보다 깊은 건 여기에)"
+                onChange={(e) => put({ memo: e.target.value })}
+              />
+              {/* ★«저장된 것처럼» 보이게 두지 않는다 — 서버 배선 전이라는 사실을 화면이 직접 말한다. */}
+              <div className="xp-det-note">세부·메모는 이 기기에 임시 보관됩니다 · 서버 저장은 준비 중</div>
+            </div>
+          )}
+        </div>
+      )}
     </li>
   )
 }
