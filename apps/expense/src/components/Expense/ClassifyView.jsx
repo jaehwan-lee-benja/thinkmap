@@ -24,10 +24,18 @@ export default function ClassifyView({ data, progress, busy, onDecide }) {
   const buttons = data.buttons || ['사업-원재료', '사업-운영', '개인', '보류']
 
   if (!cur) {
+    // ★«아직 안 들어왔다» 와 «다 끝냈다» 를 가른다(2026-08-15 유저 첫 열람에서 드러남).
+    //   적재 전에는 total=0 인데 옛 문구가 「0종 전부 판정했습니다」라 «다 끝냈다»로 읽혔다
+    //   — 회원님은 그 화면을 «빈 화면»이라 부르셨다. 같은 빈 목록이라도 뜻이 정반대다.
+    const nothingYet = !(progress?.total)
     return (
       <div className="xp-done-all">
-        <b>미분류가 없습니다</b>
-        <div>{progress?.total ?? 0}종 전부 판정했습니다 · 금액 {progress?.pct ?? 0}%</div>
+        <b>{nothingYet ? '아직 분류할 항목이 없습니다' : '미분류가 없습니다'}</b>
+        <div>
+          {nothingYet
+            ? '지출 데이터가 아직 올라오지 않았습니다. 올라오면 여기에 금액 큰 것부터 나옵니다.'
+            : `${progress.total}종 전부 판정했습니다 · 금액 ${progress.pct ?? 0}%`}
+        </div>
         <button type="button" className="xp-linkbtn" onClick={() => setShowDone((v) => !v)}>
           {showDone ? '판정 목록 접기' : `판정한 것 보기 (${done.length})`}
         </button>
