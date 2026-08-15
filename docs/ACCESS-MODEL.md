@@ -39,6 +39,36 @@
 기존 RLS 를 그 계정 기준으로 평가할 뿐이다. 마스터 민감 데이터(payroll 등)는 *실제 세션*
 기준이라 임퍼소네이션 중에는 보이지 않아야 한다.
 
+### 1-1. ★`master` 부여의 «파급» — 등급 하나가 여는 것 (2026-08-15 실측 앵커)
+
+**`role='master'` 는 한 기능의 열쇠가 아니라 «거의 전부»의 열쇠다.** 누군가에게 이 등급을 줄 때
+「그 기능만 열린다」고 생각하면 틀린다. 레포 실측: **`is_master()` 를 게이트로 쓰는 마이그레이션이 12개 이상**이다.
+
+| 마이그레이션 | 등장 | 함께 열리는 것 |
+|---|---|---|
+| `master-bypass-rls.sql` | 22곳 | 광범위 RLS 우회 |
+| `create-linked-accounts.sql` | 18곳 | 연결 계정 |
+| `migrate-dynamic-master.sql` | 24곳 | `app_users` 관리 |
+| `migrate-create-daily-blocks.sql` | 8곳 | 데일리 블록 |
+| `create-app-users-table.sql` · `migrate-create-members.sql` · `migrate-create-roster-templates.sql` · `create-worklog-comments-table.sql` · `migrate-create-goals.sql` · `migrate-create-crm-metrics.sql` · `migrate-daily-block-snapshots.sql` · `migrate-access-tiers-phase-a.sql` | 각 3~5곳 | 멤버·로스터·댓글·목표·CRM지표·스냅샷 |
+
+⇒ **새 기능의 열람을 `is_master()` 로 묶으면, 그 기능 때문에 등급을 준 사람에게 위 전부가 열린다.**
+· 실제 사례: spend(지출) 열람을 `is_viewer() = is_staff() ∧ is_master()` 로 묶었다. 두 번째 사람에게
+  지출을 보여주려면 `master` 를 줘야 하고, 그러면 **목표·CRM지표·멤버·데일리·연결계정까지 함께 열린다.**
+· ⇒ **기능별 열람은 «전용 명부»로 분리하는 것이 정석이다**(예: `role in ('master','spend_viewer')`).
+  단일 관문 함수(`spend.is_viewer()`)로 감싸 두면 **그 함수 하나만 고쳐** 분리할 수 있다 — 그게 단일 관문의 값이다.
+· ※2026-08-15 시점 실제 master = **2명**(회원님·김보람). 그래서 spend 는 «지금은» 추가 부여 없이 돌아간다 —
+  **위 파급은 «다음 사람»에게 등급을 줄 때의 값**이다.
+
+### 1-2. ★`current_workspace()` 는 익명에게도 값을 돌려준다 (2026-08-15 실측 앵커)
+
+`select current_workspace()` 를 **anon 키만으로** 호출하면 `11111111-1111-1111-1111-111111111111` 이 온다(200).
+⇒ **이 함수는 «인증 여부»를 스스로 묻지 않는다.** 워크스페이스 경계를 이 함수 «단독»으로 세우면 익명도 통과한다.
+· 지금 안전한 이유는 함께 쓰이는 술어(`is_viewer()`·`can_in_workspace()`)가 인증을 요구하기 때문이지,
+  `current_workspace()` 가 막아 주기 때문이 **아니다.**
+· ⇒ 새 정책에서 `workspace_id = current_workspace()` 를 쓸 땐 **반드시 인증·등급 술어와 AND** 로 묶는다.
+  그 하나만으로 «테넌시 방어»라고 부르지 않는다.
+
 ---
 
 ## 2. RLS 헬퍼 인벤토리 (수렴 재료)
