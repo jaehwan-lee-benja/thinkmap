@@ -68,8 +68,18 @@ function findSessions() {
     const tok = o?.access_token || o?.currentSession?.access_token
     if (!tok) continue
     const d = decode(tok)
-    out.push({ key: k, token: tok, alg: d?.h?.alg, kid: d?.h?.kid, ref: d?.p?.ref, email: d?.p?.email,
-               exp: d?.p?.exp, expired: d?.p?.exp ? d.p.exp * 1000 < Date.now() : null,
+    // ★2026-08-15 2차 수정 — 프로젝트 귀속을 payload.ref 로 보고 있었다.
+    //   그런데 **유저 access token 에는 ref 클레임이 «없다»**(실측: ref 는 anon/service «API 키» 의 클레임이다).
+    //   ⇒ 항상 undefined → 살아있는 세션이 있어도 영영 «다른 프로젝트» 로 찍혔다. 표기 버그가 아니라 «차단» 결함.
+    //   귀속은 두 곳에만 있다: ⑴localStorage 키 이름 ⑵iss URL. 둘을 «교차»로 본다.
+    const byKey = k.startsWith('sb-' + REF + '-')
+    const iss = d?.p?.iss || ''
+    const byIss = iss.startsWith('https://' + REF + '.supabase.co')
+    // 둘이 어긋나면 판정하지 않는다(어느 한쪽만 믿으면 그게 다음 사고다).
+    const mine = (byKey && byIss) ? true : (byKey || byIss) ? null : false
+    out.push({ key: k, token: tok, alg: d?.h?.alg, kid: d?.h?.kid, mine, byKey, byIss, iss,
+               email: d?.p?.email, exp: d?.p?.exp,
+               expired: d?.p?.exp ? d.p.exp * 1000 < Date.now() : null,
                audience: d?.p?.app_metadata?.audience })
   }
   return out
@@ -80,11 +90,12 @@ const run = async () => {
   put('localStorage 세션 항목', `${all.length}개`, all.length ? 'ok' : 'no',
       all.length > 1 ? '★여러 개다 — 낡은 항목을 집으면 401 이 난다' : '')
   for (const a of all) {
-    put(`· ${a.key}`, `${a.ref === REF ? '이 프로젝트' : '★다른 프로젝트'} · alg=${a.alg}${a.kid ? ` · kid=${a.kid.slice(0,8)}…` : ' · kid없음'}${a.expired ? ' · ★만료' : ''}`,
-        a.ref === REF && !a.expired ? 'ok' : 'no', a.email || '')
+    const who = a.mine === true ? '이 프로젝트' : a.mine === false ? '★다른 프로젝트' : '★판정 없음(키↔iss 불일치)'
+    put(`· ${a.key}`, `${who} · alg=${a.alg}${a.kid ? ` · kid=${a.kid.slice(0,8)}…` : ' · kid없음'}${a.expired ? ' · ★만료' : ''}`,
+        a.mine === true && !a.expired ? 'ok' : 'no', `${a.email || ''}${a.mine === null ? ` · key=${a.byKey} iss=${a.byIss}` : ''}`)
   }
   // ★이 프로젝트 것 중 «만료 안 된» 것만 쓴다. 이게 2차 실패의 교정점이다.
-  const sess = all.find((a) => a.ref === REF && !a.expired) || all.find((a) => a.ref === REF)
+  const sess = all.find((a) => a.mine === true && !a.expired) || all.find((a) => a.mine === true)
   if (!sess) {
     verdict.textContent = '✗ 이 프로젝트의 유효한 세션이 없습니다 — thinkmap 에 로그인한 뒤 다시 열어주세요'
     verdict.className = 'no'; return
