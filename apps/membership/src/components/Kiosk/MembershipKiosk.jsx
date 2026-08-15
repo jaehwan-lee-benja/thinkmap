@@ -5,6 +5,7 @@
 //   카운터 회수  = ?role=scan: ScanView (바코드 스캔 → 조회·회수·인쇄).
 //   카운터 폰    = ?role=printer: PrinterView (발권 수신 → 자동 인쇄 브리지).
 //   ★손님 폰     = ?role=ticket: TicketView — **인증 없이 열린다**(main.jsx 에서 분기).
+//   ★매장 화면   = ?role=display: DisplayView — 손님용 응원 화면. 역시 인증 앞에서 갈라진다.
 //     사유: 보는 사람이 고객이라 매장 계정이 없다. 서버 호출 0(URL 프래그먼트 자족 페이로드)이라
 //     인증을 요구할 대상 자체가 없고, 회수는 여전히 직원 게이트에서만 일어난다.
 //   매장 룸      = ?store=<id>(고정). Realtime 채널 인가는 매장 계정 세션(private 채널, 마이그 게이트).
@@ -14,6 +15,7 @@ import ReceiptEditor from './ReceiptEditor'
 import ScanView from './ScanView'
 import PrinterView from './PrinterView'
 import TicketView from './TicketView'
+import DisplayView from './DisplayView'
 import { readRoleAndStore } from './kioskUtils'
 import { PREVIEW } from '../../api/membership'
 import './Kiosk.css'
@@ -32,6 +34,7 @@ export default function MembershipKiosk({ session }) {
         {role === 'scan' && <ScanView />}
         {role === 'printer' && <PrinterView store={store} />}
         {role === 'ticket' && <TicketView />}
+        {role === 'display' && <DisplayView />}
         {role === 'customer' && <CustomerView store={store} />}
       </main>
     </div>

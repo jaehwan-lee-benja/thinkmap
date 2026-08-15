@@ -1,0 +1,66 @@
+/* 손님용 응원 화면(?role=display) — A안 크림. 정본 토큰(brand.css)만 쓴다.
+   ★구형 사파리(아이패드 미니): grid·:has()·aspect-ratio·gap 의존 금지. flex + margin 으로 짠다. */
+.dp { position: fixed; inset: 0; overflow: hidden;
+  background: #FCFAF4; color: var(--brand-blue);
+  font-family: var(--mk-font-body);
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
+
+/* ★페이드는 «컨테이너 하나»에만 건다 — 자식마다 걸면 delay 를 넣고 싶어지고 그게 순차 등장이다(금지). */
+.dp-screen { position: relative; z-index: 1; width: 100%; padding: 36px 48px; text-align: center;
+  -webkit-animation: dp-fade .5s ease-out both; animation: dp-fade .5s ease-out both; }
+@-webkit-keyframes dp-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes dp-fade { from { opacity: 0 } to { opacity: 1 } }
+
+/* 로고 — 정본 .ai 를 PDF 경유로 뽑은 PNG(1400×989)에 아트보드 잔여 요소가 붙어 있어
+   «본 로크업»만 창으로 잘라 쓴다. 자르기를 CSS 에 두면 좌표를 눈으로 고칠 수 있고 원본이 보존된다.
+   흰 바탕은 지우지 않고 multiply 로 크림에 녹인다(투명 변환 없이 정확). */
+.dp-logo { position: relative; overflow: hidden; margin: 0 auto;
+  width: calc(500px * var(--ls)); height: calc(515px * var(--ls)); }
+.dp-logo img { position: absolute; width: calc(1400px * var(--ls));
+  left: calc(-450px * var(--ls)); top: calc(-245px * var(--ls));
+  mix-blend-mode: multiply; }
+.dp-logo-top { --ls: .30; margin-bottom: 20px; }
+.dp-logo-hero { --ls: .62; }
+
+/* 글씨 — ★실기기 피드백으로 확대된 «요건»이다(추측값 아님). */
+.dp-name { font-size: 100px; font-weight: 700; line-height: 1.1; color: var(--brand-blue); }
+.dp-msg { font-size: 33px; font-weight: 700; color: #40465A; margin-top: 14px; word-break: keep-all; }
+.dp-invite { margin-top: 26px; font-size: 52px; font-weight: 700; line-height: 1.4;
+  color: var(--brand-blue); word-break: keep-all; max-width: 15em; margin-left: auto; margin-right: auto; }
+.dp-invite em { font-style: normal; color: #2A7D34; }
+
+/* 도장 — 채운 칸만 그린(액센트 소면적). 숫자는 어르신 기준 54px. */
+.dp-stamps { margin-top: 26px;
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center; }
+.dp-dots { font-size: 0; line-height: 0; }
+.dp-dot { display: inline-block; width: 30px; height: 30px; border-radius: 999px;
+  border: 3px solid #CED6E4; background: #FFFFFF; margin: 0 5px; }
+.dp-dot.on { background: var(--brand-green); border-color: var(--brand-green); }
+.dp-count { font-size: 54px; font-weight: 700; color: var(--brand-blue); margin-left: 24px; white-space: nowrap; }
+.dp-count i { font-style: normal; font-size: 33px; color: #40465A; }
+
+/* ★소형 그린 텍스트는 반드시 Green Text(#2A7D34) — 정본 그린은 소형에서 대비 미달(DESIGN.md). */
+.dp-facts { margin-top: 22px; font-size: 28px; font-weight: 700; color: #2A7D34; word-break: keep-all; }
+.dp-facts + .dp-facts { margin-top: 8px; }
+.dp-note { margin-top: 26px; font-size: 33px; font-weight: 700; color: #1F3860; word-break: keep-all; }
+
+/* 물결 — 화면 아래 띠가 «수평으로만» 흐른다. 로고 안의 물결은 정지다(로고는 안 건드린다). */
+.dp-waves { position: absolute; left: 0; right: 0; bottom: 0; height: 92px; z-index: 0; pointer-events: none;
+  background-repeat: repeat-x; background-position: 0 center; background-size: 240px 48px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 48'><path d='M0 24 q30 -18 60 0 t60 0 t60 0 t60 0' fill='none' stroke='%233CB44B' stroke-width='13' stroke-linecap='round'/></svg>");
+  opacity: .5; -webkit-animation: dp-flow 9s linear infinite; animation: dp-flow 9s linear infinite; }
+@-webkit-keyframes dp-flow { from { background-position: 0 center } to { background-position: -240px center } }
+@keyframes dp-flow { from { background-position: 0 center } to { background-position: -240px center } }
+
+/* 콘페티 — ★글자 «뒤»로 보낸다(z-index 0). 앞에 두면 조각 하나가 이름·숫자에 얹혀 오탈자처럼 읽힌다(실측). */
+.dp-confetti { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.dp-confetti i { position: absolute; top: -24px; width: 10px; height: 16px; border-radius: 2px;
+  -webkit-animation: dp-drop 3.2s linear infinite; animation: dp-drop 3.2s linear infinite; }
+@-webkit-keyframes dp-drop { to { -webkit-transform: translateY(105vh) rotate(540deg) } }
+@keyframes dp-drop { to { transform: translateY(105vh) rotate(540deg) } }
+
+@media (prefers-reduced-motion: reduce) { .dp-waves, .dp-confetti { display: none } }

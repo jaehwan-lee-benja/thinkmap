@@ -15,7 +15,10 @@ initTheme()
 //   안전한 이유: 이 화면은 **서버를 부르지 않는다**(데이터는 URL 프래그먼트에 자족적으로 들어 있고
 //       조회·쓰기가 0). 인증을 요구할 대상 자체가 없고, 회수는 여전히 직원 게이트에서만 일어난다.
 //   ※컴포넌트 안에서 조건부 return 하면 훅 순서가 깨지므로(useAuth 앞) 여기서 가른다.
-const isTicket = new URLSearchParams(window.location.search).get('role') === 'ticket'
+// ★응원 화면(?role=display)도 같은 이유로 인증 앞에서 가른다 — 1차는 서버를 «안 부른다»(모형+쿼리스트링).
+//   2차에서 실데이터를 붙일 때 인증 경로를 다시 판단한다(매장 기기 1회 로그인 vs Edge 익명 계약).
+const _role = new URLSearchParams(window.location.search).get('role')
+const isTicket = _role === 'ticket' || _role === 'display'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
