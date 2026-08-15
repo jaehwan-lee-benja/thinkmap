@@ -1,17 +1,20 @@
-// 분류 플로우 — 원탭 판정 + 자동 다음.
+// 분류 — ★스크롤 «리스트»형(2026-08-15 유저 실사용 피드백으로 전환).
 //
-// ★설계의 근거는 asset 실측이다: 판정 단위가 «행(441)»이 아니라 «품목(178종)»이고,
-//   금액 내림차순으로 놓으면 **상위 10종이 금액의 68.4%** 다.
-//   ⇒ 큐를 금액순으로 고정하고, 각 항목에 «몇 건이 함께 정리되는지»를 크게 보여준다.
-//     그래야 한 번의 탭이 얼마나 큰 일인지가 화면에서 보인다.
+// 이전: 한 건씩 큰 카드 + 판정하면 자동으로 다음. 「원탭 체감」을 노렸다.
+// 실사용 판정: **쭉 훑으면서 눈에 띄는 것부터 처리하고 싶다.** 낱개 카드는
+//   ⑴다음에 뭐가 오는지 안 보이고 ⑵되돌아가기 어렵고 ⑶「지금 몇 개 남았나」가 몸으로 안 잡힌다.
+// ⇒ 카드 전제를 버린다. 목록으로 두고 **각 행에서 바로** 판정한다.
+//
+// 유지되는 것: 금액 내림차순(상위 10종이 금액의 68.4%) · 각 행의 «N건이 함께 정리됩니다» ·
+//   판정 배치 디바운스 · 「보류」는 아무것도 저장하지 않음 · 커서 페이지네이션.
 import { useMemo, useState } from 'react'
 
 const won = (n) => (n || 0).toLocaleString('ko-KR')
 
-export default function ClassifyView({ data, progress, busy, onDecide }) {
+export default function ClassifyView({ data, progress, busy, onDecide, onLoadMore, loadingMore }) {
   const [showDone, setShowDone] = useState(false)
+  const buttons = data.buttons || ['사업-원재료', '사업-운영', '개인', '보류']
 
-  // 금액 내림차순 고정. 미판정 우선(요건 ⑴) — 판정한 것은 아래 목록에서 본다.
   const pending = useMemo(
     () => (data.items || []).filter((i) => !i.verdict).sort((a, b) => (b.amount || 0) - (a.amount || 0)),
     [data.items],
@@ -20,13 +23,9 @@ export default function ClassifyView({ data, progress, busy, onDecide }) {
     () => (data.items || []).filter((i) => i.verdict).sort((a, b) => (b.amount || 0) - (a.amount || 0)),
     [data.items],
   )
-  const cur = pending[0]
-  const buttons = data.buttons || ['사업-원재료', '사업-운영', '개인', '보류']
 
-  if (!cur) {
-    // ★«아직 안 들어왔다» 와 «다 끝냈다» 를 가른다(2026-08-15 유저 첫 열람에서 드러남).
-    //   적재 전에는 total=0 인데 옛 문구가 「0종 전부 판정했습니다」라 «다 끝냈다»로 읽혔다
-    //   — 회원님은 그 화면을 «빈 화면»이라 부르셨다. 같은 빈 목록이라도 뜻이 정반대다.
+  if (pending.length === 0) {
+    // ★«아직 안 들어왔다» 와 «다 끝냈다» 를 가른다(유저 첫 열람에서 드러남 — 같은 빈 목록이라도 뜻이 정반대).
     const nothingYet = !(progress?.total)
     return (
       <div className="xp-done-all">
@@ -34,62 +33,78 @@ export default function ClassifyView({ data, progress, busy, onDecide }) {
         <div>
           {nothingYet
             ? '지출 데이터가 아직 올라오지 않았습니다. 올라오면 여기에 금액 큰 것부터 나옵니다.'
-            : `${progress.total}종 전부 판정했습니다 · 금액 ${progress.pct ?? 0}%`}
+            : `${progress.total}종 전부 판정했습니다`}
         </div>
-        <button type="button" className="xp-linkbtn" onClick={() => setShowDone((v) => !v)}>
-          {showDone ? '판정 목록 접기' : `판정한 것 보기 (${done.length})`}
-        </button>
-        {showDone && <DoneList rows={done} onDecide={onDecide} buttons={buttons} />}
+        {done.length > 0 && (
+          <>
+            <button type="button" className="xp-linkbtn" onClick={() => setShowDone((v) => !v)}>
+              {showDone ? '판정 목록 접기' : `판정한 것 보기 (${done.length})`}
+            </button>
+            {showDone && <ul className="xp-rows">{done.map((r) => (
+              <Row key={r.item_key} item={r} buttons={buttons} busy={busy} onDecide={onDecide} />
+            ))}</ul>}
+          </>
+        )}
       </div>
     )
   }
 
   return (
     <>
-      <section className="xp-card">
-        <div className="xp-label">{cur.label}</div>
-        <div className="xp-amount">{won(cur.amount)}원</div>
-        {/* ★한 번의 탭이 몇 건을 정리하는지 — asset 이 count 를 처음부터 넣어준 이유다. */}
-        <div className="xp-count">{cur.count}건이 한 번에 정리됩니다</div>
-        <div className="xp-meta">{cur.source} · {cur.first_seen} ~ {cur.last_seen}</div>
-        <div className="xp-left">남은 {pending.length}종</div>
-      </section>
+      <p className="xp-hint">
+        금액이 큰 것부터입니다. <b>확실한 것만</b> 누르고, 애매하면 「보류」로 두세요 —
+        보류는 아무것도 저장하지 않고 다음에 다시 나옵니다.
+      </p>
 
-      <section className="xp-btns">
-        {buttons.map((b) => (
-          <button key={b} type="button" className={`xp-btn${b === '보류' ? ' is-hold' : ''}`} disabled={busy} onClick={() => onDecide(cur.item_key, b)}>
-            {b}
-          </button>
+      <ul className="xp-rows">
+        {pending.map((it) => (
+          <Row key={it.item_key} item={it} buttons={buttons} busy={busy} onDecide={onDecide} />
         ))}
-      </section>
-      {/* ★«보류» 는 저장이 아니라 «판정 안 함»이다(asset 계약 §3).
-          억지 분류 하나가 틀린 숫자를 조용히 섞고, 그건 나중에 되돌릴 수 없다. */}
-      <p className="xp-hint">「보류」는 아무것도 저장하지 않고 큐에 남깁니다. 확실할 때만 분류하세요.</p>
+      </ul>
 
-      <button type="button" className="xp-linkbtn" onClick={() => setShowDone((v) => !v)}>
-        {showDone ? '판정 목록 접기' : `판정한 것 보기 (${done.length})`}
-      </button>
-      {showDone && <DoneList rows={done} onDecide={onDecide} buttons={buttons} />}
+      {/* 커서 페이지네이션 — 목록형이라 «더 보기»가 자연스럽다(카드형엔 없던 자리). */}
+      {data.next_cursor && (
+        <button type="button" className="xp-more" disabled={loadingMore} onClick={onLoadMore}>
+          {loadingMore ? '불러오는 중…' : '더 보기'}
+        </button>
+      )}
+
+      {done.length > 0 && (
+        <>
+          <button type="button" className="xp-linkbtn" onClick={() => setShowDone((v) => !v)}>
+            {showDone ? '판정한 것 접기' : `판정한 것 보기 (${done.length})`}
+          </button>
+          {showDone && <ul className="xp-rows">{done.map((r) => (
+            <Row key={r.item_key} item={r} buttons={buttons} busy={busy} onDecide={onDecide} />
+          ))}</ul>}
+        </>
+      )}
     </>
   )
 }
 
-/** 과거 판정 목록 + 수정(요건 ⑷). 같은 item_key 재전송이 덮어쓰기라 수정이 곧 재판정이다. */
-function DoneList({ rows, onDecide, buttons }) {
-  if (!rows.length) return <p className="xp-hint">아직 판정한 것이 없습니다.</p>
+/** 한 행 = 품목 하나 + 그 자리에서 누르는 판정 버튼 4개.
+ *  ★판정한 행도 목록에 남는다(사라지면 «방금 뭘 눌렀지»를 확인할 수 없다) — 눌린 버튼이 표시되고 바꿀 수 있다. */
+function Row({ item, buttons, busy, onDecide }) {
   return (
-    <ul className="xp-list">
-      {rows.map((r) => (
-        <li key={r.item_key} className="xp-row">
-          <div className="xp-row-main">
-            <span className="xp-row-label">{r.label}</span>
-            <span className="xp-row-amt">{won(r.amount)}원 · {r.count}건</span>
-          </div>
-          <select className="xp-sel" value={r.verdict || ''} onChange={(e) => onDecide(r.item_key, e.target.value)}>
-            {buttons.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </li>
-      ))}
-    </ul>
+    <li className={`xp-row2${item.verdict ? ' is-done' : ''}`}>
+      <div className="xp-row2-head">
+        <span className="xp-row2-label">{item.label}</span>
+        <span className="xp-row2-amt">{won(item.amount)}원</span>
+      </div>
+      {/* ★한 번의 탭이 몇 건을 정리하는지 — 이 숫자가 «누를 값어치»를 만든다. */}
+      <div className="xp-row2-meta">{item.count}건{item.last_seen ? ` · 최근 ${item.last_seen}` : ''}</div>
+      <div className="xp-row2-btns">
+        {buttons.map((b) => (
+          <button
+            key={b}
+            type="button"
+            className={`xp-b${item.verdict === b ? ' is-on' : ''}${b === '보류' ? ' is-hold' : ''}`}
+            disabled={busy}
+            onClick={() => onDecide(item.item_key, b)}
+          >{b}</button>
+        ))}
+      </div>
+    </li>
   )
 }

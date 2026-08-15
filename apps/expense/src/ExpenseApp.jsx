@@ -89,6 +89,17 @@ function Board({ session }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState(null)
   const [added, setAdded] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  // ★«더 보기» — 리스트형으로 바뀌며 생긴 자리. 커서는 서버가 준 것을 그대로 되돌려준다(해석하지 않는다).
+  const loadMore = useCallback(async () => {
+    if (!data?.next_cursor || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const more = await fetchQueue(data.next_cursor)
+      setData((d) => d && ({ ...more, items: [...(d.items || []), ...(more.items || [])] }))
+    } catch (e) { setErr(e) } finally { setLoadingMore(false) }
+  }, [data, loadingMore])
 
   const load = useCallback(async () => {
     try {
@@ -183,7 +194,7 @@ function Board({ session }) {
 
       <main className="xp-main">
         {!data && !err && <div className="xp-empty">불러오는 중…</div>}
-        {data && tab === 'classify' && <ClassifyView data={data} progress={progress} busy={false} onDecide={decide} />}
+        {data && tab === 'classify' && <ClassifyView data={data} progress={progress} busy={false} onDecide={decide} onLoadMore={loadMore} loadingMore={loadingMore} />}
         {data && tab === 'reconcile' && <ReconcileView />}
         {data && tab === 'envelope' && <EnvelopeView />}
         {!data && err && tab !== 'classify' && (tab === 'reconcile' ? <ReconcileView /> : <EnvelopeView />)}
