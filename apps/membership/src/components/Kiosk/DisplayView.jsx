@@ -9,8 +9,13 @@
 //   A 크림 배경 · 이름 별표 마스킹 · 로고 로크업(완료=상단 / 대기=히어로) · multiply 로 크림에 녹임 ·
 //   글씨 이름 ~100px·수치 ~54px·멘트 ~33px · 모션=페이드 1회 «동시»·로고 정지·물결 수평·콘페티 ·
 //   슬라이드 인·순차 등장 금지 · 대기 화면엔 버튼 없음 · 구형 사파리(아이패드 미니) 대응.
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMembershipChannel } from './useMembershipChannel'
 import './display.css'
+
+// 축하를 띄워 두는 시간. ★손님이 «읽을» 시간이지 애니메이션 시간이 아니다 —
+//   이름 100px 을 읽고 도장 수를 세는 데 필요한 만큼(12초). 지나면 조용히 대기로 돌아간다.
+const CHEER_MS = 12000
 
 const LOGO = `${import.meta.env.BASE_URL}img/logo-membership.png`
 
@@ -33,13 +38,31 @@ const FIXTURES = {
              rewards_available: null, months_with_us: null, member_seq: null },
 }
 
-export default function DisplayView() {
+export default function DisplayView({ store }) {
   const p = new URLSearchParams(window.location.search)
-  const state = p.get('state') || 'wait'
-  const m = FIXTURES[state] || FIXTURES.done
+  const mock = p.get('state')                     // ?state= 가 있으면 «모형»(서버·채널 안 붙는다)
+  const [live, setLive] = useState(null)          // 실판: 마지막으로 받은 축하 payload
+  const timerRef = useRef(null)
+
+  // ★실판 구독 — 키오스크가 claim 성공 직후 쏘는 `cheer`. 같은 매장 private 룸이라
+  //   이 패드는 store 계정으로 1회 로그인돼 있어야 한다(안 ㉠).
+  useMembershipChannel(mock ? null : store, {
+    onCheer: (payload) => {
+      if (!payload) return
+      setLive(payload)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      // 연달아 스캔되면 «마지막 손님»으로 갈아타고 타이머도 다시 센다 —
+      // 앞사람 화면이 남아 있으면 뒷사람이 자기 것으로 오해한다.
+      timerRef.current = setTimeout(() => setLive(null), CHEER_MS)
+    },
+  })
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+
+  const state = mock || (live ? (live.already ? 'already' : 'done') : 'wait')
+  const m = mock ? (FIXTURES[mock] || FIXTURES.done) : (live || FIXTURES.done)
 
   const dots = useMemo(() => {
-    const goal = m.stamp_goal || 10
+    const goal = m.stamp_goal || 10   // 실판에서 목표가 안 오면 10 으로 — 칸이 0개면 화면이 빈다
     return Array.from({ length: goal }, (_, i) => i < (m.current_stamps || 0))
   }, [m])
 
@@ -71,14 +94,14 @@ export default function DisplayView() {
       )}
       <div className="dp-screen">
         <div className="dp-logo dp-logo-top"><img src={LOGO} alt="사르르 멤버십" /></div>
-        <div className="dp-name">{m.masked_name}님</div>
+        <div className="dp-name">{m.masked_name ? `${m.masked_name}님` : '반갑습니다'}</div>
         <div className="dp-msg">{already ? '오늘은 이미 참여하셨습니다' : '오늘도 반갑습니다'}</div>
 
         <div className="dp-stamps">
           <span className="dp-dots">
             {dots.map((on, i) => <i key={i} className={on ? 'dp-dot on' : 'dp-dot'} />)}
           </span>
-          <span className="dp-count">{m.current_stamps}<i> / {m.stamp_goal}</i></span>
+          <span className="dp-count">{m.current_stamps ?? 0}<i> / {m.stamp_goal || 10}</i></span>
         </div>
 
         {already
@@ -98,7 +121,8 @@ function Facts({ m }) {
   return (
     <>
       <div className="dp-facts">
-        모은 도장 {m.claims_total}개
+        {/* 총계가 안 오면 그 절을 안 그린다 — 0 을 찍으면 «처음 오셨다»는 거짓말이 된다. */}
+        {m.claims_total != null && <>모은 도장 {m.claims_total}개</>}
         {/* ★단위는 «숫자가 있을 때만» 붙인다 — «혜택 -개» 는 값을 못 읽었다는 뜻이 아니라 오식으로 읽힌다. */}
         {m.rewards_available == null
           ? <> · 받아두신 혜택 -</>

@@ -34,7 +34,7 @@ export default function MembershipKiosk({ session }) {
         {role === 'scan' && <ScanView />}
         {role === 'printer' && <PrinterView store={store} />}
         {role === 'ticket' && <TicketView />}
-        {role === 'display' && <DisplayView />}
+        {role === 'display' && <DisplayView store={store} />}
         {role === 'customer' && <CustomerView store={store} />}
       </main>
     </div>

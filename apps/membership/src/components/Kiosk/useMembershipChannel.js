@@ -12,12 +12,21 @@ const EVT_CLEAR = 'clear'
 // ★인쇄 브리지(2026-08-03): 키오스크 발권 → 카운터 폰(프린터 보유)으로 티켓 푸시.
 //   payload = 영수증 인쇄에 필요한 최소치만(마스킹명·토큰·날짜·스탬프 표기). 회원 식별자·전화 없음.
 const EVT_TICKET = 'ticket'
+// ★응원 화면(2026-08-16): 팝콘 claim 성공 직후 매장 디스플레이(?role=display)로 «축하»를 쏜다.
+//   crm 실측 답: 테이블 구독(postgres_changes)은 불가·부적격 → Broadcast 로 간다(DB 변경 0·게이트 0).
+//   같은 private 룸을 재사용한다 — 새 룸을 파면 realtime.messages 정책을 또 늘려야 하는데,
+//   이 룸은 이미 «매장 계정만»으로 인가돼 있고 display 패드도 같은 store 계정이다.
+//   ★best-effort 다: 디스플레이가 그 순간 안 붙어 있으면 그 건은 사라진다. 적립 자체는 이미 끝났고
+//   화면은 «응원»일 뿐이라 누락이 데이터 손실이 아니다 — 재전송 장치를 두지 않는 근거가 이것이다.
+const EVT_CHEER = 'cheer'
 
-export function useMembershipChannel(store, { onMember, onClear, onTicket } = {}) {
+export function useMembershipChannel(store, { onMember, onClear, onTicket, onCheer } = {}) {
   const chanRef = useRef(null)
   const onMemberRef = useRef(onMember)
   const onClearRef = useRef(onClear)
   const onTicketRef = useRef(onTicket)
+  const onCheerRef = useRef(onCheer)
+  onCheerRef.current = onCheer
   onMemberRef.current = onMember
   onClearRef.current = onClear
   onTicketRef.current = onTicket
@@ -32,6 +41,7 @@ export function useMembershipChannel(store, { onMember, onClear, onTicket } = {}
       .on('broadcast', { event: EVT_MEMBER }, ({ payload }) => onMemberRef.current?.(payload))
       .on('broadcast', { event: EVT_CLEAR }, () => onClearRef.current?.())
       .on('broadcast', { event: EVT_TICKET }, ({ payload }) => onTicketRef.current?.(payload))
+      .on('broadcast', { event: EVT_CHEER }, ({ payload }) => onCheerRef.current?.(payload))
       .subscribe()
     chanRef.current = channel
     return () => { supabase.removeChannel(channel); chanRef.current = null }
@@ -71,7 +81,29 @@ export function useMembershipChannel(store, { onMember, onClear, onTicket } = {}
     })
   }, [])
 
-  return { pushMember, pushClear, pushTicket, realtimeOn: REALTIME_ON }
+  /**
+   * 응원 화면으로 쏘는 축하. ★페이로드는 **membership_query 가 이미 내준 것만** 담는다 —
+   * 마스킹·비노출이 서버에서 이미 통과한 값이라 위성이 새로 판단할 것이 없다.
+   * 금지(계약): phone · canonical_id · 매출 · 테이블명. member_id 도 안 싣는다(화면이 안 쓴다).
+   */
+  const pushCheer = useCallback((c) => {
+    if (!REALTIME_ON || !chanRef.current || !c) return
+    chanRef.current.send({
+      type: 'broadcast', event: EVT_CHEER,
+      payload: {
+        masked_name: c.masked_name ?? null,
+        already: !!c.already,
+        current_stamps: c.current_stamps ?? null,
+        stamp_goal: c.stamp_goal ?? null,
+        claims_total: c.claims_total ?? null,
+        rewards_available: c.rewards_available ?? null,
+        months_with_us: c.months_with_us ?? null,   // ★null 이면 화면이 연차 줄을 «생략»한다(실측 4명)
+        member_seq: c.member_seq ?? null,
+      },
+    })
+  }, [])
+
+  return { pushMember, pushClear, pushTicket, pushCheer, realtimeOn: REALTIME_ON }
 }
 
 // ── 손님 폰 «회수 확정» 알림 채널 ────────────────────────────────────────────

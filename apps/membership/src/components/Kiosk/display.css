@@ -52,7 +52,7 @@
 .dp-waves { position: absolute; left: 0; right: 0; bottom: 0; height: 92px; z-index: 0; pointer-events: none;
   background-repeat: repeat-x; background-position: 0 center; background-size: 240px 48px;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 48'><path d='M0 24 q30 -18 60 0 t60 0 t60 0 t60 0' fill='none' stroke='%233CB44B' stroke-width='13' stroke-linecap='round'/></svg>");
-  opacity: .5; -webkit-animation: dp-flow 9s linear infinite; animation: dp-flow 9s linear infinite; }
+  opacity: .5; -webkit-animation: dp-flow 12s linear infinite; animation: dp-flow 12s linear infinite; }
 @-webkit-keyframes dp-flow { from { background-position: 0 center } to { background-position: -240px center } }
 @keyframes dp-flow { from { background-position: 0 center } to { background-position: -240px center } }
 

@@ -17,8 +17,15 @@ initTheme()
 //   ※컴포넌트 안에서 조건부 return 하면 훅 순서가 깨지므로(useAuth 앞) 여기서 가른다.
 // ★응원 화면(?role=display)도 같은 이유로 인증 앞에서 가른다 — 1차는 서버를 «안 부른다»(모형+쿼리스트링).
 //   2차에서 실데이터를 붙일 때 인증 경로를 다시 판단한다(매장 기기 1회 로그인 vs Edge 익명 계약).
-const _role = new URLSearchParams(window.location.search).get('role')
-const isTicket = _role === 'ticket' || _role === 'display'
+const _q = new URLSearchParams(window.location.search)
+const _role = _q.get('role')
+// ★응원 화면의 인증은 «모드»에 따라 갈린다(2026-08-16, Realtime 안 ㉠ 채택 반영):
+//   · 실판(?role=display)      = **게이트 뒤**. store 계정 1회 로그인 — private 브로드캐스트 구독에
+//     매장 세션이 필요하고, 그게 키오스크와 동형이라 새 인가 축을 안 만든다.
+//   · 모형(?role=display&state=) = 게이트 앞. 서버를 «안 부르므로» 안전하고, 실기기 시각 검증을
+//     로그인으로 막지 않는다. 유저가 지금 이 URL 로 글씨 크기를 보고 있다 — 깨뜨리지 않는다.
+const isDisplayMock = _role === 'display' && _q.has('state')
+const isTicket = _role === 'ticket' || isDisplayMock
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

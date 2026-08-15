@@ -23,7 +23,7 @@ export default function CustomerView({ store }) {
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear, setMemberDirect } = useMemberLookup()
 
   // 원격 푸시(직원 → 고객). 로컬과 같은 currentMember 로 세팅.
-  const { pushTicket } = useMembershipChannel(store, {
+  const { pushTicket, pushCheer } = useMembershipChannel(store, {
     onMember: (payload) => { setShowSignup(false); setMemberDirect(payload) },
     onClear: () => clear(),
   })
@@ -34,6 +34,20 @@ export default function CustomerView({ store }) {
   const localPrint = new URLSearchParams(window.location.search).get('print') === 'local'
   const claimAndPrint = async () => {
     const r = await claim()
+    // ★응원 화면(?role=display)으로 축하를 쏜다 — claim 이 «성공한 뒤»에만.
+    //   실패했는데 축하가 뜨면 손님이 적립된 줄 안다. 그래서 성공 분기 안에서만 발행한다.
+    if (r && (r.ok || r.token)) {
+      pushCheer({
+        masked_name: member?.display_name ?? null,
+        already: !!r.already,
+        current_stamps: member?.stamp?.current_stamps ?? null,
+        stamp_goal: member?.stamp?.threshold ?? null,
+        claims_total: member?.stamp?.claims_total ?? null,
+        rewards_available: member?.stamp?.rewards_available ?? null,
+        months_with_us: member?.months_with_us ?? null,
+        member_seq: member?.member_seq ?? null,
+      })
+    }
     if (r && r.token) {
       pushTicket({
         token: r.token,
