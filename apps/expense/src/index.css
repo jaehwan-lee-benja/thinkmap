@@ -71,3 +71,32 @@ body { background: var(--bg); color: var(--fg); }
   color: var(--accent); font-size: 14px; line-height: 1.5; }
 .xp-added button { margin-left: 8px; min-height: 36px; padding: 0 12px; font: inherit; font-weight: 700;
   border-radius: 8px; border: 1px solid currentColor; background: none; color: inherit; cursor: pointer; }
+
+/* ★로그인·게이트 셸 — 2026-08-15 시각QA 가 잡은 결함 수정.
+   JSX 는 `.pv-center`/`.pv-login` 을 5곳에서 쓰는데 **이 앱엔 정의가 0** 이었다
+   (seat 의 index.css 에만 있는 클래스를 «관례라고» 그대로 가져다 썼다).
+   결과: 「로딩 중…」이 좌상단에 맨몸으로 붙고 화면이 비어 보였다 — 코드로는 정상, 렌더로만 드러난다.
+   ⇒ 이 앱 토큰(--bg/--surface/--fg…)으로 «다시» 정의한다. 남의 앱 CSS 에 의존하지 않는다. */
+.pv-center {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  justify-content: safe center;   /* 내용이 넘칠 때 위가 잘리지 않게(가운데 정렬의 고전 함정) */
+  padding: 24px; text-align: center; line-height: 1.6;
+  background: var(--bg); color: var(--fg);
+}
+.pv-center > * + * { margin-top: 16px; }   /* gap 대신 — 구형 사파리 폴백 */
+.pv-login h1 { margin: 0; font-size: 26px; font-weight: 800; }
+.pv-login p { margin: 0; color: var(--dim); }
+.pv-center button {
+  min-height: 56px; padding: 0 28px;       /* 어르신·터치 기준 */
+  border: 0; border-radius: 999px;
+  background: var(--accent); color: var(--bg);
+  font: inherit; font-size: 17px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.pv-center a { color: var(--accent); text-decoration: none; min-height: 44px;
+  display: inline-flex; align-items: center; padding: 0 8px; }
+.pv-center .xp-hint { max-width: 30em; }
