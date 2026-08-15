@@ -48,7 +48,13 @@ const put = (k, v, cls, note) => {
 const REF = 'sqisntxippjzcekyhqyo'
 function decode(t) {
   try {
-    const [h, p] = t.split('.').slice(0, 2).map((x) => JSON.parse(atob(x.replace(/-/g, '+').replace(/_/g, '/') + '===')))
+    // ★2026-08-15 결함 수정 — 패딩을 '===' 로 «고정»해 붙이고 있었다.
+    //   브라우저 atob(forgiving-base64)은 «길이 %4 == 0 일 때만» 뒤 '=' 를 벗긴다.
+    //   그래서 세그먼트 길이가 무엇이든(%4=0·2·3) 남은 '=' 또는 len%4==1 로 «항상» 던졌다
+    //   ⇒ 모든 토큰이 파싱 실패 → ref·alg undefined → 전 항목 «다른 프로젝트» → 영구 «유효 세션 없음».
+    //   필요한 만큼만 붙인다.
+    const pad = (x) => x + '='.repeat((4 - (x.length % 4)) % 4)
+    const [h, p] = t.split('.').slice(0, 2).map((x) => JSON.parse(atob(pad(x.replace(/-/g, '+').replace(/_/g, '/')))))
     return { h, p }
   } catch { return null }
 }
