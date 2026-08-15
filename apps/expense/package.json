@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "postbuild": "node ../../scripts/check-env-baked.mjs dist --no-supabase=\"로컬 서버 전용 위성 — 데이터는 msg/spend-queue 파일에서 오고 Supabase 를 쓰지 않는다(2026-08-14)\"",
+    "postbuild": "node ../../scripts/check-env-baked.mjs dist",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist -e expense --add"
