@@ -1,6 +1,11 @@
 /* 손님용 응원 화면(?role=display) — A안 크림. 정본 토큰(brand.css)만 쓴다.
    ★구형 사파리(아이패드 미니): grid·:has()·aspect-ratio·gap 의존 금지. flex + margin 으로 짠다. */
 .dp { position: fixed; inset: 0; overflow: hidden;
+  /* ★터치 잠금(보여주기 전용) — 손님이 만져도 아무 일이 없어야 한다.
+     선택·길게눌러 메뉴·확대·스크롤을 전부 막는다. JS 쪽 보강은 DisplayView 참조. */
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  touch-action: none; -ms-touch-action: none;
   background: #FCFAF4; color: var(--brand-blue);
   font-family: var(--mk-font-body);
   display: -webkit-box; display: -webkit-flex; display: flex;
@@ -8,7 +13,12 @@
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
 
 /* ★페이드는 «컨테이너 하나»에만 건다 — 자식마다 걸면 delay 를 넣고 싶어지고 그게 순차 등장이다(금지). */
-.dp-screen { position: relative; z-index: 1; width: 100%; padding: 36px 48px; text-align: center;
+/* ★좌우 2단 — 좌 로고 단 / 우 내용 단(유저 확정 사양). 1024×768 «가로» 기준(iPad mini 2).
+   세로 1단은 가로 화면에서 위아래가 남고 글씨가 작아 보인다 — 가로 화면은 «가로로» 나눠야 산다.
+   ★구형 사파리: gap 은 flex 에서 안 먹는다(사파리 14.1+) — 폭·패딩으로 나눈다. */
+.dp-screen { position: relative; z-index: 1; width: 100%; padding: 28px 40px; text-align: center;
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
   -webkit-animation: dp-fade .5s ease-out both; animation: dp-fade .5s ease-out both; }
 @-webkit-keyframes dp-fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes dp-fade { from { opacity: 0 } to { opacity: 1 } }
@@ -21,13 +31,24 @@
 .dp-logo img { position: absolute; width: calc(1400px * var(--ls));
   left: calc(-450px * var(--ls)); top: calc(-245px * var(--ls));
   mix-blend-mode: multiply; }
-.dp-logo-top { --ls: .30; margin-bottom: 20px; }
-.dp-logo-hero { --ls: .62; }
+/* 좌 단 — 로고. 폭을 고정해 우 단이 흔들리지 않게 한다. */
+.dp-col-logo { -webkit-box-flex: 0; -webkit-flex: 0 0 34%; flex: 0 0 34%; }
+.dp-col-body { -webkit-box-flex: 1; -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+.dp-logo-top { --ls: .46; }
+.dp-logo-hero { --ls: .58; }
+
+/* 세로로 서면(태블릿을 돌리면) 1단으로 되돌린다 — 좁은 가로폭에서 2단은 둘 다 뭉갠다. */
+@media (max-width: 720px) {
+  .dp-screen { display: block; }
+  .dp-col-logo { margin: 0 auto 16px; }
+  .dp-logo-top { --ls: .30; }
+  .dp-logo-hero { --ls: .52; }
+}
 
 /* 글씨 — ★실기기 피드백으로 확대된 «요건»이다(추측값 아님). */
-.dp-name { font-size: 100px; font-weight: 700; line-height: 1.1; color: var(--brand-blue); }
+.dp-name { font-size: 92px; font-weight: 700; line-height: 1.1; color: var(--brand-blue); }
 .dp-msg { font-size: 33px; font-weight: 700; color: #40465A; margin-top: 14px; word-break: keep-all; }
-.dp-invite { margin-top: 26px; font-size: 44px; font-weight: 700; line-height: 1.4;
+.dp-invite { margin-top: 0; font-size: 42px; font-weight: 700; line-height: 1.4;
   color: var(--brand-blue); word-break: keep-all; max-width: 15em; margin-left: auto; margin-right: auto; }
 .dp-invite em { font-style: normal; color: #2A7D34; }
 
@@ -67,3 +88,12 @@
 @keyframes dp-drop { to { transform: translateY(105vh) rotate(540deg) } }
 
 @media (prefers-reduced-motion: reduce) { .dp-waves, .dp-confetti { display: none } }
+
+/* 전체화면 안내 — 구석에 작게. 손님이 보는 화면이라 주인공을 가리지 않는다. */
+.dp-fshint { position: absolute; left: 12px; bottom: 8px; z-index: 3;
+  max-width: 62%; padding: 8px 12px; border: 1px solid #CED6E4; border-radius: 999px;
+  background: rgba(255,255,255,.92); color: #40465A;
+  font: inherit; font-size: 14px; line-height: 1.3; text-align: left;
+  /* 이 버튼만은 눌려야 한다 — 잠금(touch-action:none)의 예외. */
+  touch-action: manipulation; cursor: pointer; }
+.dp-fshint b { color: #2D4B82; }

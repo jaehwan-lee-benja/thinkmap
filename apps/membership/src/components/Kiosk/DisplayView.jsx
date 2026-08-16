@@ -48,12 +48,80 @@ const FIXTURES = {
              rewards_available: null, months_with_us: null, member_seq: null },
 }
 
+/**
+ * ★«보여주기 전용» 잠금 — 손님이 만져도 아무 일이 없게. CSS 로 못 막는 것만 여기서 막는다.
+ *   iOS 12 사파리는 `touch-action` 만으로 **핀치·더블탭 확대를 못 막는다** — 그래서
+ *   gesture* 이벤트(웹킷 전용)와 «두 손가락 touchmove»를 직접 막아야 한다.
+ *   ★뒤로가기: 히스토리에 한 칸을 밀어 두고 popstate 마다 다시 민다(스와이프해도 제자리).
+ */
+function useKioskLock() {
+  useEffect(() => {
+    const stop = (e) => { e.preventDefault() }
+    const stopMulti = (e) => { if (e.touches && e.touches.length > 1) e.preventDefault() }
+    // passive:false 가 없으면 preventDefault 가 «무시»된다(구형 사파리 포함 기본이 passive 인 경우).
+    const opts = { passive: false }
+    document.addEventListener('gesturestart', stop, opts)
+    document.addEventListener('gesturechange', stop, opts)
+    document.addEventListener('gestureend', stop, opts)
+    document.addEventListener('touchmove', stopMulti, opts)
+    document.addEventListener('dblclick', stop, opts)
+    document.addEventListener('contextmenu', stop, opts)
+    document.addEventListener('selectstart', stop, opts)
+
+    let armed = false
+    try { window.history.pushState(null, '', window.location.href); armed = true } catch { /* 파일 프로토콜 등 */ }
+    const onPop = () => { try { window.history.pushState(null, '', window.location.href) } catch { /* noop */ } }
+    if (armed) window.addEventListener('popstate', onPop)
+
+    return () => {
+      document.removeEventListener('gesturestart', stop, opts)
+      document.removeEventListener('gesturechange', stop, opts)
+      document.removeEventListener('gestureend', stop, opts)
+      document.removeEventListener('touchmove', stopMulti, opts)
+      document.removeEventListener('dblclick', stop, opts)
+      document.removeEventListener('contextmenu', stop, opts)
+      document.removeEventListener('selectstart', stop, opts)
+      if (armed) window.removeEventListener('popstate', onPop)
+    }
+  }, [])
+}
+
+/**
+ * 전체화면 — ★iOS 12 에서 «가능한 것»과 «불가능한 것»을 가른다(추측 금지).
+ *   · 크롬 iOS·사파리 iOS 12 = **Element 전체화면 API 없음**(영상 전용). requestFullscreen 이 없거나 던진다.
+ *   · 실제로 상단 바까지 없애는 유일한 길 = **사파리에서 «홈 화면에 추가» → standalone 실행**.
+ *   ⇒ 있으면 첫 탭에 시도하고, 없으면 «없다»고 말하는 대신 **가는 길**을 한 줄로 알려 준다.
+ */
+function useFullscreen() {
+  const [needHint, setNeedHint] = useState(false)
+  useEffect(() => {
+    const standalone = window.navigator.standalone === true
+      || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    if (standalone) return
+    const el = document.documentElement
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen
+    if (!req) { setNeedHint(true); return }
+    const once = () => {
+      try { req.call(el) } catch { setNeedHint(true) }
+      document.removeEventListener('touchend', once)
+      document.removeEventListener('click', once)
+    }
+    document.addEventListener('touchend', once)
+    document.addEventListener('click', once)
+    return () => { document.removeEventListener('touchend', once); document.removeEventListener('click', once) }
+  }, [])
+  return needHint
+}
+
 export default function DisplayView({ store }) {
   const p = new URLSearchParams(window.location.search)
   const mock = p.get('state')                     // ?state= 가 있으면 «모형»(서버·채널 안 붙는다)
   const [live, setLive] = useState(null)          // 실판: 마지막으로 받은 축하 payload
   const [seq, setSeq] = useState(0)               // 축하 회차 — 콘페티 «재생» 키
   const timerRef = useRef(null)
+  useKioskLock()
+  const needHint = useFullscreen()
+  const [hintOff, setHintOff] = useState(false)
 
   // ★실판 구독 — 키오스크가 claim 성공 직후 쏘는 `cheer`. 같은 매장 private 룸이라
   //   이 패드는 store 계정으로 1회 로그인돼 있어야 한다(안 ㉠).
@@ -107,7 +175,8 @@ export default function DisplayView({ store }) {
         </div>
       )}
       <div className="dp-screen">
-        <div className="dp-logo dp-logo-top"><img src={LOGO} alt="사르르 멤버십" /></div>
+        <div className="dp-col-logo"><div className="dp-logo dp-logo-top"><img src={LOGO} alt="사르르 멤버십" /></div></div>
+        <div className="dp-col-body">
         <div className="dp-name">{m.masked_name ? `${m.masked_name}님` : '반갑습니다'}</div>
         <div className="dp-msg">{already ? '오늘은 이미 참여하셨습니다' : '오늘도 반갑습니다'}</div>
 
@@ -121,9 +190,22 @@ export default function DisplayView({ store }) {
         {already
           ? <div className="dp-note">도장은 하루에 하나씩 모입니다 · 내일 또 뵙겠습니다</div>
           : <Facts m={m} />}
+        </div>
       </div>
       <div className="dp-waves" aria-hidden="true" />
+      <FsHint show={needHint && !hintOff} onClose={() => setHintOff(true)} />
     </div>
+  )
+}
+
+/** 전체화면 안내 — ★«안 된다»가 아니라 «이렇게 하면 된다»를 준다. 한 번 닫으면 안 뜬다.
+ *  화면 구석에 작게 둔다 — 손님이 보는 화면이라 주인공을 가리면 안 된다. */
+function FsHint({ show, onClose }) {
+  if (!show) return null
+  return (
+    <button type="button" className="dp-fshint" onClick={onClose}>
+      전체 화면으로 쓰려면 <b>사파리</b>에서 열고 <b>공유 → 홈 화면에 추가</b> · 눌러서 닫기
+    </button>
   )
 }
 
