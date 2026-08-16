@@ -32,6 +32,16 @@ function Waiting({ text }) {
   )
 }
 
+// ★iOS 12(사파리 12) 대응 — `Promise.allSettled` 는 **사파리 13+**다. 없으면 아래 호출이
+//   **동기 TypeError** 로 던져지고(.catch 는 체인 «이전»이라 못 잡는다) 트리가 통째로 언마운트돼
+//   **검은 화면**이 된다. 2026-08-16 고객 패드(iPad mini 2 · iOS 12.5.8)에서 실제로 그랬다.
+//   ★폴리필 주입에 기대지 않고 «여기서» 없앤다: 부팅 경로라 폴리필 로딩 순서에 목숨을 걸 자리가 아니다.
+const allSettled = (ps) =>
+  Promise.all(ps.map((p) => Promise.resolve(p).then(
+    (value) => ({ status: 'fulfilled', value }),
+    (reason) => ({ status: 'rejected', reason }),
+  )))
+
 export default function MembershipApp() {
   const { session, authLoading, handleGoogleLogin } = useAuth()
   const [authz, setAuthz] = useState('idle') // idle | checking | ok
@@ -49,7 +59,7 @@ export default function MembershipApp() {
     if (!userId) { setAuthz('idle'); return }
     let alive = true
     setAuthz((prev) => (prev === 'ok' ? 'ok' : 'checking'))
-    Promise.allSettled([supabase.rpc('is_master'), supabase.rpc('is_store')])
+    allSettled([supabase.rpc('is_master'), supabase.rpc('is_store')])
       .then(([m, s]) => {
         if (!alive) return
         const mOk = m.status === 'fulfilled' && !m.value?.error

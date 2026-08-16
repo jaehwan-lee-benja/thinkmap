@@ -27,6 +27,11 @@ export default defineConfig({
       // 구형 WebView 결손 보강: async/await(regenerator) + fetch(Chrome<42) — supabase-js 가 fetch 사용.
       additionalLegacyPolyfills: ['regenerator-runtime/runtime', 'whatwg-fetch'],
       renderLegacyChunks: true,
+      // ★모던 번들에도 폴리필을 넣는다(2026-08-16 iOS12 검은 화면 사고).
+      //   사파리 12 는 **모듈을 지원해서 nomodule 레거시 번들을 «안 받는다»** — 그래서 문법을
+      //   es2015 로 낮춰 뒀어도 «API 결손»(Promise.allSettled 등 사파리 13+)에는 무방비였다.
+      //   「구형 대비 = 레거시 번들」이라는 전제의 사각이 정확히 여기였다.
+      modernPolyfills: true,
     }),
   ],
   css: {
