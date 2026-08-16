@@ -436,6 +436,11 @@ verify_jwt = false
 #   익명 호출은 함수가 401 `no_token` 으로 거부한다 — 검증 위치만 다르고 강도는 같다.
 verify_jwt = false
 
+[functions.spend-taxonomy]
+# OPTIONS 프리플라이트에는 Authorization 헤더가 없다 — verify_jwt 를 켜면 preflight 가 먼저 막힌다.
+# 인가는 함수 안에서 호출자 JWT 로 한다(spend_can_view).
+verify_jwt = false
+
 [functions.spend-verdicts]
 # 위와 같은 이유(프리플라이트). 함수 내부 getUser + spend_can_view 로 3층 게이트를 지난다.
 verify_jwt = false

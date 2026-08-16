@@ -16,23 +16,9 @@ const KEY = 'expense.details.v1'
  * ★세부가 대분류를 이긴다(계약 v1.3): `사업-운영` 을 눌러도 세부 `직원식대`(인건비)를 고를 수 있다.
  *   버튼은 «빠른 기본값»이지 최종 판정이 아니다. 그래서 세부를 그룹 안에 가두지 않고 category 를 붙여 둔다.
  */
-export const BASE_TAXONOMY = [
-  { id: 'raw.dairy', label: '유제품', category: '사업-원재료' },
-  { id: 'raw.bakery', label: '베이커리', category: '사업-원재료' },
-  { id: 'raw.produce', label: '과일·채소', category: '사업-원재료' },
-  { id: 'raw.bev', label: '음료·원두', category: '사업-원재료' },
-  { id: 'raw.pack', label: '포장·부자재', category: '사업-원재료' },
-  { id: 'ops.supply', label: '소모품', category: '사업-운영' },
-  { id: 'ops.fix', label: '수리·유지', category: '사업-운영' },
-  { id: 'ops.util', label: '공과금', category: '사업-운영' },
-  { id: 'ops.ship', label: '배송비', category: '사업-운영' },
-  { id: 'ops.mkt', label: '마케팅', category: '사업-운영' },
-  { id: 'labor.meal', label: '직원식대', category: '인건비' },
-  { id: 'personal.life', label: '생활', category: '개인' },
-  { id: 'personal.food', label: '식비', category: '개인' },
-  { id: 'personal.move', label: '교통', category: '개인' },
-]
-
+// ★로컬 세부 목록은 «없앴다». 0007 적용으로 서버가 정본이 됐고, 목록을 두 곳에 두면
+//   반드시 어긋난다. 남은 것은 «아직 서버에 못 올린 보관분»을 잇는 승계 로직뿐이다.
+const _REMOVED_LOCAL_TAXONOMY = null
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') } catch { return {} } }
 const write = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)) } catch { /* 사파리 프라이빗 등 — 화면엔 남는다 */ } }
 
@@ -52,12 +38,12 @@ export function saveDetail(itemKey, patch) {
 }
 
 /** 유저가 직접 추가한 세부요소. ★선택 이력은 규칙 학습 재료라 지우지 않는다(발주). */
+/** @deprecated 세부 «추가»는 서버 함수 대기 중이라 지금은 쓰지 않는다(spend-taxonomy POST 봉인 사유 참조). */
 export function addCustomDetail(category, name) {
   const label = String(name || '').trim()
   if (!label) return null
   const s = loadDetails()
-  const all = [...BASE_TAXONOMY, ...s.custom]
-  const hit = all.find((t) => t.label === label)
+  const hit = (s.custom || []).find((t) => t.label === label)
   if (hit) return hit.id
   // ★서버 id 가 아니다. 배선할 때 **이걸 그대로 밀면 안 된다** — 서버는 uuid 형식이 아닌 값을
   //   전부 `unknown_subcategories` 로 반송하므로, 회원님이 입력해 둔 게 «조용히» 전부 사라진다.
@@ -71,8 +57,32 @@ export function addCustomDetail(category, name) {
   return id
 }
 
-export const allTaxonomy = (state) => [...BASE_TAXONOMY, ...((state && state.custom) || [])]
-export const taxonomyById = (state, id) => allTaxonomy(state).find((t) => t.id === id) || null
+/**
+ * ★보관분 «승계» — 계약 §2-3-a 의 함정을 여기서 막는다.
+ * 기기에 남겨 둔 세부 선택은 `custom.*` 또는 옛 로컬 id 라, 그대로 올리면 서버가 **전량 반송**한다.
+ * 서버 목록과 **이름으로 맞춰** 진짜 uuid 로 바꾼다. 못 맞춘 것은 «버리지 않고» 남긴다 —
+ * 세부 추가 함수가 오면 그때 잇는다. 조용히 사라지게 두는 것이 제일 나쁘다.
+ * @returns { migrated, pending } 승계·보류 건수
+ */
+export function migrateDetailIds(serverList) {
+  const s = loadDetails()
+  const byLabel = new Map((serverList || []).map((t) => [t.label, t.id]))
+  const byId = new Set((serverList || []).map((t) => t.id))
+  const localLabel = new Map((s.custom || []).map((c) => [c.id, c.label]))
+  let migrated = 0, pending = 0
+  for (const [key, v] of Object.entries(s.items || {})) {
+    if (!v.detail || byId.has(v.detail)) continue      // 이미 서버 id — 손대지 않는다
+    const label = localLabel.get(v.detail) || v.detail
+    const hit = byLabel.get(label)
+    if (hit) { s.items[key] = { ...v, detail: hit }; migrated++ } else { pending++ }
+  }
+  if (migrated) write(s)
+  return { migrated, pending }
+}
+
+/** 서버 id 가 아닌 것(=아직 못 올린 것)인지 — 화면이 «이건 아직 저장 안 됨»을 말할 수 있게. */
+export const isPendingId = (serverList, id) =>
+  !!id && !(serverList || []).some((t) => t.id === id)
 
 /** 계약 v1.3 이 오면 이걸 그대로 배치 전송한다 — 지금은 «대기 중인 것이 몇 건인지»를 센다. */
 export const pendingDetailCount = (state) => Object.keys((state && state.items) || {}).length

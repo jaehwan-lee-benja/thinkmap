@@ -45,6 +45,28 @@ describe('판정 디바운스 큐', () => {
     expect(q.size).toBe(1)                    // ★그리고 판정이 살아 있다 — 다음 flush 에 실린다
   })
 
+  it('★세부 → 메모 순으로 고쳐도 «세부가 안 날아간다»(계약 v1.3 배선)', async () => {
+    // 같은 품목을 두 번 push 하는데 두 번째엔 note 만 들어온다. 덮어쓰면 subcategory_id 가 사라진다 —
+    // 화면엔 세부가 보이는데 서버엔 대분류만 저장되는, 눈으로 절대 못 잡는 어긋남이 된다.
+    const sent = []
+    const send = async (b) => { sent.push(b); return { applied: b.length, unknown_keys: [], unknown_subcategories: [] } }
+    const q = createVerdictQueue({ waitMs: 20, send, onFlushed: () => {} })
+    q.push('a', '사업-운영', { subcategory_id: 'uuid-1' })
+    q.push('a', '사업-운영', { note: '여름 대량구매' })
+    await tick(60)
+    expect(sent).toHaveLength(1)
+    expect(sent[0][0]).toEqual({ item_key: 'a', button: '사업-운영', subcategory_id: 'uuid-1', note: '여름 대량구매' })
+  })
+
+  it('★extra 없는 재탭이 앞서 고른 세부를 지우지 않는다', async () => {
+    const sent = []
+    const q = createVerdictQueue({ waitMs: 10_000, send: async (b) => { sent.push(b); return {} }, onError: () => {} })
+    q.push('a', '개인', { subcategory_id: 'uuid-9' })
+    q.push('a', '개인')                       // 버튼만 다시 눌러도
+    await q.flushNow()
+    expect(sent[0][0].subcategory_id).toBe('uuid-9')
+  })
+
   it('flushNow 는 대기 중인 것을 즉시 밀어낸다(떠나기 전 안전망)', async () => {
     const q = createVerdictQueue({ waitMs: 10_000, send: async () => ({ applied: 1 }), onError: () => {} })
     q.push('a', '개인')

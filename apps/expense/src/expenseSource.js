@@ -88,13 +88,13 @@ export const putVerdicts = async (batch) => {
 //   큐 로직을 잴 수가 없다. 실제로 첫 시험이 전송 부재 때문에 red 였고, 그건 큐의 결함이 아니었다.
 //   주입하면 «배치·중복제거·재시도»라는 이 함수의 실제 책임만 격리해서 검증된다.
 export function createVerdictQueue({ waitMs = 400, send = putVerdicts, onFlushed, onError } = {}) {
-  const pending = new Map()   // item_key → button
+  const pending = new Map()   // item_key → { button, subcategory_id?, note? }
   let timer = null
 
   const flush = async () => {
     timer = null
     if (pending.size === 0) return
-    const batch = [...pending.entries()].map(([item_key, button]) => ({ item_key, button }))
+    const batch = [...pending.entries()].map(([item_key, v]) => ({ item_key, ...v }))
     pending.clear()
     try {
       const res = await send(batch)
@@ -102,14 +102,16 @@ export function createVerdictQueue({ waitMs = 400, send = putVerdicts, onFlushed
       onFlushed?.(res, batch)
     } catch (e) {
       // 실패한 판정은 되돌려 넣는다 — 사용자가 다시 탭하지 않아도 다음 flush 에 실린다.
-      for (const v of batch) if (!pending.has(v.item_key)) pending.set(v.item_key, v.button)
+      for (const { item_key, ...rest } of batch) if (!pending.has(item_key)) pending.set(item_key, rest)
       onError?.(e, batch)
     }
   }
 
   return {
-    push(item_key, button) {
-      pending.set(item_key, button)
+    // ★extra(subcategory_id·note)를 «합친다». 같은 품목을 세부→메모 순으로 고치면 두 번 push 되는데
+    //   덮어쓰면 앞의 것이 사라진다 — 「세부 고르고 메모 쓰면 세부가 날아가는」 버그가 정확히 그 모양이다.
+    push(item_key, button, extra) {
+      pending.set(item_key, { ...(pending.get(item_key) || {}), button, ...(extra || {}) })
       if (timer) clearTimeout(timer)
       timer = setTimeout(flush, waitMs)
     },
@@ -120,3 +122,17 @@ export function createVerdictQueue({ waitMs = 400, send = putVerdicts, onFlushed
 }
 
 export const fetchVerdicts = () => (isRemote ? edge('spend-verdicts', { method: 'GET' }) : localReq('/api/verdicts'))
+
+/**
+ * 세부 선택지 — ★서버가 «정본»이다. 위성은 자기 목록을 갖지 않는다(두 곳에 두면 반드시 어긋난다).
+ * 응답 groups[].items[] 를 «평탄화»하되 항목의 category 를 잃지 않는다 —
+ * 그게 「세부가 대분류를 이긴다」를 위성이 계산할 수 있는 유일한 근거다(계약 §2-3).
+ */
+export const fetchTaxonomy = async () => {
+  if (!isRemote) return { groups: [] }
+  return edge('spend-taxonomy')
+}
+
+export const flattenTaxonomy = (tax) =>
+  (tax?.groups || []).flatMap((g) =>
+    (g.items || []).map((it) => ({ id: it.id, label: it.name, category: it.category ?? g.category })))

@@ -12,11 +12,11 @@
 //
 // 유지: 금액 내림차순 · 커서 페이지네이션 · 디바운스 배치 · 보류=미저장 · 빈 상태 문구.
 import { useMemo, useState } from 'react'
-import { loadDetails, saveDetail, addCustomDetail, allTaxonomy, taxonomyById } from '../../detailStore.js'
+import { loadDetails, saveDetail, isPendingId } from '../../detailStore.js'
 
 const won = (n) => (n || 0).toLocaleString('ko-KR')
 
-export default function ClassifyView({ data, progress, busy, onDecide, onLoadMore, loadingMore }) {
+export default function ClassifyView({ data, progress, busy, onDecide, onLoadMore, loadingMore, taxonomy = [], carriedOver = 0, pendingDetails = 0 }) {
   const [showDone, setShowDone] = useState(false)
   const [details, setDetails] = useState(loadDetails)
   const buttons = data.buttons || ['사업-원재료', '사업-운영', '개인', '보류']
@@ -43,11 +43,14 @@ export default function ClassifyView({ data, progress, busy, onDecide, onLoadMor
         </div>
         {rows.map((it) => (
           <Row key={it.item_key} item={it} buttons={buttons} busy={busy} onDecide={onDecide}
-               details={details} setDetails={setDetails} />
+               details={details} setDetails={setDetails} taxonomy={taxonomy} />
         ))}
       </div>
-      {/* ★«저장된 것처럼» 보이게 두지 않는다 — 서버 배선 전이라는 사실을 화면이 직접 말한다. */}
-      <div className="xp-note">세부·메모는 이 기기에 임시 보관됩니다 · 서버 저장은 준비 중 (판정 버튼은 지금도 저장됩니다)</div>
+      {/* ★이제 세부·메모도 서버에 저장된다. «준비 중» 문구는 사실이 아니게 되어 지웠다.
+          다만 승계 못 한 건이 남아 있으면 그건 여전히 기기에만 있으므로 «그때만» 말한다. */}
+      {pendingDetails > 0 && (
+        <div className="xp-note">직접 추가하신 세부 {pendingDetails}건은 아직 서버에 없어 이 기기에만 있습니다 · 목록에 추가되면 자동으로 이어집니다</div>
+      )}
     </div>
   )
 
@@ -102,23 +105,26 @@ export default function ClassifyView({ data, progress, busy, onDecide, onLoadMor
 }
 
 /** 표의 한 «행» — 품목·금액·판정4·세부·메모가 전부 가로로 늘어선다. 세로 적층 0(발주 명시). */
-function Row({ item, buttons, busy, onDecide, details, setDetails }) {
+function Row({ item, buttons, busy, onDecide, details, setDetails, taxonomy }) {
   const saved = details.items[item.item_key] || {}
-  const chosen = taxonomyById(details, saved.detail)
+  const chosen = taxonomy.find((t) => t.id === saved.detail) || null
   // ★세부가 대분류를 이긴다 — 화면에 «실효 대분류»를 그대로 비춘다(버튼과 다르면 그게 보여야 한다).
   const effective = chosen ? chosen.category : item.verdict
 
-  const put = (patch) => setDetails({ ...saveDetail(item.item_key, patch) })
-  const onSelect = (v) => {
-    if (v === '__add') {
-      const label = window.prompt('추가할 세부요소 이름')
-      const id = addCustomDetail(item.verdict, label)
-      setDetails(loadDetails())
-      if (id) put({ detail: id })
-      return
+  // ★기기 보관과 서버 전송을 «둘 다» 한다. 보관은 오프라인·전송 실패 때의 안전망이고,
+  //   전송이 진짜 저장이다. 보관만 하면 예전처럼 조용히 사라지고, 전송만 하면 실패가 곧 손실이다.
+  const put = (patch) => {
+    const next = saveDetail(item.item_key, patch)
+    setDetails({ ...next })
+    const cur = next.items[item.item_key] || {}
+    if (item.verdict && item.verdict !== '보류') {
+      onDecide(item.item_key, item.verdict, {
+        subcategory_id: isPendingId(taxonomy, cur.detail) ? undefined : (cur.detail || undefined),
+        note: cur.memo || undefined,
+      })
     }
-    put({ detail: v })
   }
+  const onSelect = (v) => put({ detail: v })
 
   return (
     <div className={`xp-tr${item.verdict ? ' is-done' : ''}`}>
@@ -145,10 +151,9 @@ function Row({ item, buttons, busy, onDecide, details, setDetails }) {
           onChange={(e) => onSelect(e.target.value)}
         >
           <option value="">—</option>
-          {allTaxonomy(details).map((t) => (
+          {taxonomy.map((t) => (
             <option key={t.id} value={t.id}>{t.label}</option>
           ))}
-          <option value="__add">+ 직접 추가…</option>
         </select>
         {/* 버튼과 실효 대분류가 갈리면 조용히 두지 않는다 — 그게 계약이 말한 «세부 우선»의 눈에 보이는 형태다. */}
         {effective && effective !== item.verdict && <em className="xp-override">→ {effective}</em>}

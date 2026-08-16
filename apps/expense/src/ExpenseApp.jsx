@@ -8,7 +8,8 @@
 //     Edge 계약이 확정되면 «그 파일만» 바뀐다. 지금 셸은 데이터 0 으로도 온전히 돈다.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth, supabase } from '@thinkmap/core'
-import { fetchQueue, createVerdictQueue, isRemote } from './expenseSource.js'
+import { fetchQueue, createVerdictQueue, isRemote, fetchTaxonomy, flattenTaxonomy } from './expenseSource.js'
+import { migrateDetailIds } from './detailStore.js'
 import ClassifyView from './components/Expense/ClassifyView.jsx'
 import ReconcileView from './components/Expense/ReconcileView.jsx'
 import EnvelopeView from './components/Expense/EnvelopeView.jsx'
@@ -122,6 +123,8 @@ function Board({ session }) {
       onFlushed: (res) => {
         // ★unknown_keys 를 조용히 버리지 않는다(계약 §2-2). 빈 배열이 정상이다.
         if (res?.unknown_keys?.length) setErr(new Error(`서버가 못 찾은 품목 ${res.unknown_keys.length}건 — 보고가 필요합니다.`))
+        // ★unknown_subcategories 도 조용히 버리지 않는다(계약 §2-2 v1.3). 이게 보이면 §2-3-a 함정을 밟은 것이다.
+        else if (res?.unknown_subcategories?.length) setErr(new Error(`서버가 모르는 세부 ${res.unknown_subcategories.length}건 — 그 판정은 저장되지 않았습니다.`))
         else if (res?.rows_updated) setNote(`${res.rows_updated}건 정리됨`)
       },
       onError: (e) => setErr(e),
@@ -136,11 +139,29 @@ function Board({ session }) {
     return () => { window.removeEventListener('pagehide', bye); bye() }
   }, [])
 
-  const decide = useCallback((itemKey, category) => {
+  const decide = useCallback((itemKey, category, extra) => {
     setErr(null)
     setData((d) => d && ({ ...d, items: d.items.map((i) => i.item_key === itemKey ? { ...i, verdict: category === '보류' ? null : category } : i) }))
-    queueRef.current.push(itemKey, category)
+    queueRef.current.push(itemKey, category, extra)
   }, [])
+
+  // ★세부 목록 — 서버가 정본이다. 받아온 «직후»에 기기 보관분의 임시 id 를 진짜 uuid 로 승계한다
+  //   (계약 §2-3-a: 순서를 건너뛰면 회원님이 입력해 둔 것이 전부 조용히 반송된다).
+  const [taxonomy, setTaxonomy] = useState([])
+  const [carry, setCarry] = useState({ migrated: 0, pending: 0 })
+  useEffect(() => {
+    if (!session) return
+    let alive = true
+    fetchTaxonomy()
+      .then((tax) => {
+        if (!alive) return
+        const flat = flattenTaxonomy(tax)
+        setTaxonomy(flat)
+        setCarry(migrateDetailIds(flat))
+      })
+      .catch(() => { /* 목록을 못 받아도 판정 4버튼은 그대로 동작한다 — 여기서 화면을 막지 않는다 */ })
+    return () => { alive = false }
+  }, [session])
 
   const progress = useMemo(() => {
     if (!data) return null
@@ -194,7 +215,7 @@ function Board({ session }) {
 
       <main className="xp-main">
         {!data && !err && <div className="xp-empty">불러오는 중…</div>}
-        {data && tab === 'classify' && <ClassifyView data={data} progress={progress} busy={false} onDecide={decide} onLoadMore={loadMore} loadingMore={loadingMore} />}
+        {data && tab === 'classify' && <ClassifyView data={data} progress={progress} busy={false} onDecide={decide} onLoadMore={loadMore} loadingMore={loadingMore} taxonomy={taxonomy} carriedOver={carry.migrated} pendingDetails={carry.pending} />}
         {data && tab === 'reconcile' && <ReconcileView />}
         {data && tab === 'envelope' && <EnvelopeView />}
         {!data && err && tab !== 'classify' && (tab === 'reconcile' ? <ReconcileView /> : <EnvelopeView />)}
