@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="ko">
   <head>
+    <script type="module" crossorigin src="/thinkmap/membership/assets/polyfills-BCN_hi4o.js"></script>
+
     <meta charset="UTF-8" />
     <!-- 테마 무-플래시(FOUC 방지): 페인트 전에 data-theme 세팅. 로직=@thinkmap/core theme.js와 동일. -->
     <script>(function(){try{var k='thinkmap-theme',p=localStorage.getItem(k);if(p!=='light'&&p!=='dark')p='system';var d=(p==='light'||p==='dark')?p:(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');var e=document.documentElement;e.dataset.theme=d;e.style.colorScheme=d;}catch(_){}})();</script>
@@ -15,7 +17,7 @@
     <meta name="apple-mobile-web-app-title" content="멤버십" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
     <title>멤버십 키오스크 · ThinkMap</title>
-    <script type="module" crossorigin src="/thinkmap/membership/assets/index-t8frnZoJ.js"></script>
+    <script type="module" crossorigin src="/thinkmap/membership/assets/index-BQUwkkdm.js"></script>
     <link rel="stylesheet" crossorigin href="/thinkmap/membership/assets/index-PGoWfcv1.css">
     <script type="module">import.meta.url;import("_").catch(()=>1);(async function*(){})().next();if(location.protocol!="file:"){window.__vite_is_modern_browser=true}</script>
     <script type="module">!function(){if(window.__vite_is_modern_browser)return;console.warn("vite: loading legacy chunks, syntax error above and the same error below should be ignored");var e=document.getElementById("vite-legacy-polyfill"),n=document.createElement("script");n.src=e.src,n.onload=function(){System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))},document.body.appendChild(n)}();</script>
@@ -40,16 +42,21 @@
       #mk-boot .b-msg{font-size:18px}
       #mk-boot .b-slow,#mk-boot .b-fail{font-size:16px;line-height:1.5;max-width:22em}
       /* 어르신·현장 기준 — 버튼은 «누르는 것»으로 형태가 읽혀야 한다(키오스크 버튼 문법과 같은 축). */
+      #mk-boot .b-brand{font-size:24px;font-weight:700;margin-bottom:16px;opacity:.9}
+      #mk-boot .b-hint{display:block;margin-top:10px;font-size:15px;opacity:.75}
       #mk-boot .b-fail button{margin-top:16px;padding:16px 34px;font:inherit;font-size:19px;font-weight:700;
         min-width:200px;min-height:56px;border-radius:14px;border:2px solid currentColor;
         background:transparent;color:inherit;cursor:pointer}
     </style>
     <div id="mk-boot" role="status" aria-live="polite">
+      <!-- ★JS 가 한 줄도 안 돌아도 이 글자는 보인다. 손님·직원이 «검은 네모»를 보는 일이 없게. -->
+      <div class="b-brand">사르르 멤버십</div>
       <div class="b-dots" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="b-msg">불러오는 중…</div>
       <div class="b-slow" hidden>네트워크가 느립니다 — 잠시만요</div>
       <div class="b-fail" hidden>
         화면을 불러오지 못했습니다.<br />연결을 확인한 뒤 다시 시도해 주세요.
+        <span class="b-hint">계속 이러면 이 기기의 브라우저가 오래된 것일 수 있습니다.</span>
         <br /><button type="button" id="mk-boot-retry">다시 시도</button>
       </div>
     </div>
@@ -83,15 +90,23 @@
         /* 앱이 첫 화면을 그리면 부른다(main.jsx). 여러 번 불려도 안전하게 만든다. */
         window.__mkBootDone = function () {
           if (done) return
+          /* ★«그렸다고 말한 것»과 «실제로 그려진 것»은 다르다 — 2026-08-16 iOS12 사고의 핵심.
+             렌더가 던져도 main.jsx 의 rAF 는 그대로 돌아 이 함수를 부른다. 그때 오버레이를 걷으면
+             **안내마저 사라진 검은 화면**이 된다. 걷는 조건을 «루트에 내용이 있나»로 바꾼다. */
+          var root = document.getElementById('root')
+          if (!root || root.children.length === 0) { showFail(); return }
           done = true
           clearTimeout(slowT); clearTimeout(failT)
           if (el.parentNode) el.parentNode.removeChild(el)
         }
+        /* 스크립트가 «로드는 됐는데 실행 중 죽는» 경우(구형 사파리의 API 결손 등).
+           resource error 캡처만으로는 이걸 못 잡는다 — 그게 정확히 이번 사고였다. */
+        window.onerror = function () { showFail(); return false }
       })()
     </script>
     <div id="root"></div>
     <script nomodule>!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();</script>
-    <script nomodule crossorigin id="vite-legacy-polyfill" src="/thinkmap/membership/assets/polyfills-legacy-BEtRgpUu.js"></script>
-    <script nomodule crossorigin id="vite-legacy-entry" data-src="/thinkmap/membership/assets/index-legacy-BGBG6fK9.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
+    <script nomodule crossorigin id="vite-legacy-polyfill" src="/thinkmap/membership/assets/polyfills-legacy-wuY5XI7I.js"></script>
+    <script nomodule crossorigin id="vite-legacy-entry" data-src="/thinkmap/membership/assets/index-legacy-Ses0LUF7.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
   </body>
 </html>
