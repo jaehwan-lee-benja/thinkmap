@@ -152,11 +152,13 @@ export default function DisplayView({ store }) {
     return (
       <div className="dp">
         <div className="dp-screen">
-          <div className="dp-logo dp-logo-hero"><img src={LOGO} alt="사르르 멤버십" /></div>
+          <div className="dp-col-logo"><div className="dp-logo dp-logo-hero"><img src={LOGO} alt="사르르 멤버십" /></div></div>
           {/* ★유저 확정(22:47): 스캔 버튼·펄스 제거 → 일반 «안내» 문구.
               이 화면에서 할 수 있는 동작이 없으므로 «대어 주세요» 같은 지시문도 쓰지 않는다 —
               지시문은 없는 버튼을 찾게 만든다. 어디로 가야 하는지만 알려 준다. */}
-          <div className="dp-invite">참여하기<em>(가입하기)</em>는<br />멤버십 키오스크에서 가능합니다</div>
+          <div className="dp-col-body">
+            <div className="dp-invite">참여하기<em>(가입하기)</em>는<br />멤버십 키오스크에서 가능합니다</div>
+          </div>
         </div>
         <div className="dp-waves" aria-hidden="true" />
       </div>
