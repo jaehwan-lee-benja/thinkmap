@@ -59,9 +59,15 @@ describe('응원화면 확정 사양 ↔ 구현 (docs/DISPLAY-SPEC.md)', () => {
 
   it('★슬라이드 인·순차 등장 금지 — 페이드는 컨테이너 «하나»에만', () => {
     expect(css).not.toMatch(/translateX|slideIn|slide-in/i)
-    // 자식마다 delay 를 주면 그게 순차 등장이다. 콘페티(장식)만 예외.
-    const delays = [...css.matchAll(/animation-delay/g)]
-    expect(delays.length, '등장에 animation-delay 를 쓰면 순차 등장이 된다').toBeLessThanOrEqual(1)
+    // ★이 술어는 «아무것도 안 재고 있었다»(2026-08-17 발견): CSS 의 animation-delay 를 셌는데
+    //   딜레이는 **JSX 인라인**(`animationDelay: c.delay`)에 있다. CSS 개수는 0 이라 상한 1 을
+    //   «항상» 통과했다 — 가지가 죽어 있어서 나온 초록이었다. ⇒ 두 파일을 «다» 본다.
+    const cssDelays = [...css.matchAll(/animation-delay/g)].length
+    const jsxDelays = [...jsx.matchAll(/animationDelay/g)].length
+    // 허용되는 딜레이는 «콘페티 장식» 하나뿐이다. 그 외에 생기면 순차 등장이다.
+    expect(cssDelays + jsxDelays, '등장에 delay 를 쓰면 순차 등장이 된다(콘페티 1건만 허용)').toBeLessThanOrEqual(1)
+    // ★그 1건이 정말 «콘페티»인지까지 확인한다 — 개수만 세면 이름이 바뀌어도 통과한다.
+    if (jsxDelays === 1) expect(jsx).toMatch(/CONFETTI[\s\S]{0,400}animationDelay/)
   })
 
   it('★터치 잠금 — CSS 와 JS 양쪽(CSS 만으로는 iOS12 핀치를 못 막는다)', () => {
