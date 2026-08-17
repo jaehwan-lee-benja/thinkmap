@@ -14,6 +14,11 @@ export function saveErrorMessage(error) {
 export function useSeatOrders(businessDate, onError) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
+  // ★읽기 실패를 「주문 없음」과 구별하기 위한 두 값(2026-08-17 자가감사 단일점 ②). utils/seatLoadState.js 참조.
+  //   loadError = 마지막 읽기가 실패했는가 / loadedAt = 마지막으로 **성공**한 시각(없으면 한 번도 못 읽었다).
+  //   둘 다 없으면 화면은 빈 배열만 보고 「주문이 없습니다」라고 말한다 — 고장이 정상 얼굴로 착지한다.
+  const [loadError, setLoadError] = useState(null)
+  const [loadedAt, setLoadedAt] = useState(null)
   const mountedRef = useRef(true)
   // 저장 대기(in-flight write) 중인 행 id → 미결 쓰기 수. 편집 중 행을 refetch clobber 로부터 보호.
   const pendingRef = useRef(new Map())
@@ -35,6 +40,8 @@ export function useSeatOrders(businessDate, onError) {
         .order('created_at', { ascending: true }) // 기본 = 만들어진 순서(번호 없는 줄도 생성순으로 쌓임). 번호순은 '번호 맞춰 정렬' 버튼.
       if (error) throw error
       if (!mountedRef.current) return
+      setLoadError(null)
+      setLoadedAt(Date.now())
       // 저장 대기 중인(=타이핑 방금 끝난) 행은 로컬 낙관값 유지 → 뒷글자 유실 방지.
       // 그 외 행/삽입/삭제는 DB값을 그대로 반영(last-write-wins, 다른 역할 변경 즉시 보임).
       setOrders((prev) => {
@@ -45,6 +52,9 @@ export function useSeatOrders(businessDate, onError) {
       })
     } catch (e) {
       console.error('useSeatOrders.refetch', e)
+      // ★콘솔로 끝내지 않는다 — 주방 태블릿의 콘솔을 보는 사람은 없다. 화면이 말해야 한다.
+      //   기존 데이터(loadedAt)가 있으면 그건 그대로 두고 «낡았다»만 알린다(빈 화면으로 되돌리지 않는다).
+      if (mountedRef.current) setLoadError(e || new Error('read failed'))
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -153,5 +163,5 @@ export function useSeatOrders(businessDate, onError) {
     return patchOrder(id, { ...deliverPatch(), ...extra })
   }, [patchOrder])
 
-  return { orders, loading, refetch, createOrder, patchOrder, commitOrder, deleteOrder, resetToday, undoResetToday }
+  return { orders, loading, loadError, loadedAt, refetch, createOrder, patchOrder, commitOrder, deleteOrder, resetToday, undoResetToday }
 }

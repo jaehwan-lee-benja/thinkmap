@@ -19,6 +19,7 @@ import StationScreen from './screens/StationScreen'
 import SeatBuildStamp from './components/SeatBuildStamp'
 import TablingPane from './components/TablingPane'
 import { checkStickyDiscipline } from './utils/seatDevGuard'
+import { dataLoadState } from './utils/seatLoadState'
 import './Seat.css'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -90,6 +91,17 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
   const demo = useDemoSeat(!!preview)
   const live = useSeatOrders(isLive ? businessDate : null, showError)
   const liveStations = useStationStatus(isLive ? businessDate : null, showError)
+
+  // ★읽기 상태 3분기 — 빈 화면의 근거를 `length === 0` 이 아니라 «읽는 데 성공했는가»로 옮긴다.
+  //   주문·스테이션은 한 화면이라 하나라도 실패하면 화면 전체를 실패로 본다(부분 성공을 정상으로 착지시키지 않는다).
+  const loadState = dataLoadState({
+    live: isLive,
+    errors: [live.loadError, liveStations.loadError],
+    loadedAt: live.loadedAt,
+  })
+  const { refetch: refetchOrders } = live
+  const { refetch: refetchStations } = liveStations
+  const retryLoad = useCallback(() => { refetchOrders(); refetchStations() }, [refetchOrders, refetchStations])
 
   const orders = preview ? demo.orders : (demoOrders || live.orders)
   const stations = preview ? demo.stations : (demoStations || liveStations.stations)
@@ -221,16 +233,31 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
           액자를 스크롤포트(.seat-scrollport) **밖**에 두는 게 핵심이다(안에 넣으면 스크롤 상자가 하나 끼어
           표 헤더·탭바·툴바의 sticky 기준이 통째로 흔들린다 — 2026-08-08 실증).
           이 상자에는 overflow 를 주지 않는다(같은 이유). */}
+      {/* ★읽기 실패 띠 — 사라지는 토스트가 아니라 **고쳐질 때까지 남는 띠**다.
+          이유: 저장 실패는 한 번의 사건이라 토스트로 족하지만, 읽기 실패는 «지금 보고 있는 화면이 진실이 아니다»라는
+          지속 상태다. 3.5초 뒤 사라지면 그 뒤로는 다시 「주문 없음」과 구별되지 않는다(고치려던 결함 그대로).
+          위치도 스크롤포트 밖 — 스크롤해서 못 보고 지나칠 수 있는 자리에 두지 않는다. */}
+      {loadState === 'failed' ? (
+        <div className="seat-loadfail" role="alert">
+          <span className="seat-loadfail-msg">
+            주문을 불러오지 못했습니다 — <b>화면이 최신이 아닙니다.</b>
+            {live.loadedAt ? ' 아래 목록은 마지막으로 받은 기록입니다.' : ' 목록이 비어 보여도 「주문 없음」이 아닙니다.'}
+          </span>
+          <button type="button" className="seat-btn seat-loadfail-retry" onClick={retryLoad}>다시 불러오기</button>
+        </div>
+      ) : null}
+
       <div className="seat-body">
         {settings.tablingPane && <TablingPane onClose={() => setSetting('tablingPane', false)} />}
         <main className="seat-scrollport">
           {role.key === 'guide' || role.key === 'manager' ? (
-            <SeatOrderScreen key={role.key} role={role} orders={orders} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} settings={settings} />
+            <SeatOrderScreen key={role.key} role={role} orders={orders} loadState={loadState} onPatch={onPatch} onCommit={onCommit} onCreate={onCreate} onReorder={onReorder} onSortByNumber={onSortByNumber} onResizeColumn={onResizeColumn} onDelete={onDelete} settings={settings} />
           ) : role.station ? (
             <StationScreen
               role={role}
               orders={orders}
               stations={stations}
+              loadState={loadState}
               onPatchStation={onPatchStation}
               cardOrder={stationOrders[role.station]}
               onReorderCards={(ids) => setStationOrder(role.station, ids)}

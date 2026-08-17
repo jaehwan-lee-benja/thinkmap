@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import LiveCameraFeed from '../components/LiveCameraFeed'
 import { isWaitingOrder, isRaisedOrder, orderLabel, showsTakeoutLabel } from '../utils/seatRules'
 import { IconCheck } from '../components/SeatIcon'
+import { emptyText } from '../utils/seatLoadState'
 
 // 색종이 가루 입자 — 고정 배열(랜덤 없이 결정적: 매 완료마다 같은 모양이라 깜빡임·재현 이슈 없음).
 //   x/y = 흩어지는 방향(px), r = 회전(deg), d = 시작 지연(ms).
@@ -18,7 +19,9 @@ const CONFETTI = [
 ]
 
 // ※주문 필드(전달사항 등)는 이 화면에서 수정하지 않는다(읽기 전용) — 수정은 자리안내/주문서관리 표에서.
-export default function StationScreen({ role, orders = [], stations = [], onPatchStation, cardOrder, onReorderCards, settings = {} }) {
+// ★세 영역의 「— … 없음 —」은 전부 emptyText(loadState, …) 를 거친다(2026-08-17 단일점 ②).
+//   여기서 「없음」은 주방에 «올릴 것이 없다»는 지시로 읽힌다 — 읽기 실패가 그 얼굴로 착지하면 안 된다.
+export default function StationScreen({ role, orders = [], stations = [], loadState = 'ready', onPatchStation, cardOrder, onReorderCards, settings = {} }) {
   const stationKey = role?.station
   const stStatus = (orderId) => stations.find((s) => s.order_id === orderId && s.station === stationKey)
 
@@ -79,7 +82,7 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
         <div className="seat-st-title">올라감(제조하기)</div>
         <div className="seat-st-track">
           {activeOrdered.length === 0 ? (
-            <div className="seat-st-empty">— 올림 없음 —</div>
+            <div className="seat-st-empty">{emptyText(loadState, '— 올림 없음 —')}</div>
           ) : (
             activeOrdered.map((o, i) => (
               // 카드 + 그 아래 이동 버튼(카드 밖) 한 묶음.
@@ -139,7 +142,7 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
         <div className="seat-st-title">자리후(대기)</div>
         <div className="seat-st-track">
           {waiting.length === 0 ? (
-            <div className="seat-st-empty">— 대기 없음 —</div>
+            <div className="seat-st-empty">{emptyText(loadState, '— 대기 없음 —')}</div>
           ) : (
             waiting.map((o) => (
               <div key={o.id} className="seat-st-card">
@@ -157,7 +160,7 @@ export default function StationScreen({ role, orders = [], stations = [], onPatc
         <div className="seat-st-title">완료</div>
         <div className="seat-st-track">
           {completed.length === 0 ? (
-            <div className="seat-st-empty">— 완료 없음 —</div>
+            <div className="seat-st-empty">{emptyText(loadState, '— 완료 없음 —')}</div>
           ) : (
             completed.map((o) => (
               <div key={o.id} className="seat-st-card seat-st-card--done">

@@ -9,6 +9,10 @@ const rowKey = (orderId, station) => `${orderId}:${station}`
 
 export function useStationStatus(businessDate, onError) {
   const [stations, setStations] = useState([])
+  // ★주문 훅과 같은 이유·같은 모양(2026-08-17 단일점 ②). 스테이션 화면의 「— 대기 없음 —」도
+  //   읽기 실패와 구별되지 않았다 — 카이막/커피 태블릿에서는 이게 «올릴 것이 없다»로 읽힌다.
+  const [loadError, setLoadError] = useState(null)
+  const [loadedAt, setLoadedAt] = useState(null)
   const mountedRef = useRef(true)
   // 저장 대기 중인 행 키 → 미결 쓰기 수. 편집 중(변동사항 입력) 행을 refetch clobber 로부터 보호.
   const pendingRef = useRef(new Map())
@@ -27,6 +31,8 @@ export function useStationStatus(businessDate, onError) {
         .eq('business_date', businessDate)
       if (error) throw error
       if (!mountedRef.current) return
+      setLoadError(null)
+      setLoadedAt(Date.now())
       // 저장 대기 중인 행은 로컬 낙관값 유지, 그 외는 DB값 반영. 아직 커밋 전인 대기 행은 보존.
       setStations((prev) => {
         const prevByKey = new Map(prev.map((s) => [rowKey(s.order_id, s.station), s]))
@@ -43,6 +49,7 @@ export function useStationStatus(businessDate, onError) {
       })
     } catch (e) {
       console.error('useStationStatus.refetch', e)
+      if (mountedRef.current) setLoadError(e || new Error('read failed'))
     }
   }, [businessDate])
 
@@ -89,5 +96,5 @@ export function useStationStatus(businessDate, onError) {
     if (error) { console.error('useStationStatus.patch', error); onError?.(saveErrorMessage(error)); refetch() }
   }, [businessDate, refetch, onError])
 
-  return { stations, refetch, patchStation }
+  return { stations, loadError, loadedAt, refetch, patchStation }
 }

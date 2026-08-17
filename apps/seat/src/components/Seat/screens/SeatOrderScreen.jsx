@@ -7,6 +7,7 @@ import LiveCameraFeed from '../components/LiveCameraFeed'
 import SeatNumpad from '../components/SeatNumpad'
 import SeatModal from '../components/SeatModal'
 import { queueSuffixes, groupByQueue } from '../utils/seatRules'
+import { emptyText } from '../utils/seatLoadState'
 
 // 역할별 로컬 토글 상태 훅(기기·역할 단위 저장) — 번호 화면키패드·올리기세부보기 공통.
 //   저장값이 없으면 defaultOn(역할별 기본값)을 쓴다. 한 번이라도 끄면 그 선택이 남는다.
@@ -23,7 +24,7 @@ function useRoleFlag(roleKey, name, defaultOn = false) {
 }
 
 export default function SeatOrderScreen({
-  role, orders = [], onPatch, onCommit, onCreate,
+  role, orders = [], loadState = 'ready', onPatch, onCommit, onCreate,
   onReorder, onSortByNumber, onResizeColumn, onDelete, settings = {},
 }) {
   const [dragId, setDragId] = useState(null)
@@ -86,8 +87,12 @@ export default function SeatOrderScreen({
       <div className="seat-table" role="table">
         <SeatTableHead resizable={!!onResizeColumn} onResize={onResizeColumn} />
         {shown.length === 0 ? (
+          // ★「없다」고 말할 근거는 `shown.length === 0` 이 아니라 «읽는 데 성공했는가»다(단일점 ②).
+          //   emptyText 가 3분기를 강제한다 — 여기서 문구를 직접 쓰면 같은 결함이 그대로 재발한다.
           <div className="seat-empty">
-            {tab === 'archived' ? '완료된 안내가 없습니다.' : '주문이 없습니다. “+ 새 주문”으로 추가하세요.'}
+            {emptyText(loadState, tab === 'archived'
+              ? '완료된 안내가 없습니다.'
+              : '주문이 없습니다. “+ 새 주문”으로 추가하세요.')}
           </div>
         ) : (
           rows.map((o) => (
