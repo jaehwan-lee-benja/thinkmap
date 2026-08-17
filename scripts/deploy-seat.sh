@@ -15,6 +15,9 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# ★«어느 주소의 산출물인가»를 못 박는다(2026-08-17 규율 — membership 은 구 gh-pages 를 봐서
+#   「라이브에 없다」로 오판했다). **자리후의 표면은 이 하나뿐이다** — cf-pages·Edge 진입점 없음(실측).
+#   표면이 늘면 여기부터 고쳐라. 「라이브에 있다/없다」는 주소를 안 적으면 절반짜리 문장이다.
 BASE="https://jaehwan-lee-benja.github.io/thinkmap/seat"
 cd "$REPO"
 
