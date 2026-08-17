@@ -32,6 +32,10 @@ describe('Seat.css — MOTION-CANON §6 금지 목록(배포 차단)', () => {
 
   it('★슬라이드 인은 0 이다 — 유저 상시 지시(「등장은 짧은 페이드 1회」)를 코드가 지킨다', () => {
     // 이 줄이 이번 라운드에 실제로 고친 것이다. 나머지 넷과 달리 여기엔 결정할 것이 없었다.
+    // ★«0 건»을 주장하기 전에 **볼 것이 있었는지**를 먼저 단정한다(도구의 0 ≠ 세계의 0).
+    //   깨뜨리기 시험에서 잡혔다: 파일 경로를 엉뚱한 곳으로 돌려도 이 시험만 **초록으로 남았다** —
+    //   위반이 0 인 게 아니라 **볼 대상이 0** 이었던 것이다(공허 통과).
+    expect(Object.keys(parseKeyframes(css))).toContain('seat-toast-in')
     expect(motionViolations(css).filter((w) => w.startsWith('§6-1'))).toEqual([])
   })
 })
@@ -79,6 +83,15 @@ describe('motionAudit 자체 시험 — 결함을 주입하면 적중한다', ()
   it('정본 팔레트·무채색은 통과한다', () => {
     const ok = '.seat-confetti i:nth-child(1){background:#2D4B82}\n.seat-confetti i:nth-child(2){background:#9E9E9E}'
     expect(motionViolations(ok)).toEqual([])
+  })
+
+  it('★§7 색 검사가 실제로 콘페티 색 줄에 «닿는지» 단정한다(양성대조)', () => {
+    // 지금 구현은 **줄 단위 스코프**다 — 색 선언이 셀렉터와 다른 줄로 재포맷되면 검사가 조용히 0 이 된다.
+    //   그 0 을 «깨끗함»으로 읽으면 정확히 「도구의 0 을 세계의 0 으로 읽는」 사고다.
+    //   ⇒ 지금 미해결 명단에 색 위반이 **떠 있다는 사실 자체**가 이 검사의 도달 증거다.
+    //     명단에서 색 항목이 사라질 땐 **진짜 고쳐서인지 검사가 눈이 먼 건지** 이 시험이 되묻는다.
+    const hits = css.split('\n').filter((l) => l.includes('.seat-confetti') && l.includes('#'))
+    expect(hits.length).toBeGreaterThan(0)
   })
 
   it('★전건이 비면(keyframe 이 없으면) 조용히 통과한다 — 다만 그건 «검사 안 함»이지 «깨끗함»이 아니다', () => {
