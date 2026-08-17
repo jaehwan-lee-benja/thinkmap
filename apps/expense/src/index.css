@@ -141,3 +141,7 @@ body { background: var(--bg); color: var(--fg); }
   border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
   color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; touch-action: manipulation; }
 .xp-note { margin-top: 10px; color: var(--dim); font-size: 12px; }
+
+/* 로컬 모드 경고 — «조용한 어긋남»을 막는 자리라 힌트가 아니라 «경고»로 보이게 한다. */
+.xp-warn { margin: 12px 16px 0; padding: 12px 14px; border: 1px solid var(--warn); border-radius: 10px;
+  color: var(--warn); font-size: 14px; line-height: 1.5; }

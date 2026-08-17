@@ -16,9 +16,8 @@ const KEY = 'expense.details.v1'
  * ★세부가 대분류를 이긴다(계약 v1.3): `사업-운영` 을 눌러도 세부 `직원식대`(인건비)를 고를 수 있다.
  *   버튼은 «빠른 기본값»이지 최종 판정이 아니다. 그래서 세부를 그룹 안에 가두지 않고 category 를 붙여 둔다.
  */
-// ★로컬 세부 목록은 «없앴다». 0007 적용으로 서버가 정본이 됐고, 목록을 두 곳에 두면
-//   반드시 어긋난다. 남은 것은 «아직 서버에 못 올린 보관분»을 잇는 승계 로직뿐이다.
-const _REMOVED_LOCAL_TAXONOMY = null
+// ★로컬 세부 목록은 없앴다. 0007 적용으로 서버가 정본이 됐고, 목록을 두 곳에 두면 반드시 어긋난다.
+//   남은 것은 «아직 서버에 못 올린 보관분»을 잇는 승계 로직뿐이다(migrateDetailIds).
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') } catch { return {} } }
 const write = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)) } catch { /* 사파리 프라이빗 등 — 화면엔 남는다 */ } }
 
@@ -37,32 +36,18 @@ export function saveDetail(itemKey, patch) {
   return s
 }
 
-/** 유저가 직접 추가한 세부요소. ★선택 이력은 규칙 학습 재료라 지우지 않는다(발주). */
-/** @deprecated 세부 «추가»는 서버 함수 대기 중이라 지금은 쓰지 않는다(spend-taxonomy POST 봉인 사유 참조). */
-export function addCustomDetail(category, name) {
-  const label = String(name || '').trim()
-  if (!label) return null
-  const s = loadDetails()
-  const hit = (s.custom || []).find((t) => t.label === label)
-  if (hit) return hit.id
-  // ★서버 id 가 아니다. 배선할 때 **이걸 그대로 밀면 안 된다** — 서버는 uuid 형식이 아닌 값을
-  //   전부 `unknown_subcategories` 로 반송하므로, 회원님이 입력해 둔 게 «조용히» 전부 사라진다.
-  //   반드시 이 순서다(계약 §2-3-a):
-  //     ⑴ spend_taxonomy 에 INSERT → 돌아온 uuid 수령
-  //     ⑵ 보관된 custom.* → 그 uuid 로 치환
-  //     ⑶ 그 다음에야 POST /spend-verdicts
-  const id = `custom.${Date.now().toString(36)}`
-  s.custom = [...s.custom, { id, label, category: category || '사업-운영' }]
-  write(s)
-  return id
-}
-
 /**
  * ★보관분 «승계» — 계약 §2-3-a 의 함정을 여기서 막는다.
  * 기기에 남겨 둔 세부 선택은 `custom.*` 또는 옛 로컬 id 라, 그대로 올리면 서버가 **전량 반송**한다.
  * 서버 목록과 **이름으로 맞춰** 진짜 uuid 로 바꾼다. 못 맞춘 것은 «버리지 않고» 남긴다 —
  * 세부 추가 함수가 오면 그때 잇는다. 조용히 사라지게 두는 것이 제일 나쁘다.
  * @returns { migrated, pending } 승계·보류 건수
+ *
+ * ★세부 «추가» 배선이 오면 반드시 이 순서다(계약 §2-3-a):
+ *   ⑴ spend_taxonomy 에 INSERT → 돌아온 uuid 수령 ⑵ 보관분을 그 uuid 로 치환 ⑶ 그 다음 verdicts.
+ *   건너뛰면 서버가 uuid 형식이 아닌 값을 전부 unknown_subcategories 로 **반송**한다 —
+ *   회원님이 입력해 둔 것이 «조용히» 사라진다.
+ *   ※`addCustomDetail` 은 지웠다. 호출부 0인 채로 두면 다음 사람이 «있으니 쓰면 되겠지»로 집는다.
  */
 export function migrateDetailIds(serverList) {
   const s = loadDetails()
