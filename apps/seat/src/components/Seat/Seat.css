@@ -1461,9 +1461,13 @@
   box-shadow: var(--md-elev-3);
   animation: seat-toast-in .2s var(--md-ease);
 }
+/* ★등장은 «제자리 페이드 + 미세 스케일» — 이동(translate)은 쓰지 않는다.
+   MOTION-CANON §5·§6-1(배포 차단) + 유저 상시 지시(2026-08-15 「등장은 짧은 페이드 1회」).
+   전에는 -10px 슬라이드 인이었다. 이동거리는 정보를 나르지 않는다 — 이 토스트는 화면 밖에 있던 적이 없다.
+   `translate(-50%, …)` 의 -50% 는 **정렬용 고정 오프셋**이라 그대로 둔다(움직이는 값이 아니다). */
 @keyframes seat-toast-in {
-  from { opacity: 0; transform: translate(-50%, -10px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
+  from { opacity: 0; transform: translate(-50%, 0) scale(.98); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 /* ── 번호 화면키패드 — 오른쪽으로 치우쳐 떠서 왼쪽 표가 계속 보인다 ─────── */
