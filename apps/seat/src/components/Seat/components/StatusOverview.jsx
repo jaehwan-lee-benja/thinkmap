@@ -5,7 +5,7 @@ import { STATIONS } from '../config/seatRoles'
 import { isWaitingOrder, isRaisedOrder } from '../utils/seatRules'
 import { emptyText } from '../utils/seatLoadState'
 
-// ★loadState 를 받는 이유(2026-08-18 D 트랙 적발): 이 화면의 「— … 없음 —」 셋이
+// ★loadState 를 받는 이유(2026-08-17 D 트랙 적발): 이 화면의 「— … 없음 —」 셋이
 //   emptyText 를 **안 거치고 있었다.** SPEC 에는 「빈 자리 문구는 전부 이걸 거친다」고 적혀 있었는데
 //   현황 모달만 빠져 있었다 — **문서는 닫혔는데 코드는 안 닫힌** 자리다.
 //   읽기 실패 때 여기가 「— 대기 없음 —」이라 말하면 단일점 ② 결함이 그대로 살아 있는 것이다.

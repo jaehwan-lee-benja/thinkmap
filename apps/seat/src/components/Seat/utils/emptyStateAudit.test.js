@@ -30,7 +30,7 @@ describe('빈 상태 문구 — 「전부 emptyText 를 거친다」', () => {
 })
 
 describe('emptyStateAudit 자체 시험 — 깨뜨리면 잡는다', () => {
-  it('★emptyText 를 안 거친 문구를 잡는다(2026-08-18 실제로 이 꼴이 살아 있었다)', () => {
+  it('★emptyText 를 안 거친 문구를 잡는다(2026-08-17 실제로 이 꼴이 살아 있었다)', () => {
     const bad = [{ path: 'X.jsx', src: `<QueueChips orders={w} empty="— 대기 없음 —" />` }]
     expect(emptyStateViolations(bad).join('\n')).toMatch(/emptyText 를 안 거친다/)
   })

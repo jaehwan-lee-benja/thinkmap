@@ -18,7 +18,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # ★«어느 주소의 산출물인가»를 못 박는다(2026-08-17 규율 — membership 은 구 gh-pages 를 봐서
 #   「라이브에 없다」로 오판했다). 「라이브에 있다/없다」는 주소를 안 적으면 절반짜리 문장이다.
 #
-# ★**「자리후의 표면은 이 하나뿐」이라는 «부재 판정»의 근거 세 줄**(2026-08-18 규율: 없다도 있다만큼 증거가 필요하다):
+# ★**「자리후의 표면은 이 하나뿐」이라는 «부재 판정»의 근거 세 줄**(2026-08-17 규율: 없다도 있다만큼 증거가 필요하다):
 #   ⑴어느 표면을 봤나 — Supabase Edge **함수 등록부 전수 19개**(프로젝트 sqisntxippjzcekyhqyo) + **gh-pages 트리 전수**
 #     (최상위 12 폴더: assets canvas crmboard expense icons inventory kiosk members membership payroll seat smoke).
 #   ⑵그 도구가 셀 수 있나 — 등록부는 **배포된 함수**를 직접 나열한다(repo 파일이 아니다). 트리는 실제 서빙 파일이다.
