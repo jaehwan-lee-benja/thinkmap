@@ -25,13 +25,18 @@ export default function StationScreen({ role, orders = [], stations = [], loadSt
   const stationKey = role?.station
   const stStatus = (orderId) => stations.find((s) => s.order_id === orderId && s.station === stationKey)
 
+  // 카드별 Set → A 축하 중에도 B 를 바로 누른다.
+  const [celebrating, setCelebrating] = useState(() => new Set())
+
   const waiting = orders.filter(isWaitingOrder)
   const raised = orders.filter(isRaisedOrder)
   // ★올라감 = '올린 시간순'(raised_at asc). 번호순이 아니다(유저 지시 2026-08-02).
+  // ★축하 중인 카드는 «완료로 쓰였어도» 잠시 이 목록에 남는다 — 그래야 쓰기를 먼저 하고도 연출이 끊기지 않는다.
+  //   (2026-08-17: MOTION-CANON v1.2 「연출이 업무를 기다리게 하면 축하가 아니라 지연이다」 반영.)
   const active = raised
-    .filter((o) => !stStatus(o.id)?.completed)
+    .filter((o) => !stStatus(o.id)?.completed || celebrating.has(o.id))
     .sort((a, b) => String(a.raised_at || '').localeCompare(String(b.raised_at || '')))
-  const completed = raised.filter((o) => stStatus(o.id)?.completed) // 내가 완료한 것(스테이션 독립)
+  const completed = raised.filter((o) => stStatus(o.id)?.completed && !celebrating.has(o.id)) // 내가 완료한 것(스테이션 독립)
 
   // 수동 순서 — 올린 시간순이 기본, 화살표로 앞뒤 이동. ★순서는 워크스페이스(매장) 공유(유저 지시 2026-08-02).
   //   저장된 순서(cardOrder)에 없는 새 카드는 시간순 그대로 뒤에 붙고, 사라진 id 는 걸러낸다.
@@ -57,16 +62,20 @@ export default function StationScreen({ role, orders = [], stations = [], loadSt
   // 스테이션(카이막/커피)에는 -a,-b 접미사를 붙이지 않는다(주문번호 그대로 표시, 유저 지시 2026-08-02).
   const labelOf = (o) => orderLabel(o)
 
-  // 완료 = 축하 애니메이션 끝까지 보여준 뒤 처리(여운). 카드별 Set → A 축하 중에도 B 를 바로 누름.
-  const [celebrating, setCelebrating] = useState(() => new Set())
+  // ★완료 = **쓰기 먼저, 연출은 그 위에서**(2026-08-17, MOTION-CANON v1.2 면제 조건 ⓓ).
+  //   전에는 `setTimeout(…, 700)` **안에서** 쓰기를 했다 = 애니메이션이 **임계 경로**에 있었다.
+  //   주방 체감으로는 「완료를 눌렀는데 0.7초 뒤에 반영」이었고, 그건 축하가 아니라 지연이다.
+  //   지금은 누르는 즉시 DB 로 나가고(Realtime 도 즉시 퍼진다), 축하는 카드를 700ms 더 붙잡아 두는 것뿐이다.
+  //   ※연출의 «성격»은 하나도 안 줄였다 — 임계 경로에서만 뺐다.
   const complete = (orderId) => {
     if (celebrating.has(orderId)) return
-    setCelebrating((prev) => new Set(prev).add(orderId))
-    setTimeout(() => {
-      setStation(orderId, { completed: true })
-      setCelebrating((prev) => { const n = new Set(prev); n.delete(orderId); return n })
-    }, 700)
+    setStation(orderId, { completed: true })                       // ← 쓰기: 즉시
+    setCelebrating((prev) => new Set(prev).add(orderId))           // ← 연출: 그 위에서
+    setTimeout(() => endCelebration(orderId), 700)
   }
+  // ⓒ«스킵 가능» — 축하 중인 카드를 누르면 바로 끝난다. 아무것도 안 막지만, 기다리기 싫은 사람에게 길을 준다.
+  const endCelebration = (orderId) =>
+    setCelebrating((prev) => { if (!prev.has(orderId)) return prev; const n = new Set(prev); n.delete(orderId); return n })
 
   return (
     <div className="seat-screen seat-screen-station">
@@ -86,7 +95,8 @@ export default function StationScreen({ role, orders = [], stations = [], loadSt
           ) : (
             activeOrdered.map((o, i) => (
               // 카드 + 그 아래 이동 버튼(카드 밖) 한 묶음.
-              <div key={o.id} className="seat-st-slot">
+              <div key={o.id} className="seat-st-slot"
+                onClick={celebrating.has(o.id) ? () => endCelebration(o.id) : undefined}>
               <div className="seat-st-card">
                 {/* 포장으로 변경된 주문 = 스테이션에서 특별히 눈에 띄게(레이아웃 비침습 오버레이). */}
                 {/* 체크 표시 = 수기 영수증에서 포장을 체크로 적는 관행과 경험 통일(유저 지시 2026-08-02). */}
@@ -97,11 +107,15 @@ export default function StationScreen({ role, orders = [], stations = [], loadSt
                 <div className="seat-st-no">{labelOf(o)}</div>
                 {/* 전달사항 = 읽기 전용 텍스트(자리후 대기 카드와 동일 구조). 수정은 표에서 — 유저 지시 2026-08-02. */}
                 <div className={`seat-st-note${o.notes ? '' : ' seat-st-note--empty'}`}>{o.notes || '-'}</div>
+                {/* ★축하 중에도 **비활성화하지 않는다**(2026-08-17 실측으로 갈린 지점).
+                    전에는 `disabled` 였는데, 그러면 카드에서 **가장 크고 자연스러운 탭 자리**가
+                    탭을 삼켜 «축하 건너뛰기»가 절반만 먹었다(비활성 요소는 click 을 내보내지도 버블하지도 않는다).
+                    지금은 축하 중 누르면 **연출만 끝난다** — 이미 쓰기는 나갔으므로 두 번 눌러도 안전하다
+                    (`complete()` 가 `celebrating` 을 보고 즉시 되돌아온다). 면제 조건 ⓒ«스킵 가능»·ⓓ«입력 안 막음». */}
                 <button
                   type="button"
                   className={`seat-complete-btn${celebrating.has(o.id) ? ' is-celebrating' : ''}`}
-                  onClick={() => complete(o.id)}
-                  disabled={celebrating.has(o.id)}
+                  onClick={() => (celebrating.has(o.id) ? endCelebration(o.id) : complete(o.id))}
                 >
                   <IconCheck className="seat-complete-check" /> 완료
                   {/* 색종이 가루 — 완료 순간에만 흩뿌려진다(이모지 대신 실제 입자, 유저 지시 2026-08-02). */}

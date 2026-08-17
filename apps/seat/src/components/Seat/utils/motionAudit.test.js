@@ -19,11 +19,13 @@ const css = readFileSync(fileURLToPath(new URL('../Seat.css', import.meta.url)),
 //     축하 연출은 유저가 명시로 요청한 기능이고(2026-08-02 「이모지 대신 실제 입자」),
 //     한도에 맞추면 **성격이 눈에 띄게 바뀐다.** 결함 수정이 아니라 **결정**이다 → design·유저 몫으로 올렸다.
 const PENDING = [
-  '§6-3 오버슈트 18% (한도 6%): @keyframes seat-complete-pop',
-  '§6-3 되튐 4회 (한도 1회): @keyframes seat-complete-pop',
   '§6-3 오버슈트 90% (한도 6%): @keyframes seat-check-burst',
   '§7 축하 색 무지개: #FF7BAC #FFD54F #7BE0FF — 정본 팔레트(#2D4B82·#3CB44B) + 무채색만.',
 ]
+// ★2026-08-17 **둘이 빠졌다**(`seat-complete-pop` 오버슈트·되튐) — 내가 고쳐서가 아니라
+//   **정본이 개정돼서**다(MOTION-CANON v1.2 §7-1: 축하 «입자·스프링 물리»는 §6-3 한도 면제).
+//   그 면제는 **경계 조건 6개 전부**를 전제하는데, 처음 쟀을 땐 **4/6** 이었다(ⓒ스킵 불가·ⓓ쓰기가 애니메이션 뒤).
+//   ⓓ를 고쳐 **6/6** 이 된 뒤에야 뺐다 — 실측은 SEAT-SPEC §17.0. **조건을 안 재고 뺐으면 그게 은신처다.**
 
 describe('Seat.css — MOTION-CANON §6 금지 목록(배포 차단)', () => {
   it('★미해결은 정확히 이 넷뿐 — 늘어도 red, 줄어도 red(명단을 지워야 한다)', () => {

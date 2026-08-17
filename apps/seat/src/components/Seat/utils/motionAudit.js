@@ -83,8 +83,14 @@ export function motionViolations(css, opts = {}) {
   const frames = parseKeyframes(css)
 
   const particles = opts.particles || ['seat-confetti-fly']
+  // ★§7-1 «축하 입자·물리» 면제(MOTION-CANON v1.2, design 판정 2026-08-17).
+  //   면제는 **경계 조건 6개를 전부 지킬 때만** 성립한다 — 그건 CSS 로 못 잰다(코드·동작의 성질이다).
+  //   그래서 여기 **이름으로** 두되, 그 6개의 실측 결과를 SEAT-SPEC §17.0 에 적어 근거를 밖에 남긴다.
+  //   ⚠이 목록에 이름을 더하기 전에 **6개를 다시 재라.** 안 재고 이름만 넣으면 이 줄이 은신처가 된다.
+  const springExempt = opts.springExempt || ['seat-complete-pop']
   for (const [name, body] of Object.entries(frames)) {
-    if (particles.includes(name)) continue   // §7 물리 입자 — 위 주석 참조
+    if (particles.includes(name)) continue      // §7 물리 입자 — 위 주석 참조
+    if (springExempt.includes(name)) continue   // §7-1 스프링 물리 축하(경계 조건 6/6 실측)
     // §6-1 — 등장/퇴장 keyframe 의 이동. `translate(-50%…)` 같은 **정렬용 고정 오프셋**은 이동이 아니다:
     //   수열 전체에서 값이 **변하는** 축만 이동으로 본다.
     const translates = [...body.matchAll(/translate(?:X|Y)?\(([^)]*)\)/g)].map((m) => m[1].trim())
