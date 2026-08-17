@@ -46,6 +46,12 @@ TM_ALLOW_ORIGIN_PUSH=1 git push --dry-run origin main:main >/dev/null 2>&1
 after=$( [ -f "$LOG" ] && wc -l < "$LOG" || echo 0 )
 [ "$after" -gt "$before" ] && ok "⑷ 우회가 로그에 남는다($LOG)" || bad "⑷ 우회가 기록에 안 남는다"
 
+# ⑸ ★«막았다»도 사건이다 — 차단이 기록에 남는가(함대 잠금 규율)
+before_b=$( [ -f "$LOG" ] && grep -c 'blocked' "$LOG" 2>/dev/null || echo 0 )
+git push --dry-run origin main:main >/dev/null 2>&1
+after_b=$( [ -f "$LOG" ] && grep -c 'blocked' "$LOG" 2>/dev/null || echo 0 )
+[ "$after_b" -gt "$before_b" ] && ok "⑸ 차단이 로그에 남는다(«안 밀린 사실»이 남는다)" || bad "⑸ 차단이 기록에 안 남는다"
+
 # ── 잠금 «깊이» 실측 — 래퍼인가, 안쪽인가
 echo "── 잠금 깊이(래퍼 vs 실행기 안쪽)"
 git push --dry-run --no-verify origin main:main >/dev/null 2>&1
