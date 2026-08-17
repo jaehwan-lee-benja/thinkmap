@@ -4,6 +4,8 @@
 //   상태가 갈리는지만 보면, 나중에 문구를 하나로 합쳐도 초록불이 유지된다 — 그러면 결함이 되돌아온다.
 //   결함의 정의 자체가 「세 사실이 같은 화면으로 착지한다」였으므로, 시험도 **문구가 갈리는지**를 봐야 한다.
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { dataLoadState, emptyText, backoffMs, syncWarning, syncTransition, BACKOFF_MS, POLL_MS } from './seatLoadState'
 
 const READY = '주문이 없습니다.'
@@ -174,5 +176,27 @@ describe('syncTransition — ★구독이 조용히 죽는 것을 막는 규칙 
     const back = syncTransition(s, 'subscribed')
     expect(back.refetch).toBe(true)                       // 돌아오며 맞춘다
     expect(syncWarning([back.status], true)).toBeNull()    // 경고가 꺼진다
+  })
+})
+
+describe('★배포 대조군 리터럴 ↔ 실제 문구 — 「내가 쓴 문구가 대조군」의 위험을 기계로 묶는다', () => {
+  // 2026-08-17 orch 규율(integration): 「내가 고치는 파일에서는 내가 쓴 문구가 대조군이 될 수 있다 —
+  //   앵커는 내가 안 건드리는 자리에 잡아라.」
+  // 내 배포 검증(`scripts/deploy-seat.sh`)의 대조군은 **성질상 이번 판에만 있는 새 문구**여야 해서
+  //   «안 건드리는 자리»에 앵커를 잡을 수가 없다 — 새 코드가 나갔는지를 묻는 검사이기 때문이다.
+  // ⇒ 대신 **문구가 갈라지는 순간 여기가 빨개지게** 묶는다. 누가 UI 문구를 다듬으면
+  //   배포 검증이 「새 코드가 안 나갔다」고 **거짓 실패**를 내는데, 그 순간은 하필 배포 직후다.
+  const sh = readFileSync(fileURLToPath(new URL('../../../../../../scripts/deploy-seat.sh', import.meta.url)), 'utf8')
+  const literals = [...sh.matchAll(/^\s*'([^']+)'\s*#/gm)].map((m) => m[1])
+
+  it('배포 스크립트에서 대조군을 실제로 뽑아낸다(0개면 이 시험이 공허하다)', () => {
+    expect(literals.length).toBeGreaterThan(0)
+  })
+
+  it('★대조군이 전부 «지금 코드가 실제로 내는 문구»다', () => {
+    const produced = [emptyText('failed', '아무거나'), syncWarning(['retrying'], true).label]
+    for (const lit of literals) {
+      expect(produced.some((t) => t.includes(lit)), `대조군이 코드와 어긋났다: ${lit}`).toBe(true)
+    }
   })
 })
