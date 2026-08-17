@@ -51,6 +51,12 @@ describe('응원화면 확정 사양 ↔ 구현 (docs/DISPLAY-SPEC.md)', () => {
     expect(logo?.[0] ?? '').not.toMatch(/animation/)
   })
 
+  it('★모션 정본 상한 — 화면 전환 ≤400ms(축하·앰비언트는 예외)', () => {
+    const fade = css.match(/animation:\s*dp-fade\s*([\d.]+)s/)
+    expect(fade, 'dp-fade 선언이 없다').not.toBeNull()
+    expect(parseFloat(fade[1]), '정본 상한 400ms 초과').toBeLessThanOrEqual(0.4)
+  })
+
   it('★슬라이드 인·순차 등장 금지 — 페이드는 컨테이너 «하나»에만', () => {
     expect(css).not.toMatch(/translateX|slideIn|slide-in/i)
     // 자식마다 delay 를 주면 그게 순차 등장이다. 콘페티(장식)만 예외.

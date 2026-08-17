@@ -12,14 +12,21 @@
   -webkit-box-align: center; -webkit-align-items: center; align-items: center;
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
 
-/* ★페이드는 «컨테이너 하나»에만 건다 — 자식마다 걸면 delay 를 넣고 싶어지고 그게 순차 등장이다(금지). */
+/* ★모션 정본 준수(docs 정본 `MOTION-CANON.md` — 2026-08-17 사본 갱신으로 처음 받았다):
+     · 화면 전환 **300ms**(상한 400ms). 예전 500ms 는 **상한 초과**였다 — 정본 절을 모르던 사본으로
+       일하고 있어서 몰랐다. 「통지를 기다리지 말고 스스로 재라」가 이래서 규범이 됐다.
+     · 등장 이징 `cubic-bezier(0,0,.2,1)`(감속 착지).
+     · 물결 12s·콘페티 1.8s 는 각각 **앰비언트 루프**와 **축하 연출**이라 400ms 상한의 대상이 아니다.
+     · 등장 기본형은 정본이 `opacity+scale .98→1` 인데 여기선 **opacity 만** 쓴다 —
+       유저 확정 사양이 「짧은 페이드 1회」다. 기본형보다 유저 확정이 우선한다(둘 다 «슬라이드 인 금지» 안이다).
+   ★페이드는 «컨테이너 하나»에만 건다 — 자식마다 걸면 delay 를 넣고 싶어지고 그게 순차 등장이다(금지). */
 /* ★좌우 2단 — 좌 로고 단 / 우 내용 단(유저 확정 사양). 1024×768 «가로» 기준(iPad mini 2).
    세로 1단은 가로 화면에서 위아래가 남고 글씨가 작아 보인다 — 가로 화면은 «가로로» 나눠야 산다.
    ★구형 사파리: gap 은 flex 에서 안 먹는다(사파리 14.1+) — 폭·패딩으로 나눈다. */
 .dp-screen { position: relative; z-index: 1; width: 100%; padding: 28px 40px; text-align: center;
   display: -webkit-box; display: -webkit-flex; display: flex;
   -webkit-box-align: center; -webkit-align-items: center; align-items: center;
-  -webkit-animation: dp-fade .5s ease-out both; animation: dp-fade .5s ease-out both; }
+  -webkit-animation: dp-fade .3s cubic-bezier(0,0,.2,1) both; animation: dp-fade .3s cubic-bezier(0,0,.2,1) both; }
 @-webkit-keyframes dp-fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes dp-fade { from { opacity: 0 } to { opacity: 1 } }
 
