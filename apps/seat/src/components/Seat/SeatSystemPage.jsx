@@ -19,7 +19,7 @@ import StationScreen from './screens/StationScreen'
 import SeatBuildStamp from './components/SeatBuildStamp'
 import TablingPane from './components/TablingPane'
 import { checkStickyDiscipline } from './utils/seatDevGuard'
-import { dataLoadState } from './utils/seatLoadState'
+import { dataLoadState, syncWarning } from './utils/seatLoadState'
 import './Seat.css'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -99,6 +99,9 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
     errors: [live.loadError, liveStations.loadError],
     loadedAt: live.loadedAt,
   })
+  // ★실시간 끊김 알림 — 정상일 땐 **아무것도 띄우지 않는다**(첫 연결 중도 정상이다).
+  //   끊겨도 폴링 바닥선이 돌기 때문에 「끊김」과 함께 «그래도 얼마나 최신인가»를 같이 말한다(§8.2).
+  const syncWarn = syncWarning([live.syncStatus, liveStations.syncStatus], isLive)
   const { refetch: refetchOrders } = live
   const { refetch: refetchStations } = liveStations
   const retryLoad = useCallback(() => { refetchOrders(); refetchStations() }, [refetchOrders, refetchStations])
@@ -237,6 +240,18 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
           이유: 저장 실패는 한 번의 사건이라 토스트로 족하지만, 읽기 실패는 «지금 보고 있는 화면이 진실이 아니다»라는
           지속 상태다. 3.5초 뒤 사라지면 그 뒤로는 다시 「주문 없음」과 구별되지 않는다(고치려던 결함 그대로).
           위치도 스크롤포트 밖 — 스크롤해서 못 보고 지나칠 수 있는 자리에 두지 않는다. */}
+      {/* ★실시간 끊김 띠 — 헤더가 아니라 **헤더 아래 띠 자리**다.
+          헤더에 넣었더니 세로형(768)에서 역할 탭이 두 줄로 밀려 표가 한 줄 잘렸다(실측) —
+          «고장 났을 때 화면이 더 좁아지는» 구조는 고장 대응을 방해한다.
+          읽기 실패 띠가 떠 있으면 침묵한다: 읽기 실패가 더 나쁜 소식이고 그쪽 [다시 불러오기]가 이것도 덮는다
+          (알림 둘을 겹쳐 쌓으면 직원은 둘 다 안 읽는다). */}
+      {syncWarn && loadState !== 'failed' ? (
+        <div className="seat-syncwarn" role="status">
+          <span className="seat-syncwarn-msg"><b>{syncWarn.label}</b> — {syncWarn.detail}</span>
+          <button type="button" className="seat-btn seat-syncwarn-retry" onClick={retryLoad}>지금 새로고침</button>
+        </div>
+      ) : null}
+
       {loadState === 'failed' ? (
         <div className="seat-loadfail" role="alert">
           <span className="seat-loadfail-msg">

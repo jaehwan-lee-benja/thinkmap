@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@thinkmap/core'
 import { saveErrorMessage } from './useSeatOrders'
+import { useRealtimeSync } from './useRealtimeSync'
 
 // (order, station) 행 고유키 — UNIQUE(order_id, station) 대응.
 const rowKey = (orderId, station) => `${orderId}:${station}`
@@ -55,23 +56,11 @@ export function useStationStatus(businessDate, onError) {
 
   useEffect(() => { refetch() }, [refetch])
 
-  useEffect(() => {
-    if (!businessDate) return
-    let timer = null
-    const scheduleRefetch = () => {
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(() => { if (mountedRef.current) refetch() }, 250)
-    }
-    const channel = supabase
-      .channel(`seat_stations:${businessDate}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'seat_station_status', filter: `business_date=eq.${businessDate}` },
-        scheduleRefetch
-      )
-      .subscribe()
-    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel) }
-  }, [businessDate, refetch])
+  // 주문 훅과 **같은 세 겹**(단일점 ①) — 구현을 한 벌로 모았다. 스테이션만 한 겹으로 남으면
+  //   카이막/커피 태블릿에서 「올림 없음」이 멈춘 채 굳는다(주방 입장에선 «할 일 없음»으로 읽힌다).
+  const { status: syncStatus } = useRealtimeSync({
+    channel: 'seat_stations', table: 'seat_station_status', businessDate, refetch,
+  })
 
   // (order, station) 행 upsert — workspace_id 는 DB 트리거가 부모 order 에서 강제.
   // 낙관적 로컬 갱신 + 저장 대기 마킹으로 변동사항 입력 유실을 막는다.
@@ -96,5 +85,5 @@ export function useStationStatus(businessDate, onError) {
     if (error) { console.error('useStationStatus.patch', error); onError?.(saveErrorMessage(error)); refetch() }
   }, [businessDate, refetch, onError])
 
-  return { stations, loadError, loadedAt, refetch, patchStation }
+  return { stations, loadError, loadedAt, syncStatus, refetch, patchStation }
 }

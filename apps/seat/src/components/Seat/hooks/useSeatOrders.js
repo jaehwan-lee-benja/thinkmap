@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@thinkmap/core'
 import { deliverPatch } from '../utils/seatRules'
+import { useRealtimeSync } from './useRealtimeSync'
 
 // 저장 실패 사유 → 직원용 문구(주방에서 멀리서도 읽히게 짧게). UNIQUE 충돌 등 원인별.
 export function saveErrorMessage(error) {
@@ -63,24 +64,12 @@ export function useSeatOrders(businessDate, onError) {
   useEffect(() => { refetch() }, [refetch])
 
   // Realtime: 같은 영업일의 변경을 구독 → 모든 역할 화면 1~2초 내 갱신(R7). last-write-wins.
-  // 타이핑 중 self-write 이벤트 폭주를 디바운스로 합쳐 refetch 횟수·경합을 줄인다(250ms ≪ R7 1~2s).
-  useEffect(() => {
-    if (!businessDate) return
-    let timer = null
-    const scheduleRefetch = () => {
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(() => { if (mountedRef.current) refetch() }, 250)
-    }
-    const channel = supabase
-      .channel(`seat_orders:${businessDate}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'seat_orders', filter: `business_date=eq.${businessDate}` },
-        scheduleRefetch
-      )
-      .subscribe()
-    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel) }
-  }, [businessDate, refetch])
+  //   ★구독은 **한 겹이 아니다**(2026-08-17 단일점 ①) — 끊김 감지·재구독 + 깨어남 refetch + 저빈도 폴링까지
+  //   useRealtimeSync 가 함께 든다. 전에는 `.subscribe()` 의 상태를 아무도 안 봐서 조용히 죽으면 화면이
+  //   끊긴 시점의 스냅샷을 «최신인 얼굴로» 계속 보여줬다. 디바운스도 그 안으로 옮겼다(중복 구현 제거).
+  const { status: syncStatus } = useRealtimeSync({
+    channel: 'seat_orders', table: 'seat_orders', businessDate, refetch,
+  })
 
   // 새 주문 행 생성(queue_no·workspace_id 는 DB 트리거가 부여)
   const createOrder = useCallback(async (draft = {}) => {
@@ -163,5 +152,5 @@ export function useSeatOrders(businessDate, onError) {
     return patchOrder(id, { ...deliverPatch(), ...extra })
   }, [patchOrder])
 
-  return { orders, loading, loadError, loadedAt, refetch, createOrder, patchOrder, commitOrder, deleteOrder, resetToday, undoResetToday }
+  return { orders, loading, loadError, loadedAt, syncStatus, refetch, createOrder, patchOrder, commitOrder, deleteOrder, resetToday, undoResetToday }
 }

@@ -1390,6 +1390,33 @@
 .seat-camera-placeholder-title { font-weight: 500; margin-bottom: 4px; }
 .seat-camera-placeholder-sub { color: var(--md-on-surface-variant); opacity: .7; }
 
+/* ── 실시간 끊김 띠 — 헤더 **아래**, 읽기 실패 띠와 같은 자리 (단일점 ①) ──────────
+   ★처음엔 헤더 안 칩으로 만들었다가 옮겼다: 세로형(768)에서 역할 탭이 두 줄로 밀려 표가 한 줄 잘렸다(실측).
+     «고장 났을 때 화면이 더 좁아지는» 구조는 고장 대응을 방해한다.
+   읽기 실패 띠보다 **낮은 소음**이다 — 읽기가 되는 한 화면은 폴링 바닥선으로 계속 맞춰지고,
+   끊긴 것은 «즉시성»뿐이다. 그래서 error 가 아닌 none(주의) 계열, 테두리만.
+   ※정상일 때 회색 점 같은 상시 표시는 두지 않는다 — 늘 켜진 표시는 곧 안 보이는 표시가 된다. */
+.seat-syncwarn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--md-surface-container-high);
+  color: var(--md-none);
+  font-size: 15px;
+  border-bottom: 1px solid var(--md-none);
+}
+.seat-syncwarn-msg { flex: 1 1 auto; min-width: 0; }
+.seat-syncwarn-retry {
+  flex: 0 0 auto;
+  min-height: 36px;
+  background: transparent;
+  color: inherit;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
 /* ── 읽기 실패 띠 — ★사라지지 않는다(2026-08-17 자가감사 단일점 ②) ──────────────
    저장 실패 토스트(아래)와 **성질이 다르다**: 저장 실패는 한 번의 사건이고, 읽기 실패는
    «지금 보이는 화면이 진실이 아니다»라는 지속 상태다. 토스트로 만들면 3.5초 뒤 다시
