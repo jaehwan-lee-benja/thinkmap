@@ -32,16 +32,22 @@ live_check() {
   echo "── 라이브 검증 ($BASE)"
   local html; html="$(curl -fsS "$BASE/" 2>/dev/null)" || { echo "  ✗ index.html 을 못 받았다"; return 1; }
   # index.html 이 가리키는 **실제 자산**을 꺼내 그것으로 검증한다(내 dist 이름을 믿지 않는다).
+  # ★`|| true` 가 붙는 이유 — 이게 없으면 **안내 문구가 영영 안 나온다**(2026-08-17 실증).
+  #   `grep` 은 «못 찾음»을 exit 1 로 알린다. `set -e` + `pipefail` 아래서 이 대입이 실패하면
+  #   스크립트가 **바로 죽어** 바로 아래 친절한 안내에 **도달하지 못한다.**
+  #   ★함정은 이게 «조용하다»는 것이다: `||` 문맥(배포 경로)에서는 안내가 뜨고,
+  #     직접 호출(`--verify` 경로)에서는 **아무 말 없이 exit 1** 이라 두 경로가 다르게 동작한다.
+  #     「틀린 값을 보는 것」보다 나쁘다 — **틀린 줄도 모른 채 조용해진다.**
   local js css
-  js="$(printf '%s' "$html" | grep -oE '/thinkmap/seat/assets/[^"]+\.js' | head -1)"
-  css="$(printf '%s' "$html" | grep -oE '/thinkmap/seat/assets/[^"]+\.css' | head -1)"
-  [ -n "$js" ] || { echo "  ✗ index.html 에서 js 자산을 못 찾았다"; return 1; }
+  js="$(printf '%s' "$html" | grep -oE '/thinkmap/seat/assets/[^"]+\.js' | head -1 || true)"
+  css="$(printf '%s' "$html" | grep -oE '/thinkmap/seat/assets/[^"]+\.css' | head -1 || true)"
+  [ -n "$js" ] || { echo "  ✗ index.html 에서 js 자산을 못 찾았다(페이지가 바뀌었거나 배포가 안 나갔다)"; return 1; }
   for a in "$js" "$css"; do
     local code; code="$(curl -s -o /dev/null -w '%{http_code}' "https://jaehwan-lee-benja.github.io$a")"
     if [ "$code" = "200" ]; then echo "  ✓ $code  $a"; else echo "  ✗ $code  $a"; fail=1; fi
   done
   local body; body="$(curl -fsS "https://jaehwan-lee-benja.github.io$js")" || { echo "  ✗ js 본문을 못 받았다"; return 1; }
-  echo "  · 라이브 버전 스탬프: $(printf '%s' "$body" | grep -oE 'v[0-9]+\.[0-9]+(-[0-9]+)?' | head -1)"
+  echo "  · 라이브 버전 스탬프: $(printf '%s' "$body" | grep -oE 'v[0-9]+\.[0-9]+(-[0-9]+)?' | head -1 || echo '(못 읽음)')"
   for lit in "${LITERALS[@]}"; do
     if printf '%s' "$body" | grep -qF "$lit"; then echo "  ✓ 대조군: $lit"
     else echo "  ✗ 대조군 없음(새 코드가 안 나갔다): $lit"; fail=1; fi
