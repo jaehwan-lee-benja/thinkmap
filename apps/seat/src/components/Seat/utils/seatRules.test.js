@@ -8,6 +8,7 @@ import {
   isTakeoutMaybe, deliverModeLabel, showsTakeoutLabel, raiseIgnored,
   isWaitingOrder, isRaisedOrder, isArchived,
   raiseDetailText, orderLabel, groupByQueue, queueSuffixes,
+  raiseMethodOf, optOf, OPT_NONE,
 } from './seatRules'
 
 // 최소 주문 — 실제 컬럼 기본값과 같게(DB DEFAULT 기준).
@@ -240,5 +241,40 @@ describe('제조옵션 — 단일 선택 보장', () => {
   it('isParallel — 완료 버튼 파랑의 근거', () => {
     expect(isParallel(o({ opt_outdoor_parallel: true }))).toBe(true)
     expect(isParallel(o({ opt_outdoor: true }))).toBe(false)
+  })
+})
+
+describe('raiseMethodOf ↔ optOf — ★순서를 하나로 통일했다(2026-08-17, 실측으로 닫음)', () => {
+  // 전에는 두 함수가 서로 다른 우선순위를 썼다(여기만 「포장 먼저」). 두 컬럼이 동시에 true 면
+  // **화면 드롭다운은 「야외」인데 올림취소 이력은 「포장」**으로 갈렸다.
+  // 미뤄 온 이유는 「구 데이터에 그런 행이 있는지 몰라서」였고, 프로덕션 읽기 1쿼리로 닫았다:
+  //   294행 중 동시 true = 1행, 그 1행은 raised=false·raise_canceled=null 이라 이 함수가 호출조차 안 된다 ⇒ 영향 0.
+  const O = (over) => ({ opt_outdoor: false, opt_takeout: false, opt_outdoor_parallel: false, ...over })
+
+  it('★도달 가능한 모든 조합(하나만 true)에서 **동작 동일** — 통일이 기존 동작을 안 바꿨다는 증거', () => {
+    // 쓰기 경로는 전부 optPatch 를 지나 «하나만 true» 를 보장한다. 그 전 구현의 답을 여기 그대로 적어 대조한다.
+    const before = (o) => (o.opt_takeout ? 'takeout' : o.opt_outdoor ? 'outdoor' : o.opt_outdoor_parallel ? 'parallel' : 'direct')
+    for (const over of [{}, { opt_outdoor: true }, { opt_takeout: true }, { opt_outdoor_parallel: true }]) {
+      const o = O(over)
+      expect(raiseMethodOf(o), JSON.stringify(over)).toBe(before(o))
+    }
+  })
+
+  it('★동시 true 인 구 행에서는 이제 **드롭다운과 같은 라벨**을 낸다(전에는 갈렸다)', () => {
+    // 이 한 줄이 이번 변경의 전부다. 이게 없으면 위 「동작 동일」만 남아 아무것도 안 바꾼 것처럼 보인다.
+    const legacy = O({ opt_takeout: true, opt_outdoor: true })
+    expect(optOf(legacy)).toBe('outdoor')
+    expect(raiseMethodOf(legacy)).toBe('outdoor')   // 전에는 'takeout' 이었다
+  })
+
+  it('두 함수가 **한 순서만** 쓴다 — 셋 다 켜져도 답이 갈리지 않는다', () => {
+    const all = O({ opt_takeout: true, opt_outdoor: true, opt_outdoor_parallel: true })
+    expect(raiseMethodOf(all)).toBe(optOf(all))
+  })
+
+  it('옵션 없음은 direct — 「제조옵션 없음」과 「직접 올림」은 다른 낱말이라 여기서만 갈린다', () => {
+    expect(optOf(O({}))).toBe(OPT_NONE)
+    expect(raiseMethodOf(O({}))).toBe('direct')
+    expect(raiseMethodOf(null)).toBe('direct')
   })
 })

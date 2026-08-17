@@ -167,12 +167,19 @@ export const undeliverPatch = () => ({
   deliver_mode: null,
 })
 
-// R10 «올림취소 방식» 판정 — ★우선순위가 optOf 와 다르다(포장 먼저).
-//   구 코드가 그랬고, 두 컬럼이 동시에 true 인 행이 있으면 이력 라벨이 갈리므로 **그대로 보존**한다(기능 변경 0).
-//   현재 쓰기 경로는 전부 optPatch 를 통과해 «하나만 true» 를 보장하니 실제로 갈릴 일은 없다.
-export const raiseMethodOf = (o) => o?.opt_takeout ? 'takeout'
-  : o?.opt_outdoor ? 'outdoor'
-  : o?.opt_outdoor_parallel ? 'parallel' : 'direct'
+// R10 «올림취소 방식» 판정 — ★**optOf 와 같은 하나의 순서**를 쓴다(2026-08-17 수렴).
+//   전에는 여기만 «포장 먼저»였고 optOf 는 «야외 먼저»라, 두 컬럼이 동시에 true 인 행에서
+//   **화면 드롭다운은 「야외」인데 올림취소 이력은 「포장」**으로 갈렸다. 순서가 둘이면 언젠가 갈린다.
+//   미뤄 온 이유는 「구 데이터에 그런 행이 있는지 몰라서」였다 — **실측으로 닫았다**(orch 승인, 읽기 전용 1쿼리):
+//     `seat_orders` 294행 중 동시 true = **1행**(2026-07-20, id a1000000-…-0004 = 손으로 만든 시드 꼴).
+//     그 1행은 `raised=false` · `raise_canceled=null` 이라 **이 함수가 애초에 호출되지 않는다** ⇒ 관측 영향 **0**.
+//   ⇒ 순서를 optOf 로 통일한다. 단일 true 행에서는 두 순서가 원래 같은 답을 내므로
+//     **도달 가능한 모든 데이터에서 동작 동일**이고, 그 1행은 이제 드롭다운과 같은 라벨을 받는다(갈림 해소).
+//   ※함수 본문에서 참조하므로 정의 순서는 무관하다(호출 시점엔 모듈 const 가 모두 초기화돼 있다).
+export const raiseMethodOf = (o) => {
+  const v = optOf(o)
+  return v === OPT_NONE ? 'direct' : v
+}
 
 // 제조옵션(야외/포장/야외병행) — 실제로는 **단일 선택**인데 boolean 3개로 저장한다.
 //   여기를 통하면 «셋 중 둘이 켜진» 상태를 코드가 만들 수 없다. v: 'outdoor'|'takeout'|'parallel'|'none'
