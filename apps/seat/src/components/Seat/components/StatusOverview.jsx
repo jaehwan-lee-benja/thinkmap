@@ -3,8 +3,13 @@
 import QueueChips from './QueueChips'
 import { STATIONS } from '../config/seatRoles'
 import { isWaitingOrder, isRaisedOrder } from '../utils/seatRules'
+import { emptyText } from '../utils/seatLoadState'
 
-export default function StatusOverview({ orders = [], stations = [] }) {
+// ★loadState 를 받는 이유(2026-08-18 D 트랙 적발): 이 화면의 「— … 없음 —」 셋이
+//   emptyText 를 **안 거치고 있었다.** SPEC 에는 「빈 자리 문구는 전부 이걸 거친다」고 적혀 있었는데
+//   현황 모달만 빠져 있었다 — **문서는 닫혔는데 코드는 안 닫힌** 자리다.
+//   읽기 실패 때 여기가 「— 대기 없음 —」이라 말하면 단일점 ② 결함이 그대로 살아 있는 것이다.
+export default function StatusOverview({ orders = [], stations = [], loadState = 'ready' }) {
   const waiting = orders.filter(isWaitingOrder)
   const raised = orders.filter(isRaisedOrder)
   // 어느 스테이션이든 완료면 '완료'로 집계(주문서관리 관점과 동일).
@@ -16,15 +21,15 @@ export default function StatusOverview({ orders = [], stations = [] }) {
     <div className="seat-manager-side">
       <div className="seat-panel">
         <div className="seat-panel-title">자리 후 (대기중)</div>
-        <div className="seat-panel-body"><QueueChips orders={waiting} empty="— 대기 없음 —" /></div>
+        <div className="seat-panel-body"><QueueChips orders={waiting} empty={emptyText(loadState, '— 대기 없음 —')} /></div>
       </div>
       <div className="seat-panel">
         <div className="seat-panel-title">올림 (자리잡음)</div>
-        <div className="seat-panel-body"><QueueChips orders={active} empty="— 올림 없음 —" /></div>
+        <div className="seat-panel-body"><QueueChips orders={active} empty={emptyText(loadState, '— 올림 없음 —')} /></div>
       </div>
       <div className="seat-panel">
         <div className="seat-panel-title">완료된 리스트</div>
-        <div className="seat-panel-body"><QueueChips orders={completed} empty="— 완료 없음 —" done /></div>
+        <div className="seat-panel-body"><QueueChips orders={completed} empty={emptyText(loadState, '— 완료 없음 —')} done /></div>
       </div>
       {/* 제조 현황 거울 — 카이막·커피(올라감/제조완료함). StationScreen 과 동일 분류(R6). */}
       <div className="seat-panel">

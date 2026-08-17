@@ -224,7 +224,7 @@ export default function SeatSystemPage({ session, demoOrders, demoStations, init
       />
 
       <SeatModal open={statusOpen} title="현황" onClose={() => setStatusOpen(false)}>
-        <StatusOverview orders={orders} stations={stations} />
+        <StatusOverview orders={orders} stations={stations} loadState={loadState} />
       </SeatModal>
 
       {/* 통계 — 오늘은 화면 데이터 그대로, 지난 날짜는 그 날짜로 조회(라이브에서만). */}
