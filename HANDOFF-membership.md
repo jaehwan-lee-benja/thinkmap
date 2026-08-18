@@ -1,6 +1,6 @@
 # HANDOFF — membership 통합세션 인계
 
-> 갱신 **2026-08-17**(전판 08-04·157줄을 **증류**) · 브랜치 `feat/membership-kiosk`(업스트림 없음) · 워크트리 clean · 테스트 **228 통과/38 skip**
+> 갱신 **2026-08-18**(08-17 증류 157→107 · 08-18 회원님 카드 경로 규약 교체) · 브랜치 `feat/membership-kiosk`(업스트림 없음) · 워크트리 clean · 테스트 **228 통과/38 skip**
 > 읽는 순서: 이 문서 → `docs/MEMBERSHIP-KIOSK-SPEC.md` → `docs/RECEIPT-PRINT-SPEC.md` → `~/claude-project/docs/POPCORN-LOOP-SPEC.md`
 > 인박스 `~/claude-project/msg/to-membership.md` · **보고는 `msg/to-orch.md`**(08-11 타깃 변경 — to-conductor 아니다)
 
@@ -75,7 +75,8 @@ apps/membership ─build:storage▶ dist-storage/ ─┬▶ Supabase Storage(kio
 ## 7. 작업 규율
 - **하드 게이트**: 배포·마이그·푸시는 유저 승인 없이 안 한다. **남이 받은 «유저 직접 발주»는 내 배포 승인이 아니다.** 게이트 직전까지 끝내고 대기.
 - **DB DDL**: SQL 제시 → supabase-guardian → 유저 승인 → 소유 세션 적용. 회원 데이터는 **crm 소유**, 우리는 Edge 계약 소비자.
-- **보고** to-orch append · 인박스 처리 후 `✅` · **전달은 복사하지 않는다**(「인박스 확인해」만) · 유저 결정 필요 시 **AskUserQuestion 금지**(to-orch 에 옵션+권고).
+- **보고** to-orch append(헤더는 `python3 ~/claude-project/scribe/tools/hdr.py` 로 찍고 끝에 `· 작성:` 줄) · 인박스 처리 후 `✅` · **전달은 복사하지 않는다**(「인박스 확인해」만) · 유저 결정 필요 시 **AskUserQuestion 금지**(to-orch 에 옵션+권고).
+- ★**회원님 카드는 직접 발행하지 않는다**(2026-08-18 규약): **도메인 → orch → conductor → 회원님**. 나는 «요지+사실»만 to-orch 에 올리고 문면은 scribe, 발행은 conductor 다. **낱장 금지**(기존 묶음 카드의 항목으로). 긴급 예외 = 즉시 위험 ∧ 지연이 위험을 키움 ∧ 되돌리기<지연, **셋 다** 맞을 때만이고 그때도 동시 통지.
 - **커밋 메시지에 고객 식별정보 금지**(08-11 히스토리 재작성의 원인 — 지우는 값이 지우기보다 비쌌다). `<uuid>`·「고객A」로.
 - 배포 후 **시각QA**(768x1024: 팔레트·잘림·정렬·콘솔).
 
