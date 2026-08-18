@@ -11,19 +11,43 @@ import { supabase } from './supabaseClient.js'
 //   **직원/고객 화면에 착지**한다. 원인은 redirectTo 가 `origin + BASE_URL` 로 «고정»이라
 //   쿼리를 통째로 버리는 것 — OAuth 공급자가 잃는 게 아니라 우리가 안 실어 보낸다.
 //
-// ★redirectTo 에 쿼리를 붙이지 않고 «세션 저장소 왕복»으로 푼 이유: redirectTo 를 바꾸면
+// ★redirectTo 에 쿼리를 붙이지 않고 «저장소 왕복»으로 푼 이유: redirectTo 를 바꾸면
 //   Supabase 리다이렉트 허용목록 매칭에 걸릴 수 있고, 그 실패는 «Site URL 로 폴백»이라
 //   조용하다. 저장소 경로는 공급자 설정을 하나도 안 건드린다.
 const AUTH_RETURN_KEY = 'tm.auth.returnSearch'
 
+// ★★`sessionStorage` → `localStorage` (2026-08-18 현장 재현에서 역산).
+//   `sessionStorage` 는 **탭(브라우징 컨텍스트) 단위**다. 그런데 iOS 에서 홈 화면에 추가한
+//   standalone 웹앱이 구글 로그인으로 나갔다가 돌아올 때 **돌아오는 곳이 같은 컨텍스트라는 보장이 없다**
+//   (사파리로 튕겨 착지하는 경로가 있다). 그러면 스태시는 **원리적으로 안 보이고**, 우리는
+//   「고쳤는데 현장에서 안 된다」를 얻는다 — 실제로 그 형태였다.
+//   ⇒ 저장소를 **오리진 단위(localStorage)**로 올린다. 대신 «오래 사는» 값이 되므로 **TTL 을 같이 넣는다**:
+//     탭 수명이 해 주던 «자동 만료»를 잃었으니 그 몫을 시간이 대신한다.
+//   ※TTL 10분 = 「로그인 왕복 하나」의 넉넉한 상한. 그보다 오래된 스태시는 왕복의 산물이 아니다.
+const AUTH_RETURN_TTL_MS = 10 * 60 * 1000
+
 /**
  * 왕복 후 되돌아갈 주소를 «계산만» 한다(부수효과 없음 — 그래서 시험할 수 있다).
+ * @param currentSearch 지금 주소의 search
+ * @param stashed       저장된 값(구형: 문자열 그대로 / 신형: `{s,t}` JSON)
+ * @param now           현재 시각(ms) — 주입해서 시험한다
  * @returns 이동할 search 문자열, 또는 이동하지 않아야 하면 null
  */
-export function computeReturnSearch(currentSearch, stashed) {
+export function computeReturnSearch(currentSearch, stashed, now = Date.now()) {
   if (stashed == null || stashed === '') return null   // 쿼리를 안 쓰던 앱은 완전 no-op
-  if (currentSearch === stashed) return null           // 이미 제자리 — 다시 이동하면 무한 루프
-  return stashed
+  let search = stashed
+  if (stashed.charAt(0) === '{') {
+    // 신형(JSON). ★파싱 실패는 «무시»한다 — 남의 키와 충돌하거나 값이 깨졌을 때
+    //   엉뚱한 곳으로 보내느니 아무 일도 안 하는 편이 안전하다.
+    let parsed = null
+    try { parsed = JSON.parse(stashed) } catch { return null }
+    if (!parsed || typeof parsed.s !== 'string') return null
+    if (typeof parsed.t === 'number' && now - parsed.t > AUTH_RETURN_TTL_MS) return null  // 만료
+    search = parsed.s
+  }
+  if (search === '') return null
+  if (currentSearch === search) return null            // 이미 제자리 — 다시 이동하면 무한 루프
+  return search
 }
 
 /**
@@ -40,16 +64,24 @@ function stashReturnSearch() {
   try {
     const s = window.location.search
     // ★빈 경우 «지운다» — 안 지우면 지난 로그인의 찌꺼기가 다음 평범한 로그인을 엉뚱한 데로 보낸다.
-    if (s) window.sessionStorage.setItem(AUTH_RETURN_KEY, s)
-    else window.sessionStorage.removeItem(AUTH_RETURN_KEY)
+    if (s) window.localStorage.setItem(AUTH_RETURN_KEY, JSON.stringify({ s, t: Date.now() }))
+    else window.localStorage.removeItem(AUTH_RETURN_KEY)
+    // 구형 자리(sessionStorage)에 남아 있던 값은 같이 치운다 — 두 자리가 서로 다른 답을 들고 있으면
+    // 「고쳤는데 가끔 엉뚱하다」가 된다. 이관은 «두 자리를 남기지 않는» 것까지가 이관이다.
+    window.sessionStorage.removeItem(AUTH_RETURN_KEY)
   } catch { /* 저장소 차단 환경 — 기존 동작(쿼리 소실)으로 조용히 폴백 */ }
 }
 
 function restoreReturnSearch() {
   let stashed = null
   try {
-    stashed = window.sessionStorage.getItem(AUTH_RETURN_KEY)
-    if (stashed != null) window.sessionStorage.removeItem(AUTH_RETURN_KEY)  // ★이동 «전에» 지운다(루프 차단)
+    stashed = window.localStorage.getItem(AUTH_RETURN_KEY)
+    // ★구형 자리 폴백 — 이 배포 «직전에» 로그인을 시작한 왕복이 하나 떠 있을 수 있다.
+    //   배포 경계를 넘는 왕복이 조용히 실패하지 않게 한 판만 받아 준다.
+    if (stashed == null) stashed = window.sessionStorage.getItem(AUTH_RETURN_KEY)
+    // ★이동 «전에» 지운다(루프 차단). 두 자리 다 지운다.
+    window.localStorage.removeItem(AUTH_RETURN_KEY)
+    window.sessionStorage.removeItem(AUTH_RETURN_KEY)
   } catch { return }
   const target = computeReturnSearch(window.location.search, stashed)
   if (!target) return

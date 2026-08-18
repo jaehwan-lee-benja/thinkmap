@@ -29,3 +29,35 @@ describe('로그인 왕복 후 복원 대상 계산', () => {
     expect(computeReturnSearch('?code=x', q)).toBe(q)
   })
 })
+
+// ★신형 저장 형태(localStorage + TTL) — 2026-08-18 현장 재현에서 도입.
+//   sessionStorage 는 «탭 단위»라 iOS 홈화면 웹앱의 로그인 왕복이 다른 컨텍스트로 착지하면
+//   스태시가 원리적으로 안 보인다. 오리진 단위로 올리는 대신 «탭 수명»이 해 주던 만료를 TTL 로 대신한다.
+describe('신형 스태시(JSON + TTL)', () => {
+  const T0 = 1_700_000_000_000
+  const wrap = (s, t = T0) => JSON.stringify({ s, t })
+
+  it('★TTL 안이면 복원한다', () => {
+    expect(computeReturnSearch('?code=x', wrap('?role=display'), T0 + 60_000)).toBe('?role=display')
+  })
+
+  it('★TTL 을 넘긴 스태시는 «없는 것»으로 친다 — 어제 것이 오늘 로그인을 납치하지 않게', () => {
+    expect(computeReturnSearch('?code=x', wrap('?role=display'), T0 + 11 * 60_000)).toBe(null)
+    // 경계 바로 안쪽은 살아 있어야 한다(경계를 «닫힌 쪽»으로 재는지 확인 — 판별력)
+    expect(computeReturnSearch('?code=x', wrap('?role=display'), T0 + 10 * 60_000)).toBe('?role=display')
+  })
+
+  it('★구형 문자열도 그대로 읽는다 — 배포 경계를 넘는 왕복이 하나 떠 있다', () => {
+    expect(computeReturnSearch('?code=x', '?role=staff', T0)).toBe('?role=staff')
+  })
+
+  it('★깨진 값·남의 값은 «아무 일도 안 한다»(엉뚱한 데로 보내느니 no-op)', () => {
+    expect(computeReturnSearch('?code=x', '{not json', T0)).toBe(null)
+    expect(computeReturnSearch('?code=x', '{"other":1}', T0)).toBe(null)
+    expect(computeReturnSearch('?code=x', wrap(''), T0)).toBe(null)
+  })
+
+  it('신형에서도 «이미 제자리»면 이동하지 않는다(무한 리로드 차단)', () => {
+    expect(computeReturnSearch('?role=display', wrap('?role=display'), T0)).toBe(null)
+  })
+})

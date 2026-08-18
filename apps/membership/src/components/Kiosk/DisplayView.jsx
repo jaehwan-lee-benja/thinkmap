@@ -5,10 +5,12 @@
 //   (TicketView 와 같은 이유 — 이 화면을 여는 태블릿에 로그인을 요구하면 검증부터 막힌다).
 // 2차(다음): `membership_query` 실소비 + `membership_events` Realtime 구독으로 스캔에 반응.
 //
-// 확정 스펙(재질문 없이 고정 — 유저 확정):
+// 확정 스펙(재질문 없이 고정 — 유저 확정. 정본 = `docs/DISPLAY-SPEC.md`):
 //   A 크림 배경 · 이름 별표 마스킹 · 로고 로크업(완료=상단 / 대기=히어로) · multiply 로 크림에 녹임 ·
-//   글씨 이름 ~100px·수치 ~54px·멘트 ~33px · 모션=페이드 1회 «동시»·로고 정지·물결 수평·콘페티 ·
+//   글씨 이름 ~92px·수치 ~54px·멘트 ~33px · 모션=페이드 1회 «동시»·로고 정지·콘페티 ·
 //   슬라이드 인·순차 등장 금지 · 대기 화면엔 버튼 없음 · 구형 사파리(아이패드 미니) 대응.
+//   ★2026-08-18 현장 개정: **기기 방향 «세로» 확정 · 배치 «상 로고 / 하 내용» · 물결 제거 ·
+//     상시 움직임 0.** 남는 움직임은 등장 페이드 1회와 스캔 순간 콘페티 1회뿐이다.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMembershipChannel } from './useMembershipChannel'
 import './display.css'
@@ -160,7 +162,6 @@ export default function DisplayView({ store }) {
             <div className="dp-invite">참여하기<em>(가입하기)</em>는<br />멤버십 키오스크에서 가능합니다</div>
           </div>
         </div>
-        <div className="dp-waves" aria-hidden="true" />
       </div>
     )
   }
@@ -194,7 +195,6 @@ export default function DisplayView({ store }) {
           : <Facts m={m} />}
         </div>
       </div>
-      <div className="dp-waves" aria-hidden="true" />
       <FsHint show={needHint && !hintOff} onClose={() => setHintOff(true)} />
     </div>
   )
