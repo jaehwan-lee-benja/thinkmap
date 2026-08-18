@@ -26,6 +26,16 @@ export function computeReturnSearch(currentSearch, stashed) {
   return stashed
 }
 
+/**
+ * 복귀 주소 계산 — ★순수 함수로 뺀다(자체시험이 «본 경로와 같은 코드»를 치게).
+ * base 가 절대 URL 이면 그건 «자산 위치»다 — 문서 위치(pathname)로 돌아와야 한다.
+ * @returns 복귀 주소
+ */
+export function computeRedirectUrl(origin, base, pathname) {
+  const abs = /^(https?:)?\/\//i.test(String(base || ''))
+  return abs ? origin + pathname : origin + base
+}
+
 function stashReturnSearch() {
   try {
     const s = window.location.search
@@ -154,7 +164,14 @@ export const useAuth = () => {
                            currentHostname.startsWith('172.')
 
       // redirectUrl을 현재 origin + 앱 base 로 고정 (위성은 자기 base 로 자동 대응)
-      const redirectUrl = currentOrigin + BASE_URL
+      // ★긴급 교정(2026-08-08 membership 재현 · 2026-08-18 반입) — **BASE_URL 이 절대 URL 인 빌드가 있다.**
+      //   키오스크는 자산을 Supabase Storage 에서 받으려 `base` 를 절대 URL 로 굽는다(`APP_BASE`).
+      //   그때 종전 식은 `https://host` + `https://sqisnt…/kiosk/` 로 **두 URL 이 이어붙은 기형 문자열**이
+      //   되고 redirect_to 가 무효라 **구글 계정 선택 뒤 복귀가 깨진다**(유저 3기기 동일 = 결정적 결함).
+      //   ⇒ base 가 절대면 그건 **자산 위치**이지 문서 위치가 아니다. 돌아올 곳은 **지금 이 문서**다.
+      //   ※상대 base(모선·기존 위성 전부)에서는 결과가 **한 바이트도 안 달라진다** — 그 분기만 더한다.
+      //   ※쿼리 보존은 별 축이다 — 이 파일의 `stashReturnSearch`/`restoreReturnSearch` 가 담당한다.
+      const redirectUrl = computeRedirectUrl(currentOrigin, BASE_URL, window.location.pathname)
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
