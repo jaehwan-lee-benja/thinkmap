@@ -15,7 +15,12 @@ python3 - "$F" <<'PY'
 import sys
 p=sys.argv[1]
 b=open(p,'rb').read().decode('utf-8',errors='replace')
-heads=[l for l in b.split('\n') if l.startswith('## ')]
+# ★코드블록(```) 안의 «예시 헤더»는 세지 않는다 — 2026-08-17 실측: 규칙 문서의 예시 2줄을
+#   미처리로 세서 «미처리 3» 이라고 말했다(진짜는 1). «시끄럽다 ≠ 더럽다» 를 내 계수기가 냈다.
+heads=[]; fenced=False
+for l in b.split('\n'):
+    if l.lstrip().startswith('```'): fenced = not fenced; continue
+    if not fenced and l.startswith('## '): heads.append(l)
 un=[l for l in heads if not l.startswith('## ✅')]
 print(f"  총 {len(heads)}블록 · 미처리 {len(un)}")
 for l in un: print("   ○ "+l[:120])
