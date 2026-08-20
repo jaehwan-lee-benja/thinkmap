@@ -115,6 +115,14 @@
 - **DB DDL**: SQL 제시 → supabase-guardian 검수 → 유저 명시 승인 → 소유 통합세션 적용. 회원 데이터는 **crm 소유**(multi-store) — 우리는 Edge 계약 소비자다. 티켓 모델은 thinkmap DB `crm` 스키마(0018/0019 적용 완료·Edge 라이브).
 - **보고**: `~/claude-project/msg/to-orch.md`에 `## [FROM membership → TO orch · 주제: … · 날짜] · 작성: …` 헤더로 append. 인박스 `msg/to-membership.md`는 **처리한 블록의 헤더 «앞»에 `## ✅ `** 마킹. 전달은 복사하지 않고 "인박스 확인해"만.
 - **유저 결정이 필요하면** AskUserQuestion 금지 — **«요지 + 사실»을 `to-orch` 에** 올리고 유휴 대기.
+- ★★**인박스 편집은 `msg-edit.sh` 로만**(2026-08-20 · 이 세션은 런처 주입 «이전» 기동이라 못 받았다).
+  · `✅` 부착 = `sh ~/claude-project/warroom/msg-edit.sh mark msg/to-thinkmap.md '<헤더 부분문자열>'`
+  · 본문 추가 = `sh ~/claude-project/warroom/msg-edit.sh append msg/to-orch.md <본문파일>`
+  · ★**파이썬·에디터로 «전체 읽기 → 치환 → 전체 쓰기» 금지** · **`cat >>` 도 쓰지 마라**(잠금 밖이다).
+  · 왜: 여러 세션이 같은 함을 read-modify-write 하면 **lost update** — 붙인 `✅` 가 원복되고 쓴 블록이 사라진다
+    (2026-08-18 실물 2건). ★**소음이 아니라 «기록 유실»**이다. 도구가 ⑴mkdir 잠금 ⑵tmp+`mv` 원자 교체
+    ⑶쓴 뒤 되읽기 확인 셋을 강제한다.
+  · ★**«이번엔 안 났다»는 «날 수 없다»가 아니다** — 동시 편집 창은 열려 있었다.
 - ★★**완료·마디 보고는 «칸»으로 쓴다**(2026-08-20 신설 · 정본 `msg/양식정본.md` §7). 4칸을 **지우지 않는다**:
   ```
   ■ 결과: <3~6문장. 과정·분석은 파일에 두고 경로만>
