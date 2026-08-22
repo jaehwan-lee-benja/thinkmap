@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import NumberPadModal from './NumberPadModal'
 import { formatPhone } from './kioskUtils'
+import { useVisualViewport, dismissKeyboard } from './useVisualViewport'
 import MaskedPhone from './MaskedPhone'
 import { signupMember, CONTRACT_PENDING } from '../../api/membership'
 
@@ -29,6 +30,9 @@ export default function CustomerSignupScreen({ onDone, onEnter, initialPhone = '
   const [status, setStatus] = useState('idle') // idle | submitting | done | dup | error
   const [errMsg, setErrMsg] = useState('')
   const [pending, setPending] = useState(false)   // 승격 전(=아직 조회 안 됨)
+
+  // ★시트를 «보이는 영역»에 놓기 위한 실측값(키보드 pan 대응 — useVisualViewport.js 주석 참조).
+  const vv = useVisualViewport(domOpen)
 
   const domain = emailDomain === CUSTOM ? emailCustom.trim() : emailDomain
   const email = `${emailLocal.trim()}@${domain}`
@@ -150,7 +154,7 @@ export default function CustomerSignupScreen({ onDone, onEnter, initialPhone = '
                  안드로이드 WebView 의 select 팝업은 **우리 CSS 밖**에서 그려져 위치·크기를 우리가 통제할 수
                  없다 — 뷰포트를 넘으면 잘리는 걸 막을 방법이 없다. ⇒ 팝업을 안 쓰고 **우리가 그리는 시트**로
                  바꿨다(2택 시트와 같은 문법). 어르신 기준 큰 터치 타겟이라는 이점도 같이 온다. */
-              <button type="button" className="mk-email-dom mk-dom-btn" onClick={() => setDomOpen(true)} disabled={submitting}>
+              <button type="button" className="mk-email-dom mk-dom-btn" onClick={() => { dismissKeyboard(); setDomOpen(true) }} disabled={submitting}>
                 {emailDomain || <span className="mk-phone-ph">도메인 선택</span>}
               </button>
             )}
@@ -175,10 +179,15 @@ export default function CustomerSignupScreen({ onDone, onEnter, initialPhone = '
 
       {/* 도메인 선택 시트 — 화면 밖으로 나갈 수 없다(우리가 그리므로 항상 뷰포트 안). */}
       {domOpen && (
-        <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="이메일 도메인 선택"
+        <div className="mk-pick-overlay mk-dom-overlay" role="dialog" aria-modal="true" aria-label="이메일 도메인 선택"
+          /* ★«보이는 영역»에 고정한다 — 키보드가 화면을 밀어 올려도(adjustPan) 시트가 그 안에 남는다.
+               visualViewport 가 없는 브라우저에서는 style 이 비어 CSS 기본 배치로 되돌아간다. */
+          style={vv ? { top: vv.top, height: vv.height, bottom: 'auto' } : undefined}
           onClick={(e) => { if (e.target === e.currentTarget) setDomOpen(false) }}>
           <div className="mk-pick mk-dom-sheet">
             <div className="mk-pick-q">이메일 주소를 고르세요</div>
+            {/* ★목록만 스크롤한다 — 제목과 [닫기] 는 시트에 «고정»이라 목록이 길어져도 안 밀린다.
+                (종전엔 셋이 한 흐름이라 세로 여유가 줄면 닫기가 먼저 밀려났다.) */}
             <div className="mk-dom-grid">
               {DOMAINS.map((d) => (
                 <button key={d} type="button" className={`mk-dom-opt ${emailDomain === d ? 'is-on' : ''}`}

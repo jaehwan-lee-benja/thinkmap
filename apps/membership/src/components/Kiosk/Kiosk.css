@@ -1064,7 +1064,31 @@
 .mk-dom-grid {
   width: 100%; display: grid; gap: 10px;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  max-height: 52vh; overflow-y: auto;
+  min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+
+/* ★세로형 리뉴얼(2026-08-22 · 현장 신고 「도메인 선택이 잘린다」).
+   ⑴시트를 «보이는 영역»(visualViewport)에 놓는 건 JSX 인라인이 한다 — 키보드 pan 대응.
+   ⑵여기서는 «높이 예산»을 정한다: 시트 전체가 보이는 영역을 넘지 않게 하고,
+      넘칠 수 있는 것은 **목록 하나뿐**으로 몰아 준다(제목·[닫기] 는 항상 남는다).
+   ⑶`52vh` 를 뺀 이유: vh 는 «레이아웃 뷰포트» 기준이라 키보드가 떠도 안 줄어든다 —
+      즉 «화면은 절반인데 목록은 여전히 52vh» 가 된다. 부모 높이(flex) 기준으로 바꾼다. */
+.mk-dom-overlay { align-items: flex-end; }
+.mk-dom-overlay .mk-dom-sheet {
+  max-height: 100%; overflow: hidden;          /* 시트가 보이는 영역을 넘지 않는다 */
+  display: flex; flex-direction: column;
+}
+.mk-dom-sheet .mk-pick-q,
+.mk-dom-sheet .mk-reset { flex: 0 0 auto; }    /* 제목·닫기는 안 줄어든다 */
+.mk-dom-sheet .mk-dom-grid { flex: 1 1 auto; } /* 남는 높이만 목록이 먹고, 모자라면 목록이 스크롤 */
+/* ★이 시트는 «예약 슬롯»(하단 막대) 위로 띄우지 않는다 — 바닥에 붙는 게 시트의 문법이고,
+   가입 화면에는 그 막대가 없다(빈 56px 만큼 시트가 떠 보였다 · 2026-08-22 실측). */
+.mk-role-customer .mk-dom-overlay { bottom: 0; }
+
+@media (orientation: portrait) {
+  /* 세로에서는 2열 — 4열이면 한 칸이 좁아 «@gmail.com» 이 줄바꿈되거나 글자가 눌린다. */
+  .mk-dom-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .mk-dom-opt { min-height: 68px; }            /* 어르신 기준 터치 타겟 확대 */
 }
 .mk-dom-opt {
   min-height: 60px; padding: 12px 14px; font: inherit; font-size: clamp(16px, 2.6vw, 19px); font-weight: 700;
