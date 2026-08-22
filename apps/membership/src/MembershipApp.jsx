@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { useAuth, supabase } from '@thinkmap/core'
 import MembershipKiosk from './components/Kiosk/MembershipKiosk'
 import { PREVIEW } from './api/membership'
+import { readRoleAndStore } from './components/Kiosk/kioskUtils'
 
 // 프리뷰용 가짜 세션 — 아래 진입 게이트가 세션 «존재»만 보므로 최소 형태면 충분하다.
 //   토큰은 문자열일 뿐 아무 데도 쓰이지 않는다(프리뷰에선 네트워크 호출 자체가 없다).
@@ -104,10 +105,18 @@ export default function MembershipApp() {
     return <Waiting text="계정 확인 중…" />
   }
 
+  // ★로그인 화면 타이틀 — display(손님 앞 iPad mini)만 «고객용 미니 화면».
+  //   여기서 role 을 다시 읽는 이유: 이 셸은 키오스크 본체(MembershipKiosk)보다 «앞»이라
+  //   그쪽 분기를 못 본다. 읽기 전용이고 부작용이 없다.
+  const loginTitle = readRoleAndStore().role === 'display' ? '고객용 미니 화면' : '멤버십 키오스크'
+
   // 세션 없음 — 로그인 화면(+ 미인가 거부 안내).
   return (
     <div className="pv-center pv-login">
-      <h1>멤버십 키오스크</h1>
+      {/* ★타이틀은 «전역 공용»이었다(2026-08-22 실측) — 이 화면은 role 과 무관하게 한 벌이다.
+          회원님 지시(16:08)는 «iPad mini 응원 화면»에 대한 것이라, 그 진입일 때만 가른다.
+          다른 role 의 로그인 문면은 한 글자도 안 바뀐다. */}
+      <h1>{loginTitle}</h1>
       {denied ? (
         <p className="pv-denied">권한 없는 계정입니다. <b>매장 계정</b>으로 로그인하세요.</p>
       ) : (
