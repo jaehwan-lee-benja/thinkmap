@@ -21,6 +21,7 @@ import { useTicketScan } from './useTicketScan'
 import ScanResultPanel from './ScanResultPanel'
 import { useMembershipChannel } from './useMembershipChannel'
 import { CONTRACT_PENDING, PREVIEW } from '../../api/membership'
+import BackofficeHomeButton from './BackofficeHomeButton'
 
 export default function StaffView({ store }) {
   const [digits, setDigits] = useState('')
@@ -64,6 +65,7 @@ export default function StaffView({ store }) {
   //   각 단은 **자기 안에서만 스크롤**한다 — 한쪽이 길어져도 반대쪽이 밀리지 않는다.
   return (
     <div className="mk-screen mk-staff">
+      <BackofficeHomeButton />
       {/* ★3단(유저 지시 2026-08-08: 「스캔 결과가 번호패드 위로 뜨는데, **왼쪽에 다른 단에 뜨는 감성**으로」).
           종전엔 스캔 결과가 같은 칸에서 **번호패드를 아래로 밀어냈다** — 조회하려던 직원이 패드를 잃는다.
           ⇒ 스캔은 **자기 칸**을 상시 차지한다(비었을 땐 대기 안내). 폭이 좁아지면 칸이 아래로 접힌다.

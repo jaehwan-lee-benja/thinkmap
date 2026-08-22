@@ -16,6 +16,7 @@ import ScanView from './ScanView'
 import PrinterView from './PrinterView'
 import TicketView from './TicketView'
 import DisplayView from './DisplayView'
+import LauncherView from './LauncherView'
 import { readRoleAndStore } from './kioskUtils'
 import { PREVIEW } from '../../api/membership'
 import './Kiosk.css'
@@ -35,6 +36,7 @@ export default function MembershipKiosk({ session }) {
         {role === 'printer' && <PrinterView store={store} />}
         {role === 'ticket' && <TicketView />}
         {role === 'display' && <DisplayView store={store} />}
+        {role === 'home' && <LauncherView store={store} />}
         {role === 'customer' && <CustomerView store={store} />}
       </main>
       {/* ★카운트다운 자리를 **상시 예약**한다(유저 2026-08-09: 「15초 칸이 생기면 전체 유아이가 위로

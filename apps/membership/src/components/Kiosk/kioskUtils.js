@@ -31,7 +31,9 @@ export function formatClaimDate(claimedAt) {
 
 // URL 파라미터 → 역할('customer' 기본 | 'staff' | 'editor'=영수증 편집 | 'scan'=카운터 회수
 //   | 'printer'=카운터 폰 인쇄 브리지 | 'ticket'=손님 폰 티켓 화면)과 매장 룸 id.
-export const ROLES = ['staff', 'editor', 'scan', 'printer', 'ticket', 'display', 'customer']
+// ★`home` = 백오피스 런처(링크만 있는 홈 · #7 2026-08-22). 직원 동선의 «출발점»이라
+//   STICKY 에도 넣는다 — 직원 기기가 바로가기로 열렸을 때 런처로 돌아오는 게 맞다.
+export const ROLES = ['staff', 'editor', 'scan', 'printer', 'ticket', 'display', 'home', 'customer']
 // ★`display`(응원화면)는 브랜치에 «없던» 역할이다 — 이 파일의 원본은 응원화면 이전 트리에서 왔고,
 //   그대로 가져오면 `?role=display` 가 «모르는 값»이 돼 **손님 앞 화면이 고객 키오스크로 떨어진다.**
 //   응원화면 태블릿이야말로 «용도가 고정된 기기»라 STICKY 에도 넣는다.
@@ -52,7 +54,7 @@ export const ROLES = ['staff', 'editor', 'scan', 'printer', 'ticket', 'display',
 //   ⚠`ticket`(손님 폰)은 저장·복원 대상이 아니다 — 그 화면은 URL 프래그먼트가 정본이고,
 //     남의 기기에 역할이 눌러앉으면 안 된다.
 const ROLE_KEY = 'mk.role'
-const STICKY_ROLES = ['staff', 'editor', 'scan', 'printer', 'display']
+const STICKY_ROLES = ['staff', 'editor', 'scan', 'printer', 'display', 'home']
 
 export function isStandalone(win) {
   const w = win || (typeof window !== 'undefined' ? window : null)

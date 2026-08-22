@@ -7,6 +7,7 @@ import { CONTRACT_PENDING } from '../../api/membership'
 import { charFromKey, ASCII_TOKEN_RE } from './scanInput'
 import { useTicketScan } from './useTicketScan'
 import ScanResultPanel from './ScanResultPanel'
+import BackofficeHomeButton from './BackofficeHomeButton'
 
 export default function ScanView() {
   const scan = useTicketScan()
@@ -28,6 +29,7 @@ export default function ScanView() {
 
   return (
     <div className="mk-scan">
+      <BackofficeHomeButton />
       <h2 className="mk-scan-title">팝콘 티켓 스캔</h2>
       <input
         ref={inputRef}

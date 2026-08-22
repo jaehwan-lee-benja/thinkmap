@@ -15,6 +15,7 @@ import { printReceipt, loadTemplate, saveTemplate } from '../../receipt/print'
 import { loadConfig, saveConfig, DEFAULT_CONFIG, configOverrides } from '../../receipt/printerConfig'
 import { readPrintLog, clearPrintLog } from '../../receipt/printLog'
 import { todayStr } from './kioskUtils'
+import BackofficeHomeButton from './BackofficeHomeButton'
 const SAMPLE = { name: '홍*동', date: '2026-08-01 14:30', token: 'SR7K2M9QX4T2', stamp: '3/10' }
 
 // 의사 바코드(프리뷰 시각용 — 실인쇄는 프린터 CODE128 명령이라 스캔 정확성 불요).
@@ -93,6 +94,7 @@ export default function ReceiptEditor() {
 
   return (
     <div className="mk-editor">
+      <BackofficeHomeButton />
       <div className="mk-ed-panel">
         <div className="mk-ed-head">
           <h2>영수증 레이아웃</h2>
