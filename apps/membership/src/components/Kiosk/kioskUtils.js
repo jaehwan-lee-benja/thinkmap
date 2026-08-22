@@ -29,60 +29,82 @@ export function formatClaimDate(claimedAt) {
   return `${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-export const ROLES = ['staff', 'editor', 'scan', 'printer', 'ticket', 'display']
-const ROLE_PIN_KEY = 'tm.kiosk.role'
-
-/**
- * ★«기기 고정 역할» — 홈 화면 아이콘으로 실행할 때만 적용한다(2026-08-18 현장 실측에서 도입).
- *
- * 무엇을 고치나: 회원님 실측 — **홈 아이콘을 닫았다 다시 열어도 키오스크 화면 그대로**였다.
- *   iOS 홈화면 웹앱은 «시작 주소»가 아니라 **마지막 상태**를 복원하기 때문이다. 한 번이라도
- *   `?role=` 없는 주소에 착지하면(로그인 왕복 실패 등) 그 기기는 **영영 거기서 시작**한다.
- *
- * ★왜 standalone 에만 거는가: 이 «눌러붙음»은 전용 기기에서는 원하는 성질이고, 일반 브라우저에서는
- *   사고다(회원님이 폰으로 한 번 열어 본 것이 계속 응원화면으로 뜨면 안 된다). standalone 여부는
- *   그 둘을 정확히 가르는 유일한 관측값이라 **조건을 거기에 건다.**
- *
- * 순수 함수 — 실제 저장소·환경 판정은 호출부가 주입한다(그래서 시험할 수 있다).
- * @param urlRole   주소의 `?role=` 값(없으면 null)
- * @param pinned    기기에 고정된 역할(없으면 null)
- * @param standalone 홈 화면 아이콘으로 실행 중인가
- * @returns {{role:string, pin:string|null}} 쓸 역할과, 새로 «고정할» 값(null=고정 안 함)
- */
-export function resolveRole(urlRole, pinned, standalone) {
-  const valid = (r) => (ROLES.indexOf(r) >= 0 ? r : null)
-  const fromUrl = valid(urlRole)
-  // 주소가 역할을 말하면 그게 항상 이긴다 — 고정값이 주소를 덮으면 사람이 주소로 고칠 수 없게 된다.
-  if (fromUrl) return { role: fromUrl, pin: standalone ? fromUrl : null }
-  // ★`?role=customer` 는 «말하지 않은 것»이 아니라 **명시적 해제**다. 되돌릴 손잡이가 없으면
-  //   눌러붙은 기기를 주소로 못 푼다 — 되돌릴 수 없는 고정은 고정이 아니라 고장이다.
-  if (urlRole != null) return { role: 'customer', pin: standalone ? '' : null }
-  if (standalone) { const p = valid(pinned); if (p) return { role: p, pin: null } }
-  return { role: 'customer', pin: null }
-}
-
-function isStandalone() {
-  try {
-    return window.navigator.standalone === true
-      || (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches)
-  } catch { return false }
-}
-
 // URL 파라미터 → 역할('customer' 기본 | 'staff' | 'editor'=영수증 편집 | 'scan'=카운터 회수
-//   | 'printer'=카운터 폰 인쇄 브리지 | 'ticket'=손님 폰 티켓 화면
-//   | 'display'=매장 응원 화면)과 매장 룸 id.
-export function readRoleAndStore() {
-  const p = new URLSearchParams(window.location.search)
-  const standalone = isStandalone()
-  let pinned = null
-  try { pinned = window.localStorage.getItem(ROLE_PIN_KEY) } catch { /* 저장소 차단 — 고정 없이 간다 */ }
-  const { role, pin } = resolveRole(p.get('role'), pinned, standalone)
-  if (pin != null) {
-    try {
-      if (pin) window.localStorage.setItem(ROLE_PIN_KEY, pin)
-      else window.localStorage.removeItem(ROLE_PIN_KEY)
-    } catch { /* 저장소 차단 — 고정은 포기하고 이번 판만 산다 */ }
+//   | 'printer'=카운터 폰 인쇄 브리지 | 'ticket'=손님 폰 티켓 화면)과 매장 룸 id.
+export const ROLES = ['staff', 'editor', 'scan', 'printer', 'ticket', 'display', 'customer']
+// ★`display`(응원화면)는 브랜치에 «없던» 역할이다 — 이 파일의 원본은 응원화면 이전 트리에서 왔고,
+//   그대로 가져오면 `?role=display` 가 «모르는 값»이 돼 **손님 앞 화면이 고객 키오스크로 떨어진다.**
+//   응원화면 태블릿이야말로 «용도가 고정된 기기»라 STICKY 에도 넣는다.
+
+// ★홈 바로가기에서 «역할이 사라지는» 문제(2026-08-22 현장 신고 #2)의 근본 원인과 대응.
+//
+//   원인: iOS 는 사이트에 **웹 매니페스트가 있으면 «홈 화면에 추가» 시 «지금 보던 URL»이 아니라
+//   매니페스트의 `start_url` 을 저장한다.** 우리 `manifest.json` 의 `start_url` 은 `"./"` 라
+//   **쿼리가 없다** ⇒ 바로가기로 열면 `?role=staff` 가 사라지고 **고객 화면**이 뜬다.
+//   ⚠사파리에서 같은 주소를 열면 멀쩡한 이유가 이것이다(그쪽은 실제 URL 을 그대로 연다).
+//   ※서비스워커 캐시가 아니다 — 이 앱엔 SW 가 없다(`index.html` 주석).
+//
+//   대응(두 겹):
+//   ⑴**기억한다**: URL 에 역할이 «명시»되면 그 값을 저장한다(이 기기는 그 역할로 쓰는 기기다).
+//   ⑵**되살린다**: URL 에 역할이 없고 **standalone(홈 바로가기)으로 열렸을 때만** 저장값을 쓴다.
+//     ⚠브라우저 탭에서는 절대 되살리지 않는다 — 고객 키오스크가 «예전에 직원으로 열렸다»는
+//     이유로 고객 화면을 못 여는 사고를 막기 위해서다. 되살림은 «바로가기»라는 좁은 문에서만.
+//   ⚠`ticket`(손님 폰)은 저장·복원 대상이 아니다 — 그 화면은 URL 프래그먼트가 정본이고,
+//     남의 기기에 역할이 눌러앉으면 안 된다.
+const ROLE_KEY = 'mk.role'
+const STICKY_ROLES = ['staff', 'editor', 'scan', 'printer', 'display']
+
+export function isStandalone(win) {
+  const w = win || (typeof window !== 'undefined' ? window : null)
+  if (!w) return false
+  // iOS 사파리(구형 포함)는 `navigator.standalone` 만 있고 display-mode 미디어쿼리가 없다.
+  if (w.navigator && w.navigator.standalone === true) return true
+  if (typeof w.matchMedia !== 'function') return false
+  try {
+    return w.matchMedia('(display-mode: standalone)').matches ||
+           w.matchMedia('(display-mode: fullscreen)').matches
+  } catch (e) { return false }
+}
+
+// 순수 함수 — 시험 가능하게 «입력»만 받는다(URL 검색문자열 · 저장값 · standalone 여부).
+export function pickRole(search, remembered, standalone) {
+  const p = new URLSearchParams(search || '')
+  const r = p.get('role')
+  if (r && ROLES.indexOf(r) >= 0) return { role: r, source: 'url' }
+  if (r) return { role: 'customer', source: 'url-unknown' }   // 모르는 값은 «고객»으로(안전 기본값)
+  if (standalone && remembered && STICKY_ROLES.indexOf(remembered) >= 0) {
+    return { role: remembered, source: 'remembered' }
   }
+  return { role: 'customer', source: 'default' }
+}
+
+// ★옛 키 1회 폴백 — 2026-08-18 판이 `tm.kiosk.role` 에 썼다. 이 배포 경계를 넘는 기기가 있을 수 있어
+//   «읽기»만 받아 준다(쓰기는 새 키로만 → 자연히 이관된다). 이관은 «두 자리를 남기지 않는» 것까지가 이관이다.
+const LEGACY_ROLE_KEY = 'tm.kiosk.role'
+function readRemembered() {
+  try {
+    const v = window.localStorage.getItem(ROLE_KEY)
+    if (v != null) return v
+    const legacy = window.localStorage.getItem(LEGACY_ROLE_KEY)
+    if (legacy != null) { window.localStorage.removeItem(LEGACY_ROLE_KEY); return legacy }
+    return null
+  } catch (e) { return null }
+}
+function remember(role) {
+  try {
+    if (STICKY_ROLES.indexOf(role) >= 0) window.localStorage.setItem(ROLE_KEY, role)
+  } catch (e) { /* 저장 실패는 조용히 무시 — 없어도 URL 경로는 그대로 동작한다 */ }
+}
+// 「홈으로」·기기 용도 변경 때 쓸 수 있게 열어 둔다(#7 에서 소비 예정).
+export function forgetRole() {
+  try { window.localStorage.removeItem(ROLE_KEY); window.localStorage.removeItem(LEGACY_ROLE_KEY) } catch (e) { /* noop */ }
+}
+
+export function readRoleAndStore() {
+  const search = window.location.search
+  const picked = pickRole(search, readRemembered(), isStandalone())
+  if (picked.source === 'url') remember(picked.role)
+  const p = new URLSearchParams(search)
   const store = p.get('store') || import.meta.env.VITE_MEMBERSHIP_STORE || 'default'
-  return { role, store }
+  return { role: picked.role, store, roleSource: picked.source }
 }

@@ -8,6 +8,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     <meta name="theme-color" content="#16181C" />
     <!-- PWA 전체화면 키오스크 (SW 없음 — 캐시 고착 회피, 빈번 재배포). manifest+홈추가로 fullscreen. -->
+    <!-- ★알아 둘 것(2026-08-22 현장 #2 의 원인): iOS 는 매니페스트가 있으면 «홈 화면에 추가» 때
+         «보던 URL»이 아니라 매니페스트의 `start_url`("./")을 저장한다 ⇒ 바로가기로 열면
+         `?role=staff` 가 사라져 **고객 화면**이 뜬다(사파리에서는 멀쩡하다).
+         ⇒ 대응은 `kioskUtils.js` 의 pickRole: 명시 역할을 기억했다가 **standalone 일 때만** 되살린다.
+         ⚠`start_url` 을 손대 «역할별 매니페스트»를 만들지 마라 — 기기마다 달라 정본이 갈라진다. -->
     <!-- ★%BASE_URL% 로 써야 한다(2026-08-08): 상대경로로 두면 **문서 URL 기준**으로 풀려서
          Edge Function 서빙(`/functions/v1/kiosk`)에서는 `/functions/v1/manifest.json` 을 찾아 404 가 된다.
          vite 가 빌드 시 base 로 치환한다 — 어느 서빙 경로에서도 맞는다. -->
