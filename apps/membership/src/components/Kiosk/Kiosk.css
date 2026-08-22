@@ -1369,3 +1369,30 @@ body:has(.mk-preview-bar) .mk-build { top: 32px; }
 }
 .mk-done-home:active { transform: scale(.98); }
 @media (prefers-reduced-motion: reduce) { .mk-done-home:active { transform: none } }
+
+/* ═══ 백오피스 런처 + 「홈으로」(#7 · 2026-08-22) ══════════════════════════════
+   ★건조한 스타일: 장식선·그래디언트 없이 «목록»으로만 읽히게 한다. 카드 안 카드 금지.
+   ★웹폰트를 새로 부르지 않는다 — 정본 스택(var(--mk-font-*))만 쓴다. */
+.mk-launcher { display: flex; flex-direction: column; gap: clamp(14px, 2.5vh, 24px); padding: clamp(16px, 3vw, 32px); }
+.mk-launcher-head { display: flex; flex-direction: column; gap: 4px; }
+.mk-launcher-title { font-family: var(--mk-font-title); font-weight: 700; font-size: clamp(22px, 4.4vw, 32px); color: var(--md-on-surface); }
+.mk-launcher-sub { font-size: clamp(14px, 2.4vw, 17px); color: var(--md-on-surface-variant); }
+.mk-launcher-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.mk-launcher-item {
+  width: 100%; min-height: 72px; padding: 14px 16px; font: inherit; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+  border: 1px solid var(--md-outline-variant); border-radius: var(--md-radius-md);
+}
+.mk-launcher-item-name { font-weight: 700; font-size: clamp(17px, 2.8vw, 20px); }
+.mk-launcher-item-desc { font-size: clamp(13px, 2.2vw, 16px); color: var(--md-on-surface-variant); }
+.mk-launcher-item:active { transform: scale(.995); }
+@media (prefers-reduced-motion: reduce) { .mk-launcher-item:active { transform: none } }
+.mk-launcher-foot { margin-top: auto; display: flex; justify-content: flex-start; }
+
+/* 「홈으로」 — 직원 화면 좌상단. 손님 화면(customer·ticket·display)에는 붙지 않는다. */
+.mk-bo-home {
+  align-self: flex-start; min-height: 40px; padding: 8px 14px; font: inherit; font-size: clamp(14px, 2.2vw, 16px);
+  font-weight: 600; cursor: pointer; background: var(--md-surface-container-low); color: var(--md-on-surface-variant);
+  border: 1px solid var(--md-outline-variant); border-radius: var(--md-radius-md);
+}
