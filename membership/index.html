@@ -25,8 +25,8 @@
     <meta name="apple-mobile-web-app-title" content="멤버십" />
     <link rel="apple-touch-icon" href="/thinkmap/membership/icons/icon.svg" />
     <title>멤버십 키오스크 · ThinkMap</title>
-    <script type="module" crossorigin src="/thinkmap/membership/assets/index-DNfaiM_m.js"></script>
-    <link rel="stylesheet" crossorigin href="/thinkmap/membership/assets/index-oSR9dbcB.css">
+    <script type="module" crossorigin src="/thinkmap/membership/assets/index-CLPcauM-.js"></script>
+    <link rel="stylesheet" crossorigin href="/thinkmap/membership/assets/index-ITFCjyw8.css">
     <script type="module">import.meta.url;import("_").catch(()=>1);(async function*(){})().next();if(location.protocol!="file:"){window.__vite_is_modern_browser=true}</script>
     <script type="module">!function(){if(window.__vite_is_modern_browser)return;console.warn("vite: loading legacy chunks, syntax error above and the same error below should be ignored");var e=document.getElementById("vite-legacy-polyfill"),n=document.createElement("script");n.src=e.src,n.onload=function(){System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))},document.body.appendChild(n)}();</script>
   </head>
@@ -102,7 +102,23 @@
              렌더가 던져도 main.jsx 의 rAF 는 그대로 돌아 이 함수를 부른다. 그때 오버레이를 걷으면
              **안내마저 사라진 검은 화면**이 된다. 걷는 조건을 «루트에 내용이 있나»로 바꾼다. */
           var root = document.getElementById('root')
-          if (!root || root.children.length === 0) { showFail(); return }
+          if (root && root.children.length > 0) { lift(); return }
+          /* ★2026-08-22 교정 — 종전엔 «여기서 비어 있으면 곧장 showFail» 이었고 **다시 보지 않았다.**
+             그래서 첫 페인트가 rAF 2회보다 «조금» 늦기만 해도 오버레이가 **영영 남았다.**
+             그 오버레이는 `inset:0; z-index:2000` 이라 ★**모든 터치를 먹는다** — 화면은 떴는데
+             매장 태블릿이 안 눌리는 모양이 된다(역할별 실측에서 staff·editor 가 그랬다).
+             ⇒ «한 번 보고 판정»을 «생길 때까지 짧게 지켜보기»로 바꾼다.
+             ⚠iOS12 방어는 그대로다 — **비어 있는 동안에는 절대 걷지 않는다.** 끝까지 비면 그때 실패. */
+          var tries = 0
+          var poll = setInterval(function () {
+            if (done) { clearInterval(poll); return }
+            var r = document.getElementById('root')
+            if (r && r.children.length > 0) { clearInterval(poll); lift(); return }
+            if (++tries >= 50) { clearInterval(poll); showFail() }   /* 100ms × 50 = 5초 */
+          }, 100)
+        }
+        function lift() {
+          if (done) return
           done = true
           clearTimeout(slowT); clearTimeout(failT)
           if (el.parentNode) el.parentNode.removeChild(el)
@@ -115,6 +131,6 @@
     <div id="root"></div>
     <script nomodule>!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();</script>
     <script nomodule crossorigin id="vite-legacy-polyfill" src="/thinkmap/membership/assets/polyfills-legacy-wuY5XI7I.js"></script>
-    <script nomodule crossorigin id="vite-legacy-entry" data-src="/thinkmap/membership/assets/index-legacy-Cn-B0oqn.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
+    <script nomodule crossorigin id="vite-legacy-entry" data-src="/thinkmap/membership/assets/index-legacy-CUcdq0iC.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
   </body>
 </html>
