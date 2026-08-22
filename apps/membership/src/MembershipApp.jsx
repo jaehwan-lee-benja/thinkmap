@@ -76,12 +76,13 @@ export default function MembershipApp() {
     return () => { alive = false }
   }, [userId])
 
-  // ★떠나기 전에 `?role=`·`?store=` 를 맡겨 둔다 — 복귀 주소에는 쿼리를 실을 수 없다(main.jsx 주석).
-  const login = () => {
-    setDenied(false)
-    try { if (window.location.search) sessionStorage.setItem('mk-return-search', window.location.search) } catch (e) { /* noop */ }
-    handleGoogleLogin()
-  }
+  // ★쿼리 보존은 **여기가 아니라 `useAuth` 가** 한다 — `tm.auth.returnSearch`(localStorage + TTL).
+  //   머지(2026-08-22)로 이 자리에 브랜치판 스태시 `mk-return-search`(sessionStorage)가 같이 들어왔는데
+  //   **읽는 쪽이 어디에도 없었다**(소스 전수 1건 = 쓰기뿐). 지운다.
+  //   ⚠지우는 이유는 «죽어서»가 아니라 «살아 보여서»다 — 다음 사람이 이 줄을 보고 «복귀는 여기서 처리된다»고
+  //   읽으면, 진짜 처리부(useAuth)를 안 보고 고치게 된다. **두 자리가 서로 다른 답을 들고 있으면
+  //   「고쳤는데 가끔 엉뚱하다」가 된다.**
+  const login = () => { setDenied(false); handleGoogleLogin() }
 
   // ★프리뷰(`?preview=1`) — 로그인·인가 게이트 우회. **dev 서버에서만**(PREVIEW 정의부 참조).
   //   훅(useAuth·useEffect)은 위에서 이미 호출됐다 — 조기 return 이 훅 순서를 깨지 않는다(seat 과 같은 배치).
