@@ -18,15 +18,43 @@
     <!-- ★/thinkmap/membership/ 로 써야 한다(2026-08-08): 상대경로로 두면 **문서 URL 기준**으로 풀려서
          Edge Function 서빙(`/functions/v1/kiosk`)에서는 `/functions/v1/manifest.json` 을 찾아 404 가 된다.
          vite 가 빌드 시 base 로 치환한다 — 어느 서빙 경로에서도 맞는다. -->
-    <link rel="manifest" href="/thinkmap/membership/manifest.json" />
+    <!-- ★★매니페스트를 «iOS 에는 아예 안 준다»(2026-08-22 현장 #2 미적중에서). 왜 이 형태인가:
+         · iOS 는 **매니페스트가 있을 때만** A2HS 에 `start_url` 을 저장한다 ⇒ 없으면 «보던 URL 그대로»
+           (=`?role=display` 포함)를 저장한다. **바로가기가 스스로 역할을 들고 다니므로** 핀·저장소 공유
+           여부(standalone 상자 분리)를 **물을 필요가 없어진다** — 못 재는 질문을 «없앤다».
+         · iOS 에서 잃는 것은 **없다**: standalone=`apple-mobile-web-app-capable` · 아이콘=`apple-touch-icon`
+           · 이름=`apple-mobile-web-app-title` 이 각각 담당한다(배포 실물에서 4개 확인).
+         · Android/Chrome 은 **그대로 받는다**(매니페스트가 정적 링크와 «같게» 등록되는 것을 CDP 로 확인).
+           ⚠**단 매장 직원 키오스크는 이걸 «쓰지 않는다»** — CS-273N 은 **Fully Kiosk Browser** 가 시작 URL 을
+           직접 열고 **fullscreen 도 Fully 앱 설정**이 만든다(membership 실측 2026-08-22). 즉 여기서 지키는 것은
+           «현장 fullscreen» 이 아니라 **«우리가 아직 모르는 크롬 계열 진입점»** 하나다 — 값을 과장하지 않는다.
+           ⇒ 한 줄이 두 기기에 «반대로» 작용하는 단일 실패점을 만들지 않는다.
+         ★**«나중에 지운다»가 아니라 «처음부터 안 만든다»** — 지우는 형태는 「A2HS 가 DOM 을 언제 읽나」라는
+           **잴 수 없는 타이밍 질문**을 남긴다. 여기서는 iOS 에 그 요소가 **한 순간도 존재하지 않는다.**
+         ★삽입은 `<head>` 파싱 중 «동기»로 한다 — 크롬이 정적 링크와 같게 취급하도록. -->
+    <script>
+      (function () {
+        try {
+          var ua = navigator.userAgent || ''
+          // iPadOS 13+ 는 UA 가 Macintosh 로 나온다 — 터치 포인트로 가른다(iOS 12 iPad 는 iPad 로 나온다).
+          var isIOS = /iPad|iPhone|iPod/.test(ua) ||
+                      (/Macintosh/.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1)
+          if (isIOS) return
+          var l = document.createElement('link')
+          l.rel = 'manifest'
+          l.href = '/thinkmap/membership/manifest.json'
+          document.head.appendChild(l)
+        } catch (e) { /* 실패해도 앱은 그대로 뜬다 — 매니페스트는 설치 편의일 뿐이다 */ }
+      })()
+    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="멤버십" />
     <link rel="apple-touch-icon" href="/thinkmap/membership/icons/icon.svg" />
     <title>멤버십 키오스크 · ThinkMap</title>
-    <script type="module" crossorigin src="/thinkmap/membership/assets/index-CLPcauM-.js"></script>
-    <link rel="stylesheet" crossorigin href="/thinkmap/membership/assets/index-ITFCjyw8.css">
+    <script type="module" crossorigin src="/thinkmap/membership/assets/index-0RS2HPmN.js"></script>
+    <link rel="stylesheet" crossorigin href="/thinkmap/membership/assets/index-Y-151hwz.css">
     <script type="module">import.meta.url;import("_").catch(()=>1);(async function*(){})().next();if(location.protocol!="file:"){window.__vite_is_modern_browser=true}</script>
     <script type="module">!function(){if(window.__vite_is_modern_browser)return;console.warn("vite: loading legacy chunks, syntax error above and the same error below should be ignored");var e=document.getElementById("vite-legacy-polyfill"),n=document.createElement("script");n.src=e.src,n.onload=function(){System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))},document.body.appendChild(n)}();</script>
   </head>
@@ -131,6 +159,6 @@
     <div id="root"></div>
     <script nomodule>!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();</script>
     <script nomodule crossorigin id="vite-legacy-polyfill" src="/thinkmap/membership/assets/polyfills-legacy-wuY5XI7I.js"></script>
-    <script nomodule crossorigin id="vite-legacy-entry" data-src="/thinkmap/membership/assets/index-legacy-CUcdq0iC.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
+    <script nomodule crossorigin id="vite-legacy-entry" data-src="/thinkmap/membership/assets/index-legacy-Dg0PFxl3.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
   </body>
 </html>
