@@ -8,10 +8,9 @@
    하드코딩**돼 있었다 — base 가 다른 어떤 배포(Storage·cf-pages 루트·다른 하위경로)에서도 폰트가 404 라
    브랜드 서체가 통째로 시스템 폰트로 떨어진다. 상대 경로로 두면 vite 가 base 에 맞춰 다시 쓴다.
    ⇒ 이를 위해 폰트를 `public/` 에서 `src/fonts/` 로 옮겼다(public 은 vite 가 경로를 안 고쳐준다). */
-@font-face {
-  font-family: 'GmarketSans'; font-weight: 100 349; font-style: normal; font-display: swap;
-  src: url('../../fonts/GmarketSansTTFLight.ttf') format('truetype');
-}
+/* ★Light(2.4MB) 는 제거했다(2026-08-08 실측): 고객 홈·직원 허브·티켓 어느 화면도 이 파일을 **받지 않았다**
+   (받아온 건 Medium·Bold 뿐). 선언만 남겨두면 저장소·버킷에 2.4MB 를 이유 없이 지고 간다.
+   ※weight 300 같은 값을 쓰면 브라우저가 «가장 가까운 선언»(Medium)을 고른다 — 시스템 폰트로 떨어지지 않는다. */
 @font-face {
   font-family: 'GmarketSans'; font-weight: 350 599; font-style: normal; font-display: swap;
   src: url('../../fonts/GmarketSansTTFMedium.ttf') format('truetype');

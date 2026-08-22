@@ -3,8 +3,9 @@
 // 물리 키보드 지원: 마운트 중 window keydown 으로 0~9·Backspace·Enter·Esc 를 같은 state 로 처리
 //   (조회·가입 두 화면이 각자 NumberPad 를 쓰므로 한 번에 하나만 마운트 → 전역 리스너 안전).
 //   텍스트 입력(이름 등)에 포커스가 있으면 그쪽이 처리하도록 양보한다.
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatPhone } from './kioskUtils'
+import MaskedPhone from './MaskedPhone'
 import { BURST_GAP_MS } from './useScanner'
 import './NumberPad.css'
 
@@ -24,7 +25,13 @@ export default function NumberPad({
   //   프리필을 쓰는 화면은 '010' 을 준다 — 비우면 손님이 010 을 매번 다시 눌러야 해서
   //   프리필의 이점이 사라진다.
   clearTo = '',
+  // ★번호 가림(유저 지시 2026-08-08: 「번호 가림 별표 효과 + 번호 보기 체크박스」).
+  //   목적 = **매장 뒤에 선 손님에게 번호가 보이지 않게**. 그래서 고객 화면에서만 켠다(직원 화면은
+  //   화면이 직원을 향하고 번호를 여러 건 다뤄야 해서 가리면 오히려 오입력을 만든다 — 판단 근거를 남긴다).
+  //   ⚠**자릿수는 보여준다**(● 개수). 아무것도 안 보이면 어르신이 «몇 개 눌렀는지»를 잃는다.
+  mask = false,
 }) {
+  const [reveal, setReveal] = useState(false)
   const canSubmit = !disabled && !submitDisabled && digits.length >= 10
 
   const press = (k) => {
@@ -107,8 +114,17 @@ export default function NumberPad({
   return (
     <div className={`mk-pad ${size === 'xl' ? 'mk-pad-xl' : ''}`}>
       <div className="mk-pad-display" aria-live="polite">
-        {digits ? formatPhone(digits) : <span className="mk-pad-placeholder">전화번호</span>}
+        {digits
+          ? (mask && !reveal ? <MaskedPhone digits={digits} /> : formatPhone(digits))
+          : <span className="mk-pad-placeholder">전화번호</span>}
       </div>
+      {mask && (
+        /* 체크박스 자체는 작아도 **라벨 전체가 터치 영역**이다(어르신 기준). */
+        <label className="mk-pad-reveal">
+          <input type="checkbox" checked={reveal} onChange={(e) => setReveal(e.target.checked)} />
+          <span>번호 보기</span>
+        </label>
+      )}
       <div className="mk-pad-grid">
         {KEYS.map((k) => (
           <button

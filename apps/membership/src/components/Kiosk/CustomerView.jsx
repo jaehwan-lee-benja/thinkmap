@@ -10,6 +10,7 @@ import IdleReset, { IDLE_RESET_EVENT } from './IdleReset'
 import { useMemberLookup } from './useMemberLookup'
 import { useMembershipChannel } from './useMembershipChannel'
 import { CONTRACT_PENDING } from '../../api/membership'
+import { formatPhone } from './kioskUtils'
 
 // ★전화번호 프리필(2026-08-06 유저 지시 «010은 기본적으로 적혀있도록»).
 //   ⚠︎010 을 **고정(잠금)하지 않는다** — 011/016/017/018/019 도 유효 번호라(검증 정규식 `^01[016789]`)
@@ -17,9 +18,44 @@ import { CONTRACT_PENDING } from '../../api/membership'
 //   [전체지움]은 빈칸이 아니라 010 으로 되돌린다(그래야 프리필이 실효).
 const PHONE_PREFILL = '010'
 
+// ★«조회했지만 회원 카드를 못 보여주는» 결과 화면 — 한 벌.
+//   두 경우가 쓴다: ⑴미가입 번호 ⑵방금 가입했는데 승격 전이라 조회에 안 잡히는 번호.
+//   둘은 **문구·버튼만** 다르다. 종전엔 골격(화면·카드·마크·번호·유휴 30초)을 통째로 두 번 적어 놨고,
+//   그러면 「번호 표시를 고쳐라」 같은 지시가 왔을 때 한쪽만 고쳐진다 — «두 벌이 되면 한쪽이 낡는다».
+//   ★유휴 복귀 30초/경고 15초는 두 경우 공통 정책이라 여기 한 곳에 둔다: 남의 정보가 없는 화면이고,
+//     읽고 버튼을 누를 시간이 필요하다(조회 결과의 15초를 그대로 쓰면 결정 전에 화면이 사라진다).
+function NoneResult({ digits, title, sub, actions }) {
+  return (
+    <div className="mk-screen mk-customer-view mk-none-view">
+      <IdleReset enabled armed sec={30} warn={15} />
+      <div className="mk-card mk-none-card">
+        <img className="mk-none-mark" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="" aria-hidden="true" />
+        <div className="mk-none-title">{title}</div>
+        <div className="mk-none-num">{formatPhone(digits)}</div>
+        <p className="mk-none-sub">{sub}</p>
+        <div className="mk-none-acts">
+          {actions.map((a) => (
+            <button key={a.label} type="button" className={a.primary ? 'mk-none-btn is-primary' : 'mk-none-btn'} onClick={a.onClick}>
+              <span className="mk-none-btn-label">{a.label}</span>
+              <span className="mk-none-btn-sub">{a.sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CustomerView({ store }) {
   const [digits, setDigits] = useState(PHONE_PREFILL)
   const [showSignup, setShowSignup] = useState(false)
+  // ★조회 전 재확인(유저 지시 2026-08-08: 「이 번호가 맞나요?」). ★이 모달 안에서는 **번호를 그대로 보여준다** —
+  //   가림의 목적은 «입력 중 어깨너머 노출» 방어이고, 확인의 목적은 «오입력 잡기»라 반대여야 한다(유저가 명시).
+  const [confirmNum, setConfirmNum] = useState(null)
+  // ★QR 국면 여부는 MemberCard 만 안다(그 안의 선택 상태) — 유휴 시간을 정하는 건 화면 소유자인 여기다.
+  const [dwell, setDwell] = useState(false)
+  // ★가입 직후 진입 여부 — 조회가 «못 찾음»으로 와도 미회원 화면을 띄우면 안 된다(바로 아래 주석).
+  const [justSignedUp, setJustSignedUp] = useState(false)
   const { status, member, history, claiming, redeeming, errMsg, lookup, claim, redeem, clear, setMemberDirect } = useMemberLookup()
 
   // 원격 푸시(직원 → 고객). 로컬과 같은 currentMember 로 세팅.
@@ -59,7 +95,15 @@ export default function CustomerView({ store }) {
     return r
   }
 
-  const resetAll = () => { setDigits(PHONE_PREFILL); clear() }
+  const resetAll = () => { setDigits(PHONE_PREFILL); clear(); setJustSignedUp(false) }
+
+  // 가입 완료 → 그 번호로 바로 조회해 «자기 페이지»로 들여보낸다.
+  const enterAfterSignup = (phone) => {
+    setShowSignup(false)
+    setDigits(phone)
+    setJustSignedUp(true)
+    lookup(phone)
+  }
 
   // ★«홈»의 정의: 가입폼 아님 + 조회 전 + 입력이 프리필뿐.
   //   ⚠︎프리필(`010`)은 **손님이 누른 게 아니다** — 그래서 «입력 있음»으로 치지 않는다.
@@ -75,8 +119,9 @@ export default function CustomerView({ store }) {
 
   if (showSignup) {
     return (<>
-      <IdleReset enabled armed />
-      <CustomerSignupScreen onDone={() => { setShowSignup(false); resetAll() }} />
+      {/* 가입 폼은 **길게**(120초) — 타이핑 중에 화면이 날아가면 안 된다. */}
+      <IdleReset enabled armed sec={120} />
+      <CustomerSignupScreen initialPhone={digits} onEnter={enterAfterSignup} onDone={() => { setShowSignup(false); resetAll() }} />
     </>)
   }
 
@@ -95,16 +140,53 @@ export default function CustomerView({ store }) {
     )
   }
 
+  // ★미회원 결과 = **자기 화면**(유저 지시 2026-08-08: 「번호 없을때, 멤버십 회원이 아니에요 + 다시 + 가입하기」).
+  //   종전엔 조회 화면 왼쪽에 작은 카드로 붙어 있어 «결과»로 읽히지 않았다(번호패드가 화면의 주인공이라).
+  //   문구는 탓하지 않는 톤 — «아직 …아니시네요». 보상 소구 없이 경험으로 권한다(보이스 §5.0).
+  //   유휴 복귀는 **30초**: 여기엔 남의 정보가 없고, 읽고 «가입하기»를 누를 시간이 필요하다
+  //   (조회 결과의 10초를 그대로 쓰면 결정하기 전에 화면이 사라진다).
+  if (status === 'notfound') {
+    // ★★가입 직후에 «못 찾음»이 오는 경우 — **미회원 화면을 띄우면 안 된다.**
+    //   원인은 손님이 아니라 우리 쪽이다: 신규 가입은 crm 에서 canonical 승격 전까지 조회에 안 잡힌다
+    //   (2026-08-08 실측 — `membership_intake` 가 POS 이력 없는 번호를 `pending/canonical_id=null` 로 넣고,
+    //    `membership_query` 는 canonical 연결을 요구한다. 승격 배치는 7/25 이후 안 돌았다).
+    //   방금 「가입 완료 🎉」를 본 손님에게 「아직 회원이 아니시네요」를 보이면 **거짓말이 된다** ⇒ 갈라 준다.
+    // ★셸은 한 벌이다(2026-08-09 리팩토링): 두 결과가 **문구·버튼만** 다른데 종전엔 같은 골격을
+    //   통째로 두 번 적어 놨다. 「번호 표시를 고친다」 같은 지시가 오면 한쪽만 고쳐질 자리였다.
+    return (
+      <NoneResult
+        digits={digits}
+        title={justSignedUp ? '가입이 완료됐어요!' : <>아직 멤버십 회원이<br />아니시네요</>}
+        sub={justSignedUp
+          ? <>조회 준비가 끝나면 이 번호로 확인하실 수 있어요.<br /><b>직원에게 말씀해 주시면</b> 바로 확인해 드립니다.</>
+          : '멤버십을 가입하면 사르르를 더욱 즐길 수 있습니다.'}
+        actions={justSignedUp
+          ? [{ label: '처음으로', sub: '첫 화면으로 돌아가기', primary: true, onClick: resetAll }]
+          : [
+            { label: '다시 입력', sub: '번호를 다시 누르기', onClick: resetAll },
+            { label: '가입하기', sub: '누른 번호로 바로 가입', primary: true, onClick: () => setShowSignup(true) },
+          ]}
+      />
+    )
+  }
+
   // ★조회 결과 = 전체화면 가득·큰 글씨(#4).
   if (status === 'found' && member) {
     return (
       <div className="mk-screen mk-customer-view mk-result-view">
-        <IdleReset enabled armed />
+        {/* ★조회 결과 유휴 복귀 = **15초**(유저 지시 2026-08-08, 10초에서 상향).
+            ★`warn`을 `sec`과 같게 줘서 **화면이 뜨는 순간부터 카운트가 보인다** —
+              「인쇄하고 나서 아래에 10초가 안 뜨네」의 원인이 이것이었다: 종전엔 발권 후 60초·경고 15초라
+              **앞 45초 동안 막대가 없었다.** 시간을 늘린 게 카운트를 숨긴 셈이 됐다.
+            ⚠QR 이 떠 있는 국면(2택 펼침·폰 선택)만 **60초** — 손님이 폰 카메라를 켜는 데 15초면 짧다.
+              그 국면에도 막대는 «처음부터» 보인다(숨기지 않고 시간만 늘린다). */}
+        <IdleReset enabled armed sec={dwell ? 60 : 15} warn={dwell ? 60 : 15} />
         <MemberCard
           variant="hero"
           printable={localPrint}   /* 기본 false — 인쇄는 카운터 폰이 맡는다(위 주석). 외장 프린터 달면 ?print=local */
           showQr                   /* ★손님 폰으로 옮겨갈 QR(유저 채택) — 고객 화면에서만 */
-          pickFlow                 /* ★«종이/폰» 2택 모달도 고객 화면에서만 — 직원 노트북을 덮으면 안 된다 */
+          pickFlow                 /* ★«종이/폰» 2택도 고객 화면에서만 — 직원 노트북을 덮으면 안 된다 */
+          onDwell={setDwell}       /* QR 국면 = 유휴 복귀를 늦춘다 */
           member={member} history={history} claiming={claiming} redeeming={redeeming} errMsg={errMsg}
           onClaim={claimAndPrint} onReset={resetAll} resetLabel="처음으로"
           /* ★onRedeem 을 넘기지 않는다(2026-08-04): 리워드 «수령» 은 되돌리는 API 가 없는 확정 행위인데
@@ -117,19 +199,39 @@ export default function CustomerView({ store }) {
 
   return (
     <div className="mk-screen mk-customer-view">
-      <IdleReset enabled armed={!isHome} />
+      {/* ★첫 페이지도 **15초**(유저 지시 2026-08-08: 「첫 페이지에서 번호를 눌렀다면 15초 카운트가
+          또 이뤄질 수 있게」). 키를 누를 때마다 리셋되고, 만료 시 입력이 프리필로 돌아간다.
+          ⇒ **반쯤 친 번호가 다음 손님에게 남아 있는 것**을 막는 축이기도 하다(가림과 같은 목적).
+          홈(프리필만)에서는 여전히 무장하지 않는다 — 되돌릴 것이 없는 화면에 카운트다운은 불안만 준다. */}
+      <IdleReset enabled armed={!isHome} sec={15} warn={15} />
+      {/* 조회 전 재확인 시트 — 오늘 만든 시트 문법과 통일(아래에서 올라옴·전체폭). */}
+      {confirmNum && (
+        <div className="mk-pick-overlay" role="dialog" aria-modal="true" aria-label="번호 확인"
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmNum(null) }}>
+          <div className="mk-pick mk-confirm-sheet">
+            <div className="mk-pick-q">이 번호가 맞나요?</div>
+            <div className="mk-confirm-num">{formatPhone(confirmNum)}</div>
+            <div className="mk-confirm-acts">
+              <button type="button" className="mk-none-btn" onClick={() => setConfirmNum(null)}>
+                <span className="mk-none-btn-label">아니요, 수정</span>
+                <span className="mk-none-btn-sub">번호를 다시 누르기</span>
+              </button>
+              <button type="button" className="mk-none-btn is-primary"
+                onClick={() => { const v = confirmNum; setConfirmNum(null); lookup(v) }}>
+                <span className="mk-none-btn-label">네, 조회하기</span>
+                <span className="mk-none-btn-sub">이 번호로 확인</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ★좌우 2분할 + 뷰포트높이 정렬(무스크롤). 좌=멘트+안내, 우=전화번호 입력. */}
       <div className="mk-lookup-split">
         {/* 좌: 사르르 로고 + 멘트 + 가입 안내 (첫 화면=로고만, 앰블럼 미배선 — 유저결정 2026-07-28) */}
         <div className="mk-lookup-left">
           <img className="mk-brand-logo" src={`${import.meta.env.BASE_URL}img/cow-mark-navy.png`} alt="사르르목장" />
           <div className="mk-lookup-ment">사르르목장 멤버십<br />이벤트에 참여해보세요!</div>
-          {status === 'notfound' && (
-            <div className="mk-card mk-card-none mk-signup-mini">
-              <p>아직 멤버십 회원이 아니세요.</p>
-              <button className="mk-reset" onClick={resetAll}>다시</button>
-            </div>
-          )}
         </div>
 
         {/* 우: 전화번호 입력(번호패드/조회) */}
@@ -137,10 +239,11 @@ export default function CustomerView({ store }) {
           <NumberPad
             digits={digits}
             onChange={(v) => { setDigits(v); if (status !== 'idle') clear() }}
-            onSubmit={() => lookup(digits)}
+            onSubmit={() => { if (digits.length >= 10) setConfirmNum(digits) }}
             submitLabel="조회"
             size="xl"
             clearTo={PHONE_PREFILL}
+            mask
           />
           {/* ★가입 안내 = 조회 버튼 «아래»(유저 지시 2026-08-06): 주 과업은 조회, 가입은 그 다음이라는 위계.
               어포던스 = 타원 텍스트링크 → **명백한 버튼**(테두리·그림자·즉시 눌림). 어르신 기준이라

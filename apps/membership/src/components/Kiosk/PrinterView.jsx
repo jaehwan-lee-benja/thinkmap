@@ -33,7 +33,12 @@ export default function PrinterView({ store }) {
   const seenRef = useRef({})                  // 같은 토큰 중복 인쇄 방지(세션 내)
 
   const doPrint = useCallback((job, manual) => {
-    const r = printReceipt({ name: job.name || '', date: job.date || todayStr(), token: job.token, stamp: job.stamp || '' })
+    // ★source: 자동 브리지(bridge)와 손으로 누른 재인쇄(reprint)를 나눠 기록한다 —
+    //   자동은 **사용자 제스처가 없어** 스킴이 차단될 수 있는 경로다(로그의 gestured 열로 갈린다).
+    const r = printReceipt(
+      { name: job.name || '', date: job.date || todayStr(), token: job.token, stamp: job.stamp || '' },
+      { source: manual ? 'reprint' : 'bridge' },
+    )
     setMsg(r.ok
       ? (manual ? '다시 인쇄를 요청했습니다 — 종이를 확인하세요.' : `인쇄 요청: ${job.token} — 종이를 확인하세요.`)
       : '인쇄를 시작하지 못했습니다 — RawBT 설치·프린터 연결을 확인하세요.')

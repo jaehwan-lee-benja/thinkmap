@@ -20,11 +20,13 @@ export function todayStr() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })
 }
 
-// claimed_at(ISO) → "N월 N일 N시에" (이벤트명은 JSX에서 태그로 강조). 로컬(KST) 시각.
-export function formatClaimPrefix(claimedAt) {
+// ★리스트 오른쪽 열에 쓸 «가지런한 날짜»(2026-08-08 유저 지시: 내용 좌·날짜 우).
+//   자릿수를 0 으로 채워 폭이 흔들리지 않게 한다 — 우측 정렬은 폭이 들쭉날쭉하면 정렬로 안 읽힌다.
+export function formatClaimDate(claimedAt) {
   const d = new Date(claimedAt)
   if (isNaN(d)) return String(claimedAt)
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours()}시에`
+  const p = (n) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 export const ROLES = ['staff', 'editor', 'scan', 'printer', 'ticket', 'display']

@@ -6,9 +6,9 @@
   "description": "멤버십 키오스크(Membership) 위성 — SITE-SPLIT Phase 6. @thinkmap/core 를 얹은 독립 배포 앱. 매장 태블릿에서 직원이 회원 조회·이벤트 적립, 고객이 180° 가입. 회원 데이터는 crm 소유(Edge 계약 소비).",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "VITE_MEMBERSHIP_REALTIME=${VITE_MEMBERSHIP_REALTIME:-1} vite build",
     "postbuild": "node ../../scripts/check-env-baked.mjs dist",
-    "build:storage": "APP_BASE=./ vite build --outDir dist-storage && node ../../scripts/check-env-baked.mjs dist-storage",
+    "build:storage": "VITE_MEMBERSHIP_REALTIME=${VITE_MEMBERSHIP_REALTIME:-1} APP_BASE=${STORAGE_BASE:-https://sqisntxippjzcekyhqyo.supabase.co/storage/v1/object/public/kiosk/} vite build --outDir dist-storage && node ../../scripts/check-env-baked.mjs dist-storage",
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist -e membership --add"
@@ -20,7 +20,11 @@
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@vitejs/plugin-legacy": "^5.4.3",
     "@vitejs/plugin-react": "^4.7.0",
-    "vite": "^5.4.21"
+    "postcss-custom-properties": "^12.1.11",
+    "regenerator-runtime": "^0.14.1",
+    "vite": "^5.4.21",
+    "whatwg-fetch": "^3.6.20"
   }
 }

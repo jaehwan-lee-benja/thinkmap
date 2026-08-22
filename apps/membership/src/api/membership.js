@@ -76,7 +76,11 @@ export function claimEvent(memberId, eventType, date) {
 }
 
 // ③ 가입: phone/name/email/consent(source:'kiosk'). crm intake 가 email→p_email 캡처(0013)·dedup·검증.
-// 반환: { member_id, created }
+// ★반환(2026-08-08 crm RPC 원문 실측 — 종전 주석 `{member_id, created}` 는 **틀렸다**):
+//     { ok:false, error:'invalid phone' }
+//   | { ok:true, dup:true }                    ← 이미 등록된 번호(새 행 없음)
+//   | { ok:true, dup:false, merged:boolean }   ← 신규. merged:false = canonical 승격 전(=아직 조회 안 됨)
+//   ⚠`member_id` 는 **오지 않는다.** 이 오기재가 화면의 «거짓 축하»를 낳았다(dup 을 성공으로 읽음).
 export function signupMember(payload) {
   return callProxy('membership-signup', { ...payload, source: 'kiosk' })
 }

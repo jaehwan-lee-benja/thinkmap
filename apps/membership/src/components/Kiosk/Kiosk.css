@@ -116,46 +116,47 @@
   font-family: inherit;
 }
 
-/* 타이틀 = G마켓산스 Bold(확정). 인사말·화면 제목·CTA 타이틀. */
-.mk-greeting, .mk-signup-head h2, .mk-cta-title, .mk-ml-head h2, .pv-login h1 {
+/* 타이틀 = G마켓산스 Bold(확정). 인사말·가입/리스트 화면 제목·로그인 제목. */
+.mk-greeting,
+.mk-signup-head h2,
+.mk-ml-head h2,
+.pv-login h1 {
   font-family: var(--mk-font-title); font-weight: 700; letter-spacing: 0;
 }
 
 /* ── State layer (M3 상호작용) ─────────────────────────────────────────────── */
-.mk-modeswitch button, .mk-key, .mk-pad-submit, .mk-signup-submit,
-.mk-claim-btn, .mk-signup-cta, .mk-reset {
+.mk-key,
+.mk-pad-submit,
+.mk-signup-submit,
+.mk-claim-btn,
+.mk-signup-cta,
+.mk-reset {
   position: relative; overflow: hidden; isolation: isolate;
   transition: box-shadow var(--md-dur) var(--md-ease), background-color var(--md-dur) var(--md-ease);
 }
-.mk-modeswitch button::after, .mk-key::after, .mk-pad-submit::after, .mk-signup-submit::after,
-.mk-claim-btn::after, .mk-signup-cta::after, .mk-reset::after {
+.mk-key::after,
+.mk-pad-submit::after,
+.mk-signup-submit::after,
+.mk-claim-btn::after,
+.mk-signup-cta::after,
+.mk-reset::after {
   content: ''; position: absolute; inset: 0; background: currentColor; opacity: 0;
   transition: opacity var(--md-dur) var(--md-ease); pointer-events: none;
 }
-.mk-modeswitch button:hover:not(:disabled)::after, .mk-key:hover:not(:disabled)::after,
-.mk-pad-submit:hover:not(:disabled)::after, .mk-signup-submit:hover:not(:disabled)::after,
-.mk-claim-btn:hover:not(:disabled)::after, .mk-signup-cta:hover::after, .mk-reset:hover::after { opacity: .08; }
-.mk-modeswitch button:active:not(:disabled)::after, .mk-key:active:not(:disabled)::after,
-.mk-pad-submit:active:not(:disabled)::after, .mk-signup-submit:active:not(:disabled)::after,
-.mk-claim-btn:active:not(:disabled)::after, .mk-signup-cta:active::after, .mk-reset:active::after { opacity: .12; }
+.mk-key:hover:not(:disabled)::after,
+.mk-pad-submit:hover:not(:disabled)::after,
+.mk-signup-submit:hover:not(:disabled)::after,
+.mk-claim-btn:hover:not(:disabled)::after,
+.mk-signup-cta:hover::after,
+.mk-reset:hover::after { opacity: .08; }
+.mk-key:active:not(:disabled)::after,
+.mk-pad-submit:active:not(:disabled)::after,
+.mk-signup-submit:active:not(:disabled)::after,
+.mk-claim-btn:active:not(:disabled)::after,
+.mk-signup-cta:active::after,
+.mk-reset:active::after { opacity: .12; }
 
 .mk-app :focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
-
-/* ── 상단 앱바 + 모드 탭 (Material tabs) ───────────────────────────────────── */
-.mk-topbar {
-  flex: 0 0 auto;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 16px; background: var(--md-surface-container); box-shadow: var(--md-elev-2); z-index: 2;
-}
-.mk-modeswitch { display: flex; gap: 8px; }
-.mk-modeswitch button {
-  min-height: 48px; padding: 10px 22px; font-size: 17px; cursor: pointer; font-weight: 600;
-  border: none; border-radius: var(--md-radius-xl);
-  background: transparent; color: var(--md-on-surface-variant);
-}
-.mk-modeswitch button.is-active {
-  background: var(--md-primary-container); color: var(--md-on-primary-container); font-weight: 700;
-}
 
 /* ── 역할 뷰(2대 분리) ─────────────────────────────────────────────────────── */
 /* ★명시도 상향(.mk-app 스코프) — 뒤에 정의된 .mk-screen{align-items:flex-start} 를 이겨 확실히 중앙정렬.
@@ -200,14 +201,7 @@
   font-size: clamp(28px, 3.4vw, 44px); line-height: 1.3; color: var(--md-on-surface);
 }
 .mk-lookup-right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.mk-signup-link {
-  background: none; border: none; cursor: pointer; font-size: 18px; color: var(--md-on-surface-variant);
-  padding: 10px 4px; min-height: 44px; text-align: left;
-}
-.mk-signup-link b { color: var(--md-primary); }
-.mk-signup-mini { max-width: 380px; gap: 10px; align-items: flex-start; text-align: left; }
 /* #2 가입 안내 문구(교체) */
-.mk-signup-invite { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
 .mk-invite-copy { margin: 0; font-size: 18px; line-height: 1.55; color: var(--md-on-surface-variant); }
 
 /* ★#5 조회중 로딩 = 마스코트 애니(더 귀엽게: 통통 스쿼시-스트레치 + 살랑 회전) · 화면 정중앙 */
@@ -279,10 +273,7 @@
   .mk-role-customer .mk-main { overflow: auto; }
   .mk-lookup-left { align-items: center; text-align: center; max-width: 440px; }
   .mk-lookup-ment { text-align: center; }
-  .mk-signup-mini { align-items: center; text-align: center; }
 }
-.mk-optional { font-style: normal; font-weight: 400; font-size: 14px; color: var(--md-on-surface-variant); }
-
 /* 가입 화면 뒤로가기(큰 터치영역, 어르신 친화) */
 .mk-back-btn {
   align-self: flex-start; min-height: 52px; padding: 10px 22px; font-size: 18px; font-weight: 600;
@@ -362,10 +353,6 @@
 .mk-stamp-head { display: flex; align-items: center; justify-content: space-between; }
 .mk-stamp-title { font-size: 15px; font-weight: 700; color: var(--md-on-surface); }
 .mk-stamp-count { font-size: 14px; font-weight: 700; color: var(--md-primary); font-variant-numeric: tabular-nums; }
-.mk-stamp-dots { display: flex; gap: 6px; flex-wrap: wrap; }
-.mk-stamp-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--md-surface-container-highest); border: 1px solid var(--md-outline-variant); }
-.mk-stamp-dot.is-on { background: var(--md-alive); border-color: var(--md-alive); }
-
 /* ★S9 종이 도장판(10칸 5×2) — 빈 칸=옅은 원형 윤곽(점선), 찍힌 칸=마스코트 도장(미세 회전). */
 /* ★5칸 × 2줄 고정(유저 지시 2026-08-03) — 종전 flex-wrap 은 폭에 따라 줄수가 흔들렸다.
    grid 5열이면 10칸이 항상 5+5로 떨어진다(종이 도장판의 실제 배열). */
@@ -401,15 +388,13 @@
 .mk-history-wrap { width: 100%; }
 .mk-history-title { font-size: 14px; font-weight: 700; color: var(--md-on-surface-variant); margin-bottom: 8px; text-align: left; }
 
-/* ── 키오스크 발권 티켓(수령 대기) ─────────────────────────────────────────── */
-.mk-ticket {
-  width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center;
-  padding: 16px; border-radius: var(--md-radius-md);
-  background: var(--md-primary-container); color: var(--md-on-primary-container);
-}
+/* ── 키오스크 발권 티켓(수령 대기) ───────────────────────────────────────────
+   ★골격(.mk-ticket)은 제거됐다 — 3상태 단일 카드(.mk-evt-ticket)가 그 자리를 맡는다(2026-08-09).
+   아래 자식 규칙은 그 카드 안에서 계속 쓰인다. */
 .mk-ticket-title { font-size: 18px; font-weight: 700; }
 .mk-ticket-token { font-family: monospace; font-size: 30px; letter-spacing: 3px; font-weight: 700; }
-.mk-ticket-hint { font-size: 13px; opacity: .85; }
+/* keep-all — 종전엔 «유효기간»이 «유 / 효기간»으로 낱글자에서 끊겼다(실측 768 세로). */
+.mk-ticket-hint { font-size: 13px; opacity: .85; word-break: keep-all; line-height: 1.45; }
 
 /* ── 카운터 스캔(?role=scan) ───────────────────────────────────────────────── */
 .mk-scan { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 28px; max-width: 640px; margin: 0 auto; width: 100%; }
@@ -467,7 +452,10 @@
   background: var(--md-surface-container); color: var(--md-on-surface); border: 1px solid var(--md-outline-variant); border-radius: 6px; }
 .mk-ed-row input[type=number] { width: 64px; min-height: 32px; padding: 2px 6px;
   background: var(--md-surface-container); color: var(--md-on-surface); border: 1px solid var(--md-outline-variant); border-radius: 6px; }
-.mk-ed-actions { display: flex; gap: 10px; }
+/* ★버튼 글자는 줄바꿈하지 않는다 — 좁아지면 «저 장», «인쇄 기록 닫 기» 처럼 한 글자씩 접혀
+   무엇을 누르는 버튼인지 읽히지 않았다(실측). 넘치면 줄로 흘려보낸다(wrap). */
+.mk-ed-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.mk-ed-actions button { white-space: nowrap; }
 /* 실물 프리뷰 — 흰 감열지 */
 .mk-ed-preview-wrap { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .mk-ed-paper {
@@ -493,42 +481,14 @@
   flex: 1; display: flex; gap: 32px; padding: 28px;
   align-items: flex-start; justify-content: center;
 }
-.mk-col { flex: 1 1 0; max-width: 420px; display: flex; flex-direction: column; align-items: center; }
-
 /* ── 고객 가입모드 (2단: 좌=이름·이메일, 우=전화번호패드) ──────────────────── */
 .mk-customer { flex-direction: column; align-items: center; gap: 20px; }
 .mk-signup-head { text-align: center; }
 .mk-signup-head h2 { margin: 0 0 4px; font-weight: 700; font-size: 28px; }
 .mk-signup-head p { margin: 0; color: var(--md-on-surface-variant); font-size: 17px; }
 
-.mk-signup-grid {
-  display: flex; gap: 40px; align-items: flex-start; justify-content: center; flex-wrap: wrap; width: 100%;
-}
-.mk-signup-left { display: flex; flex-direction: column; gap: 18px; min-width: 300px; max-width: 400px; flex: 0 1 400px; }
-.mk-signup-right { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.mk-pad-label { color: var(--md-on-surface-variant); font-size: 16px; font-weight: 600; align-self: flex-start; }
-.mk-email-back { align-self: flex-start; }
-
-.mk-field { display: flex; flex-direction: column; gap: 8px; }
-.mk-field > span { color: var(--md-on-surface-variant); font-size: 16px; font-weight: 600; }
-.mk-field input, .mk-email-domain select, .mk-email-domain input {
-  min-height: 56px; padding: 12px 16px; font-size: 20px;
-  border: 1px solid var(--md-outline); border-radius: var(--md-radius-sm);
-  background: var(--md-surface-container-low); color: var(--md-on-surface);
-}
-.mk-field input:focus, .mk-email-domain select:focus, .mk-email-domain input:focus {
-  border-color: var(--md-primary); outline: none;
-}
-.mk-field input:disabled, .mk-email-domain select:disabled, .mk-email-domain input:disabled { opacity: 0.5; }
-
-/* 이메일: @앞 로컬 + @ + 도메인 드롭다운(또는 직접입력) */
-.mk-email-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.mk-email-row .mk-email-local { flex: 1 1 120px; min-width: 100px; }
+/* 이메일 «@» 구분자 — 로컬/도메인 입력칸 스타일은 .mk-email-inline 계열(아래 세로 최적화)에 있다. */
 .mk-email-at { font-size: 22px; color: var(--md-on-surface-variant); }
-.mk-email-domain { flex: 1 1 150px; min-width: 130px; display: flex; }
-.mk-email-domain select, .mk-email-domain input { width: 100%; }
-.mk-field-hint { font-size: 14px; color: var(--md-error); }
-
 .mk-consent {
   display: flex; align-items: flex-start; gap: 12px; font-size: 16px; cursor: pointer;
   line-height: 1.5; color: var(--md-on-surface);
@@ -615,7 +575,6 @@
   background: var(--md-alive); padding: 6px 16px; border-radius: var(--md-radius-xl);
 }
 .mk-badge-none { color: var(--md-on-surface-variant); background: var(--md-surface-container-highest); }
-.mk-name { font-size: 30px; font-weight: 700; }
 .mk-event { font-size: 20px; }
 .mk-claimed { color: var(--md-alive); font-weight: 700; }
 
@@ -681,14 +640,14 @@
 @media (prefers-reduced-motion: reduce) {
   .mk-check { animation: none; }
   .mk-confetti { display: none; }
-  .mk-modeswitch button, .mk-key, .mk-pad-submit, .mk-signup-submit { transition: none; }
+  .mk-key,
+  .mk-pad-submit,
+  .mk-signup-submit { transition: none; }
 }
 
 /* ── 좁은 화면(세로 태블릿) ────────────────────────────────────────────────── */
 @media (max-width: 760px) {
   .mk-screen { flex-direction: column; align-items: center; }
-  .mk-col { max-width: 400px; width: 100%; }
-  .mk-signup-left, .mk-signup-right { max-width: 400px; width: 100%; flex: 1 1 100%; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -719,8 +678,6 @@
   /* ★로고·멘트는 **높이도** 기준에 넣는다(vw 만 보면 768폭 기기에서 세로를 잡아먹어 잘렸다 — 실측 교정). */
   .mk-role-customer .mk-brand-logo { width: min(22vw, 15vh, 180px); margin-bottom: 0; }
   .mk-role-customer .mk-lookup-ment { text-align: center; font-size: min(4.4vw, 3.4vh, 34px); }
-  .mk-role-customer .mk-signup-invite,
-  .mk-role-customer .mk-signup-mini { align-items: center; text-align: center; }
   .mk-role-customer .mk-invite-copy { font-size: clamp(15px, 2vh, 18px); }
   .mk-role-customer .mk-lookup-right { flex: 0 0 auto; width: 100%; align-items: center; }
   /* 번호패드 = 세로 화면 폭을 넉넉히 채우고, 키 높이는 vh 로 스케일(짧은 화면서도 무스크롤). */
@@ -801,7 +758,7 @@
   .mk-role-customer .mk-member-card-hero .mk-stampcard { padding: 8px; gap: clamp(4px, .9vw, 8px); }
   .mk-role-customer .mk-member-card-hero .mk-stamp-cell { width: clamp(26px, 4.2vw, 38px); height: clamp(26px, 4.2vw, 38px); }
   .mk-role-customer .mk-member-card-hero .mk-tqr-img { width: clamp(72px, 10vh, 104px); }
-  .mk-role-customer .mk-member-card-hero .mk-ticket { padding: 8px 10px; gap: 4px; }
+  .mk-role-customer .mk-member-card-hero .mk-evt-ticket { padding: 8px 10px; gap: 4px; }
   .mk-role-customer .mk-member-card-hero .mk-ticket-token { font-size: clamp(18px, 3.2vw, 24px); letter-spacing: 2px; }
 
   /* 가입 화면: 단일 컬럼 폼(이미 세로 친화) — 폭만 화면에 맞춤. */
@@ -880,11 +837,8 @@
 }
 @media (prefers-reduced-motion: reduce) { .mk-pick-btn:active { transform: none; } }
 
-.mk-pick-done { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
-.mk-pick-done-msg {
-  font-family: var(--mk-font-title); font-weight: 700;
-  font-size: clamp(18px, 3.6vw, 26px); color: var(--md-primary);
-}
+/* (.mk-pick-done / .mk-pick-done-msg 제거 2026-08-09 — «선택 후»가 아코디언 안 .mk-pick-result 로
+   수렴해 참조가 사라졌다. 죽은 규칙을 남기면 다음 사람이 그걸 «살아 있는 문법»으로 읽고 되살린다.) */
 .mk-pick-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .mk-tqr-big { width: clamp(180px, 34vh, 300px); }
 
@@ -927,30 +881,41 @@
 @media (prefers-reduced-motion: reduce) { .mk-signup-btn:active { transform: none; } }
 
 /* 선화 영수증 아이콘 — 이모지 대신(브랜드 선화 세계와 결 맞춤). 크기는 종전 이모지 자리와 동등. */
-.mk-pick-ico-svg { width: clamp(38px, 7.5vw, 56px); height: auto; display: block; }
+.mk-pick-ico-svg { flex: 0 0 auto; width: clamp(38px, 7.5vw, 56px); height: auto; display: block; }
+/* ★flex 축소 금지 — 세로로 쌓은 버튼에서 높이가 모자라면 flex 가 아이콘을 납작하게 눌러 «실 같은 선»이 된다(실측). */
 
 /* 직원 허브 — 스캔 대기 표시·스캔 결과 영역 */
 .mk-scan-ready { font-size: 15px; color: var(--md-on-surface-variant); }
 
-/* ★가로 2단(좌=조작 · 우=데이터) — 직원 노트북은 가로가 기본이라 이게 기본값이다.
-   ★각 단이 **자기 안에서만** 스크롤한다: 한쪽이 길어져도 반대쪽이 밀려나지 않는다
-   (우측에 패드+회원카드를 쌓았을 때 본문이 통째로 밀려 회원카드를 찾아 스크롤해야 했다 — 실측). */
-.mk-app .mk-main:has(.mk-staff) { overflow: hidden; }
-.mk-staff { align-items: stretch; min-height: 0; }
-.mk-staff .mk-col { max-width: none; min-height: 0; overflow-y: auto; }
-.mk-staff-ops { flex: 0 0 400px; gap: 12px; }
-/* ★폭을 카드에 맞춘다 — 넓게 잡았더니 카드가 그 안에서 중앙정렬돼 **두 단 사이에 빈 띠**가 생겼다(실측). */
-.mk-staff-data { flex: 0 1 440px; justify-content: flex-start; }
-.mk-staff-ops .mk-staff-scan { margin-bottom: 0; }
+/* ★직원 허브 = **3단 카드**(좌 스캔 · 중 번호조회 · 우 조회결과) — 2026-08-08 유저 지시.
+   종전 2단에서는 스캔 결과가 번호패드를 아래로 밀어냈다(같은 칸이라). 칸을 나누면
+   **어느 하나가 떠도 나머지가 그 자리에** 있다. 좁아지면 wrap 으로 접힌다. */
+.mk-app .mk-main:has(.mk-staff) { overflow: auto; }
+.mk-staff { align-items: stretch; flex-wrap: wrap; gap: 16px; }
+.mk-staff-col {
+  flex: 1 1 320px; min-width: 300px; max-width: 460px; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 14px; border-radius: var(--md-radius-lg);
+  border: 1px solid var(--md-outline-variant); background: var(--md-surface-container-low);
+}
+.mk-staff-pad-col { flex: 1 1 360px; }
+.mk-staff-data { flex: 1.2 1 400px; max-width: 520px; justify-content: flex-start; }
+/* 칸 제목 — 장식이 아니라 «여기부터 이 기능»의 표지. 건조하게 작게. */
+.mk-staff-col-head {
+  align-self: stretch; font-size: 13px; font-weight: 700; letter-spacing: .02em;
+  color: var(--md-on-surface-variant); text-align: left;
+  padding-bottom: 8px; border-bottom: 1px solid var(--md-outline-variant);
+}
+.mk-staff-idle { padding: 20px 8px; font-size: 16px; line-height: 1.5; }
+.mk-staff-col .mk-scan-ready { align-self: stretch; text-align: left; }
+.mk-staff-col .mk-scan-card { width: 100%; }
 
-/* 좁은 창(세로)에선 세로로 접힌다 — 종전 흐름대로 조작이 위, 데이터가 아래.
-   이때는 칼럼별 스크롤을 풀어 **본문 하나가 스크롤**하게 한다(짧은 칼럼 안에 스크롤이 갇히면 못 읽는다). */
 @media (max-width: 860px) {
-  /* ★기존 세로 접기 임계는 760px 인데 이 2단은 400+460 이라 768(세로 태블릿)에서 이미 낀다
-     → 직원 허브만 임계를 860 으로 올린다(실측: 768 에서 두 단이 눌려 붙었다). */
   .mk-staff { flex-direction: column; align-items: center; }
-  .mk-app .mk-main:has(.mk-staff) { overflow: auto; }
-  .mk-staff .mk-col { overflow-y: visible; width: 100%; max-width: 460px; flex: 1 1 auto; }
+  .mk-staff-col { width: 100%; max-width: 460px; flex: 0 0 auto; }
+  .mk-staff-scan-col { order: 2; }   /* 좁은 화면에선 조회가 먼저(종전 흐름 보존) */
+  .mk-staff-pad-col { order: 1; }
+  .mk-staff-data { order: 3; }
 }
 
 /* ── 프리뷰 모드 배너(?preview=1, dev 전용) ──────────────────────────────────
@@ -982,3 +947,425 @@
 .mk-tv-thanks-count { font-size: clamp(18px, 5vw, 22px); }
 .mk-tv-thanks-goal { font-size: clamp(19px, 5.4vw, 24px); font-weight: 700; color: var(--md-primary); }
 .mk-tv-thanks-sub { margin-top: 6px; color: var(--md-on-surface-variant); font-size: clamp(15px, 4vw, 17px); }
+
+/* ═══ 현장 실사용 피드백 5건(2026-08-08) ═══════════════════════════════════ */
+
+/* ⑴ 2택 = **아래에서 열리는 시트**(유저 지시: 「모달처럼 아래로 열리는 방식」).
+      중앙 오버레이는 «화면을 덮는 것»으로 읽히고, 시트는 «이어지는 다음 단계»로 읽힌다.
+      2택 비대칭(폰=QR 즉시 · 종이=버튼)은 그대로 둔다. */
+.mk-pick-overlay { align-items: flex-end; justify-content: center; padding: 0; }
+.mk-pick {
+  width: 100%; max-width: none;
+  border-radius: var(--md-radius-xl) var(--md-radius-xl) 0 0;
+  padding-bottom: max(clamp(18px, 3.5vh, 32px), env(safe-area-inset-bottom, 0px));
+  animation: mk-sheet-up .22s ease-out;
+}
+@keyframes mk-sheet-up { from { transform: translateY(100%) } to { transform: none } }
+@media (prefers-reduced-motion: reduce) { .mk-pick { animation: none } }
+/* 손잡이 — «아래에서 올라온 것»을 형태로 알린다(장식이 아니라 방향 표시). */
+.mk-pick::before {
+  content: ''; width: 44px; height: 4px; border-radius: 2px;
+  background: var(--md-outline-variant); margin-bottom: 4px;
+}
+.mk-pick-btn:disabled { opacity: .45; }
+
+/* ⑵ 회원 정보(헤더)를 넓게 — 세로 결과화면에서 인사말·배지를 키운다.
+      가운데가 비어 보이던 자리를 여기에 쓴다(2026-08-06 캡처에서 확인된 여백). */
+@media (orientation: portrait) {
+  .mk-role-customer .mk-member-card-hero .mk-member-hero {
+    padding: clamp(16px, 3.2vh, 30px) 20px;
+    gap: 16px;
+  }
+  .mk-role-customer .mk-member-card-hero .mk-greeting { font-size: clamp(24px, 4.6vw, 38px); }
+  .mk-role-customer .mk-member-card-hero .mk-member-badge { font-size: clamp(14px, 2.2vw, 18px); padding: 7px 16px; }
+  .mk-role-customer .mk-member-card-hero .mk-verified { width: 26px; height: 26px; }
+}
+
+/* ⑶ 인쇄 1회 — 버튼이 있던 자리의 안내. 회색 문구가 아니라 «막힌 이유»로 읽히게 테두리를 준다. */
+.mk-print-once {
+  display: inline-block; padding: 10px 16px; border-radius: var(--md-radius-md);
+  border: 1px dashed var(--md-outline); color: var(--md-on-surface-variant);
+  font-size: 15px; line-height: 1.4;
+}
+
+/* ⑷ 유휴 카운트다운 — 숫자를 크게(문장 속 숫자는 멀리서 안 읽힌다). */
+.mk-idle-warn { display: flex; align-items: center; justify-content: center; gap: 14px; text-align: left; }
+.mk-idle-num {
+  font-family: var(--mk-font-title); font-weight: 700; line-height: 1;
+  font-size: clamp(34px, 6vw, 52px); font-variant-numeric: tabular-nums;
+  min-width: 1.4em; text-align: center;
+}
+.mk-idle-txt { font-size: clamp(14px, 2.2vw, 18px); font-weight: 400; line-height: 1.35; }
+
+/* ⑸ 참여 내역 — 내용 좌 · 날짜 우. 글씨는 한 단계 작게(유저: 「조금 작아도 됨」). */
+.mk-history li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 14px;
+}
+.mk-hist-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-hist-when {
+  flex: 0 0 auto; font-variant-numeric: tabular-nums;
+  color: var(--md-on-surface-variant); font-size: 13px;
+}
+.mk-member-card-hero .mk-history li { font-size: 15px; padding: 9px 14px; }
+.mk-member-card-hero .mk-hist-when { font-size: 14px; }
+
+/* ⑺ 카운트다운 막대의 [처음으로] — 막대 배경(primary) 위라 테두리는 currentColor 로 뽑는다.
+      버튼 문법 통일: 테두리·굵게·즉시 눌림. 어르신 기준 터치 타겟 ≥52px. */
+.mk-idle-home {
+  flex: 0 0 auto; margin-left: 6px;
+  min-height: 52px; padding: 12px 22px;
+  font: inherit; font-size: clamp(15px, 2.2vw, 18px); font-weight: 700;
+  color: inherit; background: transparent;
+  border: 2px solid currentColor; border-radius: var(--md-radius-md);
+  cursor: pointer;
+}
+.mk-idle-home:active { background: rgba(255, 255, 255, .18); transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mk-idle-home:active { transform: none } }
+
+/* ⑻ 미회원 결과 화면 — «결과»로 읽히게 자기 화면을 준다(종전엔 조회 화면 옆 작은 카드였다). */
+.mk-none-view { align-items: center; justify-content: center; }
+.mk-none-card {
+  max-width: min(560px, 92vw); width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 2vh, 18px);
+  padding: clamp(20px, 4vh, 40px) clamp(18px, 4vw, 36px); text-align: center;
+}
+.mk-none-mark { width: clamp(76px, 16vw, 128px); height: auto; }
+.mk-none-title {
+  font-family: var(--mk-font-title); font-weight: 700; line-height: 1.35;
+  font-size: clamp(24px, 5.2vw, 38px); color: var(--md-on-surface);
+}
+.mk-none-num {
+  font-variant-numeric: tabular-nums; letter-spacing: .04em;
+  font-size: clamp(18px, 3.4vw, 24px); font-weight: 700; color: var(--md-primary);
+}
+.mk-none-sub { margin: 0; color: var(--md-on-surface-variant); font-size: clamp(15px, 2.6vw, 19px); line-height: 1.5; }
+.mk-none-acts { display: flex; gap: clamp(10px, 2vw, 18px); width: 100%; flex-wrap: wrap; justify-content: center; }
+/* 버튼 문법 통일 — 테두리·굵게·보조문구·즉시 눌림(가입 버튼·2택 시트와 같은 축). */
+.mk-none-btn {
+  flex: 1 1 200px; min-height: 76px; padding: 14px 18px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font: inherit; cursor: pointer;
+  background: var(--md-surface); color: var(--md-on-surface);
+  border: 2px solid var(--md-outline); border-radius: var(--md-radius-lg);
+  box-shadow: var(--md-elev-1);
+}
+.mk-none-btn.is-primary {
+  background: var(--md-primary); color: var(--md-on-primary); border-color: var(--md-primary);
+}
+.mk-none-btn-label { font-family: var(--mk-font-title); font-weight: 700; font-size: clamp(17px, 3vw, 22px); }
+.mk-none-btn-sub { font-size: clamp(12px, 2vw, 14px); opacity: .85; }
+.mk-none-btn:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mk-none-btn:active { transform: none } }
+
+/* 도메인 선택 — 네이티브 select 팝업 대신 우리가 그리는 시트(잘림 원인 제거). */
+.mk-dom-btn { text-align: left; cursor: pointer; }
+.mk-dom-sheet { gap: clamp(12px, 2vh, 20px); }
+.mk-dom-grid {
+  width: 100%; display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+
+/* ★세로형 리뉴얼(2026-08-22 · 현장 신고 「도메인 선택이 잘린다」).
+   ⑴시트를 «보이는 영역»(visualViewport)에 놓는 건 JSX 인라인이 한다 — 키보드 pan 대응.
+   ⑵여기서는 «높이 예산»을 정한다: 시트 전체가 보이는 영역을 넘지 않게 하고,
+      넘칠 수 있는 것은 **목록 하나뿐**으로 몰아 준다(제목·[닫기] 는 항상 남는다).
+   ⑶`52vh` 를 뺀 이유: vh 는 «레이아웃 뷰포트» 기준이라 키보드가 떠도 안 줄어든다 —
+      즉 «화면은 절반인데 목록은 여전히 52vh» 가 된다. 부모 높이(flex) 기준으로 바꾼다. */
+.mk-dom-overlay { align-items: flex-end; }
+.mk-dom-overlay .mk-dom-sheet {
+  max-height: 100%; overflow: hidden;          /* 시트가 보이는 영역을 넘지 않는다 */
+  display: flex; flex-direction: column;
+}
+.mk-dom-sheet .mk-pick-q,
+.mk-dom-sheet .mk-reset { flex: 0 0 auto; }    /* 제목·닫기는 안 줄어든다 */
+.mk-dom-sheet .mk-dom-grid { flex: 1 1 auto; } /* 남는 높이만 목록이 먹고, 모자라면 목록이 스크롤 */
+/* ★이 시트는 «예약 슬롯»(하단 막대) 위로 띄우지 않는다 — 바닥에 붙는 게 시트의 문법이고,
+   가입 화면에는 그 막대가 없다(빈 56px 만큼 시트가 떠 보였다 · 2026-08-22 실측). */
+.mk-role-customer .mk-dom-overlay { bottom: 0; }
+
+@media (orientation: portrait) {
+  /* 세로에서는 2열 — 4열이면 한 칸이 좁아 «@gmail.com» 이 줄바꿈되거나 글자가 눌린다. */
+  .mk-dom-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .mk-dom-opt { min-height: 68px; }            /* 어르신 기준 터치 타겟 확대 */
+}
+.mk-dom-opt {
+  min-height: 60px; padding: 12px 14px; font: inherit; font-size: clamp(16px, 2.6vw, 19px); font-weight: 700;
+  background: var(--md-surface-container-low); color: var(--md-on-surface);
+  border: 2px solid var(--md-outline-variant); border-radius: var(--md-radius-md); cursor: pointer;
+}
+.mk-dom-opt.is-on { border-color: var(--md-primary); color: var(--md-primary); }
+.mk-dom-opt:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mk-dom-opt:active { transform: none } }
+
+/* 번호 가림 — «번호 보기» 토글. 라벨 전체가 터치 영역이다(어르신 기준). */
+.mk-pad-reveal {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 48px; padding: 6px 12px; cursor: pointer;
+  font-size: clamp(14px, 2.2vw, 17px); color: var(--md-on-surface-variant);
+}
+.mk-pad-reveal input { width: 24px; height: 24px; }
+
+/* 조회 전 재확인 시트 — ★여기서는 번호를 **그대로** 보여준다(확인이 목적). */
+.mk-confirm-sheet { gap: clamp(12px, 2.4vh, 22px); }
+.mk-confirm-num {
+  font-family: var(--mk-font-title); font-weight: 700;
+  font-size: clamp(30px, 7vw, 52px); letter-spacing: .04em;
+  font-variant-numeric: tabular-nums; color: var(--md-primary);
+}
+.mk-confirm-acts { display: flex; gap: clamp(10px, 2vw, 18px); width: 100%; flex-wrap: wrap; justify-content: center; }
+
+/* 가린 번호 — 점은 CSS 원(폰트 폴백 무관). 하이픈은 본문 크기 그대로 남아 «010-» 이 또렷하다.
+   ★점과 «잠깐 보이는 숫자»의 칸 폭을 같게 둔다 — 안 그러면 전환 때 뒤 글자가 들썩인다. */
+.mk-masked { display: inline-flex; align-items: center; }
+.mk-masked-sep { padding: 0 .06em; }              /* ★하이픈은 축소하지 않는다 */
+.mk-masked-dot,
+.mk-masked-num {
+  display: inline-block; width: .62em; text-align: center; vertical-align: middle;
+}
+.mk-masked-dot::before {
+  content: ''; display: inline-block; width: .3em; height: .3em;
+  border-radius: 50%; background: currentColor; vertical-align: middle;
+}
+
+/* ⑸ 2택 = «그 자리 토글 펼침»(오버레이·시트 아님). 티켓 블록 안에서 아래로 열린다. */
+.mk-pick-inline {
+  width: 100%; display: flex; flex-direction: column; align-items: center;
+  gap: clamp(10px, 2vh, 18px); margin-top: clamp(8px, 1.6vh, 14px);
+  padding: clamp(12px, 2.2vh, 20px) clamp(10px, 2vw, 18px);
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface); border: 2px solid var(--md-primary);
+  animation: mk-accordion .2s ease-out;
+  overflow: hidden;
+}
+@keyframes mk-accordion { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) { .mk-pick-inline { animation: none } }
+
+/* ⑶ 참여내역 빈 상태 — 칸은 남기고 안내만. */
+.mk-history-empty {
+  padding: 14px 12px; color: var(--md-on-surface-variant);
+  font-size: 15px; line-height: 1.5; text-align: center;
+}
+
+/* ★A안 — 카드 안 아코디언. 좁은 칸(세로 결과화면 좌측, 320px 대)에서는 2택을 **위아래로 쌓는다.**
+   ⚠직전 시도가 겹쳐 보인 이유: 쌓으면서 버튼 내부까지 가로로 바꿨다(min-height:0 + row).
+     버튼 **내부 배치는 건드리지 않는다** — 칸을 꽉 쓰게만 하면 «종이로/인쇄하기» 두 줄이 그대로 들어간다.
+   칸을 넓히거나 참여내역을 접지 않는다(유저 확정: 나머지 화면은 그대로). */
+@media (orientation: portrait) {
+  .mk-role-customer .mk-pick-inline { padding: 12px 10px; }
+  .mk-role-customer .mk-pick-inline .mk-pick-row { flex-direction: column; gap: 10px; }
+  /* ★가로 2열용 `flex: 1 1 0` 이 **세로로 쌓으면 «높이 0에서 시작»** 이 된다(column 축에서 basis 는 높이).
+     그래서 버튼이 내용보다 작게 눌리고 아이콘·라벨이 밖으로 삐져나왔다(실측 2회, 스크린샷으로 확인).
+     ⇒ 쌓을 때는 **높이를 내용이 정하게** 한다. */
+  .mk-role-customer .mk-pick-inline .mk-pick-btn,
+  .mk-role-customer .mk-pick-inline .mk-pick-panel { flex: 0 0 auto; min-height: 0; padding: 16px 12px; }
+  .mk-role-customer .mk-pick-inline .mk-pick-qr { width: clamp(110px, 18vh, 150px); }
+  .mk-role-customer .mk-pick-inline .mk-pick-q { font-size: clamp(17px, 3.2vw, 22px); }
+}
+
+/* 배포 버전 스탬프 — 아주 연하게, 아무것도 가리지 않게(우하단 고정 · 클릭 통과). */
+/* ★우상단으로 옮겼다(유저 2026-08-08: 「스크롤에 영향을 덜 받으려면 오른쪽 위도 좋겠다」).
+   하단은 카운트다운 막대·가입 버튼·시트가 지나는 자리라 겹칠 일이 계속 생긴다 — 위는 조용하다. */
+.mk-build {
+  position: fixed; right: 8px; top: 6px; z-index: 1400;
+  pointer-events: none; user-select: none;
+  font-size: 11px; line-height: 1.2; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+  color: #9A9AA0; opacity: .55;
+}
+/* 사람이 읽는 판 번호는 조금 진하게, hash 는 더 연하게(각자 쓰는 사람이 다르다). */
+.mk-build b { font-weight: 700; }
+.mk-build-sha { opacity: .6; }
+/* 프리뷰 배너(dev)가 있을 때만 그 아래로 — 프로덕션엔 배너가 없어 이 규칙이 걸리지 않는다. */
+body:has(.mk-preview-bar) .mk-build { top: 32px; }
+
+/* 펼침 화살표 — SVG(폰트 무관). 펼친 상태는 위로 회전. */
+.mk-caret { width: 1em; height: 1em; margin-left: .35em; vertical-align: -.12em; transition: transform .18s ease; }
+.mk-caret.is-up { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .mk-caret { transition: none } }
+
+/* 아코디언 헤더 = 버튼(누르면 접힌다). 카드 안이라 배경은 투명하게 둔다. */
+.mk-pick-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 6px 4px; font: inherit; color: inherit;
+  background: transparent; border: 0; cursor: pointer;
+}
+
+/* ★스캔 완료 회원 — 인쇄·QR 을 «끝난 것»으로 흐릿하게 남긴다(사라지면 «못 했다»로 읽힌다). */
+.mk-pick-inline.is-done { border-color: var(--md-outline-variant); opacity: .38; filter: grayscale(1); pointer-events: none; }
+.mk-pick-qr-off {
+  width: clamp(96px, 15vh, 150px); aspect-ratio: 1 / 1;
+  border-radius: 6px; background: var(--md-outline-variant);
+}
+/* ★한글은 어절 단위로 끊는다 — 안 그러면 «감사함 / 니다» 처럼 낱말이 잘린다(실측 스크린샷). */
+.mk-event-done { word-break: keep-all; line-height: 1.45; }
+
+/* ★① 카운트다운 막대가 버튼을 가리지 않게 — 막대가 **떠 있는 동안만** 본문 아래에 그만큼 자리를 비운다.
+   (종전엔 fixed 막대가 버튼 위를 덮었다. «클릭은 된다»로 넘길 게 아니라 겹침 자체를 없앤다.) */
+.mk-idle-warn { min-height: 56px; box-sizing: border-box; padding: 8px 16px; gap: 12px; }
+/* ★막대를 **한 줄**로 낮춘다(56px). 앱을 그만큼 줄여도 화면이 안 넘치게 하려면 막대가 얇아야 한다 —
+   96px 로 두면 첫 페이지(가입 버튼까지 977px 필요)가 앉을 자리가 없다(실측). 숫자는 계속 크게 둔다. */
+.mk-idle-warn .mk-idle-num { font-size: clamp(26px, 4vw, 36px); }
+.mk-idle-warn .mk-idle-txt { font-size: clamp(13px, 1.9vw, 16px); }
+/* ★두 문장을 붙이지 않는다 — br 을 숨겼더니 «돌아갑니다계속 보시려면» 으로 붙었다(실측 스크린샷). */
+.mk-idle-home { min-height: 40px; padding: 8px 16px; font-size: clamp(14px, 2vw, 16px); }
+/* ★막대 자리 = **상시 예약 슬롯**(2026-08-09 유저: 「막대가 생기면 전체 유아이가 위로 튕긴다」).
+   경위: ⑴`.mk-main` padding 은 «흘러넘친 콘텐츠»를 밀어 올리지 못했다(실측 49px 겹침).
+        ⑵그래서 막대가 뜨는 동안만 `.mk-app{bottom:56px}` 로 앱을 줄였는데, 그 «동안만»이 곧 **점프**였다.
+   ⇒ 앱 안에 높이 고정 슬롯을 **항상** 둔다. 본문(.mk-main)이 flex 로 그만큼 줄어든 상태로 시작하고,
+     막대는 fixed 로 그 슬롯 위에 겹친다 — 등장·소멸이 레이아웃을 전혀 건드리지 않는다.
+   ★앱 안에 있으므로 배경 토큰이 그대로 붙는다(빈 상태 = 앱과 같은 색 여백). */
+.mk-app { --mk-idle-slot: 0px; }
+.mk-app.mk-role-customer { --mk-idle-slot: 56px; }
+.mk-idle-slot { flex: 0 0 var(--mk-idle-slot); min-height: var(--mk-idle-slot); }
+/* ★fixed 오버레이는 앱 안에 있어도 **뷰포트 기준**이라 슬롯을 모른다 — 예약칸을 명시로 알려준다.
+   (실측: 이 한 줄이 없으면 «이 번호가 맞나요?» 시트의 버튼 아랫줄이 막대에 잘렸다.) */
+.mk-role-customer .mk-pick-overlay { bottom: var(--mk-idle-slot); }
+
+/* ★② 완료 멘트를 흐린 2택 «위에» 겹친다 — 배경은 «끝난 것», 문구는 그 위 안내판. */
+.mk-done-wrap { position: relative; width: 100%; }
+.mk-done-overlay {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(92%, 420px); margin: 0; padding: 14px 16px;
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface); box-shadow: var(--md-elev-2);
+  text-align: center; word-break: keep-all; line-height: 1.45;
+}
+
+/* ★첫 화면 여백은 **상시** 이 값으로 둔다 — 본문이 항상 56px 줄어든 상태이기 때문이다.
+   경위: 앱을 56px 줄였더니 vh 기반 크기는 그만큼 줄지 않아 **가입 버튼 아래가 잘렸다**(실측 29px).
+   종전엔 이 보정을 «막대가 떠 있는 동안만» 걸었는데, 그 조건부가 곧 두 번째 점프였다(여백·로고가 순간 줄었다).
+   ⇒ 슬롯이 상시 예약된 지금은 보정도 상시다. 화면은 언제나 같은 모양으로 앉아 있다. */
+.mk-role-customer .mk-lookup-split { gap: 8px; }
+.mk-role-customer .mk-signup-below { margin-top: 4px; gap: 6px; }
+.mk-role-customer .mk-lookup-left { gap: 6px; }
+/* ★로고는 **비율을 잃지 않게** 높이를 제한한다(유저 신고 2026-08-09: 「로고 위아래로 눌렸다」).
+   원인: `width: clamp(...)` 가 걸린 img 에 `max-height` 만 얹으면, 폭은 그대로인데 높이만 잘려
+   **세로로 납작해진다**(object-fit 기본값이 `fill` 이라 비율을 안 지킨다). 실측 왜곡률:
+   768 폭에서 1.29배, 1024 폭에서 1.72배 — 눌림이 «보이는» 수준이 아니라 큰 값이었다.
+   ⇒ 폭을 «상한»으로 바꿔 높이가 지배하게 하고, object-fit 으로 비율을 한 번 더 못박는다.
+   (max-height 자체는 필요하다 — 예약칸 56px 때문에 첫 화면이 이 값 없이는 가입 버튼이 잘린다.) */
+.mk-role-customer .mk-brand-logo {
+  max-height: 84px;
+  width: auto;
+  max-width: clamp(160px, 20vw, 240px);
+  object-fit: contain;
+}
+.mk-role-customer .mk-lookup-ment { font-size: clamp(17px, 2.4vh, 22px); }
+/* ★고객 조회 결과 카드 안 [처음으로]는 **상시** 숨긴다 — 막대가 같은 버튼을 이미 제공한다(막대는
+   조회 결과에서 warn==sec 이라 처음부터 떠 있다). 종전처럼 «막대가 뜨면 숨김»으로 두면
+   그 순간 카드가 한 번 더 접히며 튄다. 직원 허브의 [새 조회]는 대상이 아니다(hero 카드 아님·역할 스코프). */
+.mk-role-customer .mk-member-card-hero > .mk-member-body > .mk-reset { display: none; }
+
+/* ★직원 허브 수기 토큰 입력(G2) — 스캐너 고장 시 우회로. 스캔 칸 안, 결과 위. */
+.mk-manual-scan { width: 100%; display: flex; gap: 8px; align-items: center; }
+.mk-manual-input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px 12px;
+  font: inherit; font-size: 15px; letter-spacing: .04em;
+  border: 1px solid var(--md-outline); border-radius: var(--md-radius-sm);
+  background: var(--md-surface); color: var(--md-on-surface);
+}
+.mk-manual-input:focus { border-color: var(--md-primary); outline: none; }
+.mk-manual-scan .mk-reset { flex: 0 0 auto; }
+
+/* ── 편집기: 프린터 설정 + 인쇄 블랙박스(2026-08-09 구조 라운드) ────────────── */
+.mk-ed-cfg {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px; margin-bottom: 10px;
+  border: 1px solid var(--md-outline-variant); border-radius: var(--md-radius-sm);
+}
+.mk-ed-cfg-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mk-ed-log { margin-top: 10px; border-top: 1px solid var(--md-outline-variant); padding-top: 8px; }
+/* 표는 «자기 안에서만» 가로 스크롤한다 — 화면 전체가 가로로 밀리면 안 된다(모바일 기준). */
+.mk-ed-log-table { overflow-x: auto; font-size: 12px; }
+.mk-ed-log-row {
+  display: grid; grid-template-columns: 108px 88px 64px 108px 64px 72px 84px;
+  gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--md-outline-variant);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.mk-ed-log-head { font-weight: 700; }
+
+/* ── 참여 카드: 3상태 한 몸(2026-08-09 「셋트로」) ─────────────────────────────
+   ★골격이 하나다 — 발권 전/발권 후/스캔 완료가 **같은 자리·같은 테두리** 안에서 내용만 바뀐다.
+   종전엔 발권 전만 «버튼 하나»라 카드가 없었고, 나머지 두 상태는 서로 다른 블록(.mk-ticket /
+   .mk-done-wrap)이라 «따로 난 화면»으로 읽혔다. 배경만 단계에 따라 바꾼다(같은 카드의 진행). */
+.mk-evt-ticket {
+  width: 100%; display: flex; flex-direction: column; align-items: center;
+  gap: clamp(6px, 1.2vh, 12px);
+  padding: clamp(10px, 1.8vh, 16px);
+  border-radius: var(--md-radius-md);
+  border: 1px solid var(--md-outline-variant);
+  background: var(--md-surface-container-low);
+}
+/* 발권 후 = 티켓이 살아 있는 단계 → 종전 티켓 블록의 색을 이 골격이 그대로 입는다. */
+.mk-evt-ticket.mk-evt-step-1 {
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+  border-color: transparent;
+}
+/* 완료 = 끝난 단계 → 조용한 표면(흐린 2택 위에 안내판이 얹힌다). */
+.mk-evt-ticket.mk-evt-step-2 { background: var(--md-surface-container); }
+/* 골격이 이미 카드라 안쪽 티켓 헤더는 자기 배경을 갖지 않는다(이중 카드 방지). */
+.mk-ticket-head { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
+
+/* 단계 표시 — 장식이 아니라 «지금 어디인가». 선·아이콘 없이 굵기와 농도만 쓴다(건조한 스타일). */
+.mk-evt-steps {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; letter-spacing: .02em; opacity: .8;
+}
+.mk-evt-step { display: inline-flex; align-items: center; gap: 6px; }
+.mk-evt-step-sep { opacity: .5; }
+.mk-evt-steps .is-now { font-weight: 700; opacity: 1; }
+.mk-evt-steps .is-past { opacity: .55; }
+/* 선택 결과는 아코디언 **안**에 앉는다 — 별도 문법(.mk-pick-done)을 만들지 않는다. */
+.mk-pick-result { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+
+/* ★시스템 축 실패 = «판정 없음» — 거부(빨강)와 **다른 것으로 읽혀야** 한다(2026-08-10).
+   빨강은 「이 종이는 못 쓴다」는 판정이고, 이것은 「아직 판정을 못 했다」는 상태다.
+   중립 표면 + 안내 + [다시 시도] + 토큰 노출로, 직원의 다음 행동을 «돌려보냄»에서 «재시도·수기 확인»으로 돌린다. */
+.mk-scan-wait {
+  background: var(--md-surface-container); border: 2px dashed var(--md-outline);
+  color: var(--md-on-surface);
+}
+.mk-scan-wait .mk-scan-state { color: var(--md-on-surface); }
+.mk-scan-sub { font-size: 15px; line-height: 1.5; word-break: keep-all; text-align: center; }
+.mk-scan-token {
+  font-family: monospace; font-size: 22px; font-weight: 700; letter-spacing: 2px;
+  padding: 6px 12px; border-radius: var(--md-radius-sm); background: var(--md-surface);
+}
+.mk-scan-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.mk-scan-why { font-size: 12px; opacity: .6; word-break: break-all; }
+
+/* ═══ 발권 완료 시트(2026-08-22 · 회원님 지시 ⑷) ═══════════════════════════
+   ★«이미 있는 것»을 쓴다: 겉은 `.mk-pick-overlay`+`.mk-pick`(아래에서 올라오는 시트)라
+     손님이 이미 배운 문법 그대로다. 여기서는 «완료 톤»만 얹는다.
+   ★자동 복귀 타이머·남은 초 막대는 `IdleReset` 이 그린다 — 이 시트는 만들지 않는다.
+     그래서 시트를 하단 예약칸(`--mk-idle-slot`) 위에 띄운다: 막대를 가리면
+     «몇 초 뒤 처음으로»가 안 보인다(그게 회원님이 요청한 «보이는 카운트다운»이다). */
+.mk-done-sheet-ov { align-items: flex-end; }
+.mk-done-sheet { text-align: center; max-height: calc(100% - 8px); overflow-y: auto; }
+.mk-done-cow { width: clamp(84px, 16vw, 128px); height: auto; display: block; }
+.mk-done-title {
+  font-family: var(--mk-font-title); font-weight: 700;
+  font-size: clamp(24px, 5vw, 34px); color: var(--brand-navy, var(--md-primary));
+}
+.mk-done-sub { font-size: clamp(16px, 3vw, 21px); color: var(--md-on-surface); }
+.mk-done-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em;
+  font-size: clamp(14px, 2.4vw, 18px); color: var(--md-on-surface-variant);
+}
+/* 안전망 — 눈에 띄되 «경고»로 읽히면 안 된다(실패했다는 뜻이 아니다). 낮은 대비의 안내 상자. */
+.mk-done-safety {
+  width: 100%; padding: 12px 14px; border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-low); color: var(--md-on-surface-variant);
+  font-size: clamp(14px, 2.4vw, 17px); line-height: 1.5;
+}
+.mk-done-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
+.mk-done-home {
+  flex: 1 1 220px; min-height: 60px; padding: 14px 18px; font: inherit;
+  font-size: clamp(16px, 2.8vw, 20px); font-weight: 700; cursor: pointer;
+  background: var(--md-primary); color: var(--md-on-primary);
+  border: none; border-radius: var(--md-radius-md);
+}
+.mk-done-home:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mk-done-home:active { transform: none } }
