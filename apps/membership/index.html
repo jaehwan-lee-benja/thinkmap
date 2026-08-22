@@ -96,7 +96,23 @@
              렌더가 던져도 main.jsx 의 rAF 는 그대로 돌아 이 함수를 부른다. 그때 오버레이를 걷으면
              **안내마저 사라진 검은 화면**이 된다. 걷는 조건을 «루트에 내용이 있나»로 바꾼다. */
           var root = document.getElementById('root')
-          if (!root || root.children.length === 0) { showFail(); return }
+          if (root && root.children.length > 0) { lift(); return }
+          /* ★2026-08-22 교정 — 종전엔 «여기서 비어 있으면 곧장 showFail» 이었고 **다시 보지 않았다.**
+             그래서 첫 페인트가 rAF 2회보다 «조금» 늦기만 해도 오버레이가 **영영 남았다.**
+             그 오버레이는 `inset:0; z-index:2000` 이라 ★**모든 터치를 먹는다** — 화면은 떴는데
+             매장 태블릿이 안 눌리는 모양이 된다(역할별 실측에서 staff·editor 가 그랬다).
+             ⇒ «한 번 보고 판정»을 «생길 때까지 짧게 지켜보기»로 바꾼다.
+             ⚠iOS12 방어는 그대로다 — **비어 있는 동안에는 절대 걷지 않는다.** 끝까지 비면 그때 실패. */
+          var tries = 0
+          var poll = setInterval(function () {
+            if (done) { clearInterval(poll); return }
+            var r = document.getElementById('root')
+            if (r && r.children.length > 0) { clearInterval(poll); lift(); return }
+            if (++tries >= 50) { clearInterval(poll); showFail() }   /* 100ms × 50 = 5초 */
+          }, 100)
+        }
+        function lift() {
+          if (done) return
           done = true
           clearTimeout(slowT); clearTimeout(failT)
           if (el.parentNode) el.parentNode.removeChild(el)
