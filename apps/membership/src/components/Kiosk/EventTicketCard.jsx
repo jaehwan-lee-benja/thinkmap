@@ -22,6 +22,7 @@
 //      (방금 발권=펼침 / 재조회=접힘). 이건 종전 의도를 지키는 축이다:
 //      「조회만 했는데 «어떻게 받으시겠어요?»가 튀어나오지 않게」(2026-08-06 정정).
 import { useEffect, useState } from 'react'
+import TicketDoneSheet from './TicketDoneSheet'
 
 // ★펼침 화살표는 SVG(문자 ▼ 아님) — 문자 부품은 폰트 폴백으로 크기·기준선이 흔들린다(8/08 ● 사고).
 export function Caret({ up }) {
@@ -44,7 +45,7 @@ function PaperIcon() {
 
 // ★2택 = **이 한 벌만 존재한다.** 흐린 완료 상태도 같은 것을 `dim` 으로 쓴다 —
 //   종전엔 완료 화면이 이 마크업의 복사본을 들고 있어서, 2택을 고칠 때마다 한쪽이 낡았다.
-function PickRow({ qrUrl, onPaper, showPaper, dim }) {
+function PickRow({ qrUrl, onPaper, onPhone, showPaper, dim }) {
   const Paper = dim ? 'div' : 'button'
   return (
     <div className={`mk-pick-row ${dim ? 'is-dim' : ''}`} aria-hidden={dim ? 'true' : undefined}>
@@ -58,17 +59,27 @@ function PickRow({ qrUrl, onPaper, showPaper, dim }) {
           {!dim && <span className="mk-pick-sub">눌러서 인쇄</span>}
         </Paper>
       )}
-      <div className="mk-pick-panel">
+      {/* ★2026-08-22: 폰 쪽도 «고르는 것»으로 만든다. 종전엔 QR 이 그냥 놓여 있어
+          «폰으로 받기»가 선택 «사건»이 아니었고, 그래서 `choice==='phone'`(확대 QR) 분기가
+          코드엔 있는데 **닿을 수 없었다**. 손님 쪽에서도 «내가 골랐다»가 없으면
+          발권 완료 안내를 띄울 시점이 없다. */}
+      <PhonePanel dim={dim} onPick={onPhone}>
         <span className="mk-pick-label">폰으로 받기</span>
         {dim
           ? <div className="mk-pick-qr mk-pick-qr-off" />
           : (qrUrl
             ? <img className="mk-pick-qr" src={qrUrl} alt="참여권 QR" />
             : <span className="mk-pick-sub">QR을 준비하는 중…</span>)}
-        {!dim && <span className="mk-pick-sub">폰 카메라로 찍으세요</span>}
-      </div>
+        {!dim && <span className="mk-pick-sub">눌러서 크게 보기</span>}
+      </PhonePanel>
     </div>
   )
+}
+
+// 폰 패널 — 살아있을 때만 버튼, 흐린 «완료» 상태에서는 그냥 상자(2택 한 벌 원칙 유지).
+function PhonePanel({ dim, onPick, children }) {
+  if (dim) return <div className="mk-pick-panel">{children}</div>
+  return <button type="button" className="mk-pick-panel" onClick={onPick}>{children}</button>
 }
 
 // 단계 표시 — 「발권 → 수령 → 완료」. 장식이 아니라 «지금 어디인가»를 말하는 기능 요소다.
@@ -107,6 +118,9 @@ export default function EventTicketCard({
 }) {
   // ★아코디언 펼침 — 세션 흔적(justClaimed)이 정하는 건 **이것 하나뿐**이다(원칙 ④).
   const [open, setOpen] = useState(!!justClaimed)
+  // ★발권 완료 시트(2026-08-22 회원님 지시 ⑷) — «받는 방법을 고른 직후» 뜬다.
+  //   여기 두는 이유: «골랐다»는 사건을 아는 건 이 카드뿐이다(상위는 티켓만 안다).
+  const [done, setDone] = useState(null)   // null | 'paper' | 'phone'
   // 선택 결과는 아코디언 **안에서** 자리를 바꾼다(별도 문법을 만들지 않는다).
   const [choice, setChoice] = useState(null)
 
@@ -117,7 +131,10 @@ export default function EventTicketCard({
 
   // ★«머무를 국면»을 화면 소유자에게 알린다 — QR 이 떠 있으면 손님이 폰 카메라를 켤 시간이 필요하다.
   //   유휴 복귀 시간을 정하는 건 CustomerView 지만, «지금 QR 국면인가»는 이 상태를 가진 여기만 안다.
-  const dwelling = !!issuedTicket && !claimedToday && pickFlow && (choice === 'phone' || (open && !choice))
+  // ★완료 시트가 떠 있는 동안도 «머무는 중»이다(2026-08-22): 읽을 것이 있는 화면이라
+  //   기본 15초면 다 읽기 전에 첫 화면으로 간다. ⚠새 타이머를 만들지 않고 **이미 있는 dwell 축**에
+  //   한 항을 더할 뿐이다 — 시간을 정하는 곳은 여전히 CustomerView 한 곳이다.
+  const dwelling = !!done || (!!issuedTicket && !claimedToday && pickFlow && (choice === 'phone' || (open && !choice)))
   useEffect(() => { if (onDwell) onDwell(dwelling) }, [dwelling, onDwell])
 
   const step = claimedToday ? 2 : (issuedTicket ? 1 : 0)
@@ -179,7 +196,8 @@ export default function EventTicketCard({
                   <PickRow
                     qrUrl={qrUrl}
                     showPaper={printable}
-                    onPaper={() => { setChoice('paper'); onPrint(issuedTicket.token, false) }}
+                    onPaper={() => { setChoice('paper'); onPrint(issuedTicket.token, false); setDone('paper') }}
+                    onPhone={() => { setChoice('phone'); setDone('phone') }}
                   />
                 ) : choice === 'paper' ? (
                   <div className="mk-pick-result">
@@ -220,6 +238,13 @@ export default function EventTicketCard({
           </button>
         </>
       )}
+      <TicketDoneSheet
+        channel={done}
+        token={issuedTicket ? issuedTicket.token : ''}
+        qrUrl={qrUrl}
+        printMsg={printMsg}
+        onClose={() => setDone(null)}
+      />
     </div>
   )
 }

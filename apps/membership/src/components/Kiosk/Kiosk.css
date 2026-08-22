@@ -1335,3 +1335,37 @@ body:has(.mk-preview-bar) .mk-build { top: 32px; }
 }
 .mk-scan-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .mk-scan-why { font-size: 12px; opacity: .6; word-break: break-all; }
+
+/* ═══ 발권 완료 시트(2026-08-22 · 회원님 지시 ⑷) ═══════════════════════════
+   ★«이미 있는 것»을 쓴다: 겉은 `.mk-pick-overlay`+`.mk-pick`(아래에서 올라오는 시트)라
+     손님이 이미 배운 문법 그대로다. 여기서는 «완료 톤»만 얹는다.
+   ★자동 복귀 타이머·남은 초 막대는 `IdleReset` 이 그린다 — 이 시트는 만들지 않는다.
+     그래서 시트를 하단 예약칸(`--mk-idle-slot`) 위에 띄운다: 막대를 가리면
+     «몇 초 뒤 처음으로»가 안 보인다(그게 회원님이 요청한 «보이는 카운트다운»이다). */
+.mk-done-sheet-ov { align-items: flex-end; }
+.mk-done-sheet { text-align: center; max-height: calc(100% - 8px); overflow-y: auto; }
+.mk-done-cow { width: clamp(84px, 16vw, 128px); height: auto; display: block; }
+.mk-done-title {
+  font-family: var(--mk-font-title); font-weight: 700;
+  font-size: clamp(24px, 5vw, 34px); color: var(--brand-navy, var(--md-primary));
+}
+.mk-done-sub { font-size: clamp(16px, 3vw, 21px); color: var(--md-on-surface); }
+.mk-done-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em;
+  font-size: clamp(14px, 2.4vw, 18px); color: var(--md-on-surface-variant);
+}
+/* 안전망 — 눈에 띄되 «경고»로 읽히면 안 된다(실패했다는 뜻이 아니다). 낮은 대비의 안내 상자. */
+.mk-done-safety {
+  width: 100%; padding: 12px 14px; border-radius: var(--md-radius-md);
+  background: var(--md-surface-container-low); color: var(--md-on-surface-variant);
+  font-size: clamp(14px, 2.4vw, 17px); line-height: 1.5;
+}
+.mk-done-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
+.mk-done-home {
+  flex: 1 1 220px; min-height: 60px; padding: 14px 18px; font: inherit;
+  font-size: clamp(16px, 2.8vw, 20px); font-weight: 700; cursor: pointer;
+  background: var(--md-primary); color: var(--md-on-primary);
+  border: none; border-radius: var(--md-radius-md);
+}
+.mk-done-home:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mk-done-home:active { transform: none } }
