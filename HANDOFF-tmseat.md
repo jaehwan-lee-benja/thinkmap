@@ -66,7 +66,11 @@
   dev 에서 `seatDevGuard` 가 콘솔로 잡는다.
 - **아이콘은 `SeatIcon.jsx`** — 문자 글리프(✕·✓) 금지. 의사요소 자리는 `mask`(실패 시 **검은 네모**로 뜬다).
 - seat 위성은 Material 3 예외(SPEC §12.1) → **design-guardian 비적용**. 단 **모션 정본은 적용된다**
-  (`saruru-design/docs/MOTION-CANON.md` — 「화면 산출 전부」에 자리후도 포함. **통지는 안 온다**, `motionAudit` 이 대신 잰다).
+  (`saruru-design/docs/MOTION-CANON.md`). ★**2026-08-25 재측정으로 이 줄이 갱신됐다**:
+  · 정본 §11 이 신설돼 **자리후가 «이름으로» 통지처 목록에 올라갔다**(전엔 「화면 산출 전부」에만 걸려 더 조용했다).
+  · **갱신 여부는 내가 잰다**: `python3 ~/claude-project/saruru-design/docs/toolkit/canon_check.py --motion`
+    → 지문을 찍는다. **마지막에 본 지문 = `806a5067b83921b7`(절 15개)**. 다르면 새 절이 생긴 것이다.
+  · 내 화면 판정은 `motionAudit` 이 한다. ⚠**감사기의 빨간불은 판정이 아니라 재료다**(정본 §12 판정 절차).
 - **셸에서 «세는 것»은 종료코드가 개수의 함수다** — `grep … && git commit …` 사슬은 개수 0이면 **커밋이 조용히 안 된다.**
   `set -e` 아래 `$(… | grep …)` 대입은 **친절한 안내에 닿기 전에 즉사**시킨다(`|| true`).
 - 훅(inbox) 오발화: 내 ✅ 기록 자체가 다음 턴 훅을 한 번 트리거할 수 있다(정상).
@@ -83,10 +87,12 @@
 
 ## 남은 외부 항목
 - ⚠**Supabase 조직 quota — 2026-08-29 부터 프로젝트 제한 예고**(2026-07-31 대시보드 경고).
-  **2026-08-17 실측**: 조직 plan = **free**(그대로) · 프로젝트 4개 중 **2개가 이미 INACTIVE**(thinksalon·todo-note) ·
-  자리후가 쓰는 **thinkmap 은 ACTIVE_HEALTHY**. ⇒ **경고의 전제(무료 플랜·초과)는 해소되지 않았다.**
-  ★08-29 에 thinkmap 이 실제로 멈추는지는 **내가 못 판정한다**(그건 공급자 정책이다) — 지어내지 않는다.
-  판단 필요: 유료 전환 여부 = 회원님 결정. orch 경유로 올렸다(2026-08-17).
+  **2026-08-25 08:3x 재측정(MCP `get_organization`·`list_projects`)**: 조직 plan **여전히 `free`** ·
+  4개 중 **2개 INACTIVE**(thinksalon·todo-note) · 자리후가 쓰는 **thinkmap 은 ACTIVE_HEALTHY**.
+  ⇒ **전제는 8일째 그대로 — 해소되지 않았다. 남은 기한 D-4.**
+  ★08-29 에 thinkmap 이 실제로 멈추는지는 **내가 못 판정한다**(공급자 정책 = «누가 정해야 바뀌는» 쪽이라
+  재도 안 바뀐다) — 지어내지 않는다. **회원님 결정 대기**이고, 카드는 낱장에서 **«맥 앞 5분» 묶음의
+  «기한 있는 것» 첫 항목**으로 흡수됐다(2026-08-18 scribe).
 - LAN 테스트는 **IP 말고 mDNS 이름**(`mac-mini.local:5177`)으로. Supabase Auth 리디렉트 허용목록이
   **숫자 IP 호스트를 매칭하지 못한다**(2026-07-31 로그로 실증). 이름 호스트(`localhost`·`*.local`·`*.github.io`)는 통과.
 - worktree 는 `.env` 를 안 가져온다 — 새로 만들면 `~/claude-project/thinkmap/.env` 에서 복사.
