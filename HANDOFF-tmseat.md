@@ -96,3 +96,8 @@
 - LAN 테스트는 **IP 말고 mDNS 이름**(`mac-mini.local:5177`)으로. Supabase Auth 리디렉트 허용목록이
   **숫자 IP 호스트를 매칭하지 못한다**(2026-07-31 로그로 실증). 이름 호스트(`localhost`·`*.local`·`*.github.io`)는 통과.
 - worktree 는 `.env` 를 안 가져온다 — 새로 만들면 `~/claude-project/thinkmap/.env` 에서 복사.
+- ⛔**`supabase` CLI 를 헤드리스로 부르지 마라 — 이 세션엔 `SUPABASE_ACCESS_TOKEN` 이 없다**(2026-08-25 실측).
+  없으면 CLI 가 macOS **Keychain GUI 프롬프트로 폴백**해 **그냥 멎는다**(독립 실측 2건: 90초·120초×2).
+  부르기 전에 **«env 가 있는지»만** 보고(⛔값은 보지 마라), 없으면 **env 를 가진 경로로 넘긴다.**
+  ※내 배포 경로는 gh-pages 라 평소엔 CLI 가 필요 없다 — 이 줄은 **Edge 를 건드릴 때**를 위한 것이다.
+  ★**「살아 있다」도 «어느 경로에서»가 없으면 절반만 참이다.**

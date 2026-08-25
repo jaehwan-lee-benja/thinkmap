@@ -94,5 +94,10 @@
 - ⚠️ **이 멀티셀렉트(feat) 작업은 inside 드롭 미해결이라 main 통합 금지.** carryover만 별도 처리 권장.
 - carryover 배포 시 필수(메모리 [[reference_edge_function_deploy]] / [[project_daily_master_visibility_rls]]):
   - `npx supabase functions deploy ensure-daily-page --project-ref sqisntxippjzcekyhqyo` (1회용 PAT, 쓰고 revoke)
+    - ⛔★**전제 — `SUPABASE_ACCESS_TOKEN` 이 env 에 있어야 한다**(2026-08-25 보정). 없으면 CLI 가 macOS
+      **Keychain GUI 승인 프롬프트로 폴백**해 **헤드리스 세션에서 그냥 멎는다**(tmroll 90초 무응답·membership 120초×2, 독립 실측 2건).
+      ⇒ 부르기 **전에 «env 가 있는지»만** 확인해라(⛔**값은 보지 마라** — 그건 측정이 아니라 자격증명 채굴이다).
+      **없으면 돌리지 말고 env 를 가진 경로(MCP·다른 세션)로 넘긴다.** 90초 넘게 무응답이면 `pgrep -fl "Supabase CLI"` 로
+      새 나간 자식을 확인·정리해라. ※**이 세션(tmseat)엔 env 가 없다**(2026-08-25 09:57 실측).
   - 순서: **Edge 먼저 → 프론트 push**. push 시 Actions가 gh-pages 자동 배포.
   - `.env`의 `VITE_USE_EDGE_DAILY=false`는 로컬 검증용/gitignore라 프로덕션 무관(CI가 =true 주입).
